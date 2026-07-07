@@ -1,0 +1,53 @@
+{
+  "name": "Rotinas",
+  "short_name": "Rotinas",
+  "description": "Rotinas cronometradas e notas rápidas em markdown, com agendamento e estimativa de término.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1C1B1A",
+  "theme_color": "#1C1B1A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nova nota",
+      "short_name": "Nota",
+      "url": "./index.html?new=note",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Iniciar/retomar rotina",
+      "short_name": "Rotina",
+      "url": "./index.html?quick=start",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
