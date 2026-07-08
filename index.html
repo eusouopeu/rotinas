@@ -127,12 +127,14 @@
   .tar-bullet{ flex:0 0 auto; color:var(--muted); font-size:15px; line-height:1.4; }
   .tar-conteudo{ font-family:'Inter'; font-size:14.5px; font-weight:400; line-height:1.4; color:var(--text); overflow-wrap:break-word; word-break:break-word; }
   .tar-item-meta{ margin-top:3px; }
+  .tar-detalhes{ margin:5px 0 0; padding-left:16px; list-style:disc; }
+  .tar-detalhes li{ font-size:12.5px; color:var(--muted); line-height:1.45; margin:1px 0; overflow-wrap:break-word; word-break:break-word; }
   .tar-item-actions{ display:flex; gap:8px; flex:0 0 auto; }
   .note-snippet{ font-size:13px; color:var(--muted); line-height:1.4; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .routine-actions{ display:flex; gap:8px; align-items:center; flex-shrink:0; }
   .icon-btn{
-    width:38px; height:38px; border-radius:10px; background:transparent; border:1px solid var(--line);
-    color:var(--muted); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;
+    width:34px; height:34px; border-radius:10px; background:var(--surface); border:1px solid var(--line);
+    color:var(--muted); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0;
   }
   .play-btn{
     width:44px; height:44px; border-radius:50%; background: var(--grad); color:var(--on-accent);
@@ -538,9 +540,9 @@
   /* ---------- MODELOS ---------- */
   .tmpl-new-row{ display:flex; gap:10px; margin-bottom:18px; }
   .tmpl-new{
-    background:var(--surface); border:1px dashed var(--accent-dim); border-radius:14px;
-    padding:12px 6px; color:var(--text); font-family:'Inter'; font-size:12px; text-align:center;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; min-height:74px;
+    background:var(--surface); border:1px dashed var(--accent-dim); border-radius:12px;
+    padding:9px 6px; color:var(--text); font-family:'Inter'; font-size:12px; text-align:center;
+    display:flex; align-items:center; justify-content:center; min-height:0;
   }
   .tmpl-ic{ font-size:20px; }
   .market-form{ margin-bottom:14px; }
@@ -1213,14 +1215,94 @@
             <h3 style="font-size:15px;">${icon} ${escapeHtml(s.name || (s.type==="routine" ? (routines.find(x=>x.id===s.refId)?.name||"sub-rotina") : "sem nome"))}</h3>
             <div class="routine-meta" style="margin-top:2px;">${metaTxt}</div>
           </div>
-        </div>`;
+        </div>
+        <button class="icon-btn" data-stepedit="${i}" title="Editar etapa">&#9998;</button>`;
       stepsBox.appendChild(card);
     });
     if(r.steps.length===0) stepsBox.innerHTML = `<div class="empty-state" style="min-height:20vh;"><p>Esta rotina não tem etapas.</p></div>`;
 
+    stepsBox.querySelectorAll("[data-stepedit]").forEach(b=> b.onclick = () => openStepEditor(r, +b.dataset.stepedit));
     document.getElementById("rdBack").onclick = () => { view={tab:"home",screen:"home"}; render(); };
     document.getElementById("rdStart").onclick = () => startPlayer(r.id);
     document.getElementById("rdEdit").onclick = () => openEditor(r.id);
+  }
+
+  /* edição restrita a uma única etapa da rotina (a partir da página de detalhe) */
+  function openStepEditor(r, idx){
+    const s = r.steps[idx];
+    if(!s) return;
+    const others = routines.filter(x=>x.id!==r.id);
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `
+      <div class="confirm-box" style="text-align:left; max-height:86vh; overflow-y:auto;">
+        <p style="margin-bottom:10px;">Editar etapa ${idx+1}</p>
+        <div class="section-label" style="margin:6px 0 6px;">Tipo</div>
+        <div class="type-toggle" id="seType">
+          <span data-t="timer" class="${s.type==='timer'?'active':''}">tempo</span>
+          <span data-t="checklist" class="${s.type==='checklist'?'active':''}">check</span>
+          ${others.length?`<span data-t="routine" class="${s.type==='routine'?'active':''}">rotina</span>`:""}
+        </div>
+        <div id="seNameWrap" style="${s.type==='routine'?'display:none;':''}">
+          <div class="section-label" style="margin:12px 0 6px;">Nome</div>
+          <input type="text" id="seName" class="mk-e-name" value="${escapeHtml(s.name||'')}" placeholder="Nome da etapa">
+        </div>
+        <div id="seRefWrap" style="${s.type==='routine'?'':'display:none;'}">
+          <div class="section-label" style="margin:12px 0 6px;">Sub-rotina</div>
+          <select id="seRef" class="routine-select">${others.map(x=>`<option value="${x.id}" ${s.refId===x.id?'selected':''}>${escapeHtml(x.name)}</option>`).join("")}</select>
+        </div>
+        <div id="seTimerWrap" style="${s.type==='timer'?'':'display:none;'}">
+          <div class="section-label" style="margin:12px 0 6px;">Duração</div>
+          <div class="sched-time-row" style="margin-top:0;">
+            <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="seMin" value="${Math.floor((s.seconds||0)/60)}"> min
+            <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" max="59" id="seSec" value="${(s.seconds||0)%60}"> seg
+          </div>
+          <label class="switch-row" style="margin-top:12px;"><span>Avanço automático</span><input type="checkbox" id="seAdv" ${s.advance==='auto'?'checked':''}></label>
+        </div>
+        <label class="switch-row" style="margin-top:12px;"><span>Opcional</span><input type="checkbox" id="seOpt" ${s.optional?'checked':''}></label>
+        <div id="seNoteWrap" style="${s.type==='routine'?'display:none;':''}">
+          <div class="section-label" style="margin:12px 0 6px;">Nota vinculada</div>
+          <select id="seNote" class="routine-select"><option value="">sem nota vinculada</option>${notes.map(n=>`<option value="${n.id}" ${s.noteId===n.id?'selected':''}>&#128279; ${escapeHtml((n.title||"Sem título").slice(0,30))}</option>`).join("")}</select>
+        </div>
+        <div class="confirm-actions" style="margin-top:18px;">
+          <button class="btn-cancel" id="seCancel">Cancelar</button>
+          <button class="btn-confirm" id="seSave" style="background:var(--grad);">Salvar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    let type = s.type;
+    function syncType(){
+      ov.querySelector("#seNameWrap").style.display = type==='routine' ? 'none' : '';
+      ov.querySelector("#seRefWrap").style.display = type==='routine' ? '' : 'none';
+      ov.querySelector("#seTimerWrap").style.display = type==='timer' ? '' : 'none';
+      ov.querySelector("#seNoteWrap").style.display = type==='routine' ? 'none' : '';
+      ov.querySelectorAll("#seType [data-t]").forEach(x=>x.classList.toggle("active", x.dataset.t===type));
+    }
+    ov.querySelectorAll("#seType [data-t]").forEach(sp=> sp.onclick = () => { type = sp.dataset.t; syncType(); });
+    ov.querySelector("#seCancel").onclick = () => ov.remove();
+    ov.querySelector("#seSave").onclick = () => {
+      s.type = type;
+      if(type==='routine'){
+        const ref = others.find(x=>x.id===ov.querySelector("#seRef").value);
+        s.refId = ref ? ref.id : (s.refId||"");
+        s.name = ref ? ref.name : s.name;
+        s.noteId = undefined;
+      } else {
+        s.name = ov.querySelector("#seName").value.trim() || s.name || "";
+        s.noteId = ov.querySelector("#seNote").value || undefined;
+      }
+      if(type==='timer'){
+        const mins = Math.max(0, +ov.querySelector("#seMin").value || 0);
+        const secs = Math.min(59, Math.max(0, +ov.querySelector("#seSec").value || 0));
+        s.seconds = Math.max(5, mins*60 + secs);
+        s.advance = ov.querySelector("#seAdv").checked ? "auto" : "manual";
+      }
+      s.optional = ov.querySelector("#seOpt").checked;
+      save(K_ROUTINES, routines);
+      ov.remove();
+      render();
+    };
   }
 
   /* ================= EDITOR (ROUTINE) ================= */
@@ -2058,6 +2140,13 @@
   }
 
   function tarefaAtiva(m){ return !(tarefaGenero(m)==='trilha' && m.lastDone); }
+  // "detalhes" (texto multi-linha) → lista com marcadores, uma linha por item
+  function tarefaDetalhesHtml(detalhes){
+    if(!detalhes) return "";
+    const items = String(detalhes).split(/\r?\n/).map(l=>l.replace(/^\s*[-*•]\s*/,"").trim()).filter(Boolean);
+    if(!items.length) return "";
+    return `<ul class="tar-detalhes">${items.map(l=>`<li>${escapeHtml(l)}</li>`).join("")}</ul>`;
+  }
 
   function renderTarefas(){
     const el = document.createElement("div");
@@ -2141,13 +2230,16 @@
           if(dim) card.style.opacity = "0.55";
           card.style.borderLeft = "3px solid " + (isNext ? ex.color : "transparent");
           const numeroTag = m.numero ? escapeHtml(m.numero)+' · ' : '';
-          const metaBits = `${numeroTag}${m.dur} min · ${tarefaAgo(m)}${m.natureza==='simulado'?' · simulado':''}`;
+          const tipoTag = m.tipoTarefa ? escapeHtml(m.tipoTarefa)+' · ' : '';
+          const metaBits = `${numeroTag}${tipoTag}${m.dur} min · ${tarefaAgo(m)}${m.natureza==='simulado'?' · simulado':''}`;
+          const detalhesHtml = tarefaDetalhesHtml(m.detalhes);
           card.innerHTML = `
             <div class="tar-item-info" data-medit="${m.id}">
               <span class="tar-bullet" style="${isNext?`color:${ex.color};`:''}">${isNext?'&#8594;':'&bull;'}</span>
               <div style="flex:1; min-width:0;">
                 <div class="tar-conteudo">${escapeHtml(m.conteudo)}</div>
                 <div class="routine-meta tar-item-meta">${metaBits}</div>
+                ${detalhesHtml}
               </div>
             </div>
             ${dim?'':`<div class="tar-item-actions">
@@ -2240,10 +2332,14 @@
         <select id="mEixo" class="routine-select">${EIXOS.map(e=>`<option value="${e.id}" ${d.eixo===e.id?'selected':''}>${e.label}</option>`).join("")}</select>
         <div class="section-label">Área</div>
         <input type="text" id="mArea" class="mk-e-name" value="${escapeHtml(d.area)}" placeholder="Ex: Mandarim">
-        <div class="section-label">Tipo de tarefa</div>
-        <input type="text" id="mTipo" class="mk-e-name" value="${escapeHtml(d.tipo)}" placeholder="Ex: Revisão Anki">
-        <div class="section-label">Conteúdo específico</div>
-        <input type="text" id="mCont" class="mk-e-name" value="${escapeHtml(d.conteudo)}" placeholder="Ex: Substantivos">
+        <div class="section-label">Nome do bloco</div>
+        <input type="text" id="mTipo" class="mk-e-name" value="${escapeHtml(d.tipo)}" placeholder="Ex: Bloco 1 — Contabilidade Pública">
+        <div class="section-label">Título da tarefa</div>
+        <input type="text" id="mCont" class="mk-e-name" value="${escapeHtml(d.conteudo)}" placeholder="Ex: Introdução: Lei 4.320/64">
+        <div class="section-label">Tipo da tarefa</div>
+        <input type="text" id="mTipoTarefa" class="mk-e-name" value="${escapeHtml(d.tipoTarefa||'')}" placeholder="Ex: Leitura, Revisão, Simulado">
+        <div class="section-label">Detalhes (um por linha)</div>
+        <textarea id="mDetalhes" class="mk-e-name" rows="4" placeholder="Um item por linha — vira lista com marcadores" style="resize:vertical; line-height:1.5;">${escapeHtml(d.detalhes||'')}</textarea>
         <div class="section-label">Duração</div>
         <div class="type-toggle" id="mDur">
           <span data-d="15" class="${d.dur===15?'active':''}">15 min</span>
@@ -2270,14 +2366,16 @@
       const area = document.getElementById("mArea").value.trim() || eixoInfo(eixo).area;
       const tipo = document.getElementById("mTipo").value.trim();
       const conteudo = document.getElementById("mCont").value.trim();
-      if(!tipo || !conteudo){ showAlertBanner("Preencha tipo e conteúdo"); return; }
+      const tipoTarefa = document.getElementById("mTipoTarefa").value.trim();
+      const detalhes = document.getElementById("mDetalhes").value.trim();
+      if(!tipo || !conteudo){ showAlertBanner("Preencha o nome do bloco e o título"); return; }
       if(isNew){
         const copias = Math.min(9, Math.max(1, +(document.getElementById("mCopias").value)||1));
         const base = Math.max(0,...tarefas.map(m=>m.ord))+1;
-        for(let c=0;c<copias;c++) tarefas.push({ id:uid(), eixo, area, tipo, conteudo, dur, lastDone:null, ord:base+c, genero:"pool" });
+        for(let c=0;c<copias;c++) tarefas.push({ id:uid(), eixo, area, tipo, conteudo, tipoTarefa, detalhes, dur, lastDone:null, ord:base+c, genero:"pool" });
       } else {
         const m = tarefas.find(x=>x.id===d.id);
-        if(m){ m.eixo=eixo; m.area=area; m.tipo=tipo; m.conteudo=conteudo; m.dur=dur; }
+        if(m){ m.eixo=eixo; m.area=area; m.tipo=tipo; m.conteudo=conteudo; m.tipoTarefa=tipoTarefa; m.detalhes=detalhes; m.dur=dur; }
       }
       saveTarefas();
       view = { tab:"tarefas", screen:"tarefas" }; render();
@@ -3303,7 +3401,8 @@
       doc.pros = []; doc.cons = [];
     } else if(type === "travel"){
       doc.title = "Lista de viagem";
-      doc.sections = ["Documentos","Roupas","Higiene","Eletrônicos","Outros"].map(t=>({ id: uid(), title:t, items:[] }));
+      doc.items = [];
+      doc.catOrder = Object.keys(TRAVEL_DB).concat(["Outros"]);
     }
     templates.push(doc);
     save(K_TEMPLATES, templates);
@@ -3329,7 +3428,7 @@
       return "placar " + (s>0?"+":"") + s;
     }
     if(t.type === "travel"){
-      const all = (t.sections||[]).flatMap(s=>s.items);
+      const all = t.items || (t.sections||[]).flatMap(s=>s.items);
       return all.filter(i=>!i.checked).length + " pendente(s) de " + all.length;
     }
     return "";
@@ -3345,8 +3444,8 @@
     el.className = "screen with-tabbar";
     el.innerHTML = `<div class="home-header"><h1>Modelos</h1></div>
       <div class="tmpl-new-grid">
-        <button class="tmpl-new" data-newtype="notasimples"><span class="tmpl-ic">&#9998;</span>Nota simples</button>
-        ${TMPL_TYPES.map(t=>`<button class="tmpl-new" data-newtype="${t.type}"><span class="tmpl-ic">${t.icon}</span>${t.label}</button>`).join("")}
+        <button class="tmpl-new" data-newtype="notasimples">Nota simples</button>
+        ${TMPL_TYPES.map(t=>`<button class="tmpl-new" data-newtype="${t.type}">${t.label}</button>`).join("")}
       </div>`;
 
     // notas simples + documentos de modelo, juntos, ordenados por atualização mais recente
@@ -3433,7 +3532,7 @@
     top.innerHTML = `
       <button class="link-btn muted" id="backTmpl">&larr; Modelos</button>
       <div style="display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end;">${extraButtons||""}
-        <button class="icon-btn" id="delTmpl" style="color:var(--danger); border-color:var(--danger);">&#128465;</button>
+        <button class="icon-btn" id="delTmpl">&#128465;</button>
       </div>`;
     el.appendChild(top);
     const titleInput = document.createElement("input");
@@ -3580,18 +3679,13 @@
       doc.items.forEach(it=>{ (byAisle[it.aisle||"Outros"] = byAisle[it.aisle||"Outros"]||[]).push(it); });
       const order = doc.aisleOrder.concat(Object.keys(byAisle).filter(a=>!doc.aisleOrder.includes(a)));
 
+      const hasAnyItem = doc.items.length > 0;
       order.forEach((aisle, ai)=>{
-        const items = byAisle[aisle];
-        if(!items || !items.length){
-          if(mkReorderAisles && doc.aisleOrder.includes(aisle)){
-            listBox.innerHTML += `<div class="section-label" style="display:flex; align-items:center; gap:8px;">${escapeHtml(aisle)}
-              <button class="order-btn" data-aup="${ai}" ${ai===0?'disabled':''}>&#9650;</button>
-              <button class="order-btn" data-adown="${ai}" ${ai===order.length-1?'disabled':''}>&#9660;</button></div>`;
-          }
-          return;
-        }
+        const items = byAisle[aisle] || [];
         let visible = doc.shopMode ? items.filter(i=>!i.checked) : items;
-        if(doc.shopMode && visible.length === 0) return;
+        // modo compra: esconde gôndolas sem pendências. modo normal: mostra todas as
+        // gôndolas (inclusive vazias) desde que a lista tenha ao menos um item.
+        if(doc.shopMode ? visible.length === 0 : (visible.length === 0 && !hasAnyItem)) return;
         visible = [...visible].sort((a,b)=>(a.checked?1:0)-(b.checked?1:0));
 
         let head = `<div class="section-label" style="display:flex; align-items:center; gap:8px;">${escapeHtml(aisle)}`;
@@ -3620,7 +3714,7 @@
             <span class="txt mk-name" data-mkedit="${it.id}">${escapeHtml(it.name)}</span>
             <span class="mk-right" data-mkedit="${it.id}">${itemRight(it)}</span>
           </div>`;
-        }).join("");
+        }).join("") || `<div class="dev-n" style="padding:4px 2px; opacity:.6;">— vazia —</div>`;
         listBox.innerHTML += head + `<div class="stat-card" style="padding:10px 14px;">${rows}</div>`;
       });
 
@@ -4510,101 +4604,157 @@
   }
 
   /* ============ LISTA DE VIAGEM ============ */
+  /* Lista de viagem — reaproveita a estrutura da lista de mercado:
+     "gôndolas" viram categorias de viagem, sempre visíveis (inclusive vazias). */
+  const TRAVEL_DB = {
+    "Documentos": ["passaporte","rg","cnh","passagens","reserva do hotel","cartão de embarque","seguro viagem","dinheiro","cartão de crédito","vistos","comprovante de vacina"],
+    "Roupas": ["camisas","camisetas","calças","shorts","roupa íntima","cuecas","calcinhas","meias","casaco","blusa de frio","pijama","roupa de banho","biquíni","sunga","vestido"],
+    "Calçados": ["tênis","chinelo","sandália","sapato social","bota"],
+    "Higiene": ["escova de dente","pasta de dente","shampoo","condicionador","sabonete","desodorante","protetor solar","escova de cabelo","aparelho de barbear","absorvente","fio dental","cotonete"],
+    "Saúde": ["remédios","analgésico","band-aid","álcool gel","repelente","antialérgico","pomada"],
+    "Eletrônicos": ["carregador","power bank","fones de ouvido","adaptador de tomada","câmera","cabo usb","notebook","kindle"],
+    "Acessórios": ["óculos de sol","boné","chapéu","guarda-chuva","mochila","cadeado","garrafa de água","travesseiro de pescoço","necessaire"]
+  };
+  const TRAVEL_CATS = Object.keys(TRAVEL_DB).concat(["Outros"]);
+  function guessTravelCat(name){
+    const n = (name||"").trim().toLowerCase();
+    for(const [cat, items] of Object.entries(TRAVEL_DB)){
+      if(items.some(it => n === it || n.includes(it) || (it.includes(n) && n.length >= 4))) return cat;
+    }
+    return "Outros";
+  }
+  function travelMigrate(doc){
+    if(!doc.items){
+      doc.items = [];
+      if(doc.sections){
+        doc.sections.forEach(s=>{ (s.items||[]).forEach(it=>{
+          doc.items.push({ id: it.id||uid(), name: it.text||it.name||"", cat: TRAVEL_CATS.includes(s.title)?s.title:"Outros", qty: it.qty||1, checked: !!it.checked });
+        }); });
+        delete doc.sections;
+      }
+    }
+    if(!doc.catOrder) doc.catOrder = [...TRAVEL_CATS];
+  }
   function travelMd(doc){
+    travelMigrate(doc);
     let md = "# " + doc.title + "\n";
-    doc.sections.forEach(s=>{
-      md += "\n## " + s.title + "\n" + s.items.map(i=>(i.checked?"- [x] ":"- [ ] ")+i.text+(i.qty&&i.qty>1?" ×"+i.qty:"")).join("\n") + "\n";
+    const byCat = {};
+    doc.items.forEach(it=>{ (byCat[it.cat||"Outros"] = byCat[it.cat||"Outros"]||[]).push(it); });
+    doc.catOrder.concat(Object.keys(byCat).filter(c=>!doc.catOrder.includes(c))).forEach(cat=>{
+      const list = byCat[cat]; if(!list || !list.length) return;
+      md += "\n## " + cat + "\n" + list.map(i=>(i.checked?"- [x] ":"- [ ] ")+i.name+(i.qty&&i.qty>1?" ×"+i.qty:"")).join("\n") + "\n";
     });
     return md;
   }
   function renderTravelDoc(doc){
+    travelMigrate(doc);
     const el = document.createElement("div");
     el.className = "screen";
     tmplHeader(el, doc, `
       <button class="icon-btn" id="tvReset" title="Desmarcar tudo (reusar)">&#8635;</button>
       <button class="icon-btn" id="tvMd" title="Copiar markdown">MD</button>
       <button class="icon-btn" id="tvPdf" title="Exportar PDF">PDF</button>`);
+    const form = document.createElement("div");
+    form.className = "market-form";
+    form.innerHTML = `
+      <input type="text" id="tvName" placeholder="Item" autocomplete="off">
+      <div class="mk-chips" id="tvSuggest"></div>
+      <div class="market-form-row">
+        <select id="tvCat" style="flex:1; min-width:0;">${TRAVEL_CATS.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select>
+        <input type="number" id="tvQty" inputmode="numeric" min="1" value="1" style="width:64px;">
+        <button class="btn-primary" id="tvAdd" style="flex:0 0 auto; padding:10px 20px;">+</button>
+      </div>`;
+    el.appendChild(form);
     const body = document.createElement("div");
     body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
     el.appendChild(body);
     app.appendChild(el);
 
+    const nameInp = document.getElementById("tvName");
+    const catSel = document.getElementById("tvCat");
+    const suggestBox = document.getElementById("tvSuggest");
+    const allSuggestions = [...new Set(Object.values(TRAVEL_DB).flat())];
+    nameInp.oninput = () => {
+      catSel.value = guessTravelCat(nameInp.value);
+      const q = nameInp.value.trim().toLowerCase();
+      if(q.length < 2){ suggestBox.innerHTML = ""; return; }
+      const matches = allSuggestions.filter(s=>s.includes(q)).slice(0,6);
+      suggestBox.innerHTML = matches.map(m=>`<span class="tag-chip" data-sug="${escapeHtml(m)}">${escapeHtml(m)}</span>`).join("");
+      suggestBox.querySelectorAll("[data-sug]").forEach(ch=> ch.onclick = () => { nameInp.value = ch.dataset.sug; catSel.value = guessTravelCat(ch.dataset.sug); suggestBox.innerHTML = ""; nameInp.focus(); });
+    };
+    function addItem(){
+      const name = nameInp.value.trim();
+      if(!name) return;
+      const qty = Math.max(1, +document.getElementById("tvQty").value || 1);
+      doc.items.push({ id: uid(), name, cat: catSel.value || "Outros", qty, checked:false });
+      saveTemplates(doc);
+      nameInp.value = ""; document.getElementById("tvQty").value = "1"; suggestBox.innerHTML = "";
+      paint(); nameInp.focus();
+    }
+    nameInp.onkeydown = e => { if(e.key === "Enter") addItem(); };
+    document.getElementById("tvAdd").onclick = addItem;
+
     let tvEditing = null;
     function paint(){
       body.innerHTML = "";
-      const all = doc.sections.flatMap(s=>s.items);
-      body.innerHTML += `<div class="stat-foot" style="margin:0 0 8px;">${all.filter(i=>!i.checked).length} pendente(s) de ${all.length}</div>`;
-      doc.sections.forEach((s,si)=>{
-        let rows = s.items.map((it,ii)=> tvEditing===si+"-"+ii ? `
-          <div class="checklist-item" style="padding:3px 0; gap:6px;">
-            <input type="text" value="${escapeHtml(it.text)}" data-tvef="${si}-${ii}" class="mk-e-name" style="flex:1; margin-bottom:0;">
-            <input type="number" value="${it.qty||1}" data-tvefqty="${si}-${ii}" inputmode="numeric" min="1" style="width:56px; background:var(--surface); border:1px solid var(--line); border-radius:9px; color:var(--text); font-size:14px; padding:8px 6px; text-align:center;">
-            <button class="btn-primary" data-tvsave="${si}-${ii}" style="padding:6px 12px;">&#10003;</button>
+      const pending = doc.items.filter(i=>!i.checked).length;
+      body.innerHTML += `<div class="stat-foot" style="margin:2px 0 8px;">${pending} pendente(s) de ${doc.items.length}</div>`;
+      const byCat = {};
+      doc.items.forEach(it=>{ (byCat[it.cat||"Outros"] = byCat[it.cat||"Outros"]||[]).push(it); });
+      const order = doc.catOrder.concat(Object.keys(byCat).filter(c=>!doc.catOrder.includes(c)));
+      const hasAnyItem = doc.items.length > 0;
+      order.forEach(cat=>{
+        const items = byCat[cat] || [];
+        if(items.length === 0 && !hasAnyItem) return; // lista vazia: mostra o estado vazio abaixo
+        const sorted = [...items].sort((a,b)=>(a.checked?1:0)-(b.checked?1:0));
+        let rows = sorted.map(it=> tvEditing===it.id ? `
+          <div class="mk-edit" data-editrow="${it.id}">
+            <input type="text" class="mk-e-name" value="${escapeHtml(it.name)}">
+            <div class="market-form-row">
+              <select class="tv-e-cat" style="flex:1; min-width:0;">${order.map(c=>`<option ${it.cat===c?'selected':''}>${escapeHtml(c)}</option>`).join("")}</select>
+              <input type="number" class="tv-e-qty" inputmode="numeric" min="1" value="${it.qty||1}" style="width:64px;">
+            </div>
+            <div class="notice-actions">
+              <button data-tvsave="${it.id}">ok</button>
+              <button class="ghost" data-tvdel="${it.id}" style="color:var(--danger);">excluir</button>
+              <button class="ghost" data-tvcancel="1">cancelar</button>
+            </div>
           </div>` : `
-          <div class="checklist-item ${it.checked?'checked':''}" style="padding:3px 0;">
-            <span class="checklist-box" data-tvcheck="${si}-${ii}">${it.checked?'&#10003;':''}</span>
-            <span class="txt" style="flex:1; cursor:pointer;" data-tvedit="${si}-${ii}" title="Tocar para editar">${escapeHtml(it.text)}</span>
-            ${it.qty && it.qty>1 ? `<span class="mk-right" data-tvedit="${si}-${ii}" style="cursor:pointer;">&times;${it.qty}</span>` : ''}
-            <button class="del-exec" data-tvdel="${si}-${ii}">&#10005;</button>
-          </div>`).join("");
-        body.innerHTML += `<div class="section-label" style="display:flex; justify-content:space-between;"><span>${escapeHtml(s.title)}</span><button class="del-exec" data-tvsecdel="${si}">&#10005;</button></div>
-          <div class="stat-card" style="padding:10px 14px;">${rows}
-          <form class="mx-add" data-tvaddform="${si}" style="display:flex; gap:6px; align-items:center;">
-            <input type="text" placeholder="+ item (Enter)" data-tvadd="${si}" enterkeyhint="done" style="flex:1; border-top:1px dashed var(--line);">
-            <input type="number" placeholder="qtd" data-tvaddqty="${si}" inputmode="numeric" min="1" style="width:52px; border:none; border-top:1px dashed var(--line); background:transparent; color:var(--text); font-size:13px; text-align:center;">
-          </form></div>`;
+          <div class="checklist-item mk-item ${it.checked?'checked':''}">
+            <span class="checklist-box" data-tvcheck="${it.id}">${it.checked?'&#10003;':''}</span>
+            <span class="txt mk-name" data-tvedit="${it.id}">${escapeHtml(it.name)}</span>
+            <span class="mk-right" data-tvedit="${it.id}">${it.qty&&it.qty>1?'&times;'+it.qty:''}</span>
+          </div>`).join("") || `<div class="dev-n" style="padding:4px 2px; opacity:.6;">— vazia —</div>`;
+        body.innerHTML += `<div class="section-label">${escapeHtml(cat)}</div><div class="stat-card" style="padding:10px 14px;">${rows}</div>`;
       });
-      body.innerHTML += `<button class="add-step-btn" id="tvNewSec" style="width:100%;">+ nova seção</button>`;
+      if(doc.items.length === 0) body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><p>Adicione itens — eles serão agrupados por categoria.</p></div>`;
 
-      body.querySelectorAll("[data-tvcheck]").forEach(b=> b.onclick = () => { const [si,ii]=b.dataset.tvcheck.split("-").map(Number); const it=doc.sections[si].items[ii]; it.checked=!it.checked; saveTemplates(doc); paint(); });
-      body.querySelectorAll("[data-tvdel]").forEach(b=> b.onclick = () => { const [si,ii]=b.dataset.tvdel.split("-").map(Number); doc.sections[si].items.splice(ii,1); saveTemplates(doc); paint(); });
-      body.querySelectorAll("[data-tvaddform]").forEach(form=>{
-        form.onsubmit = e => {
-          e.preventDefault();
-          const si = +form.dataset.tvaddform;
-          const inp = form.querySelector("[data-tvadd]");
-          const qtyInp = form.querySelector("[data-tvaddqty]");
-          const val = inp.value.trim();
-          if(!val) return;
-          const qty = Math.max(1, +qtyInp.value || 1);
-          doc.sections[si].items.push({id:uid(), text:val, qty, checked:false});
-          saveTemplates(doc); paint();
-          const a=body.querySelector(`[data-tvadd="${si}"]`); if(a) a.focus();
-        };
+      body.querySelectorAll("[data-tvcheck]").forEach(b=> b.onclick = () => { const it=doc.items.find(x=>x.id===b.dataset.tvcheck); it.checked=!it.checked; saveTemplates(doc); paint(); });
+      body.querySelectorAll("[data-tvedit]").forEach(s=> s.onclick = () => { tvEditing = s.dataset.tvedit; paint(); });
+      body.querySelectorAll("[data-tvsave]").forEach(b=> b.onclick = () => {
+        const it = doc.items.find(x=>x.id===b.dataset.tvsave);
+        const row = body.querySelector(`[data-editrow="${it.id}"]`);
+        it.name = row.querySelector(".mk-e-name").value.trim() || it.name;
+        it.cat = row.querySelector(".tv-e-cat").value;
+        it.qty = Math.max(1, +row.querySelector(".tv-e-qty").value || 1);
+        tvEditing = null; saveTemplates(doc); paint();
       });
-      body.querySelectorAll("[data-tvsecdel]").forEach(b=>{
-        b.onclick = () => {
-          const si = +b.dataset.tvsecdel;
-          confirmModal("Excluir a seção <b>"+escapeHtml(doc.sections[si].title)+"</b> e seus itens?", "Excluir", ()=>{ doc.sections.splice(si,1); saveTemplates(doc); paint(); });
-        };
-      });
-      body.querySelectorAll("[data-tvedit]").forEach(s=> s.onclick = () => { tvEditing = s.dataset.tvedit; paint(); const inp = body.querySelector(`[data-tvef='${tvEditing}']`); if(inp) inp.focus(); });
-      function tvSave(ref){
-        const [si,ii] = ref.split("-").map(Number);
-        const inp = body.querySelector(`[data-tvef='${ref}']`);
-        const qtyInp = body.querySelector(`[data-tvefqty='${ref}']`);
-        if(inp && inp.value.trim()){
-          doc.sections[si].items[ii].text = inp.value.trim();
-          if(qtyInp) doc.sections[si].items[ii].qty = Math.max(1, +qtyInp.value || 1);
-          saveTemplates(doc);
-        }
-        tvEditing = null; paint();
-      }
-      body.querySelectorAll("[data-tvsave]").forEach(b=> b.onclick = () => tvSave(b.dataset.tvsave));
-      body.querySelectorAll("[data-tvef]").forEach(inp=> inp.onkeydown = e => { if(e.key==="Enter") tvSave(inp.dataset.tvef); });
-      document.getElementById("tvNewSec").onclick = () => {
-        doc.sections.push({ id: uid(), title: "Nova seção", items: [] });
-        saveTemplates(doc); paint();
-      };
+      body.querySelectorAll("[data-tvdel]").forEach(b=> b.onclick = () => { doc.items = doc.items.filter(x=>x.id!==b.dataset.tvdel); tvEditing = null; saveTemplates(doc); paint(); });
+      body.querySelectorAll("[data-tvcancel]").forEach(b=> b.onclick = () => { tvEditing = null; paint(); });
     }
     paint();
     document.getElementById("tvReset").onclick = () => {
-      confirmModal("Desmarcar todos os itens para reusar a lista?", "Desmarcar", ()=>{ doc.sections.forEach(s=>s.items.forEach(i=>i.checked=false)); saveTemplates(doc); paint(); });
+      confirmModal("Desmarcar todos os itens para reusar a lista?", "Desmarcar", ()=>{ doc.items.forEach(i=>i.checked=false); saveTemplates(doc); paint(); });
     };
     document.getElementById("tvMd").onclick = () => copyMarkdown(travelMd(doc));
     document.getElementById("tvPdf").onclick = () => {
       let inner = "<h1>" + escapeHtml(doc.title) + "</h1>";
-      doc.sections.forEach(s=>{ inner += "<h2>" + escapeHtml(s.title) + "</h2><ul>" + s.items.map(i=>`<li class="${i.checked?'done':''}">${i.checked?'☑':'☐'} ${escapeHtml(i.text)}</li>`).join("") + "</ul>"; });
+      const byCat = {};
+      doc.items.forEach(it=>{ (byCat[it.cat||"Outros"] = byCat[it.cat||"Outros"]||[]).push(it); });
+      doc.catOrder.concat(Object.keys(byCat).filter(c=>!doc.catOrder.includes(c))).forEach(cat=>{
+        const list = byCat[cat]; if(!list || !list.length) return;
+        inner += "<h2>" + escapeHtml(cat) + "</h2><ul>" + list.map(i=>`<li class="${i.checked?'done':''}">${i.checked?'☑':'☐'} ${escapeHtml(i.name)}${i.qty&&i.qty>1?' ×'+i.qty:''}</li>`).join("") + "</ul>";
+      });
       exportPdfView(doc.title, inner);
     };
   }
@@ -5024,7 +5174,7 @@
         <button class="icon-btn ${noteDraft.sinkChecked?'pin-btn pinned':''}" id="sinkToggle" title="Itens marcados descem">&#8595;&#10003;</button>
         <button class="icon-btn" id="noteToRoutine" title="Converter em rotina">&#9654;+</button>
         <button class="icon-btn" id="exportMd" title="Exportar .md">&#8681;</button>
-        <button class="icon-btn" id="deleteNote" style="color:var(--danger); border-color:var(--danger);">&#128465;</button>
+        <button class="icon-btn" id="deleteNote">&#128465;</button>
       </div>
     `;
     el.appendChild(top);
