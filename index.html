@@ -894,6 +894,7 @@
     else if(view.screen === "tarefas") renderTarefas();
     else if(view.screen === "tarefaEditor") renderTarefaEditor();
     else if(view.screen === "tarefaTimer") renderTarefaTimer();
+    else if(view.screen === "tarefaImportPreview") renderTarefaImportPreview();
   }
 
   function renderTabbar(activeTab){
@@ -1478,13 +1479,16 @@
   /* ================= MARMITAS ================= */
   let tarefaDurFilter = 0; // 0 = todas
   let tarefaCollapsed = load("rotinas_v2_tar_collapsed", {});
+  let tarefaConcluidasCollapsed = load("rotinas_v2_tar_concl_collapsed", {});
   let tarefaDraft = null;
   let tarefaTimerState = null;
   let tarefaTimerHandle = null;
+  let tarefaImportDraft = null; // { parsed, fileName } enquanto a tela de preview de importa\u00e7\u00e3o est\u00e1 aberta
 
   function saveTarefas(){ save(K_TAREFAS, tarefas); }
   function saveTarefasHist(){ save(K_TAREFAS_HIST, tarefasHist); }
   function eixoInfo(id){ return EIXOS.find(e=>e.id===id) || EIXOS[0]; }
+  function tarefaGenero(m){ return m.genero || "pool"; }
 
   function normalizeStr(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim(); }
   function matchEixo(name){
@@ -1492,55 +1496,314 @@
     return EIXOS.find(e=> normalizeStr(e.label)===n || normalizeStr(e.id)===n || normalizeStr(e.area)===n);
   }
 
+  /* ---- Parser do formato .md de toggle-list (pool / trilha) ----
+     Convenção: "&gt;" no início da linha = toggle list; nível de aninhamento = nº de "&gt;" repetidos.
+     Nível 1 = "Eixo — Área". Pool: nível 2 = duração, nível 3 = tipo + tabela Tarefa|Peso.
+     Trilha: nível 2 = bloco (tipo) + tabela #|Tarefa|Tipo, direto (sem nível 3). */
+  function parseTarefasToggleMd(text){
+    const lines = String(text).split(/\r?\n/);
+    const warnings = [];
+    let level1 = null; // { titleRaw, eixoLabel, area, eixoMatch, notes:[] }
+    let level2 = null, level3 = null;
+    const level2Nodes = [];
+
+    function boldText(s){ const m = s.match(/^\*\*(.+?)\*\*/); return m ? m[1].trim() : null; }
+    function flushLevel3(){ if(level3 && level2) level2.level3s.push(level3); level3 = null; }
+    function flushLevel2(){ flushLevel3(); if(level2) level2Nodes.push(level2); level2 = null; }
+
+    lines.forEach(raw=>{
+      const lm = raw.match(/^\s*((?:>\s*)+)/);
+      if(!lm) return; // fora do toggle-list, ignora (linha de prosa solta)
+      const level = (lm[1].match(/>/g)||[]).length;
+      const content = raw.slice(lm[0].length).trim();
+      if(!content) return;
+
+      if(level === 1){
+        const b = boldText(content);
+        if(b !== null){
+          flushLevel2();
+          const parts = b.split(/\s+[—–-]\s+/);
+          level1 = { titleRaw:b, eixoLabel:(parts[0]||b).trim(), area:(parts[1]||"").trim(), eixoMatch: matchEixo(parts[0]||b), notes:[] };
+        } else if(level1 && !level2){
+          level1.notes.push(content);
+        } else if(!level1){
+          warnings.push('Conteúdo de nível 1 antes de qualquer título de eixo, ignorado: "'+content.slice(0,60)+'"');
+        }
+        return;
+      }
+      if(!level1){ warnings.push('Linha de nível '+level+' encontrada antes do título do eixo (nível 1), ignorada: "'+content.slice(0,60)+'"'); return; }
+
+      if(level === 2){
+        const b = boldText(content);
+        if(b !== null){ flushLevel2(); level2 = { title:b, level3s:[], tableLines:[] }; }
+        else if(content.startsWith("|")){
+          if(!level2){ warnings.push('Linha de tabela em nível 2 sem bloco aberto, ignorada: "'+content.slice(0,60)+'"'); return; }
+          level2.tableLines.push(content);
+        }
+        return;
+      }
+      if(level === 3){
+        if(!level2){ warnings.push('Linha de nível 3 sem bloco de nível 2 aberto, ignorada: "'+content.slice(0,60)+'"'); return; }
+        const b = boldText(content);
+        if(b !== null){ flushLevel3(); level3 = { title:b, tableLines:[] }; }
+        else if(content.startsWith("|")){
+          if(!level3){ warnings.push('Linha de tabela em nível 3 sem tipo aberto, ignorada: "'+content.slice(0,60)+'"'); return; }
+          level3.tableLines.push(content);
+        }
+        return;
+      }
+      warnings.push('Nível de aninhamento '+level+' não suportado (máx. 3), ignorado: "'+content.slice(0,60)+'"');
+    });
+    flushLevel2();
+
+    if(!level1){
+      return { error:'Não foi encontrado o título de eixo (nível 1, ex: "Idiomas — Mandarim").', warnings };
+    }
+
+    function parseTableLines(rawTableLines){
+      const rows = rawTableLines
+        .map(l=> l.split("|").slice(1,-1).map(c=>c.trim()))
+        .filter(cells => !cells.every(c=>/^:?-+:?$/.test(c)));
+      if(rows.length===0) return { header:null, dataRows:[] };
+      return { header:rows[0], dataRows:rows.slice(1) };
+    }
+    function detectFormat(header){
+      if(!header) return null;
+      const norm = header.map(normalizeStr);
+      if(norm.length===2 && norm[0]==="tarefa" && norm[1]==="peso") return "pool";
+      if(norm.length===3 && norm[0]==="#" && norm[1]==="tarefa" && norm[2]==="tipo") return "trilha";
+      return null;
+    }
+    function parseDurTitle(title){ const m = title.match(/(\d+)/); return m ? +m[1] : null; }
+
+    const items = [];
+    const blockSummary = [];
+    let genero = null;
+
+    level2Nodes.forEach(l2=>{
+      if(l2.level3s.length > 0){
+        // esperado: pool (nível 3 = tipo, tabela Tarefa|Peso)
+        const dur = parseDurTitle(l2.title);
+        l2.level3s.forEach(l3=>{
+          const { header, dataRows } = parseTableLines(l3.tableLines);
+          const fmt = detectFormat(header);
+          if(fmt === null){
+            if(header || dataRows.length) warnings.push('Tabela em "'+l3.title+'" com cabeçalho não reconhecido ('+(header?header.join(" | "):"vazio")+'), bloco ignorado.');
+            return;
+          }
+          if(fmt !== "pool"){
+            warnings.push('Tabela em "'+l3.title+'" tem cabeçalho de trilha mas está aninhada em nível 3 (esperado pool) — bloco ignorado.');
+            return;
+          }
+          if(genero===null) genero = "pool";
+          else if(genero !== "pool") warnings.push('Arquivo mistura pool e trilha — isso não é suportado; mantendo apenas os blocos pool já processados.');
+          if(genero !== "pool") return;
+          let count = 0;
+          dataRows.forEach((cells, ri)=>{
+            if(cells.length < 2){ warnings.push('Linha de tabela mal formada em "'+l3.title+'" (linha '+(ri+1)+'), ignorada.'); return; }
+            const conteudo = cells[0], pesoRaw = cells[1];
+            if(!conteudo){ warnings.push('Linha de tabela sem conteúdo em "'+l3.title+'" (linha '+(ri+1)+'), ignorada.'); return; }
+            const pm = (pesoRaw||"").match(/(\d+)/);
+            if(!pm) warnings.push('Peso não reconhecido ("'+pesoRaw+'") em "'+conteudo+'", assumindo 1×.');
+            const peso = pm ? Math.min(9, Math.max(1, +pm[1])) : 1;
+            for(let c=0;c<peso;c++){ items.push({ tipo:l3.title, conteudo, dur, genero:"pool" }); count++; }
+          });
+          if(count>0) blockSummary.push({ group:l3.title, sub:(dur!==null?dur+" min":"?"), count });
+        });
+      } else {
+        // esperado: trilha (tabela direto no nível 2)
+        const { header, dataRows } = parseTableLines(l2.tableLines);
+        const fmt = detectFormat(header);
+        if(fmt === null){
+          if(header || dataRows.length) warnings.push('Tabela em "'+l2.title+'" com cabeçalho não reconhecido ('+(header?header.join(" | "):"vazio")+'), bloco ignorado.');
+          return;
+        }
+        if(fmt !== "trilha"){
+          warnings.push('Tabela em "'+l2.title+'" tem cabeçalho de pool mas não tem nível 3 (esperado trilha) — bloco ignorado.');
+          return;
+        }
+        if(genero===null) genero = "trilha";
+        else if(genero !== "trilha"){ warnings.push('Arquivo mistura pool e trilha — isso não é suportado; mantendo apenas os blocos trilha já processados.'); return; }
+        const tipo = l2.title;
+        let count = 0;
+        dataRows.forEach((cells, ri)=>{
+          if(cells.length < 3){ warnings.push('Linha de tabela mal formada em "'+tipo+'" (linha '+(ri+1)+'), ignorada.'); return; }
+          const numero = cells[0], conteudo = cells[1], naturezaRaw = cells[2];
+          if(!conteudo){ warnings.push('Linha de tabela sem conteúdo em "'+tipo+'" (linha '+(ri+1)+'), ignorada.'); return; }
+          const naturezaNorm = normalizeStr(naturezaRaw);
+          if(naturezaNorm !== "trilha" && naturezaNorm !== "simulado") warnings.push('Tipo de linha não reconhecido ("'+naturezaRaw+'") em "'+conteudo+'", assumindo "trilha".');
+          const natureza = naturezaNorm === "simulado" ? "simulado" : "trilha";
+          items.push({ tipo, conteudo, numero, natureza, genero:"trilha" });
+          count++;
+        });
+        if(count>0) blockSummary.push({ group:tipo, sub:null, count });
+      }
+    });
+
+    let suggestedDur = null;
+    if(genero === "trilha"){
+      const dm = level1.notes.join(" ").match(/(\d+)\s*min/i);
+      suggestedDur = dm ? +dm[1] : null;
+    }
+
+    return {
+      eixoLabel: level1.eixoLabel,
+      area: level1.area,
+      eixoMatch: level1.eixoMatch,
+      notes: level1.notes,
+      genero, items, blockSummary, suggestedDur, warnings
+    };
+  }
+
+  function tarefaKey(m){ return (m.tipo||"")+"‖"+(m.conteudo||"")+"‖"+(m.numero||""); }
+
   function importTarefasMd(file){
     const reader = new FileReader();
     reader.onload = () => {
-      const lines = String(reader.result).split(/\r?\n/);
-      let curEixo = null, curArea = "", curTipo = "", curDur = 15;
-      let added = 0, skipped = 0;
-      const novos = [];
-      let ord = tarefas.length ? Math.max(...tarefas.map(m=>m.ord))+1 : 0;
-      lines.forEach(raw=>{
-        const t = raw.trim();
-        if(!t) return;
-        let m;
-        if((m = t.match(/^#\s+(.+)$/))){
-          // H1: "Eixo — Área" | "Eixo - Área" | "Eixo: Área" | "Eixo"
-          const parts = m[1].split(/\s+[—–\-:]\s+/);
-          const ex = matchEixo(parts[0]);
-          if(ex){ curEixo = ex.id; curArea = (parts[1]||ex.area).trim(); }
-          else { curEixo = null; skipped++; }
-          return;
-        }
-        if((m = t.match(/^##+\s+(.+)$/))){
-          // H2: "Tipo (15 min)" | "Tipo (15)" | "Tipo"
-          let tipo = m[1];
-          const dm = tipo.match(/\(\s*(\d+)\s*(?:min)?\s*\)\s*$/i);
-          curDur = dm ? +dm[1] : 15;
-          if(![15,30,60].includes(curDur)) curDur = curDur<=20?15:curDur<=45?30:60;
-          curTipo = tipo.replace(/\(\s*\d+\s*(?:min)?\s*\)\s*$/i,"").trim();
-          return;
-        }
-        if((m = t.match(/^[->*]\s+(.+)$/))){
-          // item: "- Conteúdo ×3" | "- Conteúdo x3" | "- Conteúdo (x3)" | "> Conteúdo"
-          if(!curEixo || !curTipo){ skipped++; return; }
-          let conteudo = m[1].trim();
-          let copias = 1;
-          const cm = conteudo.match(/[\(\s][x×]\s*(\d+)\)?\s*$/i);
-          if(cm){ copias = Math.min(9, Math.max(1, +cm[1])); conteudo = conteudo.replace(/[\(\s][x×]\s*\d+\)?\s*$/i,"").trim(); }
-          for(let c=0;c<copias;c++){ novos.push({ id:uid(), eixo:curEixo, area:curArea, tipo:curTipo, conteudo, dur:curDur, lastDone:null, ord:ord++ }); added++; }
-          return;
-        }
-      });
-      if(added===0){
-        showAlertBanner("Nada importado — verifique o formato (# eixo, ## tipo (min), - conteúdo)");
+      const parsed = parseTarefasToggleMd(String(reader.result));
+      if(parsed.error){
+        showAlertBanner("Não foi possível importar: " + parsed.error + (parsed.warnings.length ? ` · ${parsed.warnings.length} aviso(s)` : ""));
         return;
       }
-      tarefas.push(...novos); saveTarefas();
-      showAlertBanner(added+" tarefa(s) importada(s) ✓" + (skipped?` · ${skipped} linha(s) ignorada(s)`:""));
+      tarefaImportDraft = { parsed, fileName: file.name };
+      view = { tab:"tarefas", screen:"tarefaImportPreview" };
       render();
     };
     reader.readAsText(file);
+  }
+
+  function confirmImportTarefas(mode, eixoId, area, trilhaDur){
+    const d = tarefaImportDraft;
+    if(!d) return;
+    const parsed = d.parsed;
+    if(parsed.items.length === 0){ showAlertBanner("Nada pra importar"); return; }
+    if(!eixoId){ showAlertBanner("Escolha um eixo antes de importar"); return; }
+    const finalArea = (area||"").trim() || eixoInfo(eixoId).area;
+
+    if(mode === "replace"){
+      tarefas = tarefas.filter(m => !(m.eixo===eixoId && m.area===finalArea));
+    }
+    let ord = tarefas.length ? Math.max(...tarefas.map(m=>m.ord||0))+1 : 0;
+    const novos = parsed.items.map(it=>{
+      const base = { id:uid(), eixo:eixoId, area:finalArea, tipo:it.tipo, conteudo:it.conteudo, lastDone:null, ord:ord++, genero:parsed.genero };
+      if(parsed.genero === "trilha"){ base.dur = trilhaDur; base.numero = it.numero; base.natureza = it.natureza; }
+      else { base.dur = it.dur; }
+      return base;
+    });
+
+    let added = novos.length, skippedDup = 0;
+    if(mode === "merge"){
+      const existingKeys = new Set(tarefas.map(tarefaKey));
+      const toAdd = novos.filter(it => !existingKeys.has(tarefaKey(it)));
+      skippedDup = novos.length - toAdd.length;
+      added = toAdd.length;
+      tarefas.push(...toAdd);
+    } else {
+      tarefas.push(...novos);
+    }
+    saveTarefas();
+    tarefaImportDraft = null;
+    view = { tab:"tarefas", screen:"tarefas" };
+    const warnCount = parsed.warnings.length;
+    showAlertBanner(
+      added + " tarefa(s) importada(s) ✓" +
+      (skippedDup ? ` · ${skippedDup} já existiam` : "") +
+      (warnCount ? ` · ${warnCount} aviso(s) de parsing` : "")
+    );
+    render();
+  }
+
+  function renderTarefaImportPreview(){
+    const d = tarefaImportDraft;
+    if(!d){ view = { tab:"tarefas", screen:"tarefas" }; render(); return; }
+    const p = d.parsed;
+    const el = document.createElement("div");
+    el.className = "screen";
+    el.style.paddingBottom = "24px";
+
+    const matchedEixo = p.eixoMatch;
+    const totalItems = p.items.length;
+    const genero = p.genero;
+    const eixoOptions = EIXOS.map(e=>`<option value="${e.id}" ${matchedEixo && matchedEixo.id===e.id ? 'selected':''}>${escapeHtml(e.label)}</option>`).join("");
+
+    el.innerHTML = `
+      <div class="home-header">
+        <h1>Importar tarefas</h1>
+        <button class="bell-btn" id="tiCancel">&#10005;</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px; overflow-y:auto;">
+        <div class="stat-card">
+          <div class="routine-meta" style="margin-bottom:6px;">${escapeHtml(d.fileName)}</div>
+          <h3 style="font-size:16px; margin-bottom:4px;">${escapeHtml(p.eixoLabel)}${p.area?' — '+escapeHtml(p.area):''}</h3>
+          <div class="routine-meta">Formato detectado: <b>${genero==='trilha'?'trilha (sequencial, não recicla)':genero==='pool'?'pool (fila cíclica)':'não identificado'}</b> · ${totalItems} tarefa(s)</div>
+        </div>
+
+        ${!matchedEixo ? `<div class="stat-card" style="border-color:var(--danger);">
+          <div style="font-size:13px; color:var(--danger); margin-bottom:8px;">&#9888; Eixo "${escapeHtml(p.eixoLabel)}" não bate com nenhum eixo existente. Escolha manualmente:</div>
+          <select id="tiEixo" class="routine-select">${eixoOptions}</select>
+        </div>` : `<div>
+          <div class="section-label">Eixo detectado</div>
+          <select id="tiEixo" class="routine-select">${eixoOptions}</select>
+        </div>`}
+
+        <div>
+          <div class="section-label">Área</div>
+          <input type="text" id="tiArea" class="mk-e-name" value="${escapeHtml(p.area || (matchedEixo?matchedEixo.area:''))}" placeholder="Ex: Contabilidade">
+        </div>
+
+        ${genero === 'trilha' ? `<div>
+          <div class="section-label">Duração por sessão (min) — o arquivo não define isso por linha, confirme</div>
+          <input type="number" id="tiDur" class="mk-e-name" min="1" value="${p.suggestedDur || 60}">
+        </div>` : ''}
+
+        ${p.notes.length ? `<div>
+          <div class="section-label">Notas do cabeçalho do arquivo</div>
+          <div class="stat-card" style="font-size:13px; line-height:1.6; color:var(--muted);">${p.notes.map(n=>escapeHtml(n)).join("<br>")}</div>
+        </div>` : ''}
+
+        <div>
+          <div class="section-label">Tarefas por bloco</div>
+          <div class="stat-card" style="padding:10px 16px;">
+            ${p.blockSummary.length===0 ? `<div class="routine-meta" style="padding:6px 0;">Nenhuma tarefa reconhecida.</div>` : p.blockSummary.map(b=>`
+              <div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:13.5px;">
+                <span>${escapeHtml(b.group)}${b.sub?' · '+escapeHtml(String(b.sub)):''}</span>
+                <span style="color:var(--muted); flex:0 0 auto;">${b.count}</span>
+              </div>`).join("")}
+          </div>
+        </div>
+
+        ${p.warnings.length ? `<div>
+          <div class="section-label">Avisos de parsing (${p.warnings.length})</div>
+          <div class="stat-card" style="font-size:12.5px; line-height:1.6; color:var(--muted); max-height:180px; overflow-y:auto;">
+            ${p.warnings.map(w=>escapeHtml(w)).join("<br>")}
+          </div>
+        </div>` : ''}
+
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
+          <button class="btn-primary" id="tiMerge" ${totalItems===0?'disabled':''}>Mesclar com a fila atual</button>
+          <button class="btn-cancel" id="tiReplace" ${totalItems===0?'disabled':''}>Substituir tarefas deste eixo + área</button>
+        </div>
+      </div>`;
+    app.appendChild(el);
+
+    document.getElementById("tiCancel").onclick = () => { tarefaImportDraft = null; view = { tab:"tarefas", screen:"tarefas" }; render(); };
+
+    function readForm(){
+      const eixoId = document.getElementById("tiEixo").value;
+      const area = document.getElementById("tiArea").value;
+      const durEl = document.getElementById("tiDur");
+      const trilhaDur = durEl ? Math.max(1, +durEl.value || 60) : null;
+      return { eixoId, area, trilhaDur };
+    }
+    const mergeBtn = document.getElementById("tiMerge");
+    const replaceBtn = document.getElementById("tiReplace");
+    if(mergeBtn) mergeBtn.onclick = () => { const f = readForm(); confirmImportTarefas("merge", f.eixoId, f.area, f.trilhaDur); };
+    if(replaceBtn) replaceBtn.onclick = () => {
+      const f = readForm();
+      confirmModal("Remover as tarefas existentes de <b>"+escapeHtml(eixoInfo(f.eixoId).label)+" · "+escapeHtml(f.area||eixoInfo(f.eixoId).area)+"</b> e substituir pelas "+totalItems+" importadas?", "Substituir", () => {
+        confirmImportTarefas("replace", f.eixoId, f.area, f.trilhaDur);
+      });
+    };
   }
 
   function concludeTarefa(m){
@@ -1576,9 +1839,14 @@
     return "há "+days+" dias";
   }
 
+  function tarefaAtiva(m){ return !(tarefaGenero(m)==='trilha' && m.lastDone); }
+
   function renderTarefas(){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
+    const durValues = Array.from(new Set(tarefas.map(m=>m.dur))).sort((a,b)=>a-b);
+    const durChips = `<span data-dur="0" class="${tarefaDurFilter===0?'active':''}">todas</span>` +
+      durValues.map(d=>`<span data-dur="${d}" class="${tarefaDurFilter===d?'active':''}">${d} min</span>`).join("");
     el.innerHTML = `
       <div class="home-header"><h1>Tarefas &#127857;</h1>
         <div class="header-right">
@@ -1586,12 +1854,7 @@
           <input type="file" id="tarImportFile" accept=".md,.txt,text/markdown,text/plain" style="display:none">
         </div>
       </div>
-      <div class="type-toggle" id="tarDurChips" style="margin-bottom:14px;">
-        <span data-dur="0" class="${tarefaDurFilter===0?'active':''}">todas</span>
-        <span data-dur="15" class="${tarefaDurFilter===15?'active':''}">15 min</span>
-        <span data-dur="30" class="${tarefaDurFilter===30?'active':''}">30 min</span>
-        <span data-dur="60" class="${tarefaDurFilter===60?'active':''}">60 min</span>
-      </div>
+      <div class="type-toggle" id="tarDurChips" style="margin-bottom:14px;">${durChips}</div>
       <div class="routine-list" id="tarList"></div>`;
     const fab = document.createElement("button");
     fab.className = "fab"; fab.textContent = "+";
@@ -1606,48 +1869,89 @@
     impFile.onchange = e => { if(e.target.files && e.target.files[0]){ importTarefasMd(e.target.files[0]); e.target.value=""; } };
 
     const list = document.getElementById("tarList");
-    const filtered = tarefas.filter(m=> tarefaDurFilter===0 || m.dur===tarefaDurFilter);
-    if(filtered.length===0){
+
+    if(tarefas.length===0){
       list.innerHTML = `<div class="empty-state"><h2>Fila vazia</h2><p>Importe um arquivo .md (&#8679; acima) ou adicione tarefas com o botão +.</p>
-        <div class="stat-card" style="text-align:left; margin-top:14px; font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.7; color:var(--muted);">
-          # Idiomas — Mandarim<br>
-          ## Revisão Anki (15 min)<br>
-          - Substantivos ×3<br>
-          - Verbos ×2<br>
-          ## Gramática nova (30 min)<br>
-          - Estruturas simples
-        </div>
-        <p style="font-size:12px; color:var(--muted); margin-top:8px;"># = eixo — área &nbsp;·&nbsp; ## = tipo (duração) &nbsp;·&nbsp; - = conteúdo (×N repete na fila)</p>
+        <div class="stat-card" style="text-align:left; margin-top:14px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; line-height:1.6; color:var(--muted); white-space:pre;">&gt; **Idiomas — Mandarim**
+&gt;
+&gt; &gt; **15 minutos**
+&gt; &gt;
+&gt; &gt; &gt; **Revisão Anki**
+&gt; &gt; &gt;
+&gt; &gt; &gt; | Tarefa | Peso |
+&gt; &gt; &gt; |---|---|
+&gt; &gt; &gt; | Substantivos | 3× |</div>
+        <p style="font-size:12px; color:var(--muted); margin-top:8px;">Formato pool (fila cíclica) acima, ou trilha (sequencial) com tabela # | Tarefa | Tipo direto no nível 2 — a importação detecta pelo cabeçalho da tabela.</p>
       </div>`;
       return;
     }
+
+    const filteredByDur = tarefas.filter(m=> tarefaDurFilter===0 || m.dur===tarefaDurFilter);
+    if(filteredByDur.length===0){
+      list.innerHTML = `<div class="empty-state"><h2>Nada aqui</h2><p>Nenhuma tarefa com essa duração.</p></div>`;
+      return;
+    }
+
     EIXOS.forEach(ex=>{
-      const items = filtered.filter(m=>m.eixo===ex.id)
-        .sort((a,b)=> (a.lastDone||0)-(b.lastDone||0) || a.ord-b.ord);
-      if(items.length===0) return;
-      const collapsed = !!tarefaCollapsed[ex.id];
-      const sec = document.createElement("div");
-      sec.innerHTML = `<div class="section-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${ex.color};" data-eixosec="${ex.id}">
-        <span>${collapsed?'&#9656;':'&#9662;'}</span><span style="flex:1;">${ex.label} · ${escapeHtml(items[0].area)}</span><span style="color:var(--muted); font-weight:400;">${items.length}</span>
-      </div>`;
-      sec.querySelector("[data-eixosec]").onclick = () => { tarefaCollapsed[ex.id] = !collapsed; save("rotinas_v2_tar_collapsed", tarefaCollapsed); render(); };
-      list.appendChild(sec);
-      if(collapsed) return;
-      items.forEach((m, idx)=>{
-        const isNext = idx===0;
-        const card = document.createElement("div");
-        card.className = "routine-card";
-        card.style.borderLeft = "3px solid " + (isNext ? ex.color : "transparent");
-        card.innerHTML = `
-          <div class="note-info" style="flex:1; min-width:0;" data-medit="${m.id}">
-            <h3 style="font-size:16px;">${isNext?'&#8594; ':''}${escapeHtml(m.tipo)}: ${escapeHtml(m.conteudo)}</h3>
-            <div class="routine-meta" style="margin-top:3px;">${m.dur} min · ${tarefaAgo(m)}</div>
-          </div>
-          <div style="display:flex; gap:8px; flex:0 0 auto;">
-            <button class="bell-btn" data-mplay="${m.id}" title="Iniciar timer" style="color:${ex.color};">&#9654;</button>
-            <button class="bell-btn" data-mdone="${m.id}" title="Marcar feita hoje">&#10003;</button>
+      const eixoItems = filteredByDur.filter(m=>m.eixo===ex.id);
+      if(eixoItems.length===0) return;
+      const areas = [];
+      eixoItems.forEach(m=>{ if(!areas.includes(m.area)) areas.push(m.area); });
+      areas.forEach(area=>{
+        const areaItems = eixoItems.filter(m=>m.area===area);
+        const active = areaItems.filter(tarefaAtiva).sort((a,b)=> (a.lastDone||0)-(b.lastDone||0) || a.ord-b.ord);
+        const done = areaItems.filter(m=>!tarefaAtiva(m)).sort((a,b)=> (b.lastDone||0)-(a.lastDone||0));
+        if(active.length===0 && done.length===0) return;
+        const secKey = ex.id+"|"+area;
+        const collapsed = !!tarefaCollapsed[secKey];
+        const sec = document.createElement("div");
+        sec.innerHTML = `<div class="section-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${ex.color};" data-eixosec="${escapeHtml(secKey)}">
+          <span>${collapsed?'&#9656;':'&#9662;'}</span><span style="flex:1;">${ex.label} · ${escapeHtml(area)}</span><span style="color:var(--muted); font-weight:400;">${active.length}</span>
+        </div>`;
+        sec.querySelector("[data-eixosec]").onclick = () => { tarefaCollapsed[secKey] = !collapsed; save("rotinas_v2_tar_collapsed", tarefaCollapsed); render(); };
+        list.appendChild(sec);
+        if(collapsed) return;
+        active.forEach((m, idx)=>{
+          const isNext = idx===0;
+          const card = document.createElement("div");
+          card.className = "routine-card";
+          card.style.borderLeft = "3px solid " + (isNext ? ex.color : "transparent");
+          const numeroTag = m.numero ? escapeHtml(m.numero)+' · ' : '';
+          card.innerHTML = `
+            <div class="note-info" style="flex:1; min-width:0;" data-medit="${m.id}">
+              <h3 style="font-size:16px;">${isNext?'&#8594; ':''}${escapeHtml(m.tipo)}: ${escapeHtml(m.conteudo)}</h3>
+              <div class="routine-meta" style="margin-top:3px;">${numeroTag}${m.dur} min · ${tarefaAgo(m)}${m.natureza==='simulado'?' · simulado':''}</div>
+            </div>
+            <div style="display:flex; gap:8px; flex:0 0 auto;">
+              <button class="bell-btn" data-mplay="${m.id}" title="Iniciar timer" style="color:${ex.color};">&#9654;</button>
+              <button class="bell-btn" data-mdone="${m.id}" title="Marcar feita hoje">&#10003;</button>
+            </div>`;
+          list.appendChild(card);
+        });
+        if(done.length){
+          const doneKey = secKey+"|done";
+          const doneCollapsed = tarefaConcluidasCollapsed[doneKey] !== false; // colapsada por padrão
+          const doneSec = document.createElement("div");
+          doneSec.innerHTML = `<div class="section-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;" data-donesec="${escapeHtml(doneKey)}">
+            <span>${doneCollapsed?'&#9656;':'&#9662;'}</span><span style="flex:1;">&#10003; Concluídas</span><span style="color:var(--muted); font-weight:400;">${done.length}</span>
           </div>`;
-        list.appendChild(card);
+          doneSec.querySelector("[data-donesec]").onclick = () => { tarefaConcluidasCollapsed[doneKey] = !doneCollapsed; save("rotinas_v2_tar_concl_collapsed", tarefaConcluidasCollapsed); render(); };
+          list.appendChild(doneSec);
+          if(!doneCollapsed){
+            done.forEach(m=>{
+              const card = document.createElement("div");
+              card.className = "routine-card";
+              card.style.opacity = "0.6";
+              const numeroTag = m.numero ? escapeHtml(m.numero)+' · ' : '';
+              card.innerHTML = `
+                <div class="note-info" style="flex:1; min-width:0;" data-medit="${m.id}">
+                  <h3 style="font-size:16px;">${escapeHtml(m.tipo)}: ${escapeHtml(m.conteudo)}</h3>
+                  <div class="routine-meta" style="margin-top:3px;">${numeroTag}${m.dur} min · ${tarefaAgo(m)}</div>
+                </div>`;
+              list.appendChild(card);
+            });
+          }
+        }
       });
     });
     list.querySelectorAll("[data-mplay]").forEach(b=> b.onclick = () => startTarefaTimer(b.dataset.mplay));
@@ -1713,7 +2017,7 @@
       if(isNew){
         const copias = Math.min(9, Math.max(1, +(document.getElementById("mCopias").value)||1));
         const base = Math.max(0,...tarefas.map(m=>m.ord))+1;
-        for(let c=0;c<copias;c++) tarefas.push({ id:uid(), eixo, area, tipo, conteudo, dur, lastDone:null, ord:base+c });
+        for(let c=0;c<copias;c++) tarefas.push({ id:uid(), eixo, area, tipo, conteudo, dur, lastDone:null, ord:base+c, genero:"pool" });
       } else {
         const m = tarefas.find(x=>x.id===d.id);
         if(m){ m.eixo=eixo; m.area=area; m.tipo=tipo; m.conteudo=conteudo; m.dur=dur; }
