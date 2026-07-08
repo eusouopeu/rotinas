@@ -49,6 +49,7 @@
     --danger: #B0503F;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  form{ margin:0; }
   html,body{height:100%;}
   body{
     margin:0;
@@ -765,7 +766,11 @@
     }
   }
   document.addEventListener("pointerdown", e => {
-    if(openSwipeTrack && !openSwipeTrack.contains(e.target)) closeOpenSwipe(null);
+    if(!openSwipeTrack) return;
+    // não fecha se o toque foi dentro do card OU no botão de excluir (ambos vivem no wrapper .swipe-item)
+    const wrap = openSwipeTrack.closest(".swipe-item");
+    if(wrap && wrap.contains(e.target)) return;
+    closeOpenSwipe(null);
   }, true);
   /* envolve cardEl (já pronto, com sua própria classe/estilo) num wrapper com botão de excluir atrás,
      revelado ao arrastar da direita pra esquerda. Retorna o wrapper — use no lugar de cardEl na lista. */
@@ -3470,12 +3475,14 @@
         ${freqChips.length ? `<div class="mk-chips"><span class="dev-n" style="margin-right:2px;">frequentes:</span>${freqChips.map(f=>`<span class="tag-chip" data-freq="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>`).join("")}</div>` : ""}
         <input type="text" id="mkName" placeholder="Item" autocomplete="off">
         <div class="mk-chips" id="mkSuggest"></div>
+        <div class="market-form-row" style="margin-bottom:8px;">
+          <input type="number" id="mkQty" inputmode="decimal" min="0" step="any" placeholder="qtd" value="1" style="flex:1; min-width:0;">
+          <select id="mkUnit" style="flex:1; min-width:0;"><option value="un">un</option><option value="g">g</option><option value="kg">kg</option><option value="L">L</option><option value="ml">ml</option></select>
+          <input type="number" id="mkPrice" inputmode="decimal" min="0" step="0.01" placeholder="R$ (opc)" style="flex:1; min-width:0;">
+        </div>
         <div class="market-form-row">
-          <input type="number" id="mkQty" inputmode="decimal" min="0" step="any" placeholder="qtd" value="1">
-          <select id="mkUnit"><option value="un">un</option><option value="g">g</option><option value="kg">kg</option><option value="L">L</option><option value="ml">ml</option></select>
-          <input type="number" id="mkPrice" inputmode="decimal" min="0" step="0.01" placeholder="R$ (opc)">
-          <select id="mkAisle">${doc.aisleOrder.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join("")}</select>
-          <button class="btn-primary" id="mkAdd" style="flex:0 0 auto; padding:10px 16px;">+</button>
+          <select id="mkAisle" style="flex:1; min-width:0;">${doc.aisleOrder.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join("")}</select>
+          <button class="btn-primary" id="mkAdd" style="flex:0 0 auto; padding:10px 24px;">+</button>
         </div>`;
       el.appendChild(form);
     }
@@ -3767,7 +3774,7 @@
           </div>
         </div>
         <div class="mx-items">${itemsHtml}</div>
-        <div class="mx-add"><input type="text" placeholder="+ item (Enter)" data-qadd="${qi}"></div>`;
+        <form class="mx-add" data-qaddform="${qi}"><input type="text" placeholder="+ item (Enter)" data-qadd="${qi}" enterkeyhint="done"></form>`;
     }
 
     function paint(){
@@ -3833,14 +3840,16 @@
           mxEdit = null; paint();
         };
       });
-      gridBox.querySelectorAll("[data-qadd]").forEach(inp=>{
-        inp.onkeydown = e => {
-          if(e.key === "Enter" && inp.value.trim()){
-            doc.quadrants[+inp.dataset.qadd].items.push({ text: inp.value.trim(), checked:false, indent:0 });
-            saveTemplates(doc); paint();
-            const again = gridBox.querySelector(`[data-qadd="${inp.dataset.qadd}"]`);
-            if(again) again.focus();
-          }
+      gridBox.querySelectorAll("[data-qaddform]").forEach(form=>{
+        form.onsubmit = e => {
+          e.preventDefault();
+          const inp = form.querySelector("[data-qadd]");
+          const val = inp.value.trim();
+          if(!val) return;
+          doc.quadrants[+form.dataset.qaddform].items.push({ text: val, checked:false, indent:0 });
+          saveTemplates(doc); paint();
+          const again = gridBox.querySelector(`[data-qadd="${form.dataset.qaddform}"]`);
+          if(again) again.focus();
         };
       });
       /* editor de item */
@@ -3915,14 +3924,22 @@
         }).join("");
         col.innerHTML = `<div class="kb-head">${escapeHtml(c.title)} <span class="dev-n">${c.items.length}</span></div>
           <div class="kb-cards">${cards}</div>
-          <input type="text" class="kb-add" placeholder="+" data-kbadd="${ci}">`;
+          <form data-kbaddform="${ci}"><input type="text" class="kb-add" placeholder="+ item (Enter)" data-kbadd="${ci}" enterkeyhint="done"></form>`;
         body.appendChild(col);
       });
       body.querySelectorAll("[data-kbe]").forEach(sp=> sp.onclick = () => { const [ci,ii]=sp.dataset.kbe.split("-").map(Number); kbEdit={ci,ii}; paint(); setTimeout(()=>{const i=body.querySelector(".kb-e-text"); if(i) i.focus();},30); });
       body.querySelectorAll("[data-kbl]").forEach(b=> b.onclick = () => { const [ci,ii]=b.dataset.kbl.split("-").map(Number); const [it]=doc.cols[ci].items.splice(ii,1); doc.cols[ci-1].items.push(it); saveTemplates(doc); paint(); });
       body.querySelectorAll("[data-kbr]").forEach(b=> b.onclick = () => { const [ci,ii]=b.dataset.kbr.split("-").map(Number); const [it]=doc.cols[ci].items.splice(ii,1); doc.cols[ci+1].items.push(it); saveTemplates(doc); paint(); });
-      body.querySelectorAll("[data-kbadd]").forEach(inp=>{
-        inp.onkeydown = e => { if(e.key==="Enter" && inp.value.trim()){ doc.cols[+inp.dataset.kbadd].items.push({id:uid(), text:inp.value.trim()}); saveTemplates(doc); paint(); const a=body.querySelector(`[data-kbadd="${inp.dataset.kbadd}"]`); if(a) a.focus(); } };
+      body.querySelectorAll("[data-kbaddform]").forEach(form=>{
+        form.onsubmit = e => {
+          e.preventDefault();
+          const inp = form.querySelector("[data-kbadd]");
+          const val = inp.value.trim();
+          if(!val) return;
+          doc.cols[+form.dataset.kbaddform].items.push({id:uid(), text:val});
+          saveTemplates(doc); paint();
+          const a=body.querySelector(`[data-kbadd="${form.dataset.kbaddform}"]`); if(a) a.focus();
+        };
       });
       const eb = body.querySelector(".kb-editing");
       if(eb && kbEdit){
@@ -3942,15 +3959,17 @@
   }
 
   /* ============ CONTAGEM REGRESSIVA ============ */
+  function cdUnit(t){ return (t.unit && t.unit.trim()) || "tópicos"; }
   function cdPace(t){
     const days = daysUntil(t.date);
     if(t.topics == null) return null;
+    const unit = cdUnit(t);
     const remaining = Math.max(0, t.topics - (t.done||0));
     if(days <= 0 || remaining <= 0) return { days, remaining, txt: remaining===0 ? "concluído" : "prazo esgotado" };
     const perDay = remaining / days;
     const txt = perDay >= 1
-      ? perDay.toFixed(1).replace(".",",") + " tópico(s)/dia"
-      : "1 tópico a cada " + (days/remaining).toFixed(1).replace(".",",") + " dias";
+      ? perDay.toFixed(1).replace(".",",") + " " + unit + "/dia"
+      : "1 a cada " + (days/remaining).toFixed(1).replace(".",",") + " dias";
     return { days, remaining, txt };
   }
   function countdownMd(doc){
@@ -3960,7 +3979,7 @@
       const [y,m,dd] = t.date.split("-");
       md += "- **" + t.title + "** — " + dd + "/" + m + "/" + y + " — " + (d>=0 ? "faltam " + d + " dia(s)" : Math.abs(d) + " dia(s) atrás");
       const p = cdPace(t);
-      if(p && t.topics != null) md += " — " + (t.done||0) + "/" + t.topics + " tópicos (" + p.txt + ")";
+      if(p && t.topics != null) md += " — " + (t.done||0) + "/" + t.topics + " " + cdUnit(t) + " (" + p.txt + ")";
       md += "\n";
     });
     return md;
@@ -3980,9 +3999,12 @@
       body.innerHTML = `
         <div class="stat-card" style="margin-bottom:12px;">
           <input type="text" id="cdTitle" placeholder="Alvo (ex: Prova SEFAZ-BA)" class="mk-e-name" style="width:100%; margin-bottom:8px;">
+          <div class="market-form-row" style="margin-bottom:8px;">
+            <input type="date" id="cdDate" style="flex:1; min-width:0;">
+          </div>
           <div class="market-form-row">
-            <input type="date" id="cdDate" style="flex:1;">
-            <input type="number" id="cdTopics" inputmode="numeric" min="1" placeholder="tópicos (opc)" style="width:110px;">
+            <input type="number" id="cdTopics" inputmode="numeric" min="1" placeholder="quantidade (opc)" style="width:110px;">
+            <input type="text" id="cdUnit" placeholder="do quê? (ex: questões)" style="flex:1; min-width:0;">
             <button class="btn-primary" id="cdAdd" style="flex:0 0 auto; padding:10px 16px;">+</button>
           </div>
         </div>`;
@@ -4003,7 +4025,7 @@
             ${t.topics != null ? `
             <div class="cd-topics">
               <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdminus="${t.id}">&minus;</button>
-              <span><input type="number" class="cd-done-inp" data-cddone="${t.id}" value="${t.done||0}" inputmode="numeric" min="0" max="${t.topics}"> / <input type="number" class="cd-done-inp" data-cdtotal="${t.id}" value="${t.topics}" inputmode="numeric" min="1"> tópicos</span>
+              <span><input type="number" class="cd-done-inp" data-cddone="${t.id}" value="${t.done||0}" inputmode="numeric" min="0" max="${t.topics}"> / <input type="number" class="cd-done-inp" data-cdtotal="${t.id}" value="${t.topics}" inputmode="numeric" min="1"> ${escapeHtml(cdUnit(t))}</span>
               <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdplus="${t.id}">+</button>
             </div>
             <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:var(--accent);">${p.txt}</b></div>` : ""}
@@ -4016,7 +4038,8 @@
         const date = document.getElementById("cdDate").value;
         if(!title || !date){ showAlertBanner("Preencha o nome e a data"); return; }
         const topics = +document.getElementById("cdTopics").value || null;
-        doc.targets.push({ id: uid(), title, date, topics, done:0 });
+        const unit = document.getElementById("cdUnit").value.trim() || "tópicos";
+        doc.targets.push({ id: uid(), title, date, topics, unit, done:0 });
         saveTemplates(doc); paint();
       };
       body.querySelectorAll("[data-cddel]").forEach(b=> b.onclick = () => {
@@ -4036,7 +4059,7 @@
         const p = cdPace(t);
         const [y,m,dd] = t.date.split("-");
         inner += "<li><b>" + escapeHtml(t.title) + "</b> — " + dd + "/" + m + "/" + y + " — " + (d>=0?"faltam "+d+" dia(s)":Math.abs(d)+" dia(s) atrás");
-        if(p && t.topics != null) inner += " — " + (t.done||0) + "/" + t.topics + " tópicos (" + p.txt + ")";
+        if(p && t.topics != null) inner += " — " + (t.done||0) + "/" + t.topics + " " + escapeHtml(cdUnit(t)) + " (" + p.txt + ")";
         inner += "</li>";
       });
       exportPdfView(doc.title, inner + "</ul><p class='meta'>gerado em " + localKey() + "</p>");
@@ -4228,11 +4251,13 @@
       body.innerHTML = `
         <div class="stat-card" style="margin-bottom:12px;">
           <input type="text" id="exDesc" placeholder="Descrição" class="mk-e-name" style="width:100%; margin-bottom:8px;">
+          <div class="market-form-row" style="margin-bottom:8px;">
+            <input type="number" id="exVal" inputmode="decimal" min="0" step="0.01" placeholder="R$" style="flex:1; min-width:0;">
+            <select id="exCat" style="flex:1; min-width:0;">${EXP_CATS.map(c=>`<option>${c}</option>`).join("")}</select>
+          </div>
           <div class="market-form-row">
-            <input type="number" id="exVal" inputmode="decimal" min="0" step="0.01" placeholder="R$" style="width:90px;">
-            <select id="exCat" style="flex:1;">${EXP_CATS.map(c=>`<option>${c}</option>`).join("")}</select>
-            <input type="date" id="exDate" value="${localKey()}" style="width:130px;">
-            <button class="btn-primary" id="exAdd" style="flex:0 0 auto; padding:10px 16px;">+</button>
+            <input type="date" id="exDate" value="${localKey()}" style="flex:1; min-width:0;">
+            <button class="btn-primary" id="exAdd" style="flex:0 0 auto; padding:10px 24px;">+</button>
           </div>
         </div>
         <div class="type-toggle" id="exViewToggle" style="margin-bottom:12px;">
@@ -4488,7 +4513,7 @@
   function travelMd(doc){
     let md = "# " + doc.title + "\n";
     doc.sections.forEach(s=>{
-      md += "\n## " + s.title + "\n" + s.items.map(i=>(i.checked?"- [x] ":"- [ ] ")+i.text).join("\n") + "\n";
+      md += "\n## " + s.title + "\n" + s.items.map(i=>(i.checked?"- [x] ":"- [ ] ")+i.text+(i.qty&&i.qty>1?" ×"+i.qty:"")).join("\n") + "\n";
     });
     return md;
   }
@@ -4511,25 +4536,41 @@
       body.innerHTML += `<div class="stat-foot" style="margin:0 0 8px;">${all.filter(i=>!i.checked).length} pendente(s) de ${all.length}</div>`;
       doc.sections.forEach((s,si)=>{
         let rows = s.items.map((it,ii)=> tvEditing===si+"-"+ii ? `
-          <div class="checklist-item" style="padding:3px 0;">
-            <input type="text" value="${escapeHtml(it.text)}" data-tvef="${si}-${ii}" class="mk-e-name" style="flex:1;">
+          <div class="checklist-item" style="padding:3px 0; gap:6px;">
+            <input type="text" value="${escapeHtml(it.text)}" data-tvef="${si}-${ii}" class="mk-e-name" style="flex:1; margin-bottom:0;">
+            <input type="number" value="${it.qty||1}" data-tvefqty="${si}-${ii}" inputmode="numeric" min="1" style="width:56px; background:var(--surface); border:1px solid var(--line); border-radius:9px; color:var(--text); font-size:14px; padding:8px 6px; text-align:center;">
             <button class="btn-primary" data-tvsave="${si}-${ii}" style="padding:6px 12px;">&#10003;</button>
           </div>` : `
           <div class="checklist-item ${it.checked?'checked':''}" style="padding:3px 0;">
             <span class="checklist-box" data-tvcheck="${si}-${ii}">${it.checked?'&#10003;':''}</span>
             <span class="txt" style="flex:1; cursor:pointer;" data-tvedit="${si}-${ii}" title="Tocar para editar">${escapeHtml(it.text)}</span>
+            ${it.qty && it.qty>1 ? `<span class="mk-right" data-tvedit="${si}-${ii}" style="cursor:pointer;">&times;${it.qty}</span>` : ''}
             <button class="del-exec" data-tvdel="${si}-${ii}">&#10005;</button>
           </div>`).join("");
         body.innerHTML += `<div class="section-label" style="display:flex; justify-content:space-between;"><span>${escapeHtml(s.title)}</span><button class="del-exec" data-tvsecdel="${si}">&#10005;</button></div>
           <div class="stat-card" style="padding:10px 14px;">${rows}
-          <div class="mx-add"><input type="text" placeholder="+ item (Enter)" data-tvadd="${si}"></div></div>`;
+          <form class="mx-add" data-tvaddform="${si}" style="display:flex; gap:6px; align-items:center;">
+            <input type="text" placeholder="+ item (Enter)" data-tvadd="${si}" enterkeyhint="done" style="flex:1; border-top:1px dashed var(--line);">
+            <input type="number" placeholder="qtd" data-tvaddqty="${si}" inputmode="numeric" min="1" style="width:52px; border:none; border-top:1px dashed var(--line); background:transparent; color:var(--text); font-size:13px; text-align:center;">
+          </form></div>`;
       });
       body.innerHTML += `<button class="add-step-btn" id="tvNewSec" style="width:100%;">+ nova seção</button>`;
 
       body.querySelectorAll("[data-tvcheck]").forEach(b=> b.onclick = () => { const [si,ii]=b.dataset.tvcheck.split("-").map(Number); const it=doc.sections[si].items[ii]; it.checked=!it.checked; saveTemplates(doc); paint(); });
       body.querySelectorAll("[data-tvdel]").forEach(b=> b.onclick = () => { const [si,ii]=b.dataset.tvdel.split("-").map(Number); doc.sections[si].items.splice(ii,1); saveTemplates(doc); paint(); });
-      body.querySelectorAll("[data-tvadd]").forEach(inp=>{
-        inp.onkeydown = e => { if(e.key==="Enter" && inp.value.trim()){ doc.sections[+inp.dataset.tvadd].items.push({id:uid(), text:inp.value.trim(), checked:false}); saveTemplates(doc); paint(); const a=body.querySelector(`[data-tvadd="${inp.dataset.tvadd}"]`); if(a) a.focus(); } };
+      body.querySelectorAll("[data-tvaddform]").forEach(form=>{
+        form.onsubmit = e => {
+          e.preventDefault();
+          const si = +form.dataset.tvaddform;
+          const inp = form.querySelector("[data-tvadd]");
+          const qtyInp = form.querySelector("[data-tvaddqty]");
+          const val = inp.value.trim();
+          if(!val) return;
+          const qty = Math.max(1, +qtyInp.value || 1);
+          doc.sections[si].items.push({id:uid(), text:val, qty, checked:false});
+          saveTemplates(doc); paint();
+          const a=body.querySelector(`[data-tvadd="${si}"]`); if(a) a.focus();
+        };
       });
       body.querySelectorAll("[data-tvsecdel]").forEach(b=>{
         b.onclick = () => {
@@ -4541,7 +4582,12 @@
       function tvSave(ref){
         const [si,ii] = ref.split("-").map(Number);
         const inp = body.querySelector(`[data-tvef='${ref}']`);
-        if(inp && inp.value.trim()){ doc.sections[si].items[ii].text = inp.value.trim(); saveTemplates(doc); }
+        const qtyInp = body.querySelector(`[data-tvefqty='${ref}']`);
+        if(inp && inp.value.trim()){
+          doc.sections[si].items[ii].text = inp.value.trim();
+          if(qtyInp) doc.sections[si].items[ii].qty = Math.max(1, +qtyInp.value || 1);
+          saveTemplates(doc);
+        }
         tvEditing = null; paint();
       }
       body.querySelectorAll("[data-tvsave]").forEach(b=> b.onclick = () => tvSave(b.dataset.tvsave));
