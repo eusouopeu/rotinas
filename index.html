@@ -1858,10 +1858,19 @@
       if(!header) return null;
       const norm = header.map(normalizeStr);
       if(norm.length===2 && norm[0]==="tarefa" && norm[1]==="peso") return "pool";
-      if(norm.length===3 && norm[0]==="#" && norm[1]==="tarefa" && norm[2]==="tipo") return "trilha";
+      // trilha: "# | Tarefa | Tipo" (3 col.) ou a variação com coluna extra "Detalhe" (4 col.)
+      if(norm.length>=3 && norm[0]==="#" && norm[1]==="tarefa" && norm[2]==="tipo") return "trilha";
       return null;
     }
     function parseDurTitle(title){ const m = title.match(/(\d+)/); return m ? +m[1] : null; }
+    // coluna "Detalhe": bullet list separada por "<br>• " → texto multi-linha (um item por linha)
+    function parseDetalheCell(raw){
+      if(!raw) return "";
+      return String(raw).split(/<br\s*\/?>/i)
+        .map(s => s.replace(/^\s*[-*•]\s*/,"").replace(/\*\*(.+?)\*\*/g,"$1").trim())
+        .filter(Boolean)
+        .join("\n");
+    }
 
     const items = [];
     const blockSummary = [];
@@ -1915,12 +1924,20 @@
         let count = 0;
         dataRows.forEach((cells, ri)=>{
           if(cells.length < 3){ warnings.push('Linha de tabela mal formada em "'+tipo+'" (linha '+(ri+1)+'), ignorada.'); return; }
-          const numero = cells[0], conteudo = cells[1], naturezaRaw = cells[2];
+          const numero = cells[0], conteudo = cells[1], tipoRaw = cells[2], detalheRaw = cells[3] || "";
           if(!conteudo){ warnings.push('Linha de tabela sem conteúdo em "'+tipo+'" (linha '+(ri+1)+'), ignorada.'); return; }
-          const naturezaNorm = normalizeStr(naturezaRaw);
-          if(naturezaNorm !== "trilha" && naturezaNorm !== "simulado") warnings.push('Tipo de linha não reconhecido ("'+naturezaRaw+'") em "'+conteudo+'", assumindo "trilha".');
-          const natureza = naturezaNorm === "simulado" ? "simulado" : "trilha";
-          items.push({ tipo, conteudo, numero, natureza, genero:"trilha" });
+          const tipoNorm = normalizeStr(tipoRaw);
+          // Tipos aceitos: "trilha"/"simulado" (3 col.) e "Aula"/"Questões" (variação 4 col.).
+          // Aula e Questões sequenciam como trilha (não reciclam); só "simulado" muda a natureza.
+          const conhecidos = ["trilha","simulado","aula","questoes","questao"];
+          if(!conhecidos.includes(tipoNorm)) warnings.push('Tipo de linha não reconhecido ("'+tipoRaw+'") em "'+conteudo+'", assumindo "trilha".');
+          const natureza = tipoNorm === "simulado" ? "simulado" : "trilha";
+          const it = { tipo, conteudo, numero, natureza, genero:"trilha" };
+          // preserva o rótulo original do Tipo (Aula/Questões/simulado) quando não for o genérico "trilha"
+          if(tipoRaw && tipoNorm !== "trilha") it.tipoTarefa = tipoRaw;
+          const detalhes = parseDetalheCell(detalheRaw);
+          if(detalhes) it.detalhes = detalhes;
+          items.push(it);
           count++;
         });
         if(count>0) blockSummary.push({ group:tipo, sub:null, count });
@@ -1975,6 +1992,8 @@
       const base = { id:uid(), eixo:eixoId, area:finalArea, tipo:it.tipo, conteudo:it.conteudo, lastDone:null, ord:ord++, genero:parsed.genero };
       if(parsed.genero === "trilha"){ base.dur = trilhaDur; base.numero = it.numero; base.natureza = it.natureza; }
       else { base.dur = it.dur; }
+      if(it.tipoTarefa) base.tipoTarefa = it.tipoTarefa;
+      if(it.detalhes) base.detalhes = it.detalhes;
       return base;
     });
 
