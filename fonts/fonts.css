@@ -1,0 +1,30 @@
+/* Fontes locais (subset latin) — baixadas do Google Fonts para uso 100% offline.
+   Fraunces e Inter são variable fonts (um arquivo cobre a faixa de pesos). */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(Fraunces.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(Inter.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(IBMPlexMono-400.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(IBMPlexMono-500.woff2) format('woff2');
+}

@@ -1,0 +1,24 @@
+{
+  "name": "brita",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rotinas — PWA local-first de rotinas, notas e tarefas",
+  "scripts": {
+    "copy:www": "rm -rf www && mkdir www && cp index.html manifest.json sw.js icon-192.png icon-512.png icon-512-maskable.png www/ && cp -R fonts www/fonts",
+    "sync": "npm run copy:www && cap sync",
+    "apk": "npm run sync && cd android && ./gradlew assembleDebug && echo 'APK em android/app/build/outputs/apk/debug/app-debug.apk'",
+    "test": "node test/smoke.cjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/local-notifications": "^8.2.0",
+    "@capacitor/share": "^8.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^29.1.1"
+  }
+}

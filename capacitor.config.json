@@ -1,0 +1,8 @@
+{
+  "appId": "com.pedro.rotinas",
+  "appName": "Rotinas",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

@@ -11,9 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="fonts/fonts.css" rel="stylesheet">
 <style>
   :root{
     --bg: #1C1B1A;
@@ -632,7 +630,7 @@
 <div id="app"></div>
 
 <script>
-(function(){
+(async function(){
   "use strict";
 
   /* ---------------- STORAGE ---------------- */
@@ -647,6 +645,7 @@
   const K_SNOOZES   = "rotinas_v2_snoozes";
   const K_TAREFAS  = "rotinas_v2_tarefas";
   const K_TAREFAS_HIST = "rotinas_v2_tarefas_hist";
+  const K_AUTOBAK  = "rotinas_v2_autobackup";
 
   const mqLight = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
   function resolvedTheme(){
@@ -675,8 +674,119 @@
   }
   if(mqLight && mqLight.addEventListener) mqLight.addEventListener("change", ()=>{ if(load(K_THEME,"auto")==="auto") applyTheme(); });
 
-  function load(key, fallback){ try{ const v = JSON.parse(localStorage.getItem(key)); return v === null ? fallback : v; }catch(e){ return fallback; } }
-  function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+  /* ---- Persistência: espelho em memória + backend assíncrono ----
+     Navegador: IndexedDB (cota em GB, sem o limite de ~5MB do localStorage).
+     App nativo (Capacitor): um arquivo JSON por chave em Directory.Data.
+     load/save continuam síncronos para o resto do app; a gravação real é
+     enfileirada e serializada em fila única. Dados antigos do localStorage
+     são migrados automaticamente na primeira execução. */
+  const K_PREFIX = "rotinas_v2_";
+  const mem = new Map();
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+  const storageBackend = isNative ? (function(){
+    const FS = window.Capacitor.Plugins.Filesystem;
+    const fpath = k => "brita/" + k + ".json";
+    return {
+      async getAll(){
+        const out = new Map();
+        let names = [];
+        try{
+          const r = await FS.readdir({ path:"brita", directory:"DATA" });
+          names = (r.files || []).map(f => typeof f === "string" ? f : f.name);
+        }catch(e){ return out; } // pasta ainda não existe = primeira execução
+        for(const n of names){
+          if(!n.endsWith(".json")) continue;
+          try{
+            const r = await FS.readFile({ path:"brita/" + n, directory:"DATA", encoding:"utf8" });
+            out.set(n.slice(0, -5), JSON.parse(r.data));
+          }catch(e){}
+        }
+        return out;
+      },
+      set(key, val){
+        return FS.writeFile({ path:fpath(key), directory:"DATA", encoding:"utf8", data:JSON.stringify(val), recursive:true });
+      },
+      async del(key){ try{ await FS.deleteFile({ path:fpath(key), directory:"DATA" }); }catch(e){} }
+    };
+  })() : (function(){
+    let dbp = null;
+    function db(){
+      if(!dbp) dbp = new Promise((res, rej) => {
+        const req = indexedDB.open("brita", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("kv");
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+      return dbp;
+    }
+    function tx(mode, fn){
+      return db().then(d => new Promise((res, rej) => {
+        const t = d.transaction("kv", mode);
+        fn(t.objectStore("kv"));
+        t.oncomplete = () => res();
+        t.onerror = () => rej(t.error);
+      }));
+    }
+    return {
+      async getAll(){
+        const out = new Map();
+        const d = await db();
+        await new Promise((res, rej) => {
+          const req = d.transaction("kv", "readonly").objectStore("kv").openCursor();
+          req.onsuccess = () => { const c = req.result; if(c){ out.set(c.key, c.value); c.continue(); } else res(); };
+          req.onerror = () => rej(req.error);
+        });
+        return out;
+      },
+      set(key, val){ return tx("readwrite", s => s.put(val, key)); },
+      del(key){ return tx("readwrite", s => s.delete(key)); }
+    };
+  })();
+
+  let persistChain = Promise.resolve();
+  let persistWarned = false;
+  function persistQueue(fn){
+    persistChain = persistChain.then(fn).then(
+      () => { persistWarned = false; },
+      e => {
+        console.error("Falha ao persistir dados:", e);
+        if(!persistWarned){
+          persistWarned = true;
+          try{ showAlertBanner("⚠️ Falha ao gravar dados no armazenamento — exporte um backup já!"); }catch(_e){}
+        }
+      }
+    );
+  }
+
+  function load(key, fallback){ return mem.has(key) ? mem.get(key) : fallback; }
+  function save(key, val){
+    mem.set(key, JSON.parse(JSON.stringify(val))); // snapshot, como o localStorage fazia
+    persistQueue(() => storageBackend.set(key, mem.get(key)));
+    if(isNative && (key === K_ROUTINES || key === K_SNOOZES)) queueNativeSchedSync();
+  }
+  function removeKey(key){ mem.delete(key); persistQueue(() => storageBackend.del(key)); }
+
+  // Boot do storage: carrega tudo; se o backend está vazio, migra do localStorage.
+  {
+    let stored = new Map();
+    try{ stored = await storageBackend.getAll(); }catch(e){ console.error("Falha ao ler armazenamento:", e); }
+    if(stored.size === 0){
+      try{
+        for(let i = 0; i < localStorage.length; i++){
+          const k = localStorage.key(i);
+          if(!k || !k.startsWith(K_PREFIX)) continue;
+          try{
+            const v = JSON.parse(localStorage.getItem(k));
+            if(v !== null){ stored.set(k, v); persistQueue(() => storageBackend.set(k, v)); }
+          }catch(e){}
+        }
+      }catch(e){}
+    }
+    stored.forEach((v, k) => mem.set(k, v));
+    // pede ao navegador para não descartar os dados sob pressão de disco
+    if(navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(()=>{}); }
+  }
 
   let routines = load(K_ROUTINES, []);
   let history  = load(K_HISTORY, []);
@@ -932,6 +1042,17 @@
   function finishCue(){ const m = soundMode(); cueBeep(660,0.12,m); setTimeout(()=>cueBeep(990,0.22,m),140); vibrate([50,60,50,60,120]); }
   function alarmCue(routine){ const m = soundMode(routine); cueBeep(720,0.3,m); setTimeout(()=>cueBeep(720,0.3,m),420); setTimeout(()=>cueBeep(720,0.4,m),840); vibrate([200,100,200,100,200]); }
 
+  /* ---- Erros não tratados viram banner (senão a tela quebra em silêncio) ---- */
+  let lastErrBannerTs = 0;
+  function reportUncaught(msg){
+    console.error("Erro não tratado:", msg);
+    if(Date.now() - lastErrBannerTs < 60000) return; // no máx. 1 banner de erro por minuto
+    lastErrBannerTs = Date.now();
+    try{ showAlertBanner("⚠️ Erro inesperado: " + msg); }catch(e){}
+  }
+  window.addEventListener("error", e => reportUncaught(e.message || "desconhecido"));
+  window.addEventListener("unhandledrejection", e => reportUncaught((e.reason && e.reason.message) || String(e.reason || "promise rejeitada")));
+
   /* ---------------- ALERT BANNER ---------------- */
   function showAlertBanner(text, onTap){
     let banner = document.getElementById("alertBanner");
@@ -947,6 +1068,14 @@
   }
 
   function requestNotifPermission(){
+    if(isNative){
+      nativeLN().requestPermissions().then(r=>{
+        const ok = r.display === "granted";
+        showAlertBanner(ok ? "Notificações ativadas ✓" : "Notificações não permitidas");
+        if(ok) syncNativeSchedules();
+      }).catch(()=>{ showAlertBanner("Não foi possível pedir permissão de notificação"); });
+      return;
+    }
     if(!("Notification" in window)){ showAlertBanner("Notificações não suportadas neste navegador"); return; }
     if(Notification.permission === "granted"){ showAlertBanner("Notificações já ativadas ✓"); return; }
     Notification.requestPermission().then(p=>{
@@ -955,7 +1084,7 @@
   }
 
   /* ---------------- SERVICE WORKER (PWA real p/ Android) ---------------- */
-  if("serviceWorker" in navigator){
+  if("serviceWorker" in navigator && !isNative){
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").catch(()=>{});
     });
@@ -964,6 +1093,11 @@
     });
   }
   function showRichNotification(title, body, routineId){
+    if(isNative){
+      // mesmo id da notificação pré-agendada do dia -> substitui em vez de duplicar
+      notifyNative(title, body, { routineId }, notifIdFor(routineId, new Date().getDay()));
+      return;
+    }
     if(!("Notification" in window) || Notification.permission !== "granted") return;
     if("serviceWorker" in navigator){
       navigator.serviceWorker.ready.then(reg=>{
@@ -976,6 +1110,63 @@
     } else {
       try{ new Notification(title,{body,tag:routineId}); }catch(e){}
     }
+  }
+
+  /* ---- Notificações nativas (Capacitor LocalNotifications, só no APK) ----
+     Além das notificações imediatas, as rotinas agendadas viram notificações
+     recorrentes do Android (weekday/hora/minuto), que disparam mesmo com o
+     app fechado. Re-sincronizadas a cada boot e a cada mudança em rotinas
+     ou snoozes (hook no save()). */
+  function nativeLN(){ return window.Capacitor.Plugins.LocalNotifications; }
+  function notifIdFor(key, day){
+    let h = 0;
+    for(let i = 0; i < key.length; i++){ h = (h * 31 + key.charCodeAt(i)) | 0; }
+    return (Math.abs(h) % 200000000) * 8 + (day % 8); // int32 positivo, único por chave+dia
+  }
+  function notifyNative(title, body, extra, id){
+    nativeLN().schedule({ notifications: [{ id, title, body, extra: extra || {} }] }).catch(()=>{});
+  }
+  let nativeSyncTimer = null;
+  function queueNativeSchedSync(){
+    if(!isNative) return;
+    clearTimeout(nativeSyncTimer);
+    nativeSyncTimer = setTimeout(syncNativeSchedules, 800);
+  }
+  async function syncNativeSchedules(){
+    if(!isNative) return;
+    const LN = nativeLN();
+    try{
+      const perm = await LN.checkPermissions();
+      if(perm.display !== "granted") return;
+      const pending = await LN.getPending();
+      const mine = (pending.notifications || []).filter(n => n.extra && n.extra.brita === "sched");
+      if(mine.length) await LN.cancel({ notifications: mine.map(n => ({ id: n.id })) });
+      if(agendaSnoozed()) return; // com agenda pausada, nada é reagendado até o próximo uso do app
+      const notifs = [];
+      routines.forEach(r => {
+        const sched = computeSchedule(r);
+        if(!sched) return;
+        const days = (r.schedule.days && r.schedule.days.length) ? r.schedule.days : [0,1,2,3,4,5,6];
+        days.forEach(d => {
+          notifs.push({
+            id: notifIdFor(r.id, d),
+            title: "Hora de começar: " + r.name,
+            body: "Início previsto às " + sched.startStr,
+            extra: { routineId: r.id, brita: "sched" },
+            schedule: { on: { weekday: d + 1, hour: Math.floor(sched.startMin/60), minute: sched.startMin % 60 } } // weekday do plugin: 1=domingo
+          });
+        });
+      });
+      if(notifs.length) await LN.schedule({ notifications: notifs });
+    }catch(e){ console.error("syncNativeSchedules:", e); }
+  }
+  if(isNative){
+    nativeLN().addListener("localNotificationActionPerformed", a => {
+      const rid = a.notification && a.notification.extra && a.notification.extra.routineId;
+      if(rid && routines.find(r => r.id === rid)) startPlayer(rid);
+    });
+    syncNativeSchedules();
+    autoBackupNative();
   }
 
   /* ---------------- SCHEDULE HELPERS ---------------- */
@@ -2139,9 +2330,10 @@
   }
 
   function notifyTarefaTimeUp(m){
-    if(!("Notification" in window) || Notification.permission !== "granted") return;
     const title = "\u23F1 Tempo esgotado";
     const body = m.tipo + ": " + m.conteudo + " (" + m.dur + " min)";
+    if(isNative){ notifyNative(title, body, {}, notifIdFor("tarefa-" + m.id, 0)); return; }
+    if(!("Notification" in window) || Notification.permission !== "granted") return;
     if("serviceWorker" in navigator){
       navigator.serviceWorker.ready.then(reg=>{
         reg.showNotification(title, { body, tag:"tarefa-"+m.id, vibrate:[200,100,200] })
@@ -3361,6 +3553,12 @@
     }
   }
   function exportPdfView(title, innerHtml){
+    if(isNative){
+      // WebView não suporta window.print(): salva o HTML e abre o share sheet
+      const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>' + title + '</title></head><body style="font-family:Georgia,serif;color:#222;margin:28px;line-height:1.5;">' + innerHtml + '</body></html>';
+      shareOrDownload(slugify(title || "documento") + ".html", html, "text/html");
+      return;
+    }
     const w = window.open("", "_blank");
     if(!w){ showAlertBanner("Permita pop-ups para gerar o PDF"); return; }
     w.document.write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>' + title + '</title><style>' +
@@ -5052,7 +5250,21 @@
   function slugify(s){
     return (s||"nota").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g,"-").replace(/^-+|-+$/g,"").toLowerCase() || "nota";
   }
+  /* No APK, blob + <a download> não funciona (WebView sem DownloadListener):
+     grava em Documentos/Rotinas via Filesystem e confirma só após a escrita real. */
+  async function nativeWriteExport(filename, text){
+    const r = await window.Capacitor.Plugins.Filesystem.writeFile({
+      path: "Rotinas/" + filename, directory: "DOCUMENTS", encoding: "utf8", data: text, recursive: true
+    });
+    return r.uri;
+  }
   function downloadFile(filename, text, mime){
+    if(isNative){
+      nativeWriteExport(filename, text)
+        .then(() => showAlertBanner("Salvo em Documentos/Rotinas/" + filename + " ✓"))
+        .catch(e => { console.error("Export falhou:", e); showAlertBanner("⚠️ Não foi possível salvar " + filename); });
+      return;
+    }
     const blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -5067,6 +5279,17 @@
     showAlertBanner("Nota exportada para Downloads ✓");
   }
   async function shareOrDownload(filename, text, mime){
+    if(isNative){
+      try{
+        const uri = await nativeWriteExport(filename, text);
+        try{ await window.Capacitor.Plugins.Share.share({ title: filename, files: [uri] }); }catch(e){} // cancelar o share é ok, o arquivo já está salvo
+        return true;
+      }catch(e){
+        console.error("Export falhou:", e);
+        showAlertBanner("⚠️ Não foi possível salvar " + filename);
+        return false;
+      }
+    }
     try{
       if(navigator.canShare && navigator.share){
         const file = new File([text], filename, { type: mime });
@@ -5077,14 +5300,29 @@
       }
     }catch(e){ if(e && e.name === "AbortError") return true; }
     downloadFile(filename, text, mime);
-    return false;
+    return true;
   }
 
-  function exportBackup(){
-    const data = { version: 4, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist };
-    shareOrDownload("rotinas-backup-" + localKey() + ".json", JSON.stringify(data, null, 2), "application/json");
+  function backupData(){
+    return { version: 4, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist };
+  }
+  async function exportBackup(){
+    const ok = await shareOrDownload("rotinas-backup-" + localKey() + ".json", JSON.stringify(backupData(), null, 2), "application/json");
+    if(!ok) return; // banner de erro já foi mostrado
     save(K_LASTBACKUP, Date.now());
-    showAlertBanner("Backup exportado ✓");
+    showAlertBanner(isNative ? "Backup salvo em Documentos/Rotinas ✓" : "Backup exportado ✓");
+  }
+
+  /* Auto-backup no APK: cópia de segurança silenciosa em Documentos/Rotinas a
+     cada 3 dias — sobrevive à desinstalação do app (Directory.Data não). */
+  async function autoBackupNative(){
+    if(!isNative) return;
+    if(routines.length + notes.length + tarefas.length + templates.length === 0) return; // nunca sobrescrever com dados vazios
+    if(Date.now() - load(K_AUTOBAK, 0) < 3 * 86400000) return;
+    try{
+      await nativeWriteExport("rotinas-backup-auto.json", JSON.stringify(backupData(), null, 2));
+      save(K_AUTOBAK, Date.now());
+    }catch(e){ console.error("Auto-backup falhou:", e); }
   }
   function importBackup(file){
     const reader = new FileReader();
@@ -5153,15 +5391,15 @@
   let warnedStorage = false, dismissedBackupNotice = false;
   function storageBytes(){
     let total = 0;
-    try{ for(let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); total += ((localStorage.getItem(k)||"").length + k.length) * 2; } }catch(e){}
+    try{ mem.forEach((v, k) => { total += (JSON.stringify(v).length + k.length) * 2; }); }catch(e){}
     return total;
   }
   function checkStorageWarning(){
     if(warnedStorage) return;
     const mb = storageBytes()/1048576;
-    if(mb > 3.5){
+    if(mb > 100){
       warnedStorage = true;
-      showAlertBanner("Armazenamento quase cheio (" + mb.toFixed(1).replace(".",",") + " MB de ~5 MB). Exporte um backup e considere apagar notas antigas.");
+      showAlertBanner("Dados ocupando " + mb.toFixed(0) + " MB. Exporte um backup e considere apagar histórico/notas antigas.");
     }
   }
   function agendaSnoozed(){
@@ -5320,7 +5558,7 @@
       stepActuals:p.stepActuals, overtimeCueFired:p.overtimeCueFired
     });
   }
-  function clearPlayerSnapshot(){ try{ localStorage.removeItem(K_PLAYER); }catch(e){} }
+  function clearPlayerSnapshot(){ try{ removeKey(K_PLAYER); }catch(e){} }
   function getPlayerSnapshot(){ return load(K_PLAYER, null); }
 
   function computeRemaining(){
