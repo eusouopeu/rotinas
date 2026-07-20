@@ -609,6 +609,9 @@
   .kb-head{ font-family:'Fraunces', serif; font-weight:600; font-size:15px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
   .kb-cards{ flex:1; overflow-y:auto; min-height:60px; }
   .kb-card{ background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px; display:flex; align-items:center; gap:6px; }
+  .kb-drag{ flex-shrink:0; color:var(--muted); font-size:15px; cursor:grab; touch-action:none; padding:2px 4px; }
+  .kb-card.dragging{ opacity:.45; }
+  .kb-col.kb-drop{ border-color:var(--accent-2); }
   .kb-text{ flex:1; font-size:14px; min-width:0; overflow-wrap:break-word; }
   .kb-moves{ display:flex; flex-shrink:0; }
   .kb-add{ width:100%; background:transparent; border:none; border-top:1px dashed var(--line); color:var(--text); font-size:13.5px; padding:8px 2px 2px; }
@@ -630,6 +633,30 @@
 <div id="app"></div>
 
 <script>
+/* Overlay de erro de boot: se algo quebrar antes do primeiro render (tela
+   ficaria vazia, sem console no APK), o erro é mostrado na própria tela. */
+window.__britaBooted = false;
+function __britaShowFatal(msg){
+  if(window.__britaBooted) return;
+  var el = document.getElementById("bootError");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "bootError";
+    el.style.cssText = "position:fixed;inset:0;z-index:99999;background:#1C1B1A;color:#EDE7DD;padding:24px 20px;font:14px/1.5 monospace;overflow:auto;white-space:pre-wrap;word-break:break-word;";
+    (document.body || document.documentElement).appendChild(el);
+    el.textContent = "O app encontrou um erro ao iniciar. Tire um print desta tela.\n\n";
+  }
+  el.textContent += "\n" + msg;
+}
+window.addEventListener("error", function(e){
+  __britaShowFatal((e.message || "erro") + (e.filename ? "\n  em " + e.filename + ":" + e.lineno + ":" + e.colno : ""));
+});
+window.addEventListener("unhandledrejection", function(e){
+  var r = e.reason;
+  __britaShowFatal("Promise rejeitada: " + (r && r.stack ? r.stack : String(r)));
+});
+</script>
+<script>
 (async function(){
   "use strict";
 
@@ -646,6 +673,7 @@
   const K_TAREFAS  = "rotinas_v2_tarefas";
   const K_TAREFAS_HIST = "rotinas_v2_tarefas_hist";
   const K_AUTOBAK  = "rotinas_v2_autobackup";
+  const K_MIGRATED = "rotinas_v2_migrated";
 
   const mqLight = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
   function resolvedTheme(){
@@ -763,25 +791,35 @@
   function save(key, val){
     mem.set(key, JSON.parse(JSON.stringify(val))); // snapshot, como o localStorage fazia
     persistQueue(() => storageBackend.set(key, mem.get(key)));
-    if(isNative && (key === K_ROUTINES || key === K_SNOOZES)) queueNativeSchedSync();
+    if(isNative && (key === K_ROUTINES || key === K_SNOOZES || key === K_TEMPLATES)) queueNativeSchedSync();
   }
   function removeKey(key){ mem.delete(key); persistQueue(() => storageBackend.del(key)); }
 
-  // Boot do storage: carrega tudo; se o backend está vazio, migra do localStorage.
+  // Boot do storage: carrega tudo; na primeira execução real, migra do localStorage.
   {
-    let stored = new Map();
+    let stored = null;
     try{ stored = await storageBackend.getAll(); }catch(e){ console.error("Falha ao ler armazenamento:", e); }
-    if(stored.size === 0){
-      try{
-        for(let i = 0; i < localStorage.length; i++){
-          const k = localStorage.key(i);
-          if(!k || !k.startsWith(K_PREFIX)) continue;
-          try{
-            const v = JSON.parse(localStorage.getItem(k));
-            if(v !== null){ stored.set(k, v); persistQueue(() => storageBackend.set(k, v)); }
-          }catch(e){}
-        }
-      }catch(e){}
+    if(stored === null){
+      // leitura falhou: NÃO migrar nem gravar por cima — pode haver dados bons no backend
+      stored = new Map();
+      setTimeout(()=>{ try{ showAlertBanner("⚠️ Falha ao ler os dados salvos — feche e reabra o app antes de editar"); }catch(e){} }, 300);
+    } else if(!stored.has(K_MIGRATED)){
+      // sem marcador de migração: só migra se o backend estiver realmente vazio
+      // (evita re-migração do localStorage por cima de dados atuais após falha parcial)
+      if(stored.size === 0){
+        try{
+          for(let i = 0; i < localStorage.length; i++){
+            const k = localStorage.key(i);
+            if(!k || !k.startsWith(K_PREFIX)) continue;
+            try{
+              const v = JSON.parse(localStorage.getItem(k));
+              if(v !== null){ stored.set(k, v); persistQueue(() => storageBackend.set(k, v)); }
+            }catch(e){}
+          }
+        }catch(e){}
+      }
+      stored.set(K_MIGRATED, true);
+      persistQueue(() => storageBackend.set(K_MIGRATED, true));
     }
     stored.forEach((v, k) => mem.set(k, v));
     // pede ao navegador para não descartar os dados sob pressão de disco
@@ -806,6 +844,7 @@
   tarefas.forEach((m,i)=>{ if(m.ord===undefined) m.ord=i; });
 
   let view = { tab: "home", screen: "home" };
+  let homeSearchOpen = false, homeSearchQuery = "";
   let editorDraft = null;
   let noteDraft = null;
   let noteMode = "edit"; // edit | read
@@ -854,7 +893,7 @@
     const ov = document.createElement("div");
     ov.className = "confirm-overlay";
     ov.innerHTML = `
-      <div class="confirm-box">
+      <div class="confirm-box" role="dialog" aria-modal="true">
         <p>${msg}</p>
         <div class="confirm-actions">
           <button class="btn-cancel">Cancelar</button>
@@ -862,10 +901,27 @@
         </div>
       </div>`;
     document.body.appendChild(ov);
-    ov.querySelector(".btn-cancel").onclick = () => ov.remove();
-    ov.onclick = e => { if(e.target === ov) ov.remove(); };
-    ov.querySelector(".btn-confirm").onclick = () => { ov.remove(); onYes(); };
+    const prevFocus = document.activeElement;
+    function close(){ ov.remove(); document.removeEventListener("keydown", onKey, true); if(prevFocus && prevFocus.focus) prevFocus.focus(); }
+    function onKey(e){ if(e.key === "Escape"){ e.stopPropagation(); close(); } }
+    document.addEventListener("keydown", onKey, true);
+    ov.querySelector(".btn-cancel").onclick = close;
+    ov.onclick = e => { if(e.target === ov) close(); };
+    ov.querySelector(".btn-confirm").onclick = () => { close(); onYes(); };
+    ov.querySelector(".btn-cancel").focus();
   }
+
+  /* Acessibilidade: todo botão só-de-ícone com title ganha aria-label
+     automaticamente (title não é lido por leitores de tela no toque). */
+  new MutationObserver(muts=>{
+    muts.forEach(m=> m.addedNodes.forEach(n=>{
+      if(n.nodeType !== 1) return;
+      const btns = [];
+      if(n.matches && n.matches("button[title]:not([aria-label])")) btns.push(n);
+      if(n.querySelectorAll) btns.push(...n.querySelectorAll("button[title]:not([aria-label])"));
+      btns.forEach(b=> b.setAttribute("aria-label", b.title));
+    }));
+  }).observe(document.body, { childList:true, subtree:true });
 
   /* ---------------- SWIPE: revelar botão de excluir (tarefas/notas/documentos) ---------------- */
   let openSwipeTrack = null;
@@ -1130,7 +1186,7 @@
   function queueNativeSchedSync(){
     if(!isNative) return;
     clearTimeout(nativeSyncTimer);
-    nativeSyncTimer = setTimeout(syncNativeSchedules, 800);
+    nativeSyncTimer = setTimeout(()=>{ syncNativeSchedules(); syncAppShortcuts(); }, 800);
   }
   async function syncNativeSchedules(){
     if(!isNative) return;
@@ -1143,13 +1199,17 @@
       if(mine.length) await LN.cancel({ notifications: mine.map(n => ({ id: n.id })) });
       if(agendaSnoozed()) return; // com agenda pausada, nada é reagendado até o próximo uso do app
       const notifs = [];
+      const usedIds = new Set(); // colisão de hash entre rotinas: desloca +8 (mantém o slot do dia)
       routines.forEach(r => {
         const sched = computeSchedule(r);
         if(!sched) return;
         const days = (r.schedule.days && r.schedule.days.length) ? r.schedule.days : [0,1,2,3,4,5,6];
         days.forEach(d => {
+          let nid = notifIdFor(r.id, d);
+          while(usedIds.has(nid)) nid += 8;
+          usedIds.add(nid);
           notifs.push({
-            id: notifIdFor(r.id, d),
+            id: nid,
             title: "Hora de começar: " + r.name,
             body: "Início previsto às " + sched.startStr,
             extra: { routineId: r.id, brita: "sched" },
@@ -1157,8 +1217,35 @@
           });
         });
       });
+      // alvos de contagem regressiva: notificação única às 9h do dia-alvo
+      templates.filter(t => t.type === "countdown").forEach(t => {
+        (t.targets || []).forEach(tg => {
+          if(!tg.date) return;
+          const when = new Date(tg.date + "T09:00:00");
+          if(isNaN(when.getTime()) || when.getTime() <= Date.now()) return;
+          let nid = notifIdFor("cd-" + tg.id, 7);
+          while(usedIds.has(nid)) nid += 8;
+          usedIds.add(nid);
+          notifs.push({
+            id: nid,
+            title: "Hoje: " + tg.title,
+            body: "O alvo de \"" + t.title + "\" chegou.",
+            extra: { brita: "sched" },
+            schedule: { at: when }
+          });
+        });
+      });
       if(notifs.length) await LN.schedule({ notifications: notifs });
     }catch(e){ console.error("syncNativeSchedules:", e); }
+  }
+  /* Atalhos dinâmicos do launcher (plugin próprio ShortcutsPlugin no APK):
+     manter o ícone do app pressionado → "Iniciar rotina X" (4 primeiras). */
+  async function syncAppShortcuts(){
+    if(!isNative || !window.Capacitor.Plugins.Shortcuts) return;
+    try{
+      const shortcuts = routines.slice(0, 4).map(r => ({ id: r.id, label: ((r.icon ? r.icon + " " : "") + r.name).slice(0, 25) }));
+      await window.Capacitor.Plugins.Shortcuts.set({ shortcuts });
+    }catch(e){ console.error("syncAppShortcuts:", e); }
   }
   if(isNative){
     nativeLN().addListener("localNotificationActionPerformed", a => {
@@ -1167,6 +1254,12 @@
     });
     syncNativeSchedules();
     autoBackupNative();
+    if(window.Capacitor.Plugins.Shortcuts){
+      const SC = window.Capacitor.Plugins.Shortcuts;
+      SC.addListener("shortcut", d => { if(d && d.routineId && routines.find(r => r.id === d.routineId)) startPlayer(d.routineId); });
+      SC.getLaunch().then(d => { if(d && d.routineId && routines.find(r => r.id === d.routineId)) startPlayer(d.routineId); }).catch(()=>{});
+      syncAppShortcuts();
+    }
   }
 
   /* ---------------- SCHEDULE HELPERS ---------------- */
@@ -1254,12 +1347,17 @@
         <h1>Rotinas</h1>
         <div class="header-right">
           ${streak>0?`<div class="streak"><span class="dot"></span>${streak} dia${streak>1?'s':''}</div>`:""}
+          <button class="bell-btn" id="searchBtn" title="Buscar em tudo">&#128269;</button>
           <button class="bell-btn" id="themeBtn" title="Alternar tema">${themeIcon()}</button>
           <button class="bell-btn" id="agendaBtn" title="Agenda da semana">&#128197;</button>
           <button class="bell-btn" id="importRoutineBtn" title="Importar rotina/backup">&#8679;</button>
           <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
-          <button class="bell-btn" id="notifBtn">&#128276;</button>
+          <button class="bell-btn" id="notifBtn" title="Ativar notificações">&#128276;</button>
         </div>
+      </div>
+      <div id="globalSearchWrap" style="display:${homeSearchOpen?"block":"none"}; margin-bottom:14px;">
+        <input type="search" id="globalSearch" class="note-search" placeholder="Buscar rotinas, tarefas, notas, modelos..." value="${escapeHtml(homeSearchQuery)}">
+        <div id="globalSearchResults" class="notes-list" style="margin-top:10px;"></div>
       </div>
     `;
     const snap = getPlayerSnapshot();
@@ -1274,8 +1372,8 @@
             <div class="routine-meta">${escapeHtml(sr.name)} · etapa ${snap.idx+1}/${snap.steps.length}</div>
           </div>
           <div class="routine-actions">
-            <button class="icon-btn" id="discardResume">&#10005;</button>
-            <button class="play-btn" id="doResume">&#9654;</button>
+            <button class="icon-btn" id="discardResume" title="Descartar rotina em andamento">&#10005;</button>
+            <button class="play-btn" id="doResume" title="Retomar rotina">&#9654;</button>
           </div>
         `;
         el.appendChild(resumeCard);
@@ -1318,8 +1416,8 @@
           </div>
           <div class="routine-actions">
             <button class="icon-btn" data-dupr="${r.id}" title="Duplicar">&#10697;</button>
-            <button class="icon-btn" data-edit="${r.id}">&#9998;</button>
-            <button class="play-btn" data-play="${r.id}">&#9654;</button>
+            <button class="icon-btn" data-edit="${r.id}" title="Editar rotina">&#9998;</button>
+            <button class="play-btn" data-play="${r.id}" title="Iniciar rotina">&#9654;</button>
           </div>
         `;
         list.appendChild(card);
@@ -1334,6 +1432,52 @@
     app.appendChild(el);
 
     document.getElementById("notifBtn").onclick = requestNotifPermission;
+    document.getElementById("searchBtn").onclick = () => {
+      homeSearchOpen = !homeSearchOpen;
+      if(!homeSearchOpen) homeSearchQuery = "";
+      render();
+      if(homeSearchOpen){ const inp = document.getElementById("globalSearch"); if(inp) inp.focus(); }
+    };
+    // busca global: repinta só a lista de resultados, o input mantém o foco
+    const gsInput = document.getElementById("globalSearch");
+    const gsResults = document.getElementById("globalSearchResults");
+    function paintGlobalSearch(){
+      gsResults.innerHTML = "";
+      const q = homeSearchQuery.trim().toLowerCase();
+      if(q.length < 2) return;
+      const hits = [];
+      routines.forEach(r=>{ if((r.name||"").toLowerCase().includes(q))
+        hits.push({ icon:r.icon||"&#9654;", title:r.name, sub:"Rotina", go:()=>{ view={tab:"home",screen:"routineDetail",id:r.id}; render(); } }); });
+      tarefas.forEach(t=>{ if(((t.tipo||"")+" "+(t.conteudo||"")+" "+(t.area||"")).toLowerCase().includes(q))
+        hits.push({ icon:"&#128218;", title:(t.tipo?t.tipo+": ":"")+(t.conteudo||""), sub:"Tarefa"+(t.area?" · "+t.area:""), go:()=>{ tarefaDraft = JSON.parse(JSON.stringify(t)); view={tab:"tarefas",screen:"tarefaEditor"}; render(); } }); });
+      notes.forEach(n=>{ if(((n.title||"")+" "+(n.content||"")).toLowerCase().includes(q))
+        hits.push({ icon:"&#9998;", title:n.title||"Sem título", sub:"Nota", go:()=>openNoteEditor(n.id) }); });
+      templates.forEach(t=>{ if((t.title||"").toLowerCase().includes(q))
+        hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||"&#128203;", title:t.title, sub:"Modelo", go:()=>{ view={tab:"templates",screen:"templateDoc",id:t.id}; render(); } }); });
+      if(hits.length === 0){
+        gsResults.innerHTML = `<div class="routine-meta" style="padding:8px 2px;">Nada encontrado.</div>`;
+        return;
+      }
+      hits.slice(0, 20).forEach(h=>{
+        const card = document.createElement("div");
+        card.className = "routine-card";
+        card.style.cursor = "pointer";
+        card.innerHTML = `<div class="note-info"><h3>${h.icon} ${escapeHtml(h.title)}</h3><div class="routine-meta" style="margin-top:2px;">${escapeHtml(h.sub)}</div></div>`;
+        card.onclick = h.go;
+        gsResults.appendChild(card);
+      });
+      if(hits.length > 20){
+        const more = document.createElement("div");
+        more.className = "routine-meta";
+        more.style.padding = "8px 2px";
+        more.textContent = "+ " + (hits.length - 20) + " resultado(s) — refine a busca";
+        gsResults.appendChild(more);
+      }
+    }
+    if(gsInput){
+      gsInput.oninput = e => { homeSearchQuery = e.target.value; paintGlobalSearch(); };
+      if(homeSearchOpen) paintGlobalSearch();
+    }
     document.getElementById("themeBtn").onclick = toggleTheme;
     document.getElementById("agendaBtn").onclick = () => { view = { tab:"home", screen:"agenda" }; render(); };
     const impFile = document.getElementById("importRoutineFile");
@@ -1633,10 +1777,10 @@
           </div>
           <div class="step-side">
             <span class="drag-handle" data-drag="${i}">&#8801;</span>
-            <button class="order-btn" data-up="${i}" ${i===0?'disabled':''}>&#9650;</button>
-            <button class="order-btn" data-down="${i}" ${i===editorDraft.steps.length-1?'disabled':''}>&#9660;</button>
+            <button class="order-btn" data-up="${i}" title="Mover para cima" ${i===0?'disabled':''}>&#9650;</button>
+            <button class="order-btn" data-down="${i}" title="Mover para baixo" ${i===editorDraft.steps.length-1?'disabled':''}>&#9660;</button>
             <button class="order-btn" data-dup="${i}" title="Duplicar etapa">&#10697;</button>
-            <button class="remove-step" data-remove="${i}">&#10005;</button>
+            <button class="remove-step" data-remove="${i}" title="Remover etapa">&#10005;</button>
           </div>
         `;
         stepsList.appendChild(row);
@@ -1915,8 +2059,13 @@
     };
     const delBtn = document.getElementById("deleteRoutine");
     if(delBtn) delBtn.onclick = () => {
-      confirmModal("Excluir a rotina <b>"+escapeHtml(editorDraft.name||"sem nome")+"</b>?<br><small>Esta ação não pode ser desfeita.</small>", "Excluir", ()=>{
+      confirmModal("Excluir a rotina <b>"+escapeHtml(editorDraft.name||"sem nome")+"</b>?", "Excluir", ()=>{
+        const idx = routines.findIndex(r=>r.id===editorDraft.id);
+        const removed = idx>-1 ? routines[idx] : null;
         routines = routines.filter(r=>r.id!==editorDraft.id); save(K_ROUTINES, routines); view={tab:"home",screen:"home"}; render();
+        if(removed) showUndoBanner("Rotina excluída", ()=>{
+          routines.splice(Math.min(idx, routines.length), 0, removed); save(K_ROUTINES, routines); render();
+        });
       });
     };
   }
@@ -2305,13 +2454,43 @@
 
   function concludeTarefa(m){
     const prev = m.lastDone;
-    m.lastDone = Date.now(); saveTarefas();
+    const prevReview = m.reviewAt;
+    m.lastDone = Date.now();
+    delete m.reviewAt; // revisão vencida (ou nunca marcada): o ciclo recomeça
+    saveTarefas();
     const histEntry = { id:uid(), tarefaId:m.id, eixo:m.eixo, area:m.area, tipo:m.tipo, conteudo:m.conteudo, dur:m.dur, ts:m.lastDone };
     tarefasHist.push(histEntry); saveTarefasHist();
     finishCue();
     showUndoBanner("Tarefa concluída ✓", ()=>{
-      m.lastDone = prev; saveTarefas();
+      m.lastDone = prev;
+      if(prevReview !== undefined) m.reviewAt = prevReview;
+      saveTarefas();
       tarefasHist = tarefasHist.filter(h=>h.id!==histEntry.id); saveTarefasHist();
+      render();
+    });
+    if(tarefaGenero(m)==='trilha') askReviewTarefa(m);
+  }
+
+  /* Revisão espaçada (só trilha): a tarefa concluída reaparece na fila na data. */
+  function askReviewTarefa(m){
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `
+      <div class="confirm-box" role="dialog" aria-modal="true">
+        <p>Revisar <b>${escapeHtml(m.conteudo)}</b> em:</p>
+        <div class="confirm-actions" style="flex-direction:column;">
+          <button class="btn-confirm" data-rev="1">1 dia</button>
+          <button class="btn-confirm" data-rev="7">7 dias</button>
+          <button class="btn-confirm" data-rev="30">30 dias</button>
+          <button class="btn-cancel" data-rev="">Sem revisão</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target === ov) ov.remove(); };
+    ov.querySelectorAll("[data-rev]").forEach(b=> b.onclick = () => {
+      const d = +b.dataset.rev;
+      if(d > 0){ m.reviewAt = Date.now() + d * 86400000; saveTarefas(); }
+      ov.remove();
       render();
     });
   }
@@ -2350,7 +2529,11 @@
     return "há "+days+" dias";
   }
 
-  function tarefaAtiva(m){ return !(tarefaGenero(m)==='trilha' && m.lastDone); }
+  function tarefaAtiva(m){
+    if(tarefaGenero(m)!=='trilha' || !m.lastDone) return true;
+    // trilha concluída volta à fila quando a revisão espaçada vence
+    return !!(m.reviewAt && Date.now() >= m.reviewAt);
+  }
   // "detalhes" (texto multi-linha) → lista com marcadores, uma linha por item
   function tarefaDetalhesHtml(detalhes){
     if(!detalhes) return "";
@@ -2442,7 +2625,8 @@
           card.style.borderLeft = "3px solid " + (isNext ? ex.color : "transparent");
           const numeroTag = m.numero ? escapeHtml(m.numero)+' · ' : '';
           const tipoTag = m.tipoTarefa ? escapeHtml(m.tipoTarefa)+' · ' : '';
-          const metaBits = `${numeroTag}${tipoTag}${m.dur} min · ${tarefaAgo(m)}${m.natureza==='simulado'?' · simulado':''}`;
+          const revTag = m.reviewAt ? (Date.now() >= m.reviewAt ? ' · revisão pendente' : ' · revisão em ' + new Date(m.reviewAt).toLocaleDateString("pt-BR", {day:"2-digit", month:"2-digit"})) : '';
+          const metaBits = `${numeroTag}${tipoTag}${m.dur} min · ${tarefaAgo(m)}${m.natureza==='simulado'?' · simulado':''}${revTag}`;
           const detalhesHtml = tarefaDetalhesHtml(m.detalhes);
           card.innerHTML = `
             <div class="tar-item-info" data-medit="${m.id}">
@@ -2593,8 +2777,8 @@
     };
     const del = document.getElementById("mDel");
     if(del) del.onclick = () => confirmModal("Excluir <b>"+escapeHtml(d.tipo+": "+d.conteudo)+"</b> da fila?","Excluir",()=>{
-      tarefas = tarefas.filter(x=>x.id!==d.id); saveTarefas();
-      view = { tab:"tarefas", screen:"tarefas" }; render();
+      view = { tab:"tarefas", screen:"tarefas" };
+      deleteTarefaComUndo(d);
     });
   }
 
@@ -2712,7 +2896,7 @@
             <div class="note-snippet">${escapeHtml(stripMdForSnippet(n.content))}</div>
             <div class="routine-meta" style="margin-top:6px;">${relativeTime(n.updatedAt)}</div>
           </div>
-          <button class="icon-btn pin-btn ${n.pinned?'pinned':''}" data-pin="${n.id}">&#9733;</button>
+          <button class="icon-btn pin-btn ${n.pinned?'pinned':''}" data-pin="${n.id}" title="Fixar nota">&#9733;</button>
         `;
         card.querySelector(".note-info").onclick = () => openNoteEditor(n.id);
         card.querySelector("[data-pin]").onclick = e => {
@@ -2722,9 +2906,11 @@
           updateList();
         };
         listBox.appendChild(wrapSwipeDelete(card, () => {
-          confirmModal("Excluir a nota <b>"+escapeHtml(n.title||"sem título")+"</b>?<br><small>Esta ação não pode ser desfeita.</small>", "Excluir", ()=>{
-            notes = notes.filter(x=>x.id!==n.id); save(K_NOTES, notes);
-            updateList();
+          const idx = notes.findIndex(x=>x.id===n.id);
+          notes = notes.filter(x=>x.id!==n.id); save(K_NOTES, notes);
+          updateList();
+          showUndoBanner("Nota excluída", ()=>{
+            notes.splice(Math.min(idx, notes.length), 0, n); save(K_NOTES, notes); render();
           });
         }));
       });
@@ -3688,12 +3874,18 @@
         };
         list.appendChild(wrapSwipeDelete(card, () => {
           if(item.kind==="note"){
-            confirmModal("Excluir a nota <b>"+escapeHtml(item.title)+"</b>?<br><small>Esta ação não pode ser desfeita.</small>", "Excluir", ()=>{
-              notes = notes.filter(x=>x.id!==item.id); save(K_NOTES, notes); render();
+            const idx = notes.findIndex(x=>x.id===item.id);
+            const removed = idx>-1 ? notes[idx] : null;
+            notes = notes.filter(x=>x.id!==item.id); save(K_NOTES, notes); render();
+            if(removed) showUndoBanner("Nota excluída", ()=>{
+              notes.splice(Math.min(idx, notes.length), 0, removed); save(K_NOTES, notes); render();
             });
           } else {
-            confirmModal("Excluir <b>"+escapeHtml(item.title)+"</b>?", "Excluir", ()=>{
-              templates = templates.filter(x=>x.id!==item.id); save(K_TEMPLATES, templates); render();
+            const idx = templates.findIndex(x=>x.id===item.id);
+            const removed = idx>-1 ? templates[idx] : null;
+            templates = templates.filter(x=>x.id!==item.id); save(K_TEMPLATES, templates); render();
+            if(removed) showUndoBanner("Documento excluído", ()=>{
+              templates.splice(Math.min(idx, templates.length), 0, removed); save(K_TEMPLATES, templates); render();
             });
           }
         }));
@@ -3762,8 +3954,13 @@
       const del = document.getElementById("delTmpl");
       if(del) del.onclick = () => {
         confirmModal("Excluir <b>"+escapeHtml(doc.title)+"</b>?", "Excluir", ()=>{
+          const idx = templates.findIndex(t=>t.id===doc.id);
+          const removed = idx>-1 ? templates[idx] : null;
           templates = templates.filter(t=>t.id!==doc.id); save(K_TEMPLATES, templates);
           view = { tab:"templates", screen:"templates" }; render();
+          if(removed) showUndoBanner("Documento excluído", ()=>{
+            templates.splice(Math.min(idx, templates.length), 0, removed); save(K_TEMPLATES, templates); render();
+          });
         });
       };
     }, 0);
@@ -4226,10 +4423,11 @@
               </div></div>`;
           }
           return `<div class="kb-card">
+            <span class="kb-drag" data-kbdrag="${ci}-${ii}">&#8801;</span>
             <span class="kb-text" data-kbe="${ci}-${ii}">${escapeHtml(it.text)}</span>
             <div class="kb-moves">
-              <button class="order-btn" data-kbl="${ci}-${ii}" ${ci===0?'disabled':''}>&lsaquo;</button>
-              <button class="order-btn" data-kbr="${ci}-${ii}" ${ci===doc.cols.length-1?'disabled':''}>&rsaquo;</button>
+              <button class="order-btn" data-kbl="${ci}-${ii}" title="Mover para coluna anterior" ${ci===0?'disabled':''}>&lsaquo;</button>
+              <button class="order-btn" data-kbr="${ci}-${ii}" title="Mover para coluna seguinte" ${ci===doc.cols.length-1?'disabled':''}>&rsaquo;</button>
             </div>
           </div>`;
         }).join("");
@@ -4239,6 +4437,44 @@
         body.appendChild(col);
       });
       body.querySelectorAll("[data-kbe]").forEach(sp=> sp.onclick = () => { const [ci,ii]=sp.dataset.kbe.split("-").map(Number); kbEdit={ci,ii}; paint(); setTimeout(()=>{const i=body.querySelector(".kb-e-text"); if(i) i.focus();},30); });
+      // arrastar cartão para outra coluna/posição (alça &#8801;); botões ‹ › continuam como fallback
+      body.querySelectorAll("[data-kbdrag]").forEach(h=>{
+        h.onpointerdown = ev => {
+          ev.preventDefault();
+          const [fci, fii] = h.dataset.kbdrag.split("-").map(Number);
+          const cardEl = h.closest(".kb-card");
+          const cols = [...body.querySelectorAll(".kb-col")];
+          cardEl.classList.add("dragging");
+          try{ h.setPointerCapture(ev.pointerId); }catch(e){}
+          let tci = fci, tii = fii;
+          const move = e2 => {
+            const x = e2.clientX, y = e2.clientY;
+            tci = fci;
+            cols.forEach((colEl, j)=>{
+              const rc = colEl.getBoundingClientRect();
+              const inside = x >= rc.left && x <= rc.right && y >= rc.top - 40 && y <= rc.bottom + 40;
+              colEl.classList.toggle("kb-drop", inside);
+              if(inside) tci = j;
+            });
+            // posição na coluna alvo pelo ponto médio de cada cartão (sem o arrastado)
+            const others = [...cols[tci].querySelectorAll(".kb-card")].filter(c=>c!==cardEl);
+            tii = others.length;
+            for(let j = 0; j < others.length; j++){
+              if(y < others[j].getBoundingClientRect().top + others[j].offsetHeight/2){ tii = j; break; }
+            }
+          };
+          const up = () => {
+            h.onpointermove = null; h.onpointerup = null; h.onpointercancel = null;
+            cardEl.classList.remove("dragging");
+            cols.forEach(c=>c.classList.remove("kb-drop"));
+            const [it] = doc.cols[fci].items.splice(fii, 1);
+            // "others" exclui o cartão arrastado, então tii já é o índice correto pós-remoção
+            doc.cols[tci].items.splice(Math.min(tii, doc.cols[tci].items.length), 0, it);
+            saveTemplates(doc); paint();
+          };
+          h.onpointermove = move; h.onpointerup = up; h.onpointercancel = up;
+        };
+      });
       body.querySelectorAll("[data-kbl]").forEach(b=> b.onclick = () => { const [ci,ii]=b.dataset.kbl.split("-").map(Number); const [it]=doc.cols[ci].items.splice(ii,1); doc.cols[ci-1].items.push(it); saveTemplates(doc); paint(); });
       body.querySelectorAll("[data-kbr]").forEach(b=> b.onclick = () => { const [ci,ii]=b.dataset.kbr.split("-").map(Number); const [it]=doc.cols[ci].items.splice(ii,1); doc.cols[ci+1].items.push(it); saveTemplates(doc); paint(); });
       body.querySelectorAll("[data-kbaddform]").forEach(form=>{
@@ -5055,7 +5291,7 @@
     banner.innerHTML = `<span>${text}</span><button class="undo-btn">Desfazer</button>`;
     document.body.appendChild(banner);
     banner.querySelector(".undo-btn").onclick = () => { banner.remove(); onUndo(); };
-    undoTimer = setTimeout(()=>{ banner.classList.add("hide"); setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 400); }, 3000);
+    undoTimer = setTimeout(()=>{ banner.classList.add("hide"); setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 400); }, 6000);
     attachSwipeDismiss(banner, () => { if(undoTimer){ clearTimeout(undoTimer); undoTimer=null; } });
   }
 
@@ -5314,14 +5550,24 @@
   }
 
   /* Auto-backup no APK: cópia de segurança silenciosa em Documentos/Rotinas a
-     cada 3 dias — sobrevive à desinstalação do app (Directory.Data não). */
+     cada 3 dias — sobrevive à desinstalação do app (Directory.Data não).
+     Arquivos datados, com retenção dos 5 mais recentes: um backup corrompido
+     ou vazio não destrói mais o único backup existente. */
   async function autoBackupNative(){
     if(!isNative) return;
     if(routines.length + notes.length + tarefas.length + templates.length === 0) return; // nunca sobrescrever com dados vazios
     if(Date.now() - load(K_AUTOBAK, 0) < 3 * 86400000) return;
     try{
-      await nativeWriteExport("rotinas-backup-auto.json", JSON.stringify(backupData(), null, 2));
+      await nativeWriteExport("rotinas-backup-auto-" + localKey() + ".json", JSON.stringify(backupData(), null, 2));
       save(K_AUTOBAK, Date.now());
+      // retenção: mantém só os 5 auto-backups mais recentes (nome contém a data)
+      const FS = window.Capacitor.Plugins.Filesystem;
+      const r = await FS.readdir({ path:"Rotinas", directory:"DOCUMENTS" });
+      const autos = (r.files || []).map(f => typeof f === "string" ? f : f.name)
+        .filter(n => /^rotinas-backup-auto-.*\.json$/.test(n)).sort();
+      for(const old of autos.slice(0, Math.max(0, autos.length - 5))){
+        try{ await FS.deleteFile({ path:"Rotinas/" + old, directory:"DOCUMENTS" }); }catch(e){}
+      }
     }catch(e){ console.error("Auto-backup falhou:", e); }
   }
   function importBackup(file){
@@ -5342,7 +5588,13 @@
           render();
           return;
         }
-        // backup completo: confirmar substituir ou mesclar
+        // backup completo: validar estrutura antes de oferecer importação
+        const COLLS = ["routines","notes","history","templates","snoozes","tarefas","tarefasHist"];
+        if(!data || typeof data !== "object" || !COLLS.some(k => Array.isArray(data[k]))){
+          showAlertBanner("Arquivo não parece um backup do Rotinas");
+          return;
+        }
+        COLLS.forEach(k => { if(Array.isArray(data[k])) data[k] = data[k].filter(x => x && typeof x === "object"); });
         const ov = document.createElement("div");
         ov.className = "confirm-overlay";
         ov.innerHTML = `
@@ -5479,9 +5731,14 @@
       });
     };
     document.getElementById("deleteNote").onclick = () => {
-      confirmModal("Excluir a nota <b>"+escapeHtml(noteDraft.title||"sem título")+"</b>?<br><small>Esta ação não pode ser desfeita.</small>", "Excluir", ()=>{
+      confirmModal("Excluir a nota <b>"+escapeHtml(noteDraft.title||"sem título")+"</b>?", "Excluir", ()=>{
+        const idx = notes.findIndex(n=>n.id===noteDraft.id);
+        const removed = idx>-1 ? notes[idx] : null;
         notes = notes.filter(n=>n.id!==noteDraft.id); save(K_NOTES, notes);
         view = { tab:"templates", screen:"templates" }; render();
+        if(removed) showUndoBanner("Nota excluída", ()=>{
+          notes.splice(Math.min(idx, notes.length), 0, removed); save(K_NOTES, notes); render();
+        });
       });
     };
   }
@@ -5852,6 +6109,9 @@
       ov.querySelectorAll("[data-ovtoggle]").forEach(sp=>{
         sp.onclick = () => { flipToggle(note.id, +sp.dataset.ovtoggle); paint(); };
       });
+      ov.querySelectorAll("[data-wikilink]").forEach(sp=>{
+        sp.onclick = () => { ov.remove(); openNoteByTitle(sp.dataset.wikilink); };
+      });
     }
     paint();
     document.body.appendChild(ov);
@@ -6049,6 +6309,7 @@
   /* ---------------- INIT ---------------- */
   applyTheme();
   render();
+  window.__britaBooted = true; // boot ok: overlay de erro fatal não é mais necessário
   startScheduler();
 
   (function handleStartParam(){
