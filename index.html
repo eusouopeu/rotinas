@@ -787,6 +787,10 @@ window.addEventListener("unhandledrejection", function(e){
     );
   }
 
+  // declarado antes do save(): o boot chama save() → queueNativeSchedSync()
+  // antes da seção de notificações (TDZ quebrava o boot no APK)
+  let nativeSyncTimer = null;
+
   function load(key, fallback){ return mem.has(key) ? mem.get(key) : fallback; }
   function save(key, val){
     mem.set(key, JSON.parse(JSON.stringify(val))); // snapshot, como o localStorage fazia
@@ -1182,7 +1186,6 @@ window.addEventListener("unhandledrejection", function(e){
   function notifyNative(title, body, extra, id){
     nativeLN().schedule({ notifications: [{ id, title, body, extra: extra || {} }] }).catch(()=>{});
   }
-  let nativeSyncTimer = null;
   function queueNativeSchedSync(){
     if(!isNative) return;
     clearTimeout(nativeSyncTimer);
