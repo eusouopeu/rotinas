@@ -82,7 +82,8 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
     font-family:'Inter'; font-size:11.5px;
   }
-  .tabbar button .ic{ font-size:19px; }
+  .tabbar button .ic{ font-size:19px; display:flex; align-items:center; justify-content:center; }
+  .icon-svg{ display:inline-block; vertical-align:-4px; flex-shrink:0; }
   .tabbar button.active{ color:var(--accent); }
 
   /* ---------- HOME / HEADER ---------- */
@@ -108,6 +109,10 @@
   .swipe-track{ position:relative; z-index:1; touch-action:pan-y; will-change:transform; }
   .swipe-del-btn{
     position:absolute; top:0; right:0; bottom:0; width:76px; background:var(--danger); color:#fff;
+    border:none; font-family:'Inter'; font-weight:600; font-size:12.5px; z-index:0;
+  }
+  .swipe-dup-btn{
+    position:absolute; top:0; left:0; bottom:0; width:76px; background:var(--accent-2); color:#fff;
     border:none; font-family:'Inter'; font-weight:600; font-size:12.5px; z-index:0;
   }
 
@@ -155,6 +160,13 @@
     width:58px; height:58px; border-radius:50%; background: var(--grad); color:var(--on-accent); border:none;
     font-size:28px; font-weight:400; display:flex; align-items:center; justify-content:center;
     box-shadow: 0 8px 24px rgba(200,100,180,.4); z-index:20;
+  }
+
+  .player-quickfab{
+    position:fixed; right:18px; bottom:18px;
+    width:46px; height:46px; border-radius:50%; background:var(--surface); color:var(--muted); border:1px solid var(--line);
+    font-size:22px; font-weight:400; display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 4px 14px rgba(0,0,0,.18); z-index:20;
   }
 
   /* ---------- ALERT BANNER ---------- */
@@ -274,11 +286,14 @@
   .player-close{ color:var(--muted); background:none; border:none; font-size:15px; }
   .player-progress-label{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
 
+  .next-task-row{
+    width:100%; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); margin:10px 0 25px; line-height:1.5;
+  }
   .estimate-row{
     width:100%; display:flex; justify-content:center; align-items:center; gap:8px;
-    font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--muted); margin:6px 0 2px;
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--muted); margin:0 0 6px;
   }
-  .estimate-row b{ color:var(--accent); font-size:14px; }
+  .estimate-row b{ color:var(--accent); font-size:19px; font-weight:700; }
 
   .dial-wrap{ position:relative; width:min(72vw, 280px); height:min(72vw, 280px); display:flex; align-items:center; justify-content:center; margin:8px 0; }
   .dial-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); transition: filter .3s; }
@@ -391,6 +406,20 @@
   .tag-token{ color:var(--accent); }
   .wikilink{ color:var(--accent-2); text-decoration:underline; text-underline-offset:3px; }
 
+  /* ---------- TAG INPUT (multiselect com criação livre) ---------- */
+  .tag-input-box{
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center; width:100%;
+    background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:7px 8px; margin-bottom:8px;
+  }
+  .tag-input-chip{
+    display:flex; align-items:center; gap:5px; padding:4px 6px 4px 10px; border-radius:20px;
+    background:var(--grad); color:var(--on-accent); font-family:'IBM Plex Mono', monospace; font-size:12.5px;
+  }
+  .tag-input-chip button{ background:none; border:none; color:inherit; font-size:14px; line-height:1; padding:0 2px; cursor:pointer; }
+  .tag-input-field{ flex:1; min-width:80px; background:none; border:none; color:var(--text); font-size:14px; padding:4px; }
+  .tag-input-field:focus{ outline:none; }
+  .tag-input-suggest{ display:flex; flex-wrap:wrap; gap:6px; margin:-2px 0 8px; }
+
   /* ---------- IDENTIDADE VISUAL DA ROTINA ---------- */
   .ident-row{ display:flex; align-items:center; gap:14px; margin:-6px 0 18px; }
   .icon-input{
@@ -431,9 +460,9 @@
 
   /* ---------- DRAG ---------- */
   .drag-handle{ color:var(--muted); font-size:17px; padding:2px 8px; cursor:grab; touch-action:none; user-select:none; }
-  .step-row.dragging{ opacity:.45; border-color:var(--accent); }
-  .step-row.drop-above{ box-shadow: 0 -3px 0 0 var(--accent); }
-  .step-row.drop-below{ box-shadow: 0 3px 0 0 var(--accent); }
+  .step-row.dragging, .routine-card.dragging{ opacity:.45; border-color:var(--accent); }
+  .step-row.drop-above, .routine-card.drop-above{ box-shadow: 0 -3px 0 0 var(--accent); }
+  .step-row.drop-below, .routine-card.drop-below{ box-shadow: 0 3px 0 0 var(--accent); }
 
   /* ---------- NOTE OVERLAY ---------- */
   .note-overlay{
@@ -521,8 +550,8 @@
   .tappable:active{ opacity:.6; }
 
   /* ---------- HUMOR / METAS / EXCLUIR EXEC ---------- */
-  .mood-row{ display:flex; gap:12px; margin-top:14px; }
-  .mood-btn{ background:var(--surface); border:1px solid var(--line); border-radius:14px; font-size:26px; padding:8px 10px; }
+  .mood-row{ display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; justify-content:center; }
+  .mood-btn{ background:var(--surface); border:1px solid var(--line); border-radius:14px; font-size:14px; letter-spacing:1px; color:var(--accent); padding:10px 9px; }
   .mood-btn.sel{ border-color:var(--accent); background:var(--surface-2); transform:scale(1.12); }
   .goal-track{ position:relative; }
   .goal-marker{ position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--text); opacity:.65; border-radius:1px; }
@@ -540,9 +569,11 @@
   .tmpl-new{
     background:var(--surface); border:1px dashed var(--accent-dim); border-radius:12px;
     padding:9px 6px; color:var(--text); font-family:'Inter'; font-size:12px; text-align:center;
-    display:flex; align-items:center; justify-content:center; min-height:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; min-height:0;
+    aspect-ratio:1/1;
   }
-  .tmpl-ic{ font-size:20px; }
+  .tmpl-ic{ font-size:19px; height:19px; display:flex; align-items:center; justify-content:center; }
+  .tmpl-new .icon-svg{ vertical-align:0; }
   .market-form{ margin-bottom:14px; }
   .market-form input[type=text]{
     width:100%; background:var(--surface); border:1px solid var(--line); border-radius:12px;
@@ -848,6 +879,7 @@ window.addEventListener("unhandledrejection", function(e){
   tarefas.forEach((m,i)=>{ if(m.ord===undefined) m.ord=i; });
 
   let view = { tab: "home", screen: "home" };
+  let navStack = [];
   let homeSearchOpen = false, homeSearchQuery = "";
   let editorDraft = null;
   let noteDraft = null;
@@ -860,6 +892,11 @@ window.addEventListener("unhandledrejection", function(e){
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  /* ícone outline (mesmo tamanho dos ícones da barra de navegação inferior por padrão) */
+  function svgIcon(d, size){
+    size = size || 19;
+    return `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="${size}" height="${size}" class="icon-svg"><path stroke-linecap="round" stroke-linejoin="round" d="${d}"/></svg>`;
+  }
   function fmtTime(totalSeconds){
     const neg = totalSeconds < 0;
     const abs = Math.abs(totalSeconds);
@@ -993,6 +1030,69 @@ window.addEventListener("unhandledrejection", function(e){
       cardEl.style.transform = `translateX(${open?-REVEAL:0}px)`;
       cardEl.dataset.swipeOpen = open ? "1" : "0";
       openSwipeTrack = open ? cardEl : (openSwipeTrack===cardEl ? null : openSwipeTrack);
+    }
+    cardEl.addEventListener("pointerup", finish);
+    cardEl.addEventListener("pointercancel", finish);
+    return wrap;
+  }
+
+  /* envolve cardEl com DUAS ações: arrastar p/ esquerda revela onLeft (à direita), arrastar p/ direita revela onRight (à esquerda).
+     Usado nos cards de etapa do editor de rotina (excluir/duplicar). Ignora o gesto se começar num controle interativo do card. */
+  function wrapSwipeActions(cardEl, opts){
+    const REVEAL = 76;
+    const { onLeft, leftLabel, onRight, rightLabel } = opts;
+    const wrap = document.createElement("div");
+    wrap.className = "swipe-item";
+    const delBtn = document.createElement("button");
+    delBtn.className = "swipe-del-btn";
+    delBtn.textContent = leftLabel || "Excluir";
+    delBtn.onclick = () => { closeOpenSwipe(null); onLeft(); };
+    wrap.appendChild(delBtn);
+    const dupBtn = document.createElement("button");
+    dupBtn.className = "swipe-dup-btn";
+    dupBtn.textContent = rightLabel || "Duplicar";
+    dupBtn.onclick = () => { closeOpenSwipe(null); onRight(); };
+    wrap.appendChild(dupBtn);
+    cardEl.classList.add("swipe-track");
+    cardEl.dataset.swipeOpen = "0";
+    wrap.appendChild(cardEl);
+
+    let startX=0, startY=0, dragging=false, decided=false, horiz=false, baseX=0;
+    cardEl.addEventListener("pointerdown", e=>{
+      if(e.pointerType==="mouse" && e.button!==0) return;
+      if(e.target.closest(".drag-handle, .order-btn, input, select, button, textarea, .type-toggle span")) return;
+      startX = e.clientX; startY = e.clientY; dragging = true; decided = false; horiz = false;
+      baseX = cardEl.dataset.swipeOpen==="1" ? REVEAL : (cardEl.dataset.swipeOpen==="-1" ? -REVEAL : 0);
+      cardEl.style.transition = "none";
+    });
+    cardEl.addEventListener("pointermove", e=>{
+      if(!dragging) return;
+      const dx = e.clientX-startX, dy = e.clientY-startY;
+      if(!decided){
+        if(Math.abs(dx)>8 || Math.abs(dy)>8){
+          decided = true;
+          horiz = Math.abs(dx) > Math.abs(dy)*1.2;
+          if(horiz){ try{ cardEl.setPointerCapture(e.pointerId); }catch(err){} closeOpenSwipe(cardEl); }
+          else { dragging = false; return; }
+        } else return;
+      }
+      if(!horiz) return;
+      e.preventDefault();
+      const next = Math.max(-REVEAL, Math.min(REVEAL, baseX+dx));
+      cardEl.style.transform = `translateX(${next}px)`;
+    });
+    function finish(e){
+      if(!dragging) return;
+      dragging = false;
+      if(!horiz) return;
+      const dx = (e.clientX!=null ? e.clientX : startX) - startX;
+      const next = Math.max(-REVEAL, Math.min(REVEAL, baseX+dx));
+      const openState = next < -REVEAL/2 ? "1" : (next > REVEAL/2 ? "-1" : "0");
+      const openX = openState==="1" ? -REVEAL : (openState==="-1" ? REVEAL : 0);
+      cardEl.style.transition = "transform .18s ease";
+      cardEl.style.transform = `translateX(${openX}px)`;
+      cardEl.dataset.swipeOpen = openState;
+      openSwipeTrack = openState!=="0" ? cardEl : (openSwipeTrack===cardEl ? null : openSwipeTrack);
     }
     cardEl.addEventListener("pointerup", finish);
     cardEl.addEventListener("pointercancel", finish);
@@ -1263,6 +1363,9 @@ window.addEventListener("unhandledrejection", function(e){
       SC.getLaunch().then(d => { if(d && d.routineId && routines.find(r => r.id === d.routineId)) startPlayer(d.routineId); }).catch(()=>{});
       syncAppShortcuts();
     }
+    if(window.Capacitor.Plugins.App){
+      window.Capacitor.Plugins.App.addListener("backButton", () => goBack());
+    }
   }
 
   /* ---------------- SCHEDULE HELPERS ---------------- */
@@ -1313,6 +1416,8 @@ window.addEventListener("unhandledrejection", function(e){
     else if(view.screen === "agenda") renderAgenda();
     else if(view.screen === "routineStats") renderRoutineStats();
     else if(view.screen === "templates") renderTemplates();
+    else if(view.screen === "tmplFolder") renderTmplFolder();
+    else if(view.screen === "expenseFolder") renderExpenseFolder();
     else if(view.screen === "templateDoc") renderTemplateDoc();
     else if(view.screen === "editor") renderEditor();
     else if(view.screen === "noteEditor") renderNoteEditor();
@@ -1325,17 +1430,43 @@ window.addEventListener("unhandledrejection", function(e){
     else if(view.screen === "tarefaImportPreview") renderTarefaImportPreview();
   }
 
+  /* ---------------- NAVEGAÇÃO (pilha p/ botão físico de voltar do Android) ---------------- */
+  function pushView(newView){
+    navStack.push(view);
+    if(navStack.length > 40) navStack.shift();
+    view = newView;
+  }
+  function goTo(newView){
+    pushView(newView);
+    render();
+  }
+  function closeTopOverlay(){
+    const ov = document.querySelector(".confirm-overlay");
+    if(ov){ ov.remove(); return true; }
+    return false;
+  }
+  function goBack(){
+    if(closeTopOverlay()) return;
+    if(view.screen === "player"){
+      if(playerState && playerState.zen){ playerState.zen = false; render(); return; }
+      confirmExitPlayer();
+      return;
+    }
+    if(navStack.length){ view = navStack.pop(); render(); return; }
+    if(isNative && window.Capacitor.Plugins.App) window.Capacitor.Plugins.App.exitApp();
+  }
+
   function renderTabbar(activeTab){
     const bar = document.createElement("div");
     bar.className = "tabbar";
     bar.innerHTML = `
-      <button data-tab="home" class="${activeTab==='home'?'active':''}"><span class="ic">&#9679;</span>Rotinas</button>
-      <button data-tab="tarefas" class="${activeTab==='tarefas'?'active':''}"><span class="ic">&#127857;</span>Tarefas</button>
-      <button data-tab="templates" class="${activeTab==='templates'||activeTab==='notes'?'active':''}"><span class="ic">&#9707;</span>Modelos</button>
-      <button data-tab="stats" class="${activeTab==='stats'?'active':''}"><span class="ic">&#9632;</span>Dados</button>
+      <button data-tab="home" class="${activeTab==='home'?'active':''}"><span class="ic">${svgIcon(ICON_D.home)}</span>Rotinas</button>
+      <button data-tab="tarefas" class="${activeTab==='tarefas'?'active':''}"><span class="ic">&#9776;</span>Tarefas</button>
+      <button data-tab="templates" class="${activeTab==='templates'||activeTab==='notes'?'active':''}"><span class="ic">${svgIcon(ICON_D.templates)}</span>Modelos</button>
+      <button data-tab="stats" class="${activeTab==='stats'?'active':''}"><span class="ic">${svgIcon(ICON_D.stats)}</span>Dados</button>
     `;
     bar.querySelectorAll("[data-tab]").forEach(b=>{
-      b.onclick = () => { view = { tab:b.dataset.tab, screen:b.dataset.tab }; render(); };
+      b.onclick = () => { goTo({ tab:b.dataset.tab, screen:b.dataset.tab }); };
     });
     return bar;
   }
@@ -1346,17 +1477,17 @@ window.addEventListener("unhandledrejection", function(e){
     el.className = "screen with-tabbar";
     const streak = computeStreak();
     el.innerHTML = `
-      <div class="home-header">
+      <div class="home-header" style="margin-bottom:10px;">
         <h1>Rotinas</h1>
-        <div class="header-right">
-          ${streak>0?`<div class="streak"><span class="dot"></span>${streak} dia${streak>1?'s':''}</div>`:""}
-          <button class="bell-btn" id="searchBtn" title="Buscar em tudo">&#128269;</button>
-          <button class="bell-btn" id="themeBtn" title="Alternar tema">${themeIcon()}</button>
-          <button class="bell-btn" id="agendaBtn" title="Agenda da semana">&#128197;</button>
-          <button class="bell-btn" id="importRoutineBtn" title="Importar rotina/backup">&#8679;</button>
-          <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
-          <button class="bell-btn" id="notifBtn" title="Ativar notificações">&#128276;</button>
-        </div>
+      </div>
+      <div class="header-right" style="margin-bottom:18px; flex-wrap:wrap;">
+        ${streak>0?`<div class="streak"><span class="dot"></span>${streak} dia${streak>1?'s':''}</div>`:""}
+        <button class="bell-btn" id="searchBtn" title="Buscar em tudo">&#8981;</button>
+        <button class="bell-btn" id="themeBtn" title="Alternar tema">${themeIcon()}</button>
+        <button class="bell-btn" id="agendaBtn" title="Agenda da semana">&#9636;</button>
+        <button class="bell-btn" id="importRoutineBtn" title="Importar rotina/backup">&#8679;</button>
+        <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
+        <button class="bell-btn" id="notifBtn" title="Ativar notificações">&#9086;</button>
       </div>
       <div id="globalSearchWrap" style="display:${homeSearchOpen?"block":"none"}; margin-bottom:14px;">
         <input type="search" id="globalSearch" class="note-search" placeholder="Buscar rotinas, tarefas, notas, modelos..." value="${escapeHtml(homeSearchQuery)}">
@@ -1390,7 +1521,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(backupOverdue()){
       const bk = document.createElement("div");
       bk.className = "notice-card";
-      bk.innerHTML = `<span>&#128190; Faz mais de 30 dias sem backup. Seus dados vivem só neste navegador.</span>
+      bk.innerHTML = `<span>&#8681; Faz mais de 30 dias sem backup. Seus dados vivem só neste navegador.</span>
         <div class="notice-actions"><button id="doBackupNow">Exportar</button><button id="dismissBackup" class="ghost">Depois</button></div>`;
       el.appendChild(bk);
       bk.querySelector("#doBackupNow").onclick = () => { exportBackup(); render(); };
@@ -1418,12 +1549,13 @@ window.addEventListener("unhandledrejection", function(e){
             ${sched ? `<div class="sched-chip">&#9200; ${sched.startStr} &rarr; ${sched.endStr}${r.schedule.days.length<7?' · '+r.schedule.days.length+'d/sem':''}</div>` : ""}
           </div>
           <div class="routine-actions">
-            <button class="icon-btn" data-dupr="${r.id}" title="Duplicar">&#10697;</button>
-            <button class="icon-btn" data-edit="${r.id}" title="Editar rotina">&#9998;</button>
             <button class="play-btn" data-play="${r.id}" title="Iniciar rotina">&#9654;</button>
           </div>
         `;
-        list.appendChild(card);
+        list.appendChild(wrapSwipeActions(card, {
+          onLeft: () => deleteRoutineWithUndo(r.id), leftLabel: "Excluir",
+          onRight: () => duplicateRoutine(r.id), rightLabel: "Duplicar"
+        }));
       });
       el.appendChild(list);
     }
@@ -1450,13 +1582,13 @@ window.addEventListener("unhandledrejection", function(e){
       if(q.length < 2) return;
       const hits = [];
       routines.forEach(r=>{ if((r.name||"").toLowerCase().includes(q))
-        hits.push({ icon:r.icon||"&#9654;", title:r.name, sub:"Rotina", go:()=>{ view={tab:"home",screen:"routineDetail",id:r.id}; render(); } }); });
+        hits.push({ icon:r.icon||"&#9654;", title:r.name, sub:"Rotina", go:()=>{ goTo({tab:"home",screen:"routineDetail",id:r.id}); } }); });
       tarefas.forEach(t=>{ if(((t.tipo||"")+" "+(t.conteudo||"")+" "+(t.area||"")).toLowerCase().includes(q))
-        hits.push({ icon:"&#128218;", title:(t.tipo?t.tipo+": ":"")+(t.conteudo||""), sub:"Tarefa"+(t.area?" · "+t.area:""), go:()=>{ tarefaDraft = JSON.parse(JSON.stringify(t)); view={tab:"tarefas",screen:"tarefaEditor"}; render(); } }); });
+        hits.push({ icon:"&#9745;", title:(t.tipo?t.tipo+": ":"")+(t.conteudo||""), sub:"Tarefa"+(t.area?" · "+t.area:""), go:()=>{ tarefaDraft = JSON.parse(JSON.stringify(t)); goTo({tab:"tarefas",screen:"tarefaEditor"}); } }); });
       notes.forEach(n=>{ if(((n.title||"")+" "+(n.content||"")).toLowerCase().includes(q))
         hits.push({ icon:"&#9998;", title:n.title||"Sem título", sub:"Nota", go:()=>openNoteEditor(n.id) }); });
       templates.forEach(t=>{ if((t.title||"").toLowerCase().includes(q))
-        hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||"&#128203;", title:t.title, sub:"Modelo", go:()=>{ view={tab:"templates",screen:"templateDoc",id:t.id}; render(); } }); });
+        hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||"&#9638;", title:t.title, sub:"Modelo", go:()=>{ goTo({tab:"templates",screen:"templateDoc",id:t.id}); } }); });
       if(hits.length === 0){
         gsResults.innerHTML = `<div class="routine-meta" style="padding:8px 2px;">Nada encontrado.</div>`;
         return;
@@ -1482,25 +1614,35 @@ window.addEventListener("unhandledrejection", function(e){
       if(homeSearchOpen) paintGlobalSearch();
     }
     document.getElementById("themeBtn").onclick = toggleTheme;
-    document.getElementById("agendaBtn").onclick = () => { view = { tab:"home", screen:"agenda" }; render(); };
+    document.getElementById("agendaBtn").onclick = () => { goTo({ tab:"home", screen:"agenda" }); };
     const impFile = document.getElementById("importRoutineFile");
     document.getElementById("importRoutineBtn").onclick = () => impFile.click();
     impFile.onchange = e => { if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]); };
     checkStorageWarning();
-    el.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEditor(b.dataset.edit));
     el.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>startPlayer(b.dataset.play));
-    el.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>{ view = { tab:"home", screen:"routineDetail", id:b.dataset.detail }; render(); });
-    el.querySelectorAll("[data-dupr]").forEach(b=>b.onclick=()=>{
-      const src = routines.find(r=>r.id===b.dataset.dupr);
-      if(!src) return;
-      const copy = JSON.parse(JSON.stringify(src));
-      copy.id = uid();
-      copy.name = src.name + " (cópia)";
-      copy.steps.forEach(s=>{ s.id = uid(); });
-      if(copy.schedule) copy.schedule.enabled = false;
-      routines.push(copy);
-      save(K_ROUTINES, routines);
-      render();
+    el.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>{ goTo({ tab:"home", screen:"routineDetail", id:b.dataset.detail }); });
+  }
+  function duplicateRoutine(id){
+    const src = routines.find(r=>r.id===id);
+    if(!src) return;
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.id = uid();
+    copy.name = src.name + " (cópia)";
+    copy.steps.forEach(s=>{ s.id = uid(); });
+    if(copy.schedule) copy.schedule.enabled = false;
+    routines.push(copy);
+    save(K_ROUTINES, routines);
+    render();
+  }
+  function deleteRoutineWithUndo(id){
+    const idx = routines.findIndex(r=>r.id===id);
+    if(idx===-1) return;
+    const removed = routines[idx];
+    routines = routines.filter(r=>r.id!==id);
+    save(K_ROUTINES, routines);
+    render();
+    showUndoBanner("Rotina excluída", ()=>{
+      routines.splice(Math.min(idx, routines.length), 0, removed); save(K_ROUTINES, routines); render();
     });
   }
 
@@ -1511,7 +1653,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(!r){
       el.innerHTML = `<div class="topbar"><button class="link-btn muted" id="rdBack">&larr; Rotinas</button></div><div class="empty-state"><h2>Rotina não encontrada</h2></div>`;
       app.appendChild(el);
-      document.getElementById("rdBack").onclick = () => { view={tab:"home",screen:"home"}; render(); };
+      document.getElementById("rdBack").onclick = () => { goTo({tab:"home",screen:"home"}); };
       return;
     }
     const dur = routineDuration(r);
@@ -1520,13 +1662,14 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="topbar">
         <button class="link-btn muted" id="rdBack">&larr; Rotinas</button>
       </div>
-      <div class="home-header" style="margin-bottom:14px;">
-        <h1 style="font-size:26px;"><span class="r-dot" style="background:${fillStyle(r.color)}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h1>
+      <div class="routine-list" id="rdSteps" style="flex:1; overflow-y:auto; padding-bottom:110px;">
+        <div class="home-header" style="margin-bottom:14px;">
+          <h1 style="font-size:26px;"><span class="r-dot" style="background:${fillStyle(r.color)}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h1>
+        </div>
+        <div class="routine-meta" style="margin-bottom:4px;">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}</div>
+        ${sched ? `<div class="sched-chip" style="margin-bottom:10px;">&#9200; ${sched.startStr} &rarr; ${sched.endStr}${r.schedule.days.length<7?' · '+r.schedule.days.length+'d/sem':''}</div>` : ""}
+        <div class="section-label">Etapas</div>
       </div>
-      <div class="routine-meta" style="margin-bottom:4px;">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}</div>
-      ${sched ? `<div class="sched-chip" style="margin-bottom:10px;">&#9200; ${sched.startStr} &rarr; ${sched.endStr}${r.schedule.days.length<7?' · '+r.schedule.days.length+'d/sem':''}</div>` : ""}
-      <div class="section-label">Etapas</div>
-      <div class="routine-list" id="rdSteps" style="flex:1; overflow-y:auto; padding-bottom:110px;"></div>
       <div class="bottom-actions">
         <button class="btn-danger-outline" id="rdEdit" style="border-color:var(--line); color:var(--muted);">Editar</button>
         <button class="btn-primary" id="rdStart">&#9654; Começar</button>
@@ -1541,12 +1684,13 @@ window.addEventListener("unhandledrejection", function(e){
       card.style.gap = "10px";
       const icon = s.type==="timer" ? "&#9202;" : s.type==="checklist" ? "&#9745;" : "&#8635;";
       let metaTxt = "";
-      if(s.type==="timer") metaTxt = fmtTime(s.seconds).replace("+","") + (s.advance==="auto" ? " · avanço automático" : "");
+      if(s.type==="timer") metaTxt = fmtTime(s.seconds).replace("+","");
       else if(s.type==="routine"){ const ref = routines.find(x=>x.id===s.refId); metaTxt = "sub-rotina" + (ref ? " · " + escapeHtml(ref.name) : ""); }
       else metaTxt = "checklist";
       if(s.optional) metaTxt += " · opcional";
-      if(s.noteId) metaTxt += " · &#128279; nota vinculada";
+      if(s.journaling) metaTxt += " · &#9999; anotações";
       card.innerHTML = `
+        <span class="drag-handle" data-drag="${i}">&#8801;</span>
         <div class="routine-info" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px;">
           <span style="flex:0 0 auto; font-size:16px; color:var(--muted);">${i+1}.</span>
           <div style="flex:1; min-width:0;">
@@ -1557,10 +1701,52 @@ window.addEventListener("unhandledrejection", function(e){
         <button class="icon-btn" data-stepedit="${i}" title="Editar etapa">&#9998;</button>`;
       stepsBox.appendChild(card);
     });
-    if(r.steps.length===0) stepsBox.innerHTML = `<div class="empty-state" style="min-height:20vh;"><p>Esta rotina não tem etapas.</p></div>`;
+    if(r.steps.length===0) stepsBox.insertAdjacentHTML("beforeend", `<div class="empty-state" style="min-height:20vh;"><p>Esta rotina não tem etapas.</p></div>`);
 
     stepsBox.querySelectorAll("[data-stepedit]").forEach(b=> b.onclick = () => openStepEditor(r, +b.dataset.stepedit));
-    document.getElementById("rdBack").onclick = () => { view={tab:"home",screen:"home"}; render(); };
+    stepsBox.querySelectorAll("[data-drag]").forEach(handle=>{
+      handle.onpointerdown = ev => {
+        ev.preventDefault();
+        const from = +handle.dataset.drag;
+        const rows = [...stepsBox.querySelectorAll(".routine-card")];
+        const dragRow = rows[from];
+        dragRow.classList.add("dragging");
+        handle.setPointerCapture(ev.pointerId);
+        let target = from;
+        const move = e2 => {
+          const y = e2.clientY;
+          target = from;
+          rows.forEach((row,j)=>{
+            const rect = row.getBoundingClientRect();
+            const mid = rect.top + rect.height/2;
+            row.classList.remove("drop-above","drop-below");
+            if(j !== from){
+              if(y < mid && j < from) target = Math.min(target, j);
+              if(y > mid && j > from) target = Math.max(target, j);
+            }
+          });
+          if(target !== from && rows[target]){
+            rows[target].classList.add(target < from ? "drop-above" : "drop-below");
+          }
+        };
+        const up = () => {
+          handle.releasePointerCapture(ev.pointerId);
+          handle.onpointermove = null; handle.onpointerup = null; handle.onpointercancel = null;
+          dragRow.classList.remove("dragging");
+          rows.forEach(row=>row.classList.remove("drop-above","drop-below"));
+          if(target !== from){
+            const [moved] = r.steps.splice(from,1);
+            r.steps.splice(target,0,moved);
+            save(K_ROUTINES, routines);
+            render();
+          }
+        };
+        handle.onpointermove = move;
+        handle.onpointerup = up;
+        handle.onpointercancel = up;
+      };
+    });
+    document.getElementById("rdBack").onclick = () => { goTo({tab:"home",screen:"home"}); };
     document.getElementById("rdStart").onclick = () => startPlayer(r.id);
     document.getElementById("rdEdit").onclick = () => openEditor(r.id);
   }
@@ -1595,12 +1781,10 @@ window.addEventListener("unhandledrejection", function(e){
             <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="seMin" value="${Math.floor((s.seconds||0)/60)}"> min
             <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" max="59" id="seSec" value="${(s.seconds||0)%60}"> seg
           </div>
-          <label class="switch-row" style="margin-top:12px;"><span>Avanço automático</span><input type="checkbox" id="seAdv" ${s.advance==='auto'?'checked':''}></label>
         </div>
         <label class="switch-row" style="margin-top:12px;"><span>Opcional</span><input type="checkbox" id="seOpt" ${s.optional?'checked':''}></label>
         <div id="seNoteWrap" style="${s.type==='routine'?'display:none;':''}">
-          <div class="section-label" style="margin:12px 0 6px;">Nota vinculada</div>
-          <select id="seNote" class="routine-select"><option value="">sem nota vinculada</option>${notes.map(n=>`<option value="${n.id}" ${s.noteId===n.id?'selected':''}>&#128279; ${escapeHtml((n.title||"Sem título").slice(0,30))}</option>`).join("")}</select>
+          <label class="switch-row" style="margin-top:12px;"><span>Inserir anotações durante esta tarefa</span><input type="checkbox" id="seJournal" ${s.journaling?'checked':''}></label>
         </div>
         <div class="confirm-actions" style="margin-top:18px;">
           <button class="btn-cancel" id="seCancel">Cancelar</button>
@@ -1625,16 +1809,15 @@ window.addEventListener("unhandledrejection", function(e){
         const ref = others.find(x=>x.id===ov.querySelector("#seRef").value);
         s.refId = ref ? ref.id : (s.refId||"");
         s.name = ref ? ref.name : s.name;
-        s.noteId = undefined;
+        s.journaling = false;
       } else {
         s.name = ov.querySelector("#seName").value.trim() || s.name || "";
-        s.noteId = ov.querySelector("#seNote").value || undefined;
+        s.journaling = ov.querySelector("#seJournal").checked;
       }
       if(type==='timer'){
         const mins = Math.max(0, +ov.querySelector("#seMin").value || 0);
         const secs = Math.min(59, Math.max(0, +ov.querySelector("#seSec").value || 0));
         s.seconds = Math.max(5, mins*60 + secs);
-        s.advance = ov.querySelector("#seAdv").checked ? "auto" : "manual";
       }
       s.optional = ov.querySelector("#seOpt").checked;
       save(K_ROUTINES, routines);
@@ -1649,13 +1832,12 @@ window.addEventListener("unhandledrejection", function(e){
       const r = routines.find(x=>x.id===id);
       editorDraft = JSON.parse(JSON.stringify(r));
     } else {
-      editorDraft = { id: uid(), name:"", sound:"mudo", steps:[{id:uid(), name:"", seconds:60, type:"timer", advance:"manual"}], schedule:{enabled:false, anchor:"start", time:"07:00", days:[0,1,2,3,4,5,6]}, restSeconds:0 };
+      editorDraft = { id: uid(), name:"", sound:"mudo", steps:[{id:uid(), name:"", seconds:60, type:"timer"}], schedule:{enabled:false, anchor:"start", time:"07:00", days:[0,1,2,3,4,5,6]}, restSeconds:0 };
     }
     if(!editorDraft.schedule) editorDraft.schedule = { enabled:false, anchor:"start", time:"07:00", days:[0,1,2,3,4,5,6] };
     if(!editorDraft.schedule.days) editorDraft.schedule.days = [0,1,2,3,4,5,6];
     if(editorDraft.restSeconds === undefined) editorDraft.restSeconds = 0;
-    view = { tab:"home", screen:"editor" };
-    render();
+    goTo({ tab:"home", screen:"editor" });
   }
 
   function renderEditor(){
@@ -1672,7 +1854,6 @@ window.addEventListener("unhandledrejection", function(e){
     nameInput.className = "name-input"; nameInput.type = "text"; nameInput.placeholder = "Nome da rotina";
     nameInput.value = editorDraft.name;
     nameInput.oninput = e => editorDraft.name = e.target.value;
-    el.appendChild(nameInput);
 
     // identidade visual: emoji + cor
     const PALETTE = ["grad","#EC6AA8","#5B8DEF","#6B8F71","#B25B4C","#9C7BB8"];
@@ -1682,12 +1863,11 @@ window.addEventListener("unhandledrejection", function(e){
     const identRow = document.createElement("div");
     identRow.className = "ident-row";
     identRow.innerHTML = `
-      <input type="text" id="iconInput" class="icon-input" maxlength="2" placeholder="&#128522;" value="${escapeHtml(editorDraft.icon)}">
+      <input type="text" id="iconInput" class="icon-input" maxlength="2" placeholder="&#9733;" value="${escapeHtml(editorDraft.icon)}">
       <div class="color-chips">
         ${PALETTE.map(c=>`<span class="color-chip ${editorDraft.color===c?'sel':''}" data-color="${c}" style="background:${c==='grad'?'linear-gradient(135deg,#EC6AA8,#5B8DEF)':c}"></span>`).join("")}
       </div>
     `;
-    el.appendChild(identRow);
     identRow.querySelector("#iconInput").oninput = e => editorDraft.icon = e.target.value;
     identRow.querySelectorAll("[data-color]").forEach(ch=>{
       ch.onclick = () => {
@@ -1709,7 +1889,6 @@ window.addEventListener("unhandledrejection", function(e){
         <span data-sound="mudo" class="${editorDraft.sound==='mudo'?'active':''}">só vibrar</span>
       </div>
     `;
-    el.appendChild(soundRow);
     soundRow.querySelectorAll("[data-sound]").forEach(sp=>{
       sp.onclick = () => {
         editorDraft.sound = sp.dataset.sound;
@@ -1723,6 +1902,10 @@ window.addEventListener("unhandledrejection", function(e){
     stepsWrap.style.flex = "1";
     stepsWrap.style.paddingBottom = "230px";
     el.appendChild(stepsWrap);
+
+    stepsWrap.appendChild(identRow);
+    stepsWrap.appendChild(soundRow);
+    stepsWrap.appendChild(nameInput);
 
     const stepsLabel = document.createElement("div");
     stepsLabel.className = "section-label"; stepsLabel.textContent = "Etapas";
@@ -1762,35 +1945,42 @@ window.addEventListener("unhandledrejection", function(e){
             </div>` : `<div class="step-sub" style="color:var(--muted); font-size:13px;">Crie outra rotina primeiro</div>`) : ""}
             ${s.type!=='routine' ? `
             <div class="step-sub">
-              ${s.type==='timer' ? `
-              <label class="switch-row" style="margin-bottom:0; flex:1;">
-                <span>Avanço automático</span>
-                <input type="checkbox" data-advance="${i}" ${s.advance==='auto'?'checked':''}>
-              </label>` : ""}
               <div class="type-toggle">
                 <span data-opt="${i}" class="${s.optional?'active':''}">opcional</span>
               </div>
             </div>
             <div class="step-sub">
-              <select class="routine-select note-link-select" data-field="notelink" data-idx="${i}">
-                <option value="">sem nota vinculada</option>
-                ${notes.map(n=>`<option value="${n.id}" ${s.noteId===n.id?'selected':''}>&#128279; ${escapeHtml((n.title||"Sem título").slice(0,30))}</option>`).join("")}
-              </select>
+              <label class="switch-row" style="margin-bottom:0; flex:1;">
+                <span>Inserir anotações durante esta tarefa</span>
+                <input type="checkbox" data-journal="${i}" ${s.journaling?'checked':''}>
+              </label>
             </div>` : ""}
           </div>
           <div class="step-side">
             <span class="drag-handle" data-drag="${i}">&#8801;</span>
             <button class="order-btn" data-up="${i}" title="Mover para cima" ${i===0?'disabled':''}>&#9650;</button>
             <button class="order-btn" data-down="${i}" title="Mover para baixo" ${i===editorDraft.steps.length-1?'disabled':''}>&#9660;</button>
-            <button class="order-btn" data-dup="${i}" title="Duplicar etapa">&#10697;</button>
-            <button class="remove-step" data-remove="${i}" title="Remover etapa">&#10005;</button>
           </div>
         `;
-        stepsList.appendChild(row);
+        stepsList.appendChild(wrapSwipeActions(row, {
+          onLeft: () => removeStepAt(i), leftLabel: "Excluir",
+          onRight: () => duplicateStepAt(i), rightLabel: "Duplicar"
+        }));
       });
+      function duplicateStepAt(i){
+        const copy = JSON.parse(JSON.stringify(editorDraft.steps[i]));
+        copy.id = uid();
+        editorDraft.steps.splice(i+1, 0, copy);
+        renderSteps(); renderSchedComputed();
+      }
+      function removeStepAt(idx){
+        editorDraft.steps.splice(idx,1);
+        if(editorDraft.steps.length===0) editorDraft.steps.push({id:uid(), name:"", seconds:60, type:"timer"});
+        renderSteps(); renderSchedComputed();
+      }
       const addBtn = document.createElement("button");
       addBtn.className = "add-step-btn"; addBtn.textContent = "+ adicionar etapa";
-      addBtn.onclick = () => { editorDraft.steps.push({id:uid(), name:"", seconds:60, type:"timer", advance:"manual"}); renderSteps(); };
+      addBtn.onclick = () => { editorDraft.steps.push({id:uid(), name:"", seconds:60, type:"timer"}); renderSteps(); };
       stepsList.appendChild(addBtn);
 
       stepsList.querySelectorAll("[data-field='name']").forEach(inp=> inp.oninput = e => editorDraft.steps[+e.target.dataset.idx].name = e.target.value);
@@ -1822,21 +2012,13 @@ window.addEventListener("unhandledrejection", function(e){
         editorDraft.steps[idx].name = ref ? ref.name : "sub-rotina";
         renderSchedComputed();
       });
-      stepsList.querySelectorAll("[data-advance]").forEach(cb=> cb.onchange = e => { editorDraft.steps[+e.target.dataset.advance].advance = e.target.checked ? "auto" : "manual"; });
       stepsList.querySelectorAll("[data-opt]").forEach(sp=> sp.onclick = e => {
         const idx = +e.target.dataset.opt;
         editorDraft.steps[idx].optional = !editorDraft.steps[idx].optional;
         renderSteps();
       });
-      stepsList.querySelectorAll("[data-field='notelink']").forEach(sel=> sel.onchange = e => {
-        editorDraft.steps[+e.target.dataset.idx].noteId = e.target.value || undefined;
-      });
-      stepsList.querySelectorAll("[data-dup]").forEach(b=> b.onclick = e => {
-        const i = +e.currentTarget.dataset.dup;
-        const copy = JSON.parse(JSON.stringify(editorDraft.steps[i]));
-        copy.id = uid();
-        editorDraft.steps.splice(i+1, 0, copy);
-        renderSteps(); renderSchedComputed();
+      stepsList.querySelectorAll("[data-journal]").forEach(cb=> cb.onchange = e => {
+        editorDraft.steps[+e.target.dataset.journal].journaling = e.target.checked;
       });
       // arrastar para reordenar (alça &#8801;)
       stepsList.querySelectorAll("[data-drag]").forEach(handle=>{
@@ -1887,12 +2069,6 @@ window.addEventListener("unhandledrejection", function(e){
       stepsList.querySelectorAll("[data-down]").forEach(b=> b.onclick = e => {
         const i = +e.currentTarget.dataset.down;
         if(i<editorDraft.steps.length-1){ [editorDraft.steps[i+1], editorDraft.steps[i]] = [editorDraft.steps[i], editorDraft.steps[i+1]]; renderSteps(); }
-      });
-      stepsList.querySelectorAll("[data-remove]").forEach(b=> b.onclick = e => {
-        const idx = +e.target.dataset.remove;
-        editorDraft.steps.splice(idx,1);
-        if(editorDraft.steps.length===0) editorDraft.steps.push({id:uid(), name:"", seconds:60, type:"timer", advance:"manual"});
-        renderSteps(); renderSchedComputed();
       });
     }
     renderSteps();
@@ -2038,18 +2214,17 @@ window.addEventListener("unhandledrejection", function(e){
 
     app.appendChild(el);
 
-    document.getElementById("cancelEdit").onclick = () => { view = { tab:"home", screen:"home" }; render(); };
+    document.getElementById("cancelEdit").onclick = () => { goTo({ tab:"home", screen:"home" }); };
     function doSaveEdit(){
       const clean = editorDraft.name.trim();
       if(!clean){ nameInput.focus(); return; }
       editorDraft.name = clean;
       editorDraft.steps = editorDraft.steps.filter(s=> s.type==="routine" ? routines.some(r=>r.id===s.refId) : s.name.trim().length>0);
       if(editorDraft.steps.length===0) return;
-      editorDraft.steps.forEach(s=>{ if(s.type==="timer" && s.advance!=="auto") s.advance = "manual"; });
       const idx = routines.findIndex(r=>r.id===editorDraft.id);
       if(idx>=0) routines[idx] = editorDraft; else routines.push(editorDraft);
       save(K_ROUTINES, routines);
-      view = { tab:"home", screen:"home" }; render();
+      goTo({ tab:"home", screen:"home" });
     }
     document.getElementById("saveEdit").onclick = doSaveEdit;
     document.getElementById("saveEditBottom").onclick = doSaveEdit;
@@ -2065,7 +2240,7 @@ window.addEventListener("unhandledrejection", function(e){
       confirmModal("Excluir a rotina <b>"+escapeHtml(editorDraft.name||"sem nome")+"</b>?", "Excluir", ()=>{
         const idx = routines.findIndex(r=>r.id===editorDraft.id);
         const removed = idx>-1 ? routines[idx] : null;
-        routines = routines.filter(r=>r.id!==editorDraft.id); save(K_ROUTINES, routines); view={tab:"home",screen:"home"}; render();
+        routines = routines.filter(r=>r.id!==editorDraft.id); save(K_ROUTINES, routines); goTo({tab:"home",screen:"home"});
         if(removed) showUndoBanner("Rotina excluída", ()=>{
           routines.splice(Math.min(idx, routines.length), 0, removed); save(K_ROUTINES, routines); render();
         });
@@ -2313,8 +2488,7 @@ window.addEventListener("unhandledrejection", function(e){
         return;
       }
       tarefaImportDraft = { parsed, fileName: file.name };
-      view = { tab:"tarefas", screen:"tarefaImportPreview" };
-      render();
+      goTo({ tab:"tarefas", screen:"tarefaImportPreview" });
     };
     reader.readAsText(file);
   }
@@ -2352,7 +2526,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
     saveTarefas();
     tarefaImportDraft = null;
-    view = { tab:"tarefas", screen:"tarefas" };
+    pushView({ tab:"tarefas", screen:"tarefas" });
     const warnCount = parsed.warnings.length;
     showAlertBanner(
       added + " tarefa(s) importada(s) ✓" +
@@ -2364,7 +2538,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   function renderTarefaImportPreview(){
     const d = tarefaImportDraft;
-    if(!d){ view = { tab:"tarefas", screen:"tarefas" }; render(); return; }
+    if(!d){ goTo({ tab:"tarefas", screen:"tarefas" }); return; }
     const p = d.parsed;
     const el = document.createElement("div");
     el.className = "screen";
@@ -2435,7 +2609,7 @@ window.addEventListener("unhandledrejection", function(e){
       </div>`;
     app.appendChild(el);
 
-    document.getElementById("tiCancel").onclick = () => { tarefaImportDraft = null; view = { tab:"tarefas", screen:"tarefas" }; render(); };
+    document.getElementById("tiCancel").onclick = () => { tarefaImportDraft = null; goTo({ tab:"tarefas", screen:"tarefas" }); };
 
     function readForm(){
       const eixoId = document.getElementById("tiEixo").value;
@@ -2552,7 +2726,7 @@ window.addEventListener("unhandledrejection", function(e){
     const durChips = `<span data-dur="0" class="${tarefaDurFilter===0?'active':''}">todas</span>` +
       durValues.map(d=>`<span data-dur="${d}" class="${tarefaDurFilter===d?'active':''}">${d} min</span>`).join("");
     el.innerHTML = `
-      <div class="home-header"><h1>Tarefas &#127857;</h1>
+      <div class="home-header"><h1>Tarefas &#9776;</h1>
         <div class="header-right">
           <button class="bell-btn" id="tarImportBtn" title="Importar tarefas (.md)">&#8679;</button>
           <input type="file" id="tarImportFile" accept=".md,.txt,text/markdown,text/plain" style="display:none">
@@ -2562,7 +2736,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="routine-list" id="tarList"></div>`;
     const fab = document.createElement("button");
     fab.className = "fab"; fab.textContent = "+";
-    fab.onclick = () => { tarefaDraft = null; view = { tab:"tarefas", screen:"tarefaEditor" }; render(); };
+    fab.onclick = () => { tarefaDraft = null; goTo({ tab:"tarefas", screen:"tarefaEditor" }); };
     el.appendChild(fab);
     el.appendChild(renderTabbar("tarefas"));
     app.appendChild(el);
@@ -2710,7 +2884,7 @@ window.addEventListener("unhandledrejection", function(e){
     });
     list.querySelectorAll("[data-medit]").forEach(d=> d.onclick = () => {
       tarefaDraft = JSON.parse(JSON.stringify(tarefas.find(x=>x.id===d.dataset.medit)));
-      view = { tab:"tarefas", screen:"tarefaEditor" }; render();
+      goTo({ tab:"tarefas", screen:"tarefaEditor" });
     });
   }
 
@@ -2758,7 +2932,7 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("mEixo").onchange = e => {
       document.getElementById("mArea").value = eixoInfo(e.target.value).area;
     };
-    document.getElementById("tarBack").onclick = () => { view = { tab:"tarefas", screen:"tarefas" }; render(); };
+    document.getElementById("tarBack").onclick = () => { goTo({ tab:"tarefas", screen:"tarefas" }); };
     document.getElementById("mSave").onclick = () => {
       const eixo = document.getElementById("mEixo").value;
       const area = document.getElementById("mArea").value.trim() || eixoInfo(eixo).area;
@@ -2776,11 +2950,11 @@ window.addEventListener("unhandledrejection", function(e){
         if(m){ m.eixo=eixo; m.area=area; m.tipo=tipo; m.conteudo=conteudo; m.tipoTarefa=tipoTarefa; m.detalhes=detalhes; m.dur=dur; }
       }
       saveTarefas();
-      view = { tab:"tarefas", screen:"tarefas" }; render();
+      goTo({ tab:"tarefas", screen:"tarefas" });
     };
     const del = document.getElementById("mDel");
     if(del) del.onclick = () => confirmModal("Excluir <b>"+escapeHtml(d.tipo+": "+d.conteudo)+"</b> da fila?","Excluir",()=>{
-      view = { tab:"tarefas", screen:"tarefas" };
+      pushView({ tab:"tarefas", screen:"tarefas" });
       deleteTarefaComUndo(d);
     });
   }
@@ -2789,14 +2963,13 @@ window.addEventListener("unhandledrejection", function(e){
     const m = tarefas.find(x=>x.id===id);
     if(!m) return;
     tarefaTimerState = { id, startTs: Date.now(), seconds: m.dur*60, warned:false };
-    view = { tab:"tarefas", screen:"tarefaTimer" };
-    render();
+    goTo({ tab:"tarefas", screen:"tarefaTimer" });
   }
 
   function renderTarefaTimer(){
     const st = tarefaTimerState;
     const m = st && tarefas.find(x=>x.id===st.id);
-    if(!m){ view = { tab:"tarefas", screen:"tarefas" }; render(); return; }
+    if(!m){ goTo({ tab:"tarefas", screen:"tarefas" }); return; }
     const ex = eixoInfo(m.eixo);
     const el = document.createElement("div");
     el.className = "screen";
@@ -2825,11 +2998,11 @@ window.addEventListener("unhandledrejection", function(e){
     function stop(){ if(tarefaTimerHandle){ clearInterval(tarefaTimerHandle); tarefaTimerHandle = null; } tarefaTimerState = null; }
     document.getElementById("tarDone").onclick = () => {
       stop(); concludeTarefa(m);
-      view = { tab:"tarefas", screen:"tarefas" }; render();
+      goTo({ tab:"tarefas", screen:"tarefas" });
     };
     document.getElementById("tarCancel").onclick = () => {
       stop();
-      view = { tab:"tarefas", screen:"tarefas" }; render();
+      goTo({ tab:"tarefas", screen:"tarefas" });
     };
   }
 
@@ -2857,7 +3030,7 @@ window.addEventListener("unhandledrejection", function(e){
     el.appendChild(fab);
     el.appendChild(renderTabbar("notes"));
     app.appendChild(el);
-    document.getElementById("notesBackBtn").onclick = () => { view = { tab:"templates", screen:"templates" }; render(); };
+    document.getElementById("notesBackBtn").onclick = () => { goTo({ tab:"templates", screen:"templates" }); };
 
     const listBox = document.getElementById("notesListBox");
     const tagBar = document.getElementById("tagBar");
@@ -2955,7 +3128,7 @@ window.addEventListener("unhandledrejection", function(e){
         <button class="link-btn muted" id="backFromAgenda">&larr; Rotinas</button>
         <button class="link-btn" id="snoozeBtn">${snoozed ? "retomar agenda" : "pausar agenda"}</button>
       </div>
-      ${snoozed ? `<div class="notice-card" style="margin-bottom:14px;"><span>&#128564; Agenda pausada até ${(()=>{ const s = snoozes.find(x=>Date.now()>=x.from && Date.now()<=x.to); const dd = new Date(s.to); return String(dd.getDate()).padStart(2,"0")+"/"+String(dd.getMonth()+1).padStart(2,"0"); })()} — sem alertas, e os dias pausados não contam no cumprimento.</span></div>` : ""}`;
+      ${snoozed ? `<div class="notice-card" style="margin-bottom:14px;"><span>&#9208; Agenda pausada até ${(()=>{ const s = snoozes.find(x=>Date.now()>=x.from && Date.now()<=x.to); const dd = new Date(s.to); return String(dd.getDate()).padStart(2,"0")+"/"+String(dd.getMonth()+1).padStart(2,"0"); })()} — sem alertas, e os dias pausados não contam no cumprimento.</span></div>` : ""}`;
 
     const body = document.createElement("div");
     body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
@@ -2992,7 +3165,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
 
     app.appendChild(el);
-    document.getElementById("backFromAgenda").onclick = () => { view = { tab:"home", screen:"home" }; render(); };
+    document.getElementById("backFromAgenda").onclick = () => { goTo({ tab:"home", screen:"home" }); };
     document.getElementById("snoozeBtn").onclick = () => {
       if(agendaSnoozed()){
         snoozes = snoozes.filter(s=>!(Date.now()>=s.from && Date.now()<=s.to));
@@ -3032,6 +3205,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* ================= STATS ================= */
   let statsPeriod = "30d";       // 7d | 30d | 90d | ano | tudo
   let statsView = "resumo";      // resumo | mensal | anual
+  let statsRoutineFilter = null; // id de rotina, ou null = todas
   let calMonth = new Date();     // mês exibido na visão mensal
   let calYear = new Date().getFullYear();
   let selectedDay = null;        // "YYYY-MM-DD" tocado
@@ -3046,7 +3220,9 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function richInPeriod(){
     const startTs = periodStartTs();
-    return history.filter(h=>h.ts && h.ts >= startTs);
+    let arr = history.filter(h=>h.ts && h.ts >= startTs);
+    if(statsRoutineFilter) arr = arr.filter(h=>h.routineId === statsRoutineFilter);
+    return arr;
   }
   function median(arr){
     if(!arr.length) return 0;
@@ -3183,6 +3359,12 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="type-toggle period-toggle">
           ${["7d","30d","90d","ano","tudo"].map(p=>`<span data-period="${p}" class="${statsPeriod===p?'active':''}">${p}</span>`).join("")}
         </div>
+      </div>
+      <div class="stats-nav">
+        <select id="statsRoutineFilter" class="routine-select">
+          <option value="">Todas as rotinas</option>
+          ${routines.map(r=>`<option value="${r.id}" ${statsRoutineFilter===r.id?'selected':''}>${escapeHtml(r.name)}</option>`).join("")}
+        </select>
       </div>` : ""}
     `;
 
@@ -3199,6 +3381,8 @@ window.addEventListener("unhandledrejection", function(e){
     statsImpFile.onchange = e => { if(e.target.files && e.target.files[0]){ importBackup(e.target.files[0]); e.target.value=""; } };
     el.querySelectorAll("[data-sview]").forEach(sp=> sp.onclick = () => { statsView = sp.dataset.sview; selectedDay = null; render(); });
     el.querySelectorAll("[data-period]").forEach(sp=> sp.onclick = () => { statsPeriod = sp.dataset.period; render(); });
+    const routineFilterSel = document.getElementById("statsRoutineFilter");
+    if(routineFilterSel) routineFilterSel.onchange = e => { statsRoutineFilter = e.target.value || null; render(); };
 
     if(history.length === 0 && tarefasHist.length === 0){
       body.innerHTML = `<div class="empty-state" style="min-height:50vh;"><h2>Sem dados ainda</h2><p>Conclua rotinas para ver seu histórico, desvios de tempo e pontualidade aqui.</p></div>`;
@@ -3227,7 +3411,7 @@ window.addEventListener("unhandledrejection", function(e){
       const pct = last7.length ? Math.round(n7/Math.max(1,last7.length)*100) : 0;
       rows += `<div class="bar-row"><div class="bar-name" style="color:${ex.color};">${ex.label}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${ex.color};"></div></div><div class="bar-val">${n7} / 7d · ${n30} / 30d</div></div>`;
     });
-    body.innerHTML += `<div class="section-label">Tarefas &#127857;</div>
+    body.innerHTML += `<div class="section-label">Tarefas &#9776;</div>
       <div class="stat-card">${rows || '<div class="dev-n">sem conclusões nos últimos 30 dias</div>'}
       <div class="stat-foot">${last7.length} tarefa(s) e ${min7} min na última semana · ${tarefasHist.length} no total</div></div>`;
   }
@@ -3266,39 +3450,6 @@ window.addEventListener("unhandledrejection", function(e){
         </div>`;
       }).join("");
       body.innerHTML += `<div class="section-label">Metas da semana (seg&ndash;dom) · | = esperado até hoje</div><div class="stat-card">${goalsHtml}</div>`;
-    }
-
-    /* --- tempo por rotina no período (toque abre detalhe) --- */
-    const byRoutine = {};
-    rich.forEach(h=>{ const k = h.routineId; byRoutine[k] = byRoutine[k] || {name:h.routineName, sec:0}; byRoutine[k].sec += (h.actualSec||0); });
-    // período anterior de mesma duração (para o delta %)
-    let prevByRoutine = {};
-    if(statsPeriod !== "tudo"){
-      const startTs = periodStartTs();
-      const prevStart = startTs - (Date.now() - startTs);
-      history.filter(h=>h.ts && h.ts >= prevStart && h.ts < startTs).forEach(h=>{
-        prevByRoutine[h.routineId] = (prevByRoutine[h.routineId]||0) + (h.actualSec||0);
-      });
-    }
-    const pairs = Object.entries(byRoutine).sort((a,b)=>b[1].sec-a[1].sec);
-    if(pairs.length){
-      const max = pairs[0][1].sec;
-      let barsHtml = pairs.map(([id,o])=>{
-        let delta = "";
-        if(statsPeriod !== "tudo" && prevByRoutine[id]){
-          const pct = Math.round((o.sec - prevByRoutine[id]) / prevByRoutine[id] * 100);
-          delta = `<span class="${pct>=0?'early':'late'}" style="font-size:11px; color:${pct>=0?'var(--good)':'var(--danger)'}">${pct>=0?'+':''}${pct}%</span>`;
-        } else if(statsPeriod !== "tudo" && o.sec > 0){
-          delta = `<span class="dev-n" style="font-size:11px;">novo</span>`;
-        }
-        return `
-        <div class="bar-row tappable" data-rstats="${id}">
-          <div class="bar-name">${escapeHtml(o.name)}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4,(o.sec/max)*100)}%"></div></div>
-          <div class="bar-val">${Math.round(o.sec/60)}m ${delta}</div>
-        </div>`;
-      }).join("");
-      body.innerHTML += `<div class="section-label">Tempo por rotina (${statsPeriod}) vs período anterior</div><div class="stat-card">${barsHtml}</div>`;
     }
 
     /* --- distribuição por dia da semana, empilhada por rotina --- */
@@ -3367,37 +3518,6 @@ window.addEventListener("unhandledrejection", function(e){
       body.innerHTML += `<div class="section-label">Sequências por rotina</div><div class="stat-card">${sHtml}</div>`;
     }
 
-    /* --- desvio: mediana + faixa + n --- */
-    const devByRoutine = {};
-    rich.forEach(h=>{
-      if(!h.plannedSec) return;
-      (devByRoutine[h.routineId] = devByRoutine[h.routineId] || {name:h.routineName, arr:[]}).arr.push(h.actualSec - h.plannedSec);
-    });
-    const devPairs = Object.entries(devByRoutine);
-    if(devPairs.length){
-      let devHtml = devPairs.map(([id,o])=>{
-        const med = Math.round(median(o.arr));
-        const mn = Math.min(...o.arr), mx = Math.max(...o.arr);
-        const cls = med > 30 ? "late" : (med < -30 ? "early" : "ontime");
-        const fmt = v => (v>=0?"+":"&minus;") + fmtTime(Math.abs(v)).replace("+","");
-        return `<div class="dev-row tappable" data-rstats="${id}"><span>${escapeHtml(o.name)}</span><b class="${cls}">${fmt(med)}</b><span class="dev-n">${fmt(mn)}..${fmt(mx)} · ${o.arr.length}x</span></div>`;
-      }).join("");
-      body.innerHTML += `<div class="section-label">Desvio mediano [mín..máx] (${statsPeriod})</div><div class="stat-card">${devHtml}</div>`;
-    }
-
-    /* --- interrupções --- */
-    const pauseData = rich.filter(h=>h.pauses !== undefined);
-    if(pauseData.length){
-      const byR = {};
-      pauseData.forEach(h=>{ (byR[h.routineName] = byR[h.routineName]||[]).push(h); });
-      let pHtml = Object.entries(byR).map(([name,arr])=>{
-        const avgP = (arr.reduce((a,h)=>a+h.pauses,0)/arr.length).toFixed(1).replace(".",",");
-        const avgT = Math.round(arr.reduce((a,h)=>a+(h.pausedSec||0),0)/arr.length);
-        return `<div class="dev-row"><span>${escapeHtml(name)}</span><span class="dev-n">${avgP} pausas/exec</span><span class="dev-n">${fmtTime(avgT).replace("+","")} médio</span></div>`;
-      }).join("");
-      body.innerHTML += `<div class="section-label">Interrupções (${statsPeriod})</div><div class="stat-card">${pHtml}</div>`;
-    }
-
     /* --- pontualidade --- */
     const punc = rich.filter(h=>h.schedDelayMin !== undefined);
     if(punc.length){
@@ -3442,9 +3562,6 @@ window.addEventListener("unhandledrejection", function(e){
         return `<div class="trend-col"><div class="trend-bar-area"><span class="trend-val">${valLbl}</span><div class="trend-bar ${cls}" style="height:${h}px"></div></div><span class="trend-lbl">${lbl}</span><span class="trend-val">n=${buckets[i].length}</span></div>`;
       }).join("") + `</div><div class="stat-foot">${unit} · mediana semanal</div>`;
     }
-    if(Object.keys(devByWeek).length){
-      body.innerHTML += `<div class="section-label">Tendência do desvio (8 semanas)</div><div class="stat-card">${trendBars(devByWeek, "minutos além/aquém do planejado")}</div>`;
-    }
     if(Object.keys(delayByWeek).length){
       body.innerHTML += `<div class="section-label">Tendência da pontualidade (8 semanas)</div><div class="stat-card">${trendBars(delayByWeek, "minutos de atraso no início")}</div>`;
     }
@@ -3465,7 +3582,7 @@ window.addEventListener("unhandledrejection", function(e){
 
     wireHeatmapTaps(body, render);
     body.querySelectorAll("[data-rstats]").forEach(row=>{
-      row.onclick = () => { view = { tab:"stats", screen:"routineStats", id: row.dataset.rstats }; render(); };
+      row.onclick = () => { goTo({ tab:"stats", screen:"routineStats", id: row.dataset.rstats }); };
     });
   }
 
@@ -3585,7 +3702,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(!r){
       el.innerHTML = `<div class="topbar"><button class="link-btn muted" id="backStats">&larr; Dados</button></div><div class="empty-state"><h2>Rotina não encontrada</h2></div>`;
       app.appendChild(el);
-      document.getElementById("backStats").onclick = () => { view={tab:"stats",screen:"stats"}; render(); };
+      document.getElementById("backStats").onclick = () => { goTo({tab:"stats",screen:"stats"}); };
       return;
     }
     el.innerHTML = `
@@ -3597,7 +3714,7 @@ window.addEventListener("unhandledrejection", function(e){
     body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
     el.appendChild(body);
     app.appendChild(el);
-    document.getElementById("backStats").onclick = () => { view={tab:"stats",screen:"stats"}; render(); };
+    document.getElementById("backStats").onclick = () => { goTo({tab:"stats",screen:"stats"}); };
 
     const entries = history.filter(h=>h.routineId===r.id && h.ts);
     const all = history.filter(h=>h.routineId===r.id);
@@ -3616,7 +3733,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="dev-row"><span>Tempo total registrado</span><b class="ontime">${totalMin>=60?(totalMin/60).toFixed(1).replace(".",",")+"h":totalMin+"min"}</b></div>
       <div class="dev-row"><span>Sequência atual</span><b class="ontime">${computeStreakFor(r.id)} dia(s)</b></div>
       ${devs.length?`<div class="dev-row"><span>Desvio mediano</span><b class="${median(devs)>30?'late':median(devs)<-30?'early':'ontime'}">${fmtS(Math.round(median(devs)))}</b><span class="dev-n">${devs.length}x</span></div>`:""}
-      ${(()=>{ const moods = entries.filter(h=>h.mood).map(h=>h.mood); if(!moods.length) return ""; const m = Math.round(median(moods)); return `<div class="dev-row"><span>Humor mediano</span><b class="ontime">${["&#128534;","&#128533;","&#128528;","&#128578;","&#128516;"][m-1]}</b><span class="dev-n">${moods.length}x</span></div>`; })()}
+      ${(()=>{ const moods = entries.filter(h=>h.mood).map(h=>h.mood); if(!moods.length) return ""; const m = Math.round(median(moods)); return `<div class="dev-row"><span>Humor mediano</span><b class="ontime">${["&#9733;&#9734;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9733;"][m-1]}</b><span class="dev-n">${moods.length}x</span></div>`; })()}
       ${delays.length?`<div class="dev-row"><span>Atraso mediano no início</span><b class="${median(delays)>5?'late':'ontime'}">${Math.round(median(delays))}min</b><span class="dev-n">${delays.length}x</span></div>`:""}
     </div>`;
 
@@ -3675,7 +3792,7 @@ window.addEventListener("unhandledrejection", function(e){
         const d = new Date(h.ts);
         const dateStr = String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + " " + fmtClock(d);
         const cmp = h.plannedSec ? `${fmtTime(h.plannedSec).replace("+","")} &rarr; ${fmtTime(h.actualSec).replace("+","")}` : fmtTime(h.actualSec||0).replace("+","");
-        const mood = h.mood ? ["&#128534;","&#128533;","&#128528;","&#128578;","&#128516;"][h.mood-1] : "";
+        const mood = h.mood ? ["&#9733;&#9734;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9733;"][h.mood-1] : "";
         return `<div class="dev-row"><span class="dev-n">${dateStr}</span><span class="dev-n">${cmp} ${mood}</span><button class="del-exec" data-delexec="${h.ts}">&#10005;</button></div>`;
       }).join("");
       body.innerHTML += `<div class="section-label">Últimas execuções · &#10005; apaga o registro</div><div class="stat-card">${recHtml}</div>`;
@@ -3719,14 +3836,29 @@ window.addEventListener("unhandledrejection", function(e){
   function brl(v){ return "R$ " + (v||0).toFixed(2).replace(".",","); }
 
   const MATRIX_COLORS = ["#EC6AA8","#5B8DEF","#6B8F71","#C9B23E","#B25B4C","#9C7BB8"];
+  const ICON_D = {
+    market: "M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z",
+    expense: "M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+    notes: "m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10",
+    matrix: "M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z",
+    kanban: "M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125Z",
+    idea: "M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18",
+    countdown: "M6.75 2.994v2.25m10.5-2.25v2.25m-14.252 13.5V7.491a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v11.251m-18 0a2.25 2.25 0 0 0 2.25 2.25h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-7.5a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5m-6.75-6h2.25m-9 2.25h4.5m.002-2.25h.005v.006H12v-.006Zm-.001 4.5h.006v.006h-.006v-.005Zm-2.25.001h.005v.006H9.75v-.006Zm-2.25 0h.005v.005h-.006v-.005Zm6.75-2.247h.005v.005h-.005v-.005Zm0 2.247h.006v.006h-.006v-.006Zm2.25-2.248h.006V15H16.5v-.005Z",
+    stats: "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z",
+    templates: "M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z",
+    home: "M8.242 5.992h12m-12 6.003H20.24m-12 5.999h12M4.117 7.495v-3.75H2.99m1.125 3.75H2.99m1.125 0H5.24m-1.92 2.577a1.125 1.125 0 1 1 1.591 1.59l-1.83 1.83h2.16M2.99 15.745h1.125a1.125 1.125 0 0 1 0 2.25H3.74m0-.002h.375a1.125 1.125 0 0 1 0 2.25H2.99"
+  };
+
   const TMPL_TYPES = [
-    { type:"market",    icon:"&#128722;", label:"Lista de mercado" },
-    { type:"matrix",    icon:"&#9707;",   label:"Matriz 2&times;2" },
-    { type:"kanban",    icon:"&#128203;", label:"Kanban" },
-    { type:"countdown", icon:"&#9203;",   label:"Contagem regressiva" },
-    { type:"expenses",  icon:"&#128176;", label:"Despesas rápidas" },
+    { type:"market",    icon:svgIcon(ICON_D.market), label:"Listas de mercado" },
+    { type:"matrix",    icon:svgIcon(ICON_D.matrix),   label:"Matrizes 2&times;2" },
+    { type:"kanban",    icon:svgIcon(ICON_D.kanban), label:"Kanbans" },
+    { type:"countdown", icon:svgIcon(ICON_D.countdown),   label:"Contagens regressivas" },
+    { type:"expense",   icon:svgIcon(ICON_D.expense), label:"Despesas" },
     { type:"proscons",  icon:"&#9878;",   label:"Prós e contras" },
-    { type:"travel",    icon:"&#129523;", label:"Lista de viagem" }
+    { type:"travel",    icon:"&#9992;", label:"Listas de viagem" },
+    { type:"idea",      icon:svgIcon(ICON_D.idea), label:"Ideias" },
+    { type:"thoughtrecord", icon:"&#9670;", label:"Registros de pensamentos" }
   ];
 
   /* ---- helpers de exportação ---- */
@@ -3809,12 +3941,31 @@ window.addEventListener("unhandledrejection", function(e){
       doc.title = "Lista de viagem";
       doc.items = [];
       doc.catOrder = Object.keys(TRAVEL_DB).concat(["Outros"]);
+    } else if(type === "idea"){
+      doc.title = "Ideia";
+      doc.summary = "";
+      doc.improvements = "";
+      doc.subjects = [];
+    } else if(type === "thoughtrecord"){
+      doc.title = "Registro de pensamentos";
+      doc.trigger = "";
+      doc.emotions = "";
+      doc.distortion = "";
+      doc.altThoughts = "";
+      doc.results = "";
     }
     templates.push(doc);
     save(K_TEMPLATES, templates);
+    syncDocMd(doc);
     return doc;
   }
-  function saveTemplates(doc){ doc.updatedAt = Date.now(); save(K_TEMPLATES, templates); }
+  /* "Contagem regressiva" é um doc único e compartilhado — todos os alvos ficam juntos, não espalhados em docs separados */
+  function getOrCreateCountdownDoc(){
+    const existing = templates.filter(t=>t.type==="countdown").sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+    if(existing) return existing;
+    return newTemplateDoc("countdown");
+  }
+  function saveTemplates(doc){ doc.updatedAt = Date.now(); save(K_TEMPLATES, templates); syncDocMd(doc); }
 
   function tmplMeta(t){
     if(t.type === "market"){ const p = (t.items||[]).filter(i=>!i.checked).length; return p + " pendente(s) de " + (t.items||[]).length; }
@@ -3837,6 +3988,16 @@ window.addEventListener("unhandledrejection", function(e){
       const all = t.items || (t.sections||[]).flatMap(s=>s.items);
       return all.filter(i=>!i.checked).length + " pendente(s) de " + all.length;
     }
+    if(t.type === "idea"){
+      if((t.subjects||[]).length) return t.subjects.slice(0,3).map(escapeHtml).join(", ") + (t.subjects.length>3 ? "…" : "");
+      return t.summary ? stripMdForSnippet(t.summary) : "sem resumo ainda";
+    }
+    if(t.type === "journal"){
+      return (t.sections||[]).length + " anotação(ões)";
+    }
+    if(t.type === "thoughtrecord"){
+      return t.trigger ? stripMdForSnippet(t.trigger) : "sem gatilho registrado";
+    }
     return "";
   }
   function daysUntil(dateStr){
@@ -3845,96 +4006,173 @@ window.addEventListener("unhandledrejection", function(e){
     return Math.round((target - today)/86400000);
   }
 
+  /* pastas fixas (uma por tipo de modelo) + pastas dinâmicas (uma por rotina com notas de journaling) */
+  function templateFolderTiles(){
+    const journalRoutineIds = [...new Set(templates.filter(t=>t.type==="journal").map(t=>t.routineId))];
+    return [
+      { key:"notes", icon:svgIcon(ICON_D.notes), label:"Notas simples" },
+      ...TMPL_TYPES.map(t=>({ key:t.type, icon:t.icon, label:t.label })),
+      ...journalRoutineIds.map(rid=>{
+        const r = routines.find(x=>x.id===rid);
+        return { key:"journal:"+rid, icon:"&#9999;", label: escapeHtml(r ? r.name : "Rotina excluída") };
+      })
+    ];
+  }
+
   function renderTemplates(){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
+    const tiles = templateFolderTiles();
     el.innerHTML = `<div class="home-header"><h1>Modelos</h1></div>
       <div class="tmpl-new-grid">
-        <button class="tmpl-new" data-newtype="notasimples">Nota simples</button>
-        ${TMPL_TYPES.map(t=>`<button class="tmpl-new" data-newtype="${t.type}">${t.label}</button>`).join("")}
+        ${tiles.map(f=>`<button class="tmpl-new" data-folder="${f.key}"><span class="tmpl-ic">${f.icon}</span><span>${f.label}</span></button>`).join("")}
       </div>`;
+    el.appendChild(renderTabbar("templates"));
+    const fab = document.createElement("button");
+    fab.className = "fab"; fab.textContent = "+";
+    fab.onclick = openNewTemplatePopup;
+    el.appendChild(fab);
+    app.appendChild(el);
 
-    // notas simples + documentos de modelo, juntos, ordenados por atualização mais recente
-    const combined = [
-      ...notes.map(n=>({ kind:"note", id:n.id, icon:"&#9998;", title:n.title||"Sem título", sub: (n.content?stripMdForSnippet(n.content):"nota vazia"), updatedAt:n.updatedAt||0 })),
-      ...templates.map(t=>({ kind:"doc", id:t.id, icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||"", title:t.title, sub: tmplMeta(t), updatedAt:t.updatedAt||0 }))
-    ].sort((a,b)=>b.updatedAt-a.updatedAt);
+    el.querySelectorAll("[data-folder]").forEach(b=>{
+      b.onclick = () => {
+        const key = b.dataset.folder;
+        if(key === "notes"){ goTo({ tab:"templates", screen:"notes" }); return; }
+        if(key === "expense"){ goTo({ tab:"templates", screen:"expenseFolder" }); return; }
+        if(key === "countdown"){ goTo({ tab:"templates", screen:"templateDoc", id: getOrCreateCountdownDoc().id }); return; }
+        if(key.startsWith("journal:")){ goTo({ tab:"templates", screen:"tmplFolder", folderKind:"routine", folderKey:key.slice(8) }); return; }
+        goTo({ tab:"templates", screen:"tmplFolder", folderKind:"type", folderKey:key });
+      };
+    });
+  }
 
-    if(combined.length){
+  /* pop-up de criação rápida a partir do FAB — mesmas opções das pastas */
+  function openNewTemplatePopup(){
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
+      <p style="margin:0 0 10px;">Criar novo:</p>
+      <div class="tmpl-new-grid">
+        <button class="tmpl-new" data-newtype="notasimples"><span class="tmpl-ic">${svgIcon(ICON_D.notes)}</span><span>Notas simples</span></button>
+        ${TMPL_TYPES.map(t=>`<button class="tmpl-new" data-newtype="${t.type}"><span class="tmpl-ic">${t.icon}</span><span>${t.label}</span></button>`).join("")}
+      </div>
+      <div class="confirm-actions" style="margin-top:14px;"><button class="btn-cancel" id="tmplNewCancel">Cancelar</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    ov.querySelector("#tmplNewCancel").onclick = () => ov.remove();
+    ov.querySelectorAll("[data-newtype]").forEach(b=>{
+      b.onclick = () => {
+        const type = b.dataset.newtype;
+        ov.remove();
+        if(type === "notasimples"){ openNoteEditor(null); return; }
+        if(type === "matrix"){ openMatrixPresetPicker(); return; }
+        if(type === "expense"){ goTo({ tab:"templates", screen:"expenseFolder" }); return; }
+        if(type === "countdown"){ goTo({ tab:"templates", screen:"templateDoc", id: getOrCreateCountdownDoc().id }); return; }
+        const doc = newTemplateDoc(type);
+        goTo({ tab:"templates", screen:"templateDoc", id: doc.id, folderKind:"type", folderKey:type });
+      };
+    });
+  }
+
+  function openMatrixPresetPicker(){
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `<div class="confirm-box"><p>Começar a matriz como:</p>
+      <div class="confirm-actions" style="flex-direction:column;">
+        <button class="btn-confirm" data-preset="eisenhower" style="background:var(--grad);">Matriz de Eisenhower</button>
+        <button class="btn-confirm" data-preset="swot" style="background:var(--grad);">Análise SWOT</button>
+        <button class="btn-confirm" data-preset="blank" style="background:var(--surface-2); color:var(--text);">Em branco</button>
+        <button class="btn-cancel" id="mxCancel">Cancelar</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    ov.querySelector("#mxCancel").onclick = () => ov.remove();
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    ov.querySelectorAll("[data-preset]").forEach(p=>{
+      p.onclick = () => {
+        ov.remove();
+        const doc = newTemplateDoc("matrix", p.dataset.preset);
+        goTo({ tab:"templates", screen:"templateDoc", id:doc.id, folderKind:"type", folderKey:"matrix" });
+      };
+    });
+  }
+
+  /* tela de uma pasta: lista os documentos daquele tipo (ou, para pasta-rotina, as notas de journaling daquela rotina) */
+  function renderTmplFolder(){
+    const kind = view.folderKind, key = view.folderKey;
+    let icon, docs;
+    let titleHtml;
+    if(kind === "routine"){
+      const r = routines.find(x=>x.id===key);
+      titleHtml = escapeHtml(r ? r.name : "Rotina excluída");
+      icon = "&#9999;";
+      docs = templates.filter(t=>t.type==="journal" && t.routineId===key);
+    } else {
+      const typeInfo = TMPL_TYPES.find(t=>t.type===key) || { label:key, icon:"" };
+      titleHtml = typeInfo.label;
+      icon = typeInfo.icon;
+      docs = templates.filter(t=>t.type===key);
+    }
+    const el = document.createElement("div");
+    el.className = "screen with-tabbar";
+    el.innerHTML = `<div class="home-header">
+      <h1><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">&#8249;</span> ${icon} ${titleHtml}</h1>
+      <div class="header-right">${kind!=="routine" ? `<button class="bell-btn" id="folderAddBtn" title="Novo">+</button>` : ""}</div>
+    </div>`;
+
+    docs = [...docs].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    if(docs.length){
       const list = document.createElement("div");
       list.className = "notes-list";
-      combined.forEach(item=>{
+      docs.forEach(t=>{
         const card = document.createElement("div");
         card.className = "note-card";
-        card.innerHTML = `
-          <div class="note-info">
-            <h3>${item.icon} ${escapeHtml(item.title)}</h3>
-            <div class="routine-meta" style="margin-top:4px;">${item.kind==="note"?escapeHtml(item.sub):item.sub} · ${relativeTime(item.updatedAt)}</div>
-          </div>`;
-        card.onclick = () => {
-          if(item.kind==="note") openNoteEditor(item.id);
-          else { view = { tab:"templates", screen:"templateDoc", id:item.id }; render(); }
-        };
+        card.innerHTML = `<div class="note-info">
+          <h3>${escapeHtml(t.title||"Sem título")}</h3>
+          <div class="routine-meta" style="margin-top:4px;">${tmplMeta(t)} · ${relativeTime(t.updatedAt)}</div>
+        </div>`;
+        card.onclick = () => { goTo({ tab:"templates", screen:"templateDoc", id:t.id, folderKind:kind, folderKey:key }); };
         list.appendChild(wrapSwipeDelete(card, () => {
-          if(item.kind==="note"){
-            const idx = notes.findIndex(x=>x.id===item.id);
-            const removed = idx>-1 ? notes[idx] : null;
-            notes = notes.filter(x=>x.id!==item.id); save(K_NOTES, notes); render();
-            if(removed) showUndoBanner("Nota excluída", ()=>{
-              notes.splice(Math.min(idx, notes.length), 0, removed); save(K_NOTES, notes); render();
-            });
-          } else {
-            const idx = templates.findIndex(x=>x.id===item.id);
-            const removed = idx>-1 ? templates[idx] : null;
-            templates = templates.filter(x=>x.id!==item.id); save(K_TEMPLATES, templates); render();
-            if(removed) showUndoBanner("Documento excluído", ()=>{
-              templates.splice(Math.min(idx, templates.length), 0, removed); save(K_TEMPLATES, templates); render();
-            });
-          }
+          const idx = templates.findIndex(x=>x.id===t.id);
+          const removed = idx>-1 ? templates[idx] : null;
+          templates = templates.filter(x=>x.id!==t.id); save(K_TEMPLATES, templates); render();
+          if(removed) showUndoBanner("Documento excluído", ()=>{
+            templates.splice(Math.min(idx, templates.length), 0, removed); save(K_TEMPLATES, templates); render();
+          });
         }));
       });
       el.appendChild(list);
     } else {
       const empty = document.createElement("div");
       empty.className = "empty-state";
-      empty.innerHTML = `<h2>Nenhum documento ainda</h2><p>Crie a partir de um dos modelos acima.</p>`;
+      empty.innerHTML = kind==="routine"
+        ? `<h2>Nenhuma nota ainda</h2><p>Rotinas com tarefas de anotação geram uma nota aqui a cada execução.</p>`
+        : `<h2>Pasta vazia</h2><p>Toque em + para criar o primeiro.</p>`;
       el.appendChild(empty);
     }
     el.appendChild(renderTabbar("templates"));
     app.appendChild(el);
-    el.querySelectorAll("[data-newtype]").forEach(b=>{
-      b.onclick = () => {
-        if(b.dataset.newtype === "notasimples"){ openNoteEditor(null); return; }
-        if(b.dataset.newtype === "matrix"){
-          const ov = document.createElement("div");
-          ov.className = "confirm-overlay";
-          ov.innerHTML = `<div class="confirm-box"><p>Começar a matriz como:</p>
-            <div class="confirm-actions" style="flex-direction:column;">
-              <button class="btn-confirm" data-preset="eisenhower" style="background:var(--grad);">Matriz de Eisenhower</button>
-              <button class="btn-confirm" data-preset="swot" style="background:var(--grad);">Análise SWOT</button>
-              <button class="btn-confirm" data-preset="blank" style="background:var(--surface-2); color:var(--text);">Em branco</button>
-              <button class="btn-cancel" id="mxCancel">Cancelar</button>
-            </div></div>`;
-          document.body.appendChild(ov);
-          ov.querySelector("#mxCancel").onclick = () => ov.remove();
-          ov.onclick = e => { if(e.target===ov) ov.remove(); };
-          ov.querySelectorAll("[data-preset]").forEach(p=>{
-            p.onclick = () => { ov.remove(); const doc = newTemplateDoc("matrix", p.dataset.preset); view = { tab:"templates", screen:"templateDoc", id:doc.id }; render(); };
-          });
-          return;
-        }
-        const doc = newTemplateDoc(b.dataset.newtype);
-        view = { tab:"templates", screen:"templateDoc", id: doc.id };
-        render();
-      };
-    });
+
+    document.getElementById("folderBackBtn").onclick = () => { goTo({ tab:"templates", screen:"templates" }); };
+    const addBtn = document.getElementById("folderAddBtn");
+    if(addBtn) addBtn.onclick = () => {
+      if(key === "matrix"){ openMatrixPresetPicker(); return; }
+      const doc = newTemplateDoc(key);
+      goTo({ tab:"templates", screen:"templateDoc", id:doc.id, folderKind:kind, folderKey:key });
+    };
   }
 
   function renderTemplateDoc(){
     const doc = templates.find(t=>t.id===view.id);
-    if(!doc){ view = { tab:"templates", screen:"templates" }; render(); return; }
-    const map = { market:renderMarketDoc, matrix:renderMatrixDoc, kanban:renderKanbanDoc, countdown:renderCountdownDoc, expenses:renderExpensesDoc, proscons:renderProsConsDoc, travel:renderTravelDoc };
+    if(!doc){ goTo({ tab:"templates", screen:"templates" }); return; }
+    const map = { market:renderMarketDoc, matrix:renderMatrixDoc, kanban:renderKanbanDoc, countdown:renderCountdownDoc, expenses:renderExpensesDoc, proscons:renderProsConsDoc, travel:renderTravelDoc, idea:renderIdeaDoc, journal:renderJournalDoc, thoughtrecord:renderThoughtRecordDoc };
     (map[doc.type] || renderTemplates)(doc);
+  }
+
+  /* volta para a pasta de onde o doc foi aberto (se houver contexto), senão para a raiz de Modelos */
+  function tmplBackTarget(){
+    if(view.folderKind && view.folderKey) return { tab:"templates", screen:"tmplFolder", folderKind:view.folderKind, folderKey:view.folderKey };
+    return { tab:"templates", screen:"templates" };
   }
 
   /* cabeçalho comum dos documentos */
@@ -3944,7 +4182,7 @@ window.addEventListener("unhandledrejection", function(e){
     top.innerHTML = `
       <button class="link-btn muted" id="backTmpl">&larr; Modelos</button>
       <div style="display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end;">${extraButtons||""}
-        <button class="icon-btn" id="delTmpl">&#128465;</button>
+        <button class="icon-btn" id="delTmpl">&#10005;</button>
       </div>`;
     el.appendChild(top);
     const titleInput = document.createElement("input");
@@ -3953,20 +4191,157 @@ window.addEventListener("unhandledrejection", function(e){
     el.appendChild(titleInput);
     setTimeout(()=>{
       const back = document.getElementById("backTmpl");
-      if(back) back.onclick = () => { view = { tab:"templates", screen:"templates" }; render(); };
+      if(back) back.onclick = () => { view = tmplBackTarget(); render(); };
       const del = document.getElementById("delTmpl");
       if(del) del.onclick = () => {
         confirmModal("Excluir <b>"+escapeHtml(doc.title)+"</b>?", "Excluir", ()=>{
           const idx = templates.findIndex(t=>t.id===doc.id);
           const removed = idx>-1 ? templates[idx] : null;
           templates = templates.filter(t=>t.id!==doc.id); save(K_TEMPLATES, templates);
-          view = { tab:"templates", screen:"templates" }; render();
+          view = tmplBackTarget(); render();
           if(removed) showUndoBanner("Documento excluído", ()=>{
             templates.splice(Math.min(idx, templates.length), 0, removed); save(K_TEMPLATES, templates); render();
           });
         });
       };
     }, 0);
+  }
+
+  /* multiselect de tags: valores existentes viram chips removíveis, digitar + Enter/,
+     cria uma tag nova, sugestões (prefix-match) aparecem enquanto digita */
+  function mountTagInput(container, values, suggestions, onChange){
+    function paint(){
+      container.innerHTML = `<div class="tag-input-box">
+        ${values.map((v,i)=>`<span class="tag-input-chip">${escapeHtml(v)}<button data-rmtag="${i}" title="Remover">&#10005;</button></span>`).join("")}
+        <input type="text" class="tag-input-field" id="tagInputField" placeholder="${values.length?'':'digite e pressione Enter…'}">
+      </div>
+      <div class="tag-input-suggest" id="tagInputSuggest"></div>`;
+      container.querySelectorAll("[data-rmtag]").forEach(b=> b.onclick = () => {
+        values.splice(+b.dataset.rmtag, 1);
+        onChange([...values]); paint();
+      });
+      const field = container.querySelector("#tagInputField");
+      const suggestBox = container.querySelector("#tagInputSuggest");
+      function addTag(raw){
+        const v = raw.trim();
+        if(!v || values.includes(v)) return;
+        values.push(v);
+        onChange([...values]); paint();
+      }
+      function renderSuggest(){
+        const q = field.value.trim().toLowerCase();
+        const pool = suggestions.filter(s=>!values.includes(s));
+        const matches = (q ? pool.filter(s=>s.toLowerCase().startsWith(q)) : pool).slice(0,8);
+        suggestBox.innerHTML = matches.map(m=>`<span class="tag-chip" data-sug="${escapeHtml(m)}">${escapeHtml(m)}</span>`).join("");
+        suggestBox.querySelectorAll("[data-sug]").forEach(s=> s.onclick = () => { addTag(s.dataset.sug); });
+      }
+      field.oninput = renderSuggest;
+      field.onfocus = renderSuggest;
+      field.onkeydown = e => {
+        if(e.key==="Enter" || e.key===","){ e.preventDefault(); addTag(field.value); }
+        else if(e.key==="Backspace" && !field.value && values.length){ values.pop(); onChange([...values]); paint(); }
+      };
+      renderSuggest();
+    }
+    paint();
+  }
+
+  /* ============ IDEIA ============ */
+  function ideaSubjectsPool(excludeId){
+    const set = new Set();
+    templates.filter(t=>t.type==="idea" && t.id!==excludeId).forEach(t=>(t.subjects||[]).forEach(s=>set.add(s)));
+    return [...set];
+  }
+  function renderIdeaDoc(doc){
+    if(!doc.subjects) doc.subjects = [];
+    const el = document.createElement("div");
+    el.className = "screen";
+    tmplHeader(el, doc);
+    const body = document.createElement("div");
+    body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
+    body.innerHTML = `
+      <div class="section-label" style="margin-top:6px;">Resumo da ideia</div>
+      <textarea class="mk-e-name" id="ideaSummary" rows="4" style="resize:vertical; line-height:1.5;" placeholder="Do que se trata a ideia?">${escapeHtml(doc.summary||"")}</textarea>
+      <div class="section-label">Aprimoramentos</div>
+      <textarea class="mk-e-name" id="ideaImprovements" rows="4" style="resize:vertical; line-height:1.5;" placeholder="O que poderia melhorar ou evoluir nela?">${escapeHtml(doc.improvements||"")}</textarea>
+      <div class="section-label">Assunto</div>
+      <div id="ideaSubjectsWrap"></div>
+    `;
+    el.appendChild(body);
+    app.appendChild(el);
+
+    body.querySelector("#ideaSummary").oninput = e => { doc.summary = e.target.value; saveTemplates(doc); };
+    body.querySelector("#ideaImprovements").oninput = e => { doc.improvements = e.target.value; saveTemplates(doc); };
+    mountTagInput(body.querySelector("#ideaSubjectsWrap"), doc.subjects, ideaSubjectsPool(doc.id), newVals => {
+      doc.subjects = newVals; saveTemplates(doc);
+    });
+  }
+
+  /* ============ REGISTRO DE PENSAMENTOS (registro cognitivo-comportamental) ============ */
+  const COGNITIVE_DISTORTIONS = [
+    "Pensamento tudo ou nada",
+    "Catastrofização",
+    "Desqualificação do positivo",
+    "Raciocínio emocional",
+    "Rotulação",
+    "Leitura mental",
+    "Adivinhação do futuro",
+    "Supergeneralização",
+    "Filtro mental",
+    "Personalização",
+    "Afirmações com \"deveria\"",
+    "Culpar-se ou culpar os outros"
+  ];
+  function renderThoughtRecordDoc(doc){
+    const el = document.createElement("div");
+    el.className = "screen";
+    tmplHeader(el, doc);
+    const body = document.createElement("div");
+    body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
+    body.innerHTML = `
+      <div class="section-label" style="margin-top:6px;">Gatilho</div>
+      <textarea class="mk-e-name" id="trTrigger" rows="3" style="resize:vertical; line-height:1.5;" placeholder="O que aconteceu?">${escapeHtml(doc.trigger||"")}</textarea>
+      <div class="section-label">Emoções</div>
+      <textarea class="mk-e-name" id="trEmotions" rows="2" style="resize:vertical; line-height:1.5;" placeholder="O que você sentiu, e com que intensidade?">${escapeHtml(doc.emotions||"")}</textarea>
+      <div class="section-label">Distorção cognitiva</div>
+      <select id="trDistortion" class="routine-select" style="width:100%; margin-bottom:8px;">
+        <option value="">selecione...</option>
+        ${COGNITIVE_DISTORTIONS.map(d=>`<option value="${escapeHtml(d)}" ${doc.distortion===d?'selected':''}>${escapeHtml(d)}</option>`).join("")}
+      </select>
+      <div class="section-label">Pensamentos alternativos</div>
+      <textarea class="mk-e-name" id="trAlt" rows="3" style="resize:vertical; line-height:1.5;" placeholder="Existe uma forma mais equilibrada de ver isso?">${escapeHtml(doc.altThoughts||"")}</textarea>
+      <div class="section-label">Resultados</div>
+      <textarea class="mk-e-name" id="trResults" rows="3" style="resize:vertical; line-height:1.5;" placeholder="Como você se sente agora?">${escapeHtml(doc.results||"")}</textarea>
+    `;
+    el.appendChild(body);
+    app.appendChild(el);
+
+    body.querySelector("#trTrigger").oninput = e => { doc.trigger = e.target.value; saveTemplates(doc); };
+    body.querySelector("#trEmotions").oninput = e => { doc.emotions = e.target.value; saveTemplates(doc); };
+    body.querySelector("#trDistortion").onchange = e => { doc.distortion = e.target.value; saveTemplates(doc); };
+    body.querySelector("#trAlt").oninput = e => { doc.altThoughts = e.target.value; saveTemplates(doc); };
+    body.querySelector("#trResults").oninput = e => { doc.results = e.target.value; saveTemplates(doc); };
+  }
+
+  /* ============ JOURNAL (nota gerada por execução de rotina com tarefas de anotação) ============ */
+  function renderJournalDoc(doc){
+    if(!doc.sections) doc.sections = [];
+    const el = document.createElement("div");
+    el.className = "screen";
+    tmplHeader(el, doc);
+    const body = document.createElement("div");
+    body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
+    body.innerHTML = doc.sections.map((sec,i)=>`
+      <div class="section-label" style="margin-top:${i===0?6:14}px;">${escapeHtml(sec.taskName)}</div>
+      <textarea class="mk-e-name" data-jsec="${i}" rows="4" style="resize:vertical; line-height:1.5;">${escapeHtml(sec.text||"")}</textarea>
+    `).join("") || `<div class="empty-state" style="min-height:25vh;"><p>Sem anotações nesta execução.</p></div>`;
+    el.appendChild(body);
+    app.appendChild(el);
+
+    body.querySelectorAll("[data-jsec]").forEach(ta=> ta.oninput = e => {
+      doc.sections[+e.target.dataset.jsec].text = e.target.value;
+      saveTemplates(doc);
+    });
   }
 
   /* ============ LISTA DE MERCADO ============ */
@@ -3976,7 +4351,7 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     tmplHeader(el, doc, `
-      <button class="icon-btn ${doc.shopMode?'pin-btn pinned':''}" id="mkShop" title="Modo compra">&#128722;</button>
+      <button class="icon-btn ${doc.shopMode?'pin-btn pinned':''}" id="mkShop" title="Modo compra">&#9634;</button>
       <button class="icon-btn" id="mkRebuy" title="Recomprar (desmarcar tudo)">&#8635;</button>
       <button class="icon-btn" id="mkShare" title="Compartilhar como texto">&#8599;</button>
     `);
@@ -4744,6 +5119,353 @@ window.addEventListener("unhandledrejection", function(e){
     return `<svg viewBox="0 0 128 128" width="118" height="118" style="flex:0 0 auto;">${arcs}<circle cx="${cx}" cy="${cy}" r="${R-sw/2-1}" fill="var(--surface)"/></svg>`;
   }
 
+  /* ============ DESPESAS (pasta única — cada lançamento é a própria nota) ============ */
+  function expenseDocs(){ return templates.filter(t=>t.type==="expense"); }
+  function isoWeekStart(dateStr){
+    const d = new Date(dateStr+"T12:00:00");
+    const day = (d.getDay()+6)%7;
+    d.setDate(d.getDate()-day);
+    return localKey(d);
+  }
+  function chartsBucketKey(dateStr, period){
+    if(period==="semana") return isoWeekStart(dateStr);
+    if(period==="trimestre"){ const y=dateStr.slice(0,4), m=+dateStr.slice(5,7); return y+"-T"+(Math.floor((m-1)/3)+1); }
+    if(period==="ano") return dateStr.slice(0,4);
+    return dateStr.slice(0,7);
+  }
+  function chartsBucketLabel(key, period){
+    if(period==="semana") return key.slice(8,10)+"/"+key.slice(5,7);
+    if(period==="mes") return key.slice(5,7)+"/"+key.slice(2,4);
+    return key;
+  }
+  function chartsPeriodUnit(p){ return {semana:"semana", mes:"mês", trimestre:"trimestre", ano:"ano"}[p]; }
+  function expensesMdFromDocs(docs){
+    let md = "# Despesas\n";
+    const byMonth = {};
+    docs.forEach(e=>{ (byMonth[e.date.slice(0,7)] = byMonth[e.date.slice(0,7)]||[]).push(e); });
+    Object.keys(byMonth).sort().reverse().forEach(mk=>{
+      const list = byMonth[mk];
+      const tot = list.reduce((a,e)=>a+e.value,0);
+      md += "\n## " + mk.slice(5,7) + "/" + mk.slice(0,4) + " — total " + brl(tot) + "\n";
+      list.sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
+        md += "- " + e.date.slice(8,10) + "/" + e.date.slice(5,7) + (e.time?" "+e.time:"") + " — " + e.desc + " — " + brl(e.value) + " (" + e.cat + ")\n";
+      });
+      const byCat = {};
+      list.forEach(e=>{ byCat[e.cat] = (byCat[e.cat]||0) + e.value; });
+      md += "  - por categoria: " + Object.entries(byCat).map(([c,v])=>c+" "+brl(v)).join(" · ") + "\n";
+    });
+    return md;
+  }
+
+  function renderExpenseFolder(){
+    const el = document.createElement("div");
+    el.className = "screen with-tabbar";
+    el.innerHTML = `<div class="home-header">
+      <h1><span id="expBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">&#8249;</span> ${svgIcon(ICON_D.expense)} Despesas</h1>
+      <div class="header-right">
+        <button class="bell-btn" id="exImportBtn" title="Importar extrato CSV">&#8679;</button>
+        <button class="bell-btn" id="exMd" title="Copiar markdown">MD</button>
+        <button class="bell-btn" id="exCsv" title="Exportar CSV">CSV</button>
+        <input type="file" id="exCsvFile" accept=".csv,text/csv,text/plain" style="display:none">
+      </div>
+    </div>`;
+    const body = document.createElement("div");
+    body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
+    el.appendChild(body);
+    el.appendChild(renderTabbar("templates"));
+    app.appendChild(el);
+    document.getElementById("expBackBtn").onclick = () => { goTo({ tab:"templates", screen:"templates" }); };
+
+    let exView = "lista", exEditingId = null, exImport = null;
+    let folderQuery = "", folderFrom = "", folderTo = "", folderCat = "";
+    let chartsPeriod = "mes";
+
+    function filteredDocs(){
+      let arr = expenseDocs();
+      const q = folderQuery.trim().toLowerCase();
+      if(q) arr = arr.filter(e => (e.desc||"").toLowerCase().includes(q) || (e.cat||"").toLowerCase().includes(q));
+      if(folderFrom) arr = arr.filter(e => e.date >= folderFrom);
+      if(folderTo) arr = arr.filter(e => e.date <= folderTo);
+      if(folderCat) arr = arr.filter(e => e.cat === folderCat);
+      return arr;
+    }
+
+    function chartsHtml(docs){
+      const byBucket = {};
+      docs.forEach(e=>{ const k = chartsBucketKey(e.date, chartsPeriod); byBucket[k] = (byBucket[k]||0) + e.value; });
+      const buckets = Object.keys(byBucket).sort();
+      const maxB = Math.max(...buckets.map(b=>byBucket[b]), 1);
+      const trend = buckets.slice(-8).map(b=>{
+        const h = Math.max(4, Math.round(byBucket[b]/maxB*60));
+        return `<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
+          <div class="bar-val" style="width:auto; font-size:10px;">${brl(byBucket[b]).replace("R$ ","")}</div>
+          <div class="trend-bar ontime" style="height:${h}px; width:60%;"></div>
+          <div class="dev-n" style="font-size:10px;">${chartsBucketLabel(b, chartsPeriod)}</div>
+        </div>`;
+      }).join("");
+
+      const byCat = {};
+      docs.forEach(e=>{ byCat[e.cat] = (byCat[e.cat]||0) + e.value; });
+      const total = Object.values(byCat).reduce((a,v)=>a+v,0);
+      const segs = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>({label:c, value:v, color:catColor(c)}));
+      const legend = segs.map(s=>`<div class="bar-row" style="margin:5px 0;">
+        <span style="width:10px; height:10px; border-radius:3px; background:${s.color}; flex:0 0 auto;"></span>
+        <div class="bar-name" style="width:auto; flex:1;">${escapeHtml(s.label)}</div>
+        <div class="bar-val">${brl(s.value)}</div>
+      </div>`).join("");
+
+      const avgBucket = buckets.length ? (buckets.reduce((a,b)=>a+byBucket[b],0) / buckets.length) : 0;
+      const curKey = chartsBucketKey(localKey(), chartsPeriod);
+      const curDocs = docs.filter(e => chartsBucketKey(e.date, chartsPeriod) === curKey);
+      const curTotal = curDocs.reduce((a,e)=>a+e.value,0);
+      const curByCat = {};
+      curDocs.forEach(e=>{ curByCat[e.cat] = (curByCat[e.cat]||0) + e.value; });
+      const topCat = Object.entries(curByCat).sort((a,b)=>b[1]-a[1])[0];
+      const periodLabel = chartsPeriodUnit(chartsPeriod) + " atual";
+
+      return `
+        <div class="type-toggle" id="chartsPeriodToggle" style="margin-bottom:12px;">
+          ${["semana","mes","trimestre","ano"].map(p=>`<span data-cperiod="${p}" class="${chartsPeriod===p?'active':''}">${chartsPeriodUnit(p)}</span>`).join("")}
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+          <div class="stat-card" style="text-align:center;"><div class="dev-n">média por ${chartsPeriodUnit(chartsPeriod)}</div><b style="font-size:17px;">${brl(avgBucket)}</b></div>
+          <div class="stat-card" style="text-align:center;"><div class="dev-n">total ${periodLabel}</div><b style="font-size:17px;">${brl(curTotal)}</b></div>
+          <div class="stat-card" style="text-align:center;"><div class="dev-n">maior categoria (${periodLabel})</div><b style="font-size:14px;">${topCat?escapeHtml(topCat[0])+" · "+brl(topCat[1]):"—"}</b></div>
+          <div class="stat-card" style="text-align:center;"><div class="dev-n">lançamentos (${periodLabel})</div><b style="font-size:17px;">${curDocs.length}</b></div>
+        </div>
+        <div class="section-label">Total por ${chartsPeriodUnit(chartsPeriod)}</div>
+        <div class="stat-card"><div style="display:flex; align-items:flex-end; gap:6px; min-height:90px;">${trend||'<div class="dev-n">sem dados</div>'}</div></div>
+        <div class="section-label">Por categoria</div>
+        <div class="stat-card" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          <div style="position:relative; flex:0 0 auto;">${donutSvg(segs, total)}
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+              <div style="font-size:11px; color:var(--muted);">total</div>
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:13px;">${brl(total)}</div>
+            </div>
+          </div>
+          <div style="flex:1; min-width:140px;">${legend || '<div class="dev-n">sem dados</div>'}</div>
+        </div>`;
+    }
+
+    function paintResults(){
+      const resultsBox = document.getElementById("exResultsBox");
+      if(!resultsBox) return;
+      const docs = filteredDocs();
+      if(exView === "graficos"){
+        resultsBox.innerHTML = docs.length ? chartsHtml(docs) : `<div class="empty-state" style="min-height:25vh;"><p>Sem dados para visualizar ainda.</p></div>`;
+        resultsBox.querySelectorAll("[data-cperiod]").forEach(sp=> sp.onclick = () => { chartsPeriod = sp.dataset.cperiod; paintResults(); });
+        return;
+      }
+      const byMonth = {};
+      docs.forEach(e=>{ (byMonth[e.date.slice(0,7)] = byMonth[e.date.slice(0,7)]||[]).push(e); });
+      let html = "";
+      Object.keys(byMonth).sort().reverse().forEach(mk=>{
+        const list = byMonth[mk].sort((a,b)=> (b.date+(b.time||"")).localeCompare(a.date+(a.time||"")));
+        const tot = list.reduce((a,e)=>a+e.value,0);
+        const byCat = {};
+        list.forEach(e=>{ byCat[e.cat] = (byCat[e.cat]||0) + e.value; });
+        let rows = list.map(e=> exEditingId===e.id ? `
+          <div class="dev-row" style="flex-wrap:wrap; gap:6px;">
+            <input type="text" value="${escapeHtml(e.desc)}" data-exef="desc" class="mk-e-name" style="width:100%;">
+            <input type="number" inputmode="decimal" min="0" step="0.01" value="${e.value}" data-exef="value" style="width:90px;">
+            <select data-exef="cat" style="flex:1;">${EXP_CATS.map(c=>`<option ${e.cat===c?'selected':''}>${c}</option>`).join("")}</select>
+            <input type="date" value="${e.date}" data-exef="date" style="width:130px;">
+            <input type="time" value="${e.time||''}" data-exef="time" style="width:100px;">
+            <button class="btn-primary" data-exsave="${e.id}" style="padding:8px 14px;">&#10003;</button>
+            <button class="del-exec" data-excancel="1">&#10005;</button>
+          </div>` : `
+          <div class="dev-row">
+            <span class="dev-n" style="width:44px;">${e.date.slice(8,10)}/${e.date.slice(5,7)}</span>
+            <span style="flex:1; cursor:pointer;" data-exedit="${e.id}" title="Tocar para editar">${escapeHtml(e.desc)}<br><span class="dev-n">${escapeHtml(e.cat)}${e.time?' · '+e.time:''}</span></span>
+            <b class="ontime">${brl(e.value)}</b>
+            <button class="del-exec" data-exdel="${e.id}">&#10005;</button>
+          </div>`).join("");
+        let catsHtml = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>{
+          const pct = Math.round(v/tot*100);
+          return `<div class="bar-row"><div class="bar-name">${escapeHtml(c)}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${catColor(c)};"></div></div><div class="bar-val">${brl(v)}</div></div>`;
+        }).join("");
+        html += `<div class="section-label">${mk.slice(5,7)}/${mk.slice(0,4)} — total ${brl(tot)}</div>
+          <div class="stat-card">${catsHtml}</div>
+          <div class="stat-card" style="margin-top:6px;">${rows}</div>`;
+      });
+      if(docs.length === 0) html += `<div class="empty-state" style="min-height:25vh;"><p>${expenseDocs().length ? "Nenhum lançamento corresponde ao filtro." : "Registre um gasto, ou importe um extrato CSV (&#8679; no topo)."}</p></div>`;
+      resultsBox.innerHTML = html;
+
+      resultsBox.querySelectorAll("[data-exdel]").forEach(b=> b.onclick = () => {
+        const idx = templates.findIndex(x=>x.id===b.dataset.exdel);
+        const removed = idx>-1 ? templates[idx] : null;
+        templates = templates.filter(x=>x.id!==b.dataset.exdel); save(K_TEMPLATES, templates); paintResults();
+        if(removed) showUndoBanner("Lançamento excluído", ()=>{
+          templates.splice(Math.min(idx, templates.length), 0, removed); save(K_TEMPLATES, templates); paintResults();
+        });
+      });
+      resultsBox.querySelectorAll("[data-exedit]").forEach(s=> s.onclick = () => { exEditingId = s.dataset.exedit; paintResults(); });
+      resultsBox.querySelectorAll("[data-excancel]").forEach(b=> b.onclick = () => { exEditingId = null; paintResults(); });
+      resultsBox.querySelectorAll("[data-exsave]").forEach(b=> b.onclick = () => {
+        const e = templates.find(x=>x.id===b.dataset.exsave);
+        const row = b.closest(".dev-row");
+        if(e && row){
+          const desc = row.querySelector("[data-exef='desc']").value.trim();
+          const value = +row.querySelector("[data-exef='value']").value;
+          if(!desc || !value){ showAlertBanner("Preencha descrição e valor"); return; }
+          e.desc = desc; e.value = value;
+          e.cat = row.querySelector("[data-exef='cat']").value;
+          e.date = row.querySelector("[data-exef='date']").value || e.date;
+          e.time = row.querySelector("[data-exef='time']").value || undefined;
+          saveTemplates(e);
+        }
+        exEditingId = null; paintResults();
+      });
+    }
+
+    function paint(){
+      if(exImport){ paintImport(); return; }
+      body.innerHTML = `
+        <div class="stat-card" style="margin-bottom:12px;">
+          <input type="text" id="exDesc" placeholder="Descrição" class="mk-e-name" style="width:100%; margin-bottom:8px;">
+          <div class="market-form-row" style="margin-bottom:8px;">
+            <input type="number" id="exVal" inputmode="decimal" min="0" step="0.01" placeholder="R$" style="flex:1; min-width:0;">
+            <select id="exCat" style="flex:1; min-width:0;">${EXP_CATS.map(c=>`<option>${c}</option>`).join("")}</select>
+          </div>
+          <div class="market-form-row">
+            <input type="date" id="exDate" value="${localKey()}" style="flex:1; min-width:0;">
+            <input type="time" id="exTime" style="flex:0 0 auto; width:100px;" title="Hora (opcional)">
+            <button class="btn-primary" id="exAdd" style="flex:0 0 auto; padding:10px 20px;">+</button>
+          </div>
+        </div>
+        <input type="search" id="expSearch" class="note-search" placeholder="Buscar por descrição ou categoria..." value="${escapeHtml(folderQuery)}" style="margin-bottom:8px;">
+        <div class="market-form-row" style="margin-bottom:8px;">
+          <input type="date" id="expFrom" value="${folderFrom}" title="De" style="flex:1; min-width:0;">
+          <input type="date" id="expTo" value="${folderTo}" title="Até" style="flex:1; min-width:0;">
+          <select id="expCatFilter" style="flex:1; min-width:0;">
+            <option value="">Todas categorias</option>
+            ${EXP_CATS.map(c=>`<option value="${c}" ${folderCat===c?'selected':''}>${c}</option>`).join("")}
+          </select>
+        </div>
+        <div class="type-toggle" id="exViewToggle" style="margin-bottom:12px;">
+          <span data-exview="lista" class="${exView==='lista'?'active':''}">lista</span>
+          <span data-exview="graficos" class="${exView==='graficos'?'active':''}">gráficos</span>
+        </div>
+        <div id="exResultsBox"></div>
+      `;
+      document.getElementById("exAdd").onclick = () => {
+        const desc = document.getElementById("exDesc").value.trim();
+        const value = +document.getElementById("exVal").value;
+        const date = document.getElementById("exDate").value || localKey();
+        const time = document.getElementById("exTime").value || undefined;
+        if(!desc || !value){ showAlertBanner("Preencha descrição e valor"); return; }
+        const cat = document.getElementById("exCat").value;
+        const newExpense = { id: uid(), type:"expense", updatedAt: Date.now(), desc, value, cat, date, time };
+        templates.push(newExpense);
+        save(K_TEMPLATES, templates);
+        syncDocMd(newExpense);
+        paint();
+      };
+      document.getElementById("expSearch").oninput = e => { folderQuery = e.target.value; paintResults(); };
+      document.getElementById("expFrom").onchange = e => { folderFrom = e.target.value; paint(); };
+      document.getElementById("expTo").onchange = e => { folderTo = e.target.value; paint(); };
+      document.getElementById("expCatFilter").onchange = e => { folderCat = e.target.value; paint(); };
+      document.querySelectorAll("#exViewToggle [data-exview]").forEach(sp=> sp.onclick = () => { exView = sp.dataset.exview; paint(); });
+      paintResults();
+    }
+
+    function computeImportPreview(){
+      const { dataRows, map, sign } = exImport;
+      const parsed = [];
+      let skipped = 0;
+      dataRows.forEach(r=>{
+        const date = parseFlexDate(r[map.date]);
+        const rawVal = parseBRNumber(r[map.val]);
+        const desc = (r[map.desc]||"").trim();
+        if(!date || isNaN(rawVal)){ skipped++; return; }
+        let value;
+        if(sign === "neg"){ if(rawVal >= 0) return; value = -rawVal; }
+        else if(sign === "pos"){ if(rawVal <= 0) return; value = rawVal; }
+        else { value = Math.abs(rawVal); }
+        if(value === 0) return;
+        parsed.push({ date, desc: desc || "(sem descrição)", value });
+      });
+      return { parsed, skipped };
+    }
+
+    function paintImport(){
+      const g = exImport.guess;
+      const colOpts = (sel)=> Array.from({length:g.ncol}, (_,i)=>`<option value="${i}" ${sel===i?'selected':''}>coluna ${i+1}${g.header&&g.header[i]?' · '+escapeHtml(g.header[i].slice(0,16)):''}</option>`).join("");
+      const { parsed, skipped } = computeImportPreview();
+      const totalPrev = parsed.reduce((a,e)=>a+e.value,0);
+      const sample = parsed.slice(0,5).map(e=>`<div class="dev-row"><span class="dev-n" style="width:44px;">${e.date.slice(8,10)}/${e.date.slice(5,7)}</span><span style="flex:1;">${escapeHtml(e.desc.slice(0,40))}</span><b class="ontime">${brl(e.value)}</b></div>`).join("");
+      body.innerHTML = `
+        <div class="section-label">Importar extrato — conferir colunas</div>
+        <div class="stat-card">
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Data</span><select id="impDate" style="flex:1;">${colOpts(exImport.map.date)}</select></div>
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Descrição</span><select id="impDesc" style="flex:1;">${colOpts(exImport.map.desc)}</select></div>
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Valor</span><select id="impVal" style="flex:1;">${colOpts(exImport.map.val)}</select></div>
+          <div class="market-form-row"><span style="width:80px; color:var(--muted); font-size:13px;">Importar</span>
+            <select id="impSign" style="flex:1;">
+              <option value="neg" ${exImport.sign==='neg'?'selected':''}>Só saídas (valores negativos)</option>
+              <option value="pos" ${exImport.sign==='pos'?'selected':''}>Só entradas (valores positivos)</option>
+              <option value="abs" ${exImport.sign==='abs'?'selected':''}>Tudo (valor absoluto)</option>
+            </select>
+          </div>
+        </div>
+        <div class="section-label">Prévia — ${parsed.length} lançamento(s) · total ${brl(totalPrev)}${skipped?` · ${skipped} linha(s) ignorada(s)`:''}</div>
+        <div class="stat-card">${sample || '<div class="dev-n">Nenhum lançamento reconhecido com esse mapeamento.</div>'}</div>
+        <div class="bottom-actions" style="position:static; background:none; padding:14px 0 0;">
+          <button class="btn-cancel" id="impCancelEx">Cancelar</button>
+          <button class="btn-primary" id="impConfirmEx" ${parsed.length?'':'disabled'}>Importar ${parsed.length}</button>
+        </div>`;
+      const remap = () => {
+        exImport.map.date = +document.getElementById("impDate").value;
+        exImport.map.desc = +document.getElementById("impDesc").value;
+        exImport.map.val = +document.getElementById("impVal").value;
+        exImport.sign = document.getElementById("impSign").value;
+        paintImport();
+      };
+      ["impDate","impDesc","impVal","impSign"].forEach(id=> document.getElementById(id).onchange = remap);
+      document.getElementById("impCancelEx").onclick = () => { exImport = null; paint(); };
+      document.getElementById("impConfirmEx").onclick = () => {
+        const res = computeImportPreview();
+        res.parsed.forEach(e=> templates.push({ id: uid(), type:"expense", updatedAt: Date.now(), desc: e.desc, value: +e.value.toFixed(2), cat: "Outros", date: e.date }));
+        save(K_TEMPLATES, templates);
+        const n = res.parsed.length;
+        exImport = null;
+        showAlertBanner(n + " lançamento(s) importado(s) ✓");
+        paint();
+      };
+    }
+
+    paint();
+
+    const csvFile = document.getElementById("exCsvFile");
+    document.getElementById("exImportBtn").onclick = () => csvFile.click();
+    csvFile.onchange = ev => {
+      const file = ev.target.files && ev.target.files[0];
+      ev.target.value = "";
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const { rows } = parseCsvText(String(reader.result));
+        if(!rows.length){ showAlertBanner("CSV vazio ou ilegível"); return; }
+        const g = guessExpenseColumns(rows);
+        if(g.dateCol<0 || g.valCol<0){ showAlertBanner("Não reconheci colunas de data e valor — confira o arquivo"); return; }
+        const anyNeg = g.dataRows.some(r=> parseBRNumber(r[g.valCol]) < 0);
+        exImport = { dataRows: g.dataRows, guess: g, map:{ date:g.dateCol, val:g.valCol, desc: g.descCol>=0?g.descCol:0 }, sign: anyNeg ? "neg" : "abs" };
+        paint();
+      };
+      reader.readAsText(file, "utf-8");
+    };
+    document.getElementById("exMd").onclick = () => copyMarkdown(expensesMdFromDocs(expenseDocs()));
+    document.getElementById("exCsv").onclick = () => {
+      const rows = [["data","hora","descricao","valor","categoria"]];
+      [...expenseDocs()].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
+        rows.push([e.date, e.time||"", e.desc.replace(/;/g,","), e.value.toFixed(2).replace(".",","), e.cat]);
+      });
+      const csv = "\ufeff" + rows.map(r=>r.join(";")).join("\n");
+      downloadFile("despesas.csv", csv, "text/csv;charset=utf-8");
+      showAlertBanner("CSV exportado ✓");
+    };
+  }
+
   function renderExpensesDoc(doc){
     const el = document.createElement("div");
     el.className = "screen";
@@ -5223,8 +5945,7 @@ window.addEventListener("unhandledrejection", function(e){
       notes.push(noteDraft);
       save(K_NOTES, notes);
     }
-    view = { tab:"templates", screen:"noteEditor" };
-    render();
+    goTo({ tab:"templates", screen:"noteEditor" });
   }
 
   /* ---------- Live editor helpers ---------- */
@@ -5497,6 +6218,86 @@ window.addEventListener("unhandledrejection", function(e){
     });
     return r.uri;
   }
+
+  /* ---- Espelho em Markdown (estilo cofre do Obsidian) ----
+     Cada nota/documento vira um .md legível em Documentos/Rotinas/Notas/,
+     sobrevive à desinstalação do app e pode ser lido sem nenhum programa.
+     doc._mdPath guarda o último caminho gravado, pra renomear o arquivo
+     no disco em vez de deixar cópias órfãs quando o título muda. */
+  function mdTypeLabel(type){
+    return {
+      market:"mercado", matrix:"matriz", kanban:"kanban", countdown:"contagem",
+      expense:"despesa", proscons:"pros-contras", travel:"viagem", idea:"ideia",
+      thoughtrecord:"pensamento", journal:"diario", note:"nota"
+    }[type] || type || "nota";
+  }
+  function noteMd(note){
+    return "# " + (note.title||"Sem título") + "\n\n" + (note.content||"") + "\n";
+  }
+  function marketMdSingle(doc){
+    const byAisle = {};
+    (doc.items||[]).forEach(it=>{ (byAisle[it.aisle||"Outros"] = byAisle[it.aisle||"Outros"]||[]).push(it); });
+    let md = "# " + doc.title + "\n";
+    (doc.aisleOrder||[]).concat(Object.keys(byAisle).filter(a=>!(doc.aisleOrder||[]).includes(a))).forEach(a=>{
+      if(!byAisle[a] || !byAisle[a].length) return;
+      md += "\n## " + a + "\n" + byAisle[a].map(it=>"- " + (it.checked?"[x] ":"[ ] ") + it.name + " — " + it.qty + (it.unit==="un"?" un":it.unit) + (it.price?" — "+brl(it.price):"")).join("\n") + "\n";
+    });
+    return md;
+  }
+  function expenseEntryMd(doc){
+    return "# " + (doc.desc||"Despesa") + "\n\n- Valor: " + brl(doc.value||0) + "\n- Categoria: " + (doc.cat||"") + "\n- Data: " + (doc.date||"") + (doc.time?" "+doc.time:"") + "\n";
+  }
+  function ideaMd(doc){
+    let md = "# " + (doc.title||"Ideia") + "\n\n## Resumo\n" + (doc.summary||"") + "\n\n## Aprimoramentos\n" + (doc.improvements||"") + "\n";
+    if((doc.subjects||[]).length) md += "\n## Assunto\n" + doc.subjects.map(s=>"#"+s.replace(/\s+/g,"-")).join(" ") + "\n";
+    return md;
+  }
+  function thoughtRecordMd(doc){
+    return "# " + (doc.title||"Registro de pensamentos") + "\n\n## Gatilho\n" + (doc.trigger||"") +
+      "\n\n## Emoções\n" + (doc.emotions||"") +
+      "\n\n## Distorção cognitiva\n" + (doc.distortion||"—") +
+      "\n\n## Pensamentos alternativos\n" + (doc.altThoughts||"") +
+      "\n\n## Resultados\n" + (doc.results||"") + "\n";
+  }
+  function journalDocMd(doc){
+    let md = "# " + (doc.title||"Diário") + "\n";
+    (doc.sections||[]).forEach(sec=>{ md += "\n## " + sec.taskName + "\n" + (sec.text||"") + "\n"; });
+    return md;
+  }
+  function docToMarkdown(doc){
+    switch(doc.type){
+      case "market": return marketMdSingle(doc);
+      case "matrix": return matrixMd(doc);
+      case "kanban": return kanbanMd(doc);
+      case "countdown": return countdownMd(doc);
+      case "expense": return expenseEntryMd(doc);
+      case "proscons": return prosconsMd(doc);
+      case "travel": return travelMd(doc);
+      case "idea": return ideaMd(doc);
+      case "thoughtrecord": return thoughtRecordMd(doc);
+      case "journal": return journalDocMd(doc);
+      default: return "# " + (doc.title||"Documento") + "\n";
+    }
+  }
+  async function syncMdFile(obj, mdText, typeLabel, titleForSlug){
+    if(!isNative || !window.Capacitor.Plugins.Filesystem) return;
+    const FS = window.Capacitor.Plugins.Filesystem;
+    const newPath = "Rotinas/Notas/" + typeLabel + "-" + slugify(titleForSlug).slice(0,40) + "-" + obj.id.slice(0,6) + ".md";
+    try{
+      if(obj._mdPath && obj._mdPath !== newPath){
+        try{ await FS.deleteFile({ path: obj._mdPath, directory:"DOCUMENTS" }); }catch(e){}
+      }
+      await FS.writeFile({ path:newPath, directory:"DOCUMENTS", encoding:"utf8", data:mdText, recursive:true });
+      obj._mdPath = newPath;
+    }catch(e){ console.error("syncMdFile falhou:", e); }
+  }
+  function syncNoteMd(note){
+    syncMdFile(note, noteMd(note), "nota", note.title || "sem-titulo");
+  }
+  function syncDocMd(doc){
+    syncMdFile(doc, docToMarkdown(doc), mdTypeLabel(doc.type), doc.title || doc.trigger || doc.desc || mdTypeLabel(doc.type));
+  }
+
   function downloadFile(filename, text, mime){
     if(isNative){
       nativeWriteExport(filename, text)
@@ -5686,7 +6487,7 @@ window.addEventListener("unhandledrejection", function(e){
         <button class="icon-btn ${noteDraft.sinkChecked?'pin-btn pinned':''}" id="sinkToggle" title="Itens marcados descem">&#8595;&#10003;</button>
         <button class="icon-btn" id="noteToRoutine" title="Converter em rotina">&#9654;+</button>
         <button class="icon-btn" id="exportMd" title="Exportar .md">&#8681;</button>
-        <button class="icon-btn" id="deleteNote">&#128465;</button>
+        <button class="icon-btn" id="deleteNote">&#10005;</button>
       </div>
     `;
     el.appendChild(top);
@@ -5708,8 +6509,10 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("backNotes").onclick = () => {
       if(!noteDraft.title.trim() && !noteDraft.content.trim()){
         notes = notes.filter(n=>n.id!==noteDraft.id); save(K_NOTES, notes);
+      } else {
+        syncNoteMd(noteDraft);
       }
-      view = { tab:"templates", screen:"templates" }; render();
+      goTo({ tab:"templates", screen:"templates" });
     };
     document.getElementById("exportMd").onclick = exportNoteMd;
     document.getElementById("sinkToggle").onclick = () => {
@@ -5738,7 +6541,7 @@ window.addEventListener("unhandledrejection", function(e){
         const idx = notes.findIndex(n=>n.id===noteDraft.id);
         const removed = idx>-1 ? notes[idx] : null;
         notes = notes.filter(n=>n.id!==noteDraft.id); save(K_NOTES, notes);
-        view = { tab:"templates", screen:"templates" }; render();
+        goTo({ tab:"templates", screen:"templates" });
         if(removed) showUndoBanner("Nota excluída", ()=>{
           notes.splice(Math.min(idx, notes.length), 0, removed); save(K_NOTES, notes); render();
         });
@@ -5787,7 +6590,7 @@ window.addEventListener("unhandledrejection", function(e){
     const out = [];
     base.forEach((s,i)=>{
       out.push(s);
-      if(i < base.length-1) out.push({ id:"rest-"+i, name:"Descanso", type:"timer", seconds:rest, advance:"auto", isRest:true });
+      if(i < base.length-1) out.push({ id:"rest-"+i, name:"Descanso", type:"timer", seconds:rest, isRest:true });
     });
     return out;
   }
@@ -5815,7 +6618,7 @@ window.addEventListener("unhandledrejection", function(e){
       stepEndTs:p.stepEndTs, stepStart:p.stepStart,
       paused:p.paused, pausedAt:p.pausedAt, pauseCount:p.pauseCount, pausedTotalMs:p.pausedTotalMs,
       startedAt:p.startedAt, schedStartMin:p.schedStartMin, actualStartMin:p.actualStartMin,
-      stepActuals:p.stepActuals, overtimeCueFired:p.overtimeCueFired
+      stepActuals:p.stepActuals, overtimeCueFired:p.overtimeCueFired, journalTexts:p.journalTexts
     });
   }
   function clearPlayerSnapshot(){ try{ removeKey(K_PLAYER); }catch(e){} }
@@ -5845,10 +6648,10 @@ window.addEventListener("unhandledrejection", function(e){
       stepStart: Date.now(),
       stepEndTs: first.type==="timer" ? Date.now() + first.seconds*1000 : null,
       stepActuals: [], startedAt: Date.now(),
-      schedStartMin, actualStartMin: now.getHours()*60 + now.getMinutes()
+      schedStartMin, actualStartMin: now.getHours()*60 + now.getMinutes(),
+      journalTexts: {}
     };
-    view = { tab:"home", screen:"player" };
-    render();
+    goTo({ tab:"home", screen:"player" });
     acquireWakeLock();
     savePlayerSnapshot(true);
     if(first.type==="timer") startTicking();
@@ -5860,7 +6663,8 @@ window.addEventListener("unhandledrejection", function(e){
     const r = routines.find(x=>x.id===snap.routineId);
     if(!r){ clearPlayerSnapshot(); render(); return; }
     playerState = Object.assign({ zen:false }, snap, { routine:r });
-    view = { tab:"home", screen:"player" };
+    if(!playerState.journalTexts) playerState.journalTexts = {};
+    pushView({ tab:"home", screen:"player" });
     catchUpSteps();
     if(view.screen !== "player") return; // terminou durante o catch-up
     render();
@@ -5877,7 +6681,7 @@ window.addEventListener("unhandledrejection", function(e){
       const step = currentStep();
       if(step.type !== "timer") return;
       const rem = computeRemaining();
-      const manual = step.advance !== "auto" && !step.isRest;
+      const manual = !step.isRest;
       if(rem <= 0 && !manual){ advanceStep(false); return; }
       if(rem <= 0 && manual && !playerState.overtimeCueFired){ timeUpCue(); playerState.overtimeCueFired = true; }
       updateTicker();
@@ -5891,7 +6695,7 @@ window.addEventListener("unhandledrejection", function(e){
     while(guard++ < 100){
       const step = currentStep();
       if(step.type !== "timer" || playerState.paused) return;
-      const manual = step.advance !== "auto" && !step.isRest;
+      const manual = !step.isRest;
       const rem = Math.round((playerState.stepEndTs - Date.now())/1000);
       if(rem > 0 || manual) return;
       playerState.stepActuals[playerState.idx] = {
@@ -6007,8 +6811,23 @@ window.addEventListener("unhandledrejection", function(e){
     }
     history.push(entry);
     save(K_HISTORY, history);
-    view = { tab:"home", screen:"done" };
-    render();
+
+    const journalSteps = (playerState.steps||[]).filter(s=> s.journaling && !s.isRest && (playerState.journalTexts[s.id]||"").trim());
+    if(journalSteps.length){
+      const routineId = playerState.routine.id, routineName = playerState.routine.name;
+      const journalDoc = {
+        id: uid(), type:"journal", updatedAt: Date.now(),
+        routineId, routineName,
+        title: routineName + " — " + entry.date,
+        executedAt: Date.now(),
+        sections: journalSteps.map(s => ({ taskName: s.name, text: playerState.journalTexts[s.id] }))
+      };
+      templates.push(journalDoc);
+      save(K_TEMPLATES, templates);
+      syncDocMd(journalDoc);
+    }
+
+    goTo({ tab:"home", screen:"done" });
   }
 
   function updateTicker(){
@@ -6119,6 +6938,92 @@ window.addEventListener("unhandledrejection", function(e){
     paint();
     document.body.appendChild(ov);
   }
+  /* lançamento rápido de ideia/despesa sem sair da rotina em andamento (o timer continua rodando por trás) */
+  function openPlayerQuickAdd(){
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+
+    function paintChoice(){
+      ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
+        <p style="margin:0 0 10px;">Lançar rápido</p>
+        <div class="tmpl-new-grid" style="grid-template-columns:1fr 1fr;">
+          <button class="tmpl-new" id="qaIdea"><span class="tmpl-ic">${svgIcon(ICON_D.idea)}</span><span>Nova ideia</span></button>
+          <button class="tmpl-new" id="qaExpense"><span class="tmpl-ic">${svgIcon(ICON_D.expense)}</span><span>Nova despesa</span></button>
+        </div>
+        <div class="confirm-actions" style="margin-top:14px;"><button class="btn-cancel" id="qaCancel">Cancelar</button></div>
+      </div>`;
+      ov.querySelector("#qaCancel").onclick = () => ov.remove();
+      ov.querySelector("#qaIdea").onclick = paintIdeaForm;
+      ov.querySelector("#qaExpense").onclick = paintExpenseForm;
+    }
+
+    function paintIdeaForm(){
+      let ideaDoc = null;
+      const ensureDoc = () => { if(!ideaDoc) ideaDoc = newTemplateDoc("idea"); return ideaDoc; };
+      ov.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <p style="margin:0;">Nova ideia</p>
+          <button class="icon-btn" id="qaClose">&#10005;</button>
+        </div>
+        <div class="section-label">Resumo</div>
+        <textarea class="mk-e-name" id="qaSummary" rows="3" style="resize:vertical; line-height:1.5;" placeholder="Do que se trata a ideia?"></textarea>
+        <div class="section-label">Aprimoramentos</div>
+        <textarea class="mk-e-name" id="qaImprovements" rows="2" style="resize:vertical; line-height:1.5;" placeholder="O que poderia melhorar ou evoluir nela?"></textarea>
+        <div class="section-label">Assunto</div>
+        <div id="qaSubjectsWrap"></div>
+        <div class="confirm-actions" style="margin-top:14px;"><button class="btn-confirm" id="qaDone" style="background:var(--grad);">Concluído</button></div>
+      </div>`;
+      mountTagInput(ov.querySelector("#qaSubjectsWrap"), [], ideaSubjectsPool(null), vals => { ensureDoc().subjects = vals; saveTemplates(ideaDoc); });
+      ov.querySelector("#qaSummary").oninput = e => { ensureDoc().summary = e.target.value; saveTemplates(ideaDoc); };
+      ov.querySelector("#qaImprovements").oninput = e => { ensureDoc().improvements = e.target.value; saveTemplates(ideaDoc); };
+      ov.querySelector("#qaClose").onclick = () => ov.remove();
+      ov.querySelector("#qaDone").onclick = () => { ov.remove(); if(ideaDoc) showAlertBanner("Ideia salva ✓"); };
+    }
+
+    function paintExpenseForm(){
+      ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <p style="margin:0;">Nova despesa</p>
+          <button class="icon-btn" id="qaClose">&#10005;</button>
+        </div>
+        <input type="text" id="qaDesc" class="mk-e-name" placeholder="Descrição" style="width:100%; margin-bottom:8px;">
+        <div class="market-form-row" style="margin-bottom:8px;">
+          <input type="number" id="qaVal" inputmode="decimal" min="0" step="0.01" placeholder="R$" style="flex:1; min-width:0;">
+          <select id="qaCat" style="flex:1; min-width:0;">${EXP_CATS.map(c=>`<option>${c}</option>`).join("")}</select>
+        </div>
+        <div class="market-form-row" style="margin-bottom:8px;">
+          <input type="date" id="qaDate" value="${localKey()}" style="flex:1; min-width:0;">
+          <input type="time" id="qaTime" style="flex:0 0 auto; width:100px;" title="Hora (opcional)">
+        </div>
+        <div class="confirm-actions"><button class="btn-cancel" id="qaCancel2">Cancelar</button><button class="btn-confirm" id="qaSave" style="background:var(--grad);">Salvar</button></div>
+      </div>`;
+      ov.querySelector("#qaClose").onclick = () => ov.remove();
+      ov.querySelector("#qaCancel2").onclick = () => ov.remove();
+      ov.querySelector("#qaSave").onclick = () => {
+        const desc = ov.querySelector("#qaDesc").value.trim();
+        const value = +ov.querySelector("#qaVal").value;
+        if(!desc || !value){ showAlertBanner("Preencha descrição e valor"); return; }
+        const cat = ov.querySelector("#qaCat").value;
+        const date = ov.querySelector("#qaDate").value || localKey();
+        const time = ov.querySelector("#qaTime").value || undefined;
+        const doc = { id: uid(), type:"expense", updatedAt: Date.now(), desc, value, cat, date, time };
+        templates.push(doc); save(K_TEMPLATES, templates); syncDocMd(doc);
+        ov.remove();
+        showAlertBanner("Despesa salva ✓");
+      };
+    }
+
+    paintChoice();
+  }
+
+  function confirmExitPlayer(){
+    confirmModal("Sair da rotina em andamento?<br><small>O progresso fica salvo para retomar depois.</small>", "Sair", ()=>{
+      clearTicking(); releaseWakeLock(); savePlayerSnapshot(true);
+      goTo({tab:"home",screen:"home"});
+    });
+  }
   function renderPlayer(){
     const el = document.createElement("div");
     el.className = "screen"; el.style.paddingBottom = "0";
@@ -6139,17 +7044,18 @@ window.addEventListener("unhandledrejection", function(e){
             : `<div class="check-circle" style="width:140px;height:140px;font-size:56px;">&#10003;</div>`}
           <div class="zen-sub">término ~ <b id="estimateTime">--:--</b> &nbsp;·&nbsp; ${playerState.idx+1}/${steps.length}</div>
           <div class="player-controls" style="margin-top:26px;">
-            <button class="ctrl-btn" id="zenPrev">&#8634;</button>
+            <button class="ctrl-btn" id="zenPrev">&#8592;</button>
             ${isTimer
               ? `<button class="ctrl-btn big" id="pauseBtn">${playerState.paused?"&#9654;":"&#10074;&#10074;"}</button>`
               : `<button class="ctrl-btn big" id="nextStep">&#10003;</button>`}
-            ${isTimer ? `<button class="ctrl-btn ${rem<0?'pulse':''}" id="nextStep">&#8635;</button>` : `<div style="width:56px"></div>`}
+            ${isTimer ? `<button class="ctrl-btn ${rem<0?'pulse':''}" id="nextStep">&#8594;</button>` : `<div style="width:56px"></div>`}
           </div>
           <div style="display:flex; gap:10px; margin-top:14px;">
             ${step.optional && !step.isRest ? `<button class="skip-btn" id="skipStep">pular</button>` : ""}
-            ${step.noteId && notes.some(n=>n.id===step.noteId) ? `<button class="skip-btn note-link-btn" id="viewStepNote">&#128279; nota</button>` : ""}
+            ${step.noteId && notes.some(n=>n.id===step.noteId) ? `<button class="skip-btn note-link-btn" id="viewStepNote">&#8599; nota</button>` : ""}
             <button class="skip-btn" id="zenExit">&#8996; sair do zen</button>
           </div>
+          ${step.journaling && !step.isRest ? `<textarea id="journalInput" class="mk-e-name" rows="3" placeholder="Escreva aqui..." style="width:100%; max-width:340px; margin-top:14px; resize:vertical; line-height:1.5;">${escapeHtml(playerState.journalTexts[step.id]||"")}</textarea>` : ""}
         </div>
       `;
       app.appendChild(el);
@@ -6160,6 +7066,7 @@ window.addEventListener("unhandledrejection", function(e){
       document.getElementById("nextStep").onclick = () => advanceStep(false);
       const sk = document.getElementById("skipStep"); if(sk) sk.onclick = () => advanceStep(true);
       const nb = document.getElementById("viewStepNote"); if(nb) nb.onclick = () => openNoteOverlay(step.noteId);
+      const ji = document.getElementById("journalInput"); if(ji) ji.oninput = e => { playerState.journalTexts[step.id] = e.target.value; };
       return;
     }
 
@@ -6176,22 +7083,6 @@ window.addEventListener("unhandledrejection", function(e){
       </div>
     `;
     wrap.appendChild(top);
-
-    const track = document.createElement("div");
-    track.className = "stepper-track";
-    steps.forEach((s,i)=>{
-      const seg = document.createElement("div");
-      seg.className = "seg" + (i<playerState.idx ? " done" : "") + (s.isRest ? " rest" : "");
-      const fillPct = i<playerState.idx ? 100 : (i===playerState.idx && s.type==="timer" ? (1-Math.max(rem,0)/s.seconds)*100 : 0);
-      seg.innerHTML = `<div class="fill" style="width:${fillPct}%"></div>`;
-      track.appendChild(seg);
-    });
-    wrap.appendChild(track);
-
-    const estRow = document.createElement("div");
-    estRow.className = "estimate-row";
-    estRow.innerHTML = `<span>previsão de término</span><b id="estimateTime">--:--</b>`;
-    wrap.appendChild(estRow);
 
     if(step.type === "timer"){
       const dial = document.createElement("div");
@@ -6218,24 +7109,48 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       `;
       wrap.appendChild(dial);
-
-      const controls = document.createElement("div");
-      controls.className = "player-controls";
-      controls.innerHTML = `
-        <button class="ctrl-btn" id="prevStep">&#8634;</button>
-        <button class="ctrl-btn big" id="pauseBtn">${playerState.paused?"&#9654;":"&#10074;&#10074;"}</button>
-        <button class="ctrl-btn ${rem<0?'pulse':''}" id="nextStep">&#8635;</button>
-      `;
-      wrap.appendChild(controls);
     } else {
       const body = document.createElement("div");
       body.className = "checklist-body";
       body.innerHTML = `<div class="step-title">Etapa ${playerState.idx+1}</div><div class="check-circle">&#10003;</div><h2>${escapeHtml(step.name)}</h2>`;
       wrap.appendChild(body);
+    }
 
+    const nextStepObj = playerState.steps[playerState.idx+1];
+    const nextRow = document.createElement("div");
+    nextRow.className = "next-task-row";
+    nextRow.innerHTML = nextStepObj ? `próxima tarefa: ${escapeHtml(nextStepObj.name)}` : `última etapa`;
+    wrap.appendChild(nextRow);
+
+    const estRow = document.createElement("div");
+    estRow.className = "estimate-row";
+    estRow.innerHTML = `<span>previsão de término</span><b id="estimateTime">--:--</b>`;
+    wrap.appendChild(estRow);
+
+    const track = document.createElement("div");
+    track.className = "stepper-track";
+    steps.forEach((s,i)=>{
+      const seg = document.createElement("div");
+      seg.className = "seg" + (i<playerState.idx ? " done" : "") + (s.isRest ? " rest" : "");
+      const fillPct = i<playerState.idx ? 100 : (i===playerState.idx && s.type==="timer" ? (1-Math.max(rem,0)/s.seconds)*100 : 0);
+      seg.innerHTML = `<div class="fill" style="width:${fillPct}%"></div>`;
+      track.appendChild(seg);
+    });
+    wrap.appendChild(track);
+
+    if(step.type === "timer"){
       const controls = document.createElement("div");
       controls.className = "player-controls";
-      controls.innerHTML = `<button class="ctrl-btn" id="prevStep">&#8634;</button><button class="ctrl-btn big" id="nextStep">&#10003;</button><div style="width:56px"></div>`;
+      controls.innerHTML = `
+        <button class="ctrl-btn" id="prevStep">&#8592;</button>
+        <button class="ctrl-btn big" id="pauseBtn">${playerState.paused?"&#9654;":"&#10074;&#10074;"}</button>
+        <button class="ctrl-btn ${rem<0?'pulse':''}" id="nextStep">&#8594;</button>
+      `;
+      wrap.appendChild(controls);
+    } else {
+      const controls = document.createElement("div");
+      controls.className = "player-controls";
+      controls.innerHTML = `<button class="ctrl-btn" id="prevStep">&#8592;</button><button class="ctrl-btn big" id="nextStep">&#10003;</button><div style="width:56px"></div>`;
       wrap.appendChild(controls);
     }
 
@@ -6249,26 +7164,35 @@ window.addEventListener("unhandledrejection", function(e){
     if(step.noteId && notes.some(n=>n.id===step.noteId)){
       const noteRow = document.createElement("div");
       noteRow.style.cssText = "width:100%; text-align:center; padding:6px 0 2px;";
-      noteRow.innerHTML = `<button class="skip-btn note-link-btn" id="viewStepNote">&#128279; ver nota vinculada</button>`;
+      noteRow.innerHTML = `<button class="skip-btn note-link-btn" id="viewStepNote">&#8599; ver nota vinculada</button>`;
       wrap.appendChild(noteRow);
     }
+
+    if(step.journaling && !step.isRest){
+      const journalRow = document.createElement("div");
+      journalRow.style.cssText = "width:100%; padding:10px 4px 4px;";
+      journalRow.innerHTML = `<textarea id="journalInput" class="mk-e-name" rows="4" placeholder="Escreva aqui..." style="width:100%; resize:vertical; line-height:1.5;">${escapeHtml(playerState.journalTexts[step.id]||"")}</textarea>`;
+      wrap.appendChild(journalRow);
+    }
+
+    const quickFab = document.createElement("button");
+    quickFab.className = "player-quickfab"; quickFab.textContent = "+";
+    quickFab.title = "Lançar ideia ou despesa";
+    quickFab.onclick = openPlayerQuickAdd;
+    el.appendChild(quickFab);
 
     el.appendChild(wrap);
     app.appendChild(el);
     updateEstimate();
 
-    document.getElementById("exitPlayer").onclick = () => {
-      confirmModal("Sair da rotina em andamento?<br><small>O progresso fica salvo para retomar depois.</small>", "Sair", ()=>{
-        clearTicking(); releaseWakeLock(); savePlayerSnapshot(true);
-        view={tab:"home",screen:"home"}; render();
-      });
-    };
+    document.getElementById("exitPlayer").onclick = confirmExitPlayer;
     const zenBtn = document.getElementById("zenBtn"); if(zenBtn) zenBtn.onclick = () => { playerState.zen = true; render(); };
     const prevBtn = document.getElementById("prevStep"); if(prevBtn) prevBtn.onclick = goPrevStep;
     const pauseBtn = document.getElementById("pauseBtn"); if(pauseBtn) pauseBtn.onclick = togglePause;
     const nextBtn = document.getElementById("nextStep"); if(nextBtn) nextBtn.onclick = () => advanceStep(false);
     const skipBtn = document.getElementById("skipStep"); if(skipBtn) skipBtn.onclick = () => advanceStep(true);
     const noteBtn = document.getElementById("viewStepNote"); if(noteBtn) noteBtn.onclick = () => openNoteOverlay(step.noteId);
+    const journalInput = document.getElementById("journalInput"); if(journalInput) journalInput.oninput = e => { playerState.journalTexts[step.id] = e.target.value; };
   }
 
   function renderDone(){
@@ -6284,7 +7208,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(last.pauses > 0) detail += `<p>${last.pauses} pausa(s) · ${fmtTime(last.pausedSec).replace("+","")} pausado</p>`;
       if(last.skippedCount > 0) detail += `<p>${last.skippedCount} etapa(s) pulada(s)</p>`;
     }
-    const MOODS = ["&#128534;","&#128533;","&#128528;","&#128578;","&#128516;"];
+    const MOODS = ["&#9733;&#9734;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9733;"];
     el.innerHTML = `
       <div class="done-screen">
         <div class="mark">&#10003;</div>
@@ -6306,7 +7230,7 @@ window.addEventListener("unhandledrejection", function(e){
         b.classList.add("sel");
       };
     });
-    document.getElementById("backHome").onclick = () => { view={tab:"home",screen:"home"}; render(); };
+    document.getElementById("backHome").onclick = () => { goTo({tab:"home",screen:"home"}); };
   }
 
   /* ---------------- INIT ---------------- */
