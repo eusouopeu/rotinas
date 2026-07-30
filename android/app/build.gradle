@@ -7,8 +7,13 @@ android {
         applicationId "com.pedro.rotinas"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Bumpar a cada build que vai para o celular do Pedro: com applicationId e
+        // assinatura estáveis (brita.keystore), o instalador do Android trata um
+        // versionCode igual ou menor como "nada para atualizar" e em vários
+        // aparelhos só oferece "Abrir" em vez de reinstalar de fato — foi o que
+        // fez updates sumirem mesmo depois de reinstalar (2026-07-28).
+        versionCode 5
+        versionName "2026.07.29-5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

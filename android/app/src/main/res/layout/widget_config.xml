@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tela de configuração do widget: escolha da rotina que ele vai iniciar. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1C1B1A"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#EDE7DD"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:text="Qual rotina?" />
+
+    <TextView
+        android:id="@+id/cfgEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="#8A8478"
+        android:textSize="13sp"
+        android:visibility="gone"
+        android:text="Nenhuma rotina encontrada. Abra o app e crie uma rotina primeiro." />
+
+    <ListView
+        android:id="@+id/cfgList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="14dp"
+        android:divider="#3A3632"
+        android:dividerHeight="1dp" />
+</LinearLayout>

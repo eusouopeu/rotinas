@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Botão redondo de iniciar, no gradiente do app -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:startColor="#EC6AA8"
+        android:endColor="#5B8DEF"
+        android:angle="315" />
+</shape>

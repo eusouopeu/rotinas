@@ -52,6 +52,9 @@ public class ShortcutsPlugin extends Plugin {
                         .build());
             }
             ShortcutManagerCompat.setDynamicShortcuts(ctx, list);
+            // set() é chamado sempre que as rotinas mudam, então é o gancho
+            // natural para redesenhar os widgets com nomes/durações novos
+            RoutineWidgetProvider.refreshAll(ctx);
             call.resolve();
         } catch (Exception e) {
             call.reject("Falha ao publicar atalhos: " + e.getMessage());
