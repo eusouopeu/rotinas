@@ -72,8 +72,13 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
   form{ margin:0; }
-  html,body{height:100%;}
+  /* overscroll-behavior no body sozinho não segura o rubber-band: com
+     <!DOCTYPE html>, quem rola o documento é o html, não o body — sem isso
+     um arrasto lateral dava uma folga elástica na página inteira (a tabbar
+     fixa "balançava" junto, mesmo sem nada pra rolar). */
+  html{ height:100%; overscroll-behavior:none; }
   body{
+    height:100%;
     margin:0;
     background: var(--bg);
     color: var(--text);
@@ -103,6 +108,10 @@
     background:var(--surface-blur); border-top:1px solid var(--line);
     backdrop-filter: blur(14px) saturate(1.1); -webkit-backdrop-filter: blur(14px) saturate(1.1);
     display:flex; padding-bottom:var(--safe-bottom); z-index:30;
+    /* os 5 botões não têm rolagem horizontal própria; sem isso um arrasto
+       lateral no dedo dava uma leve folga elástica nos botões (nativo do
+       WebView tentando "arrastar" algo que não rola de verdade) */
+    touch-action: pan-y;
   }
   .tabbar button{
     flex:1; background:none; border:none; color:var(--muted);
@@ -1542,7 +1551,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-07-29 · 2bff1b0+ (v5)";
+  const BUILD_STAMP = "2026-07-30 · 685fa7c+ (v6)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -4831,7 +4840,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="note-info">
             <h3>${n.pinned?'<span class="pin-mark">&#9733;</span> ':''}${escapeHtml(n.title || "Sem título")}</h3>
             <div class="note-snippet">${escapeHtml(stripMdForSnippet(n.content))}</div>
-            <div class="routine-meta" style="margin-top:6px;">${relativeTime(n.updatedAt)}</div>
+            <div class="routine-meta" style="margin-top:6px;">${relativeTime(n.updatedAt)}${(n.subjects||[]).length ? ' · ' + n.subjects.slice(0,3).map(escapeHtml).join(", ") + (n.subjects.length>3?"…":"") : ''}</div>
           </div>
           <button class="icon-btn pin-btn ${n.pinned?'pinned':''}" data-pin="${n.id}" title="Fixar nota" aria-label="Fixar nota">&#9733;</button>
         `;
@@ -8584,12 +8593,20 @@ window.addEventListener("unhandledrejection", function(e){
   function openNoteEditor(id){
     if(id){
       noteDraft = notes.find(n=>n.id===id);
+      if(!noteDraft.subjects) noteDraft.subjects = [];
     } else {
-      noteDraft = { id: uid(), title: nomeAutoDoc(), content:"", updatedAt: Date.now(), createdAt: Date.now() };
+      noteDraft = { id: uid(), title: nomeAutoDoc(), content:"", subjects:[], updatedAt: Date.now(), createdAt: Date.now() };
       notes.push(noteDraft);
       save(K_NOTES, notes);
     }
     goTo({ tab:"templates", screen:"noteEditor" });
+  }
+  /* mesmo padrão do Assunto da Ideia (ideaSubjectsPool): sugestões vêm dos
+     assuntos já usados nas outras notas */
+  function noteSubjectsPool(excludeId){
+    const set = new Set();
+    notes.filter(n=>n.id!==excludeId).forEach(n=>(n.subjects||[]).forEach(s=>set.add(s)));
+    return [...set];
   }
 
   /* ---------- Live editor helpers ---------- */
@@ -9345,7 +9362,9 @@ window.addEventListener("unhandledrejection", function(e){
     }[type] || type || "nota";
   }
   function noteMd(note){
-    return "# " + (note.title||"Sem título") + "\n\n" + (note.content||"") + "\n";
+    let md = "# " + (note.title||"Sem título") + "\n\n" + (note.content||"") + "\n";
+    if((note.subjects||[]).length) md += "\n## Assunto\n" + note.subjects.map(s=>"#"+s.replace(/\s+/g,"-")).join(" ") + "\n";
+    return md;
   }
   function marketMdSingle(doc){
     const byAisle = {};
@@ -9743,6 +9762,14 @@ window.addEventListener("unhandledrejection", function(e){
     const stamp = document.createElement("div");
     stamp.innerHTML = criadoEmHtml(noteDraft.createdAt);
     el.appendChild(stamp);
+
+    const subjectsWrap = document.createElement("div");
+    subjectsWrap.id = "noteSubjectsWrap";
+    subjectsWrap.style.margin = "10px 0 4px";
+    el.appendChild(subjectsWrap);
+    mountTagInput(subjectsWrap, noteDraft.subjects, noteSubjectsPool(noteDraft.id), newVals => {
+      noteDraft.subjects = newVals; noteDraft.updatedAt = Date.now(); save(K_NOTES, notes);
+    });
 
     const editor = document.createElement("div");
     editor.className = "live-editor";
@@ -10349,6 +10376,9 @@ window.addEventListener("unhandledrejection", function(e){
       syncDocMd(journalDoc);
     }
 
+    // sem isso, sincronizarOverlay() ainda enxergava a última etapa desta
+    // rotina como "atual" e religava a bolha ao sair do app depois de concluir
+    playerState = null;
     goTo({ tab:"home", screen:"done" });
   }
 
@@ -10631,6 +10661,8 @@ window.addEventListener("unhandledrejection", function(e){
     const nota = ganhos > 0 ? `<br><small>Os ${ganhos.toFixed(1)} pontos das etapas já concluídas ficam no boletim.</small>` : "";
     confirmModal("Sair da rotina em andamento?<br><small>O progresso fica salvo para retomar depois.</small>"+nota, "Sair", ()=>{
       clearTicking(); releaseWakeLock(); pararOverlay(); savePlayerSnapshot(true);
+      // mesmo motivo do finishRoutine: sem zerar, a bolha podia religar sozinha ao sair do app
+      playerState = null;
       goTo({tab:"home",screen:"home"});
     });
   }
