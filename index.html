@@ -138,7 +138,14 @@
   .di-daterow input[type=date]:focus{ outline:none; border-color:var(--accent); }
   /* botão de texto no lugar de ícone: precisa vencer o width fixo de .bell-btn */
   .bell-btn.di-hoje{ width:auto; padding:0 11px; font-size:12px; font-family:'Inter'; white-space:nowrap; }
-  .di-body{ flex:1; overflow-y:auto; padding-bottom:16px; }
+  .di-body{ flex:1; overflow-y:auto; padding-bottom:16px; display:flex; flex-direction:column; }
+  /* #diContent estica até o fim do espaço disponível em vez de encolher para o
+     conteúdo — sem isto a view agenda (que só tem altura própria até a última
+     hora com bloco) parecia parar na metade da tela, com vão em branco embaixo.
+     Sem display:flex aqui (só no pai): o editor contínuo dentro de #diContent
+     (.live-editor) não pode ganhar um contexto flex novo, senão herdaria um
+     comportamento de scroll próprio que hoje não tem. */
+  .di-body > #diContent{ flex:1; min-height:0; }
   .di-tools{ display:flex; justify-content:flex-end; margin-bottom:8px; }
   /* o kanban do dia vem logo abaixo: o respiro de 40px viraria um vão morto */
   .di-live{ min-height:150px; padding-bottom:14px; }
@@ -1500,8 +1507,15 @@ window.addEventListener("unhandledrejection", function(e){
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
   let homeAreaFiltro = load(K_HOMEAREA, ""); // "" = todas as áreas; ver FILTRO_SEM_AREA
-  const K_METASSUBVIEW = "rotinas_v2_metas_subview";
-  let metasSubview = load(K_METASSUBVIEW, "prazos"); // "prazos" | "recorrentes"
+  const K_METASSUBVIEW = "rotinas_v2_metas_subview";       // legado, só para migração
+  const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
+  // multiselect: array com "prazos" e/ou "recorrentes" — permite ver os dois
+  // juntos. Migra o valor único antigo na primeira leitura.
+  let metasSubviewSel = (() => {
+    const v = load(K_METASSUBVIEWSEL, null);
+    if(Array.isArray(v) && v.length) return v;
+    return [load(K_METASSUBVIEW, "prazos")];
+  })();
   /* No desktop a agenda fica numa coluna AO LADO da anotação, então precisa
      acompanhar o que está sendo digitado — no celular isso não existia, porque
      as duas nunca aparecem juntas. renderDiario publica aqui como se repintar;
@@ -1538,6 +1552,47 @@ window.addEventListener("unhandledrejection", function(e){
     if(!homeAreaFiltro) return true;
     const alvo = homeAreaFiltro === FILTRO_SEM_AREA ? "" : homeAreaFiltro;
     return area === alvo;
+  }
+  /* Filtro de área MULTISELECT específico da aba Metas — pedido para poder ver
+     metas de mais de uma área ao mesmo tempo, sem alterar o filtro de área
+     (single-select) compartilhado da aba Rotinas acima. Array vazio = todas. */
+  const K_METASAREAFILTRO = "rotinas_v2_metas_area_filtro";
+  let metasAreaFiltro = load(K_METASAREAFILTRO, []); // string[] de ids de área (ou FILTRO_SEM_AREA)
+  function metasAreaFiltroChipsHtml(){
+    if(!rodaAtiva() || !rodaAreas().length) return "";
+    return `<div class="area-chips area-filter-row" id="metasAreaFiltroRow">`
+      + `<span class="area-chip ${metasAreaFiltro.length===0?'sel':''}" data-mareaf="" style="--chip:var(--muted);">todas</span>`
+      + `<span class="area-chip ${metasAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-mareaf="${FILTRO_SEM_AREA}" style="--chip:var(--muted);">sem área</span>`
+      + rodaAreas().map(a=>`<span class="area-chip ${metasAreaFiltro.includes(a.id)?'sel':''}" data-mareaf="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
+      + `</div>`;
+  }
+  function wireMetasAreaFiltroChips(el){
+    const row = el.querySelector("#metasAreaFiltroRow");
+    if(!row) return;
+    row.querySelectorAll("[data-mareaf]").forEach(ch=>{
+      ch.onclick = () => {
+        const v = ch.dataset.mareaf;
+        if(v === "") { metasAreaFiltro = []; } // "todas" limpa a seleção
+        else {
+          const pos = metasAreaFiltro.indexOf(v);
+          if(pos >= 0) metasAreaFiltro.splice(pos, 1); else metasAreaFiltro.push(v);
+        }
+        save(K_METASAREAFILTRO, metasAreaFiltro);
+        render();
+      };
+    });
+  }
+  function passaFiltroAreaMetaMulti(t){
+    if(metasAreaFiltro.length === 0) return true;
+    const temArea = !!(t.areas && t.areas.length);
+    if(metasAreaFiltro.includes(FILTRO_SEM_AREA) && !temArea) return true;
+    return metasAreaFiltro.some(id => id !== FILTRO_SEM_AREA && metaTemArea(t, id));
+  }
+  function passaFiltroAreaRecMulti(rec){
+    if(metasAreaFiltro.length === 0) return true;
+    const area = rec.area || "";
+    if(metasAreaFiltro.includes(FILTRO_SEM_AREA) && !area) return true;
+    return metasAreaFiltro.includes(area);
   }
   let editorDraft = null;
   let noteDraft = null;
@@ -2914,12 +2969,18 @@ window.addEventListener("unhandledrejection", function(e){
   function openGlobalSearch(){
     const ov = document.createElement("div");
     ov.className = "confirm-overlay search-overlay";
-    ov.innerHTML = `<div class="confirm-box search-box" style="text-align:left;">
-      <input type="search" id="globalSearch" class="note-search" style="margin-bottom:10px;" placeholder="Buscar rotinas, tarefas, notas, modelos...">
+    ov.innerHTML = `<div class="confirm-box search-box" role="dialog" aria-modal="true" aria-label="Busca" style="text-align:left;">
+      <input type="search" id="globalSearch" class="note-search" style="margin-bottom:10px;" placeholder="Buscar rotinas, tarefas, notas, modelos, histórico, diário...">
       <div id="globalSearchResults" class="notes-list"></div>
     </div>`;
     document.body.appendChild(ov);
-    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    // mesmo contrato de a11y do confirmModal: foco preso no dialog, Esc fecha,
+    // foco volta pra quem abriu a busca.
+    const prevFocus = document.activeElement;
+    function close(){ ov.remove(); document.removeEventListener("keydown", onKey, true); if(prevFocus && prevFocus.focus) prevFocus.focus(); }
+    function onKey(e){ if(e.key === "Escape"){ e.stopPropagation(); close(); } }
+    document.addEventListener("keydown", onKey, true);
+    ov.onclick = e => { if(e.target===ov) close(); };
     const input = ov.querySelector("#globalSearch");
     const results = ov.querySelector("#globalSearchResults");
 
@@ -2936,6 +2997,31 @@ window.addEventListener("unhandledrejection", function(e){
         hits.push({ icon:"&#9998;", title:n.title||"Sem título", sub:"Nota", go:()=>openNoteEditor(n.id) }); });
       templates.forEach(t=>{ if((t.title||"").toLowerCase().includes(q))
         hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||"&#9638;", title:t.title, sub:"Modelo", go:()=>{ goTo({tab:"templates",screen:"templateDoc",id:t.id}); } }); });
+      // Histórico: só entra quando a rotina de origem já foi excluída — enquanto
+      // ela ainda existir, a busca por rotinas acima já encontra o mesmo nome.
+      const rotinasVistas = new Set();
+      history.forEach(h=>{
+        if(!h.routineName || rotinasVistas.has(h.routineId)) return;
+        if(!h.routineName.toLowerCase().includes(q)) return;
+        rotinasVistas.add(h.routineId);
+        if(routines.some(r=>r.id===h.routineId)) return;
+        hits.push({ icon:"&#8987;", title:h.routineName, sub:"Histórico (rotina excluída)", go:()=>{ goTo({tab:"stats",screen:"stats"}); } });
+      });
+      // Diário: um resultado por período com texto batendo, abre direto nele.
+      Object.keys(diario).forEach(k=>{
+        const texto = diario[k];
+        if(!texto || !texto.toLowerCase().includes(q)) return;
+        const escopo = escopoDoPer(k);
+        const iso = k.slice(k.indexOf(":")+1);
+        hits.push({ icon:"&#128213;", title: diarioRotulo(escopo, iso), sub:"Diário", go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
+      });
+      // Cartões do kanban do Diário, em qualquer escopo/período.
+      diaKanban.forEach(c=>{
+        if(!c.text || !c.text.toLowerCase().includes(q)) return;
+        const escopo = escopoDoPer(c.per);
+        const iso = c.per.slice(c.per.indexOf(":")+1);
+        hits.push({ icon:"&#128203;", title:c.text, sub:"Kanban · "+diarioRotulo(escopo, iso), go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
+      });
       if(hits.length === 0){
         results.innerHTML = `<div class="routine-meta" style="padding:8px 2px;">Nada encontrado.</div>`;
         return;
@@ -2945,7 +3031,7 @@ window.addEventListener("unhandledrejection", function(e){
         card.className = "routine-card";
         card.style.cursor = "pointer";
         card.innerHTML = `<div class="note-info"><h3>${h.icon} ${escapeHtml(h.title)}</h3><div class="routine-meta" style="margin-top:2px;">${escapeHtml(h.sub)}</div></div>`;
-        card.onclick = () => { ov.remove(); h.go(); };
+        card.onclick = () => { close(); h.go(); };
         results.appendChild(card);
       });
       if(hits.length > 20){
@@ -2997,6 +3083,8 @@ window.addEventListener("unhandledrejection", function(e){
 
   function checkSchedules(){
     checarNudgeRitmo();
+    checarNudgeMetas();
+    checarNudgeStreak();
     if(agendaSnoozed()) return;
     const now = new Date();
     const nowMin = now.getHours()*60 + now.getMinutes();
@@ -3140,7 +3228,13 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
     const streak = computeStreak();
-    el.innerHTML = `
+    // Cabeçalho + cards fixados + lista moram todos DENTRO de .tab-scroll (mesmo
+    // padrão de Metas/Modelos), para que o título e os cards fixados rolem junto
+    // com a lista em vez de comer espaço fixo da tela — só o FAB e a tabbar
+    // (ambos position:fixed) ficam fora, direto em `el`.
+    const scroll = document.createElement("div");
+    scroll.className = "tab-scroll";
+    scroll.innerHTML = `
       <div class="home-header" style="margin-bottom:10px;">
         <h1>Rotinas</h1>
         <div class="header-right">${cfgBtnHtml()}</div>
@@ -3156,7 +3250,8 @@ window.addEventListener("unhandledrejection", function(e){
       </div>
       ${areaFiltroChipsHtml()}
     `;
-    wireAreaFiltroChips(el);
+    el.appendChild(scroll);
+    wireAreaFiltroChips(scroll);
     // aviso de backup vem antes de tudo: é o único card cujo custo de ignorar
     // é perda de dados
     if(backupOverdue()){
@@ -3164,7 +3259,7 @@ window.addEventListener("unhandledrejection", function(e){
       bk.className = "notice-card";
       bk.innerHTML = `<span>&#8681; Faz mais de 30 dias sem backup. Seus dados vivem só neste navegador.</span>
         <div class="notice-actions"><button id="doBackupNow">Exportar</button><button id="dismissBackup" class="ghost">Depois</button></div>`;
-      el.appendChild(bk);
+      scroll.appendChild(bk);
       bk.querySelector("#doBackupNow").onclick = () => { exportBackup(); render(); };
       bk.querySelector("#dismissBackup").onclick = () => { dismissedBackupNotice = true; render(); };
     }
@@ -3180,7 +3275,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="routine-meta">Nota ${semFechada.nota.toFixed(1)} — toque para ver o fechamento</div>
         </div>`;
       fc.onclick = () => { goTo({ tab:"home", screen:"semanaFechada" }); };
-      el.appendChild(fc);
+      scroll.appendChild(fc);
     }
 
     if(gam.semanaAtual.totalBrutoAgendado > 0){
@@ -3195,7 +3290,7 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       `;
       boletimCard.onclick = () => { goTo({ tab:"home", screen:"boletim" }); };
-      el.appendChild(boletimCard);
+      scroll.appendChild(boletimCard);
     }
 
     const snap = getPlayerSnapshot();
@@ -3214,7 +3309,7 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="play-btn" id="doResume" title="Retomar rotina" aria-label="Retomar rotina">&#9654;</button>
           </div>
         `;
-        el.appendChild(resumeCard);
+        scroll.appendChild(resumeCard);
         resumeCard.querySelector("#doResume").onclick = resumePlayer;
         resumeCard.querySelector("#discardResume").onclick = () => {
           confirmModal("Descartar a rotina em andamento?", "Descartar", ()=>{ clearPlayerSnapshot(); render(); });
@@ -3229,17 +3324,22 @@ window.addEventListener("unhandledrejection", function(e){
       const empty = document.createElement("div");
       empty.className = "empty-state";
       empty.innerHTML = `<h2>Nenhuma rotina ainda</h2><p>Crie sua primeira sequência de etapas com tempo — igual um ritual de prática.</p>`;
-      el.appendChild(empty);
+      scroll.appendChild(empty);
     } else if(visiveis.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
       empty.innerHTML = homeAreaFiltro
         ? `<h2>Nenhuma rotina nessa área</h2><p>Troque o filtro de área para ver outras rotinas.</p>`
         : `<h2>Nada agendado para hoje</h2><p>Desligue o "só hoje" para ver todas as rotinas.</p>`;
-      el.appendChild(empty);
+      scroll.appendChild(empty);
     } else {
       const list = document.createElement("div");
+      // já mora dentro de um .tab-scroll que rola a tela inteira — sem isto a
+      // lista abriria uma SEGUNDA barra de rolagem aninhada (flex:1;overflow-y:auto
+      // duplicado, herdado da regra compartilhada com .notes-list).
       list.className = "routine-list";
+      list.style.flex = "0 0 auto";
+      list.style.overflow = "visible";
       visiveis.forEach(r=>{
         const dur = routineDuration(r);
         const sched = computeSchedule(r);
@@ -3265,7 +3365,7 @@ window.addEventListener("unhandledrejection", function(e){
           onRight: () => duplicateRoutine(r.id), rightLabel: "Duplicar"
         }));
       });
-      el.appendChild(list);
+      scroll.appendChild(list);
     }
     const fab = document.createElement("button");
     fab.className = "fab"; fab.textContent = "+"; fab.title = "Nova rotina";
@@ -4491,14 +4591,16 @@ window.addEventListener("unhandledrejection", function(e){
     const durChips = `<span data-dur="0" class="${tarefaDurFilter===0?'active':''}">todas</span>` +
       durValues.map(d=>`<span data-dur="${d}" class="${tarefaDurFilter===d?'active':''}">${d} min</span>`).join("");
     el.innerHTML = `
-      <div class="home-header"><h1>Tarefas &#9776;</h1>
-        <div class="header-right">
-          <button class="bell-btn" id="tarImportBtn" title="Importar tarefas (.md)" aria-label="Importar tarefas (.md)">&#8679;</button>
-          <input type="file" id="tarImportFile" accept=".md,.txt,text/markdown,text/plain" style="display:none">
+      <div class="tab-scroll">
+        <div class="home-header"><h1>Tarefas &#9776;</h1>
+          <div class="header-right">
+            <button class="bell-btn" id="tarImportBtn" title="Importar tarefas (.md)" aria-label="Importar tarefas (.md)">&#8679;</button>
+            <input type="file" id="tarImportFile" accept=".md,.txt,text/markdown,text/plain" style="display:none">
+          </div>
         </div>
-      </div>
-      <div class="type-toggle" id="tarDurChips" style="margin-bottom:14px;">${durChips}</div>
-      <div class="routine-list" id="tarList"></div>`;
+        <div class="type-toggle" id="tarDurChips" style="margin-bottom:14px;">${durChips}</div>
+        <div class="routine-list" id="tarList" style="flex:0 0 auto; overflow:visible;"></div>
+      </div>`;
     const fab = document.createElement("button");
     fab.className = "fab"; fab.textContent = "+"; fab.title = "Nova tarefa";
     fab.onclick = () => { tarefaDraft = null; goTo({ tab:"tarefas", screen:"tarefaEditor" }); };
@@ -4780,18 +4882,20 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
     el.innerHTML = `
-      <div class="home-header">
-        <h1><span id="notesBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">&#8249;</span> Notas simples</h1>
-        <div class="header-right">
-          <button class="bell-btn" id="exportAllMd" title="Exportar todas em .md" aria-label="Exportar todas em .md">&#9998;&#8681;</button>
-          <button class="bell-btn" id="backupBtn" title="Exportar backup" aria-label="Exportar backup">&#8681;</button>
-          <button class="bell-btn" id="importBtn" title="Importar backup" aria-label="Importar backup">&#8679;</button>
-          <input type="file" id="importFile" accept="application/json" style="display:none">
+      <div class="tab-scroll">
+        <div class="home-header">
+          <h1><span id="notesBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">&#8249;</span> Notas simples</h1>
+          <div class="header-right">
+            <button class="bell-btn" id="exportAllMd" title="Exportar todas em .md" aria-label="Exportar todas em .md">&#9998;&#8681;</button>
+            <button class="bell-btn" id="backupBtn" title="Exportar backup" aria-label="Exportar backup">&#8681;</button>
+            <button class="bell-btn" id="importBtn" title="Importar backup" aria-label="Importar backup">&#8679;</button>
+            <input type="file" id="importFile" accept="application/json" style="display:none">
+          </div>
         </div>
+        <input type="search" id="noteSearch" class="note-search" placeholder="Buscar notas..." value="${escapeHtml(notesQuery)}">
+        <div class="tag-bar" id="tagBar"></div>
+        <div class="notes-list" id="notesListBox" style="flex:0 0 auto; overflow:visible;"></div>
       </div>
-      <input type="search" id="noteSearch" class="note-search" placeholder="Buscar notas..." value="${escapeHtml(notesQuery)}">
-      <div class="tag-bar" id="tagBar"></div>
-      <div class="notes-list" id="notesListBox"></div>
     `;
 
     const fab = document.createElement("button");
@@ -5003,9 +5107,18 @@ window.addEventListener("unhandledrejection", function(e){
   function dateKey(d){ return localKey(d); }
   function startTsOf(h){ return h.ts - ((h.actualSec||0)+(h.pausedSec||0))*1000; }
 
+  /* Cache pelo tamanho de `entries`: renderResumo/renderMonthView/renderYearView
+     chamam isto com o `history` inteiro a cada visita à aba Dados, e ele só
+     cresce por push() (mesma referência) — recontar do zero a cada troca de
+     sub-view (resumo/mensal/anual) era um scan O(history.length) redundante e
+     repetido sem necessidade. Não cachear por referência: push() não troca a
+     referência do array, e é justamente o caso mais comum a invalidar. */
+  let _minutesByDateCache = { len: -1, map: null };
   function minutesByDate(entries){
+    if(entries === history && _minutesByDateCache.len === entries.length) return _minutesByDateCache.map;
     const map = {};
     entries.forEach(h=>{ map[h.date] = (map[h.date]||0) + Math.round((h.actualSec||0)/60); });
+    if(entries === history) _minutesByDateCache = { len: entries.length, map };
     return map;
   }
   function intensityClass(min){
@@ -5197,6 +5310,10 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* ============ VISÃO RESUMO ============ */
   function renderResumo(body){
+    // As ~10 seções abaixo antes usavam body.innerHTML += cada uma — cada +=
+    // reserializa e reparseia TODO o HTML já acumulado, custo O(n²) no número
+    // de seções. Agora só um innerHTML no fim, com o array já pronto.
+    const partes = [];
     const rich = richInPeriod();
     const allRich = history.filter(h=>h.ts);
     const byDate = minutesByDate(history);
@@ -5204,9 +5321,9 @@ window.addEventListener("unhandledrejection", function(e){
     /* --- heatmap 17 semanas, alinhado por dia da semana --- */
     const to = new Date(); to.setHours(12,0,0,0);
     const from = new Date(to); from.setDate(from.getDate() - 7*17 + 1);
-    body.innerHTML += `<div class="section-label">Últimas 17 semanas · toque num dia</div><div class="stat-card" id="hmCard">${heatmapHtml(from, to, byDate)}
-      <div class="stat-foot">${computeStreak()} dia(s) seguidos · ${Object.keys(byDate).length} dias ativos no total</div></div>`;
-    if(selectedDay) body.innerHTML += dayDetailHtml(selectedDay);
+    partes.push(`<div class="section-label">Últimas 17 semanas · toque num dia</div><div class="stat-card" id="hmCard">${heatmapHtml(from, to, byDate)}
+      <div class="stat-foot">${computeStreak()} dia(s) seguidos · ${Object.keys(byDate).length} dias ativos no total</div></div>`);
+    if(selectedDay) partes.push(dayDetailHtml(selectedDay));
 
     /* --- metas: semana-calendário (janela configurada) com pró-rata --- */
     const weekStart = isoToDate(inicioSemanaISO(new Date()));
@@ -5227,7 +5344,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="bar-val ${onPace?'early':'late'}" style="color:${onPace?'var(--good)':'var(--danger)'}">${doneMin}/${r.weeklyGoalMin}m</div>
         </div>`;
       }).join("");
-      body.innerHTML += `<div class="section-label">Metas da semana (${janelaSemanaLabel()}) · | = esperado até hoje</div><div class="stat-card">${goalsHtml}</div>`;
+      partes.push(`<div class="section-label">Metas da semana (${janelaSemanaLabel()}) · | = esperado até hoje</div><div class="stat-card">${goalsHtml}</div>`);
     }
 
     /* --- distribuição por dia da semana, empilhada por rotina --- */
@@ -5250,7 +5367,7 @@ window.addEventListener("unhandledrejection", function(e){
         }).join("");
         return `<div class="stack-col"><div class="stack-bars">${segs}</div><span class="trend-lbl">${DOWL[dow]}</span><span class="trend-val">${dowTotals[dow]?Math.round(dowTotals[dow]/60)+"m":""}</span></div>`;
       }).join("") + `</div>`;
-      body.innerHTML += `<div class="section-label">Por dia da semana (${statsPeriod})</div><div class="stat-card">${stackHtml}</div>`;
+      partes.push(`<div class="section-label">Por dia da semana (${statsPeriod})</div><div class="stat-card">${stackHtml}</div>`);
     }
 
     /* --- histograma de horário de início --- */
@@ -5262,7 +5379,7 @@ window.addEventListener("unhandledrejection", function(e){
         const bh = c ? Math.max(3, c/maxHour*54) : 0;
         return `<div class="hour-col"><div class="hour-bar" style="height:${bh}px"></div>${hh%6===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}</div>`;
       }).join("") + `</div>`;
-      body.innerHTML += `<div class="section-label">Horário real de início (${statsPeriod})</div><div class="stat-card">${hHtml}</div>`;
+      partes.push(`<div class="section-label">Horário real de início (${statsPeriod})</div><div class="stat-card">${hHtml}</div>`);
     }
 
     /* --- taxa de cumprimento do agendado --- */
@@ -5288,14 +5405,14 @@ window.addEventListener("unhandledrejection", function(e){
         const cls = pct >= 80 ? "early" : (pct >= 50 ? "ontime" : "late");
         return `<div class="dev-row tappable" data-rstats="${r.id}"><span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</span><b class="${cls}">${pct}%</b><span class="dev-n">${doneDays}/${plannedDays} dias</span></div>`;
       }).join("");
-      if(compHtml) body.innerHTML += `<div class="section-label">Cumprimento do agendado (${statsPeriod})</div><div class="stat-card">${compHtml}</div>`;
+      if(compHtml) partes.push(`<div class="section-label">Cumprimento do agendado (${statsPeriod})</div><div class="stat-card">${compHtml}</div>`);
     }
 
     /* --- sequências por rotina --- */
     const streakRows = routines.map(r=>({id:r.id, name:r.name, icon:r.icon, s:computeStreakFor(r.id)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
     if(streakRows.length){
       let sHtml = streakRows.map(x=>`<div class="dev-row tappable" data-rstats="${x.id}"><span>${x.icon?escapeHtml(x.icon)+" ":""}${escapeHtml(x.name)}</span><b class="ontime">${x.s} dia${x.s>1?'s':''}</b></div>`).join("");
-      body.innerHTML += `<div class="section-label">Sequências por rotina</div><div class="stat-card">${sHtml}</div>`;
+      partes.push(`<div class="section-label">Sequências por rotina</div><div class="stat-card">${sHtml}</div>`);
     }
 
     /* --- pontualidade --- */
@@ -5309,7 +5426,7 @@ window.addEventListener("unhandledrejection", function(e){
         const label = med === 0 ? "em ponto" : (med > 0 ? med+"min atrasado" : Math.abs(med)+"min adiantado");
         return `<div class="dev-row"><span>${escapeHtml(name)}</span><b class="${cls}">${label}</b><span class="dev-n">${arr.length}x</span></div>`;
       }).join("");
-      body.innerHTML += `<div class="section-label">Pontualidade mediana (${statsPeriod})</div><div class="stat-card">${puncHtml}</div>`;
+      partes.push(`<div class="section-label">Pontualidade mediana (${statsPeriod})</div><div class="stat-card">${puncHtml}</div>`);
     }
 
     /* --- tendência 8 semanas com n --- */
@@ -5340,7 +5457,7 @@ window.addEventListener("unhandledrejection", function(e){
       }).join("") + `</div><div class="stat-foot">${unit} · mediana semanal</div>`;
     }
     if(Object.keys(delayByWeek).length){
-      body.innerHTML += `<div class="section-label">Tendência da pontualidade (8 semanas)</div><div class="stat-card">${trendBars(delayByWeek, "minutos de atraso no início")}</div>`;
+      partes.push(`<div class="section-label">Tendência da pontualidade (8 semanas)</div><div class="stat-card">${trendBars(delayByWeek, "minutos de atraso no início")}</div>`);
     }
 
     /* --- execuções recentes --- */
@@ -5354,10 +5471,12 @@ window.addEventListener("unhandledrejection", function(e){
         // costuma ser longo e brigava por espaço com os números na mesma linha
         return `<div class="dev-row exec-row"><span class="exec-name">${escapeHtml(h.routineName)}</span><span class="dev-n">${cmp} · ${dateStr}</span></div>`;
       }).join("");
-      body.innerHTML += `<div class="section-label">Execuções recentes (${statsPeriod})</div><div class="stat-card">${recHtml}</div>`;
+      partes.push(`<div class="section-label">Execuções recentes (${statsPeriod})</div><div class="stat-card">${recHtml}</div>`);
     }
 
-    body.innerHTML += `<div style="height:20px"></div>`;
+    partes.push(`<div style="height:20px"></div>`);
+    // += (não =): renderTarefasResumo já pode ter escrito na mesma `body` antes.
+    body.innerHTML += partes.join("");
 
     wireHeatmapTaps(body, render);
     body.querySelectorAll("[data-rstats]").forEach(row=>{
@@ -5419,10 +5538,11 @@ window.addEventListener("unhandledrejection", function(e){
     grid += `</div>`;
 
     const rate = plannedTotal > 0 ? Math.round(doneTotal/plannedTotal*100) : null;
-    body.innerHTML = nav + `<div class="stat-card">${grid}
-      <div class="stat-foot">&#9679; executada &nbsp; <span class="late" style="font-weight:600;">n</span> agendadas não feitas${rate!==null?` &nbsp;·&nbsp; cumprimento do mês: ${rate}% (${doneTotal}/${plannedTotal})`:""}</div></div>`;
-    if(selectedDay) body.innerHTML += dayDetailHtml(selectedDay);
-    body.innerHTML += `<div style="height:20px"></div>`;
+    const partes = [nav, `<div class="stat-card">${grid}
+      <div class="stat-foot">&#9679; executada &nbsp; <span class="late" style="font-weight:600;">n</span> agendadas não feitas${rate!==null?` &nbsp;·&nbsp; cumprimento do mês: ${rate}% (${doneTotal}/${plannedTotal})`:""}</div></div>`];
+    if(selectedDay) partes.push(dayDetailHtml(selectedDay));
+    partes.push(`<div style="height:20px"></div>`);
+    body.innerHTML = partes.join("");
 
     document.getElementById("prevMonth").onclick = () => { calMonth = new Date(y, mo-1, 1); selectedDay = null; render(); };
     document.getElementById("nextMonth").onclick = () => { calMonth = new Date(y, mo+1, 1); selectedDay = null; render(); };
@@ -5445,8 +5565,8 @@ window.addEventListener("unhandledrejection", function(e){
     const to = calYear === new Date().getFullYear() ? new Date() : new Date(calYear, 11, 31, 12);
     to.setHours(12,0,0,0);
 
-    body.innerHTML = nav + `<div class="stat-card" id="yearHm">${heatmapHtml(from, to, byDateAll)}</div>`;
-    if(selectedDay) body.innerHTML += dayDetailHtml(selectedDay);
+    const partes = [nav, `<div class="stat-card" id="yearHm">${heatmapHtml(from, to, byDateAll)}</div>`];
+    if(selectedDay) partes.push(dayDetailHtml(selectedDay));
 
     /* horas por mês */
     const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -5464,11 +5584,12 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="bar-track"><div class="bar-fill" style="width:${min?Math.max(3,min/maxM*100):0}%"></div></div>
           <div class="bar-val">${min>=60 ? (min/60).toFixed(1).replace(".",",")+"h" : min+"m"}</div>
         </div>`).join("");
-      body.innerHTML += `<div class="section-label">Tempo por mês · total ${(totalYear/60).toFixed(1).replace(".",",")}h</div><div class="stat-card">${mHtml}</div>`;
+      partes.push(`<div class="section-label">Tempo por mês · total ${(totalYear/60).toFixed(1).replace(".",",")}h</div><div class="stat-card">${mHtml}</div>`);
     } else {
-      body.innerHTML += `<div class="stat-card"><div class="dev-n">Sem execuções em ${calYear}.</div></div>`;
+      partes.push(`<div class="stat-card"><div class="dev-n">Sem execuções em ${calYear}.</div></div>`);
     }
-    body.innerHTML += `<div style="height:20px"></div>`;
+    partes.push(`<div style="height:20px"></div>`);
+    body.innerHTML = partes.join("");
 
     document.getElementById("prevYear").onclick = () => { calYear--; selectedDay = null; render(); };
     document.getElementById("nextYear").onclick = () => { calYear++; selectedDay = null; render(); };
@@ -5503,20 +5624,23 @@ window.addEventListener("unhandledrejection", function(e){
       body.innerHTML = `<div class="empty-state" style="min-height:40vh;"><h2>Sem execuções</h2><p>Conclua esta rotina para gerar dados.</p></div>`;
       return;
     }
+    // mesma lógica de renderResumo: array + 1 innerHTML no fim em vez de várias
+    // concatenações — cada += reparseia o HTML já acumulado (O(n²)).
+    const partes = [];
 
     /* resumo */
     const totalMin = Math.round(entries.reduce((a,h)=>a+(h.actualSec||0),0)/60);
     const devs = entries.filter(h=>h.plannedSec).map(h=>h.actualSec-h.plannedSec);
     const delays = entries.filter(h=>h.schedDelayMin!==undefined).map(h=>h.schedDelayMin);
     const fmtS = v => (v>=0?"+":"&minus;") + fmtTime(Math.abs(v)).replace("+","");
-    body.innerHTML += `<div class="section-label">Resumo geral</div><div class="stat-card">
+    partes.push(`<div class="section-label">Resumo geral</div><div class="stat-card">
       <div class="dev-row"><span>Execuções</span><b class="ontime">${all.length}</b></div>
       <div class="dev-row"><span>Tempo total registrado</span><b class="ontime">${totalMin>=60?(totalMin/60).toFixed(1).replace(".",",")+"h":totalMin+"min"}</b></div>
       <div class="dev-row"><span>Sequência atual</span><b class="ontime">${computeStreakFor(r.id)} dia(s)</b></div>
       ${devs.length?`<div class="dev-row"><span>Desvio mediano</span><b class="${median(devs)>30?'late':median(devs)<-30?'early':'ontime'}">${fmtS(Math.round(median(devs)))}</b><span class="dev-n">${devs.length}x</span></div>`:""}
       ${(()=>{ const moods = entries.filter(h=>h.mood).map(h=>h.mood); if(!moods.length) return ""; const m = Math.round(median(moods)); return `<div class="dev-row"><span>Humor mediano</span><b class="ontime">${["&#9733;&#9734;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9733;"][m-1]}</b><span class="dev-n">${moods.length}x</span></div>`; })()}
       ${delays.length?`<div class="dev-row"><span>Atraso mediano no início</span><b class="${median(delays)>5?'late':'ontime'}">${Math.round(median(delays))}min</b><span class="dev-n">${delays.length}x</span></div>`:""}
-    </div>`;
+    </div>`);
 
     /* análise por etapa */
     const stepAgg = {};
@@ -5539,7 +5663,7 @@ window.addEventListener("unhandledrejection", function(e){
         return `<div class="dev-row"><span>${escapeHtml(s.name)}</span><b class="${cls}">${fmtS(s.medDev)}</b><span class="dev-n">${fmtTime(s.plan).replace("+","")}&rarr;${fmtTime(s.medAct).replace("+","")} · ${s.n}x</span></div>
         ${suggest ? `<div class="suggest-row"><span class="dev-n">A mediana real é ${fmtTime(s.medAct).replace("+","")}.</span><button class="suggest-btn" data-adjust="${si}">ajustar para ${Math.ceil(s.medAct/30)*30/60 % 1 === 0 ? (Math.ceil(s.medAct/30)*30/60)+"min" : fmtTime(Math.ceil(s.medAct/30)*30).replace("+","")}</button></div>` : ""}`;
       }).join("");
-      body.innerHTML += `<div class="section-label">Por etapa (desvio mediano)</div><div class="stat-card">${sHtml}</div>`;
+      partes.push(`<div class="section-label">Por etapa (desvio mediano)</div><div class="stat-card">${sHtml}</div>`);
 
       /* Duração planejada x real, média e mediana lado a lado. Aqui o sinal é
          planejado &minus; real (o oposto do desvio acima): positivo = sobrou
@@ -5560,24 +5684,12 @@ window.addEventListener("unhandledrejection", function(e){
           <b class="${clsDif(s.difMedia)}">${fmtS(Math.round(s.difMedia))}</b>
           <b class="${clsDif(s.difMediana)}">${fmtS(Math.round(s.difMediana))}</b>
         </div>`).join("");
-      body.innerHTML += `<div class="section-label">Planejado &minus; real (média · mediana)</div>
+      partes.push(`<div class="section-label">Planejado &minus; real (média · mediana)</div>
         <div class="stat-card">
           <div class="dev-row dev-head"><span>tarefa</span><b>média</b><b>mediana</b></div>
           ${dHtml}
           <div class="stat-foot">Positivo sobrou tempo, negativo estourou o planejado.</div>
-        </div>`;
-      body.querySelectorAll("[data-adjust]").forEach(b=>{
-        b.onclick = () => {
-          const s = stepRows[+b.dataset.adjust];
-          const newSec = Math.ceil(s.medAct/30)*30;
-          confirmModal("Ajustar a etapa <b>"+escapeHtml(s.name)+"</b> de "+fmtTime(s.plan).replace("+","")+" para "+fmtTime(newSec).replace("+","")+"?", "Ajustar", ()=>{
-            r.steps.forEach(st=>{ if(st.name===s.name && st.type==="timer") st.seconds = newSec; });
-            save(K_ROUTINES, routines);
-            showAlertBanner("Etapa ajustada ✓");
-            render();
-          });
-        };
-      });
+        </div>`);
     }
 
     /* horário de início desta rotina */
@@ -5589,7 +5701,7 @@ window.addEventListener("unhandledrejection", function(e){
         const bh = c ? Math.max(3, c/maxHour*54) : 0;
         return `<div class="hour-col"><div class="hour-bar" style="height:${bh}px; ${c?`background:${fillStyle(r.color)};`:""}"></div>${hh%6===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}</div>`;
       }).join("") + `</div>`;
-      body.innerHTML += `<div class="section-label">Horário real de início</div><div class="stat-card">${hHtml}</div>`;
+      partes.push(`<div class="section-label">Horário real de início</div><div class="stat-card">${hHtml}</div>`);
     }
 
     /* execuções */
@@ -5602,17 +5714,34 @@ window.addEventListener("unhandledrejection", function(e){
         const mood = h.mood ? ["&#9733;&#9734;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9733;"][h.mood-1] : "";
         return `<div class="dev-row"><span class="dev-n">${dateStr}</span><span class="dev-n">${cmp} ${mood}</span><button class="del-exec" data-delexec="${h.ts}">&#10005;</button></div>`;
       }).join("");
-      body.innerHTML += `<div class="section-label">Últimas execuções · &#10005; apaga o registro</div><div class="stat-card">${recHtml}</div>`;
-      body.querySelectorAll("[data-delexec]").forEach(b=>{
-        b.onclick = () => {
-          confirmModal("Apagar este registro de execução?<br><small>Ele sai de todas as estatísticas.</small>", "Apagar", ()=>{
-            history = history.filter(h=>String(h.ts) !== b.dataset.delexec);
-            save(K_HISTORY, history);
-            render();
-          });
-        };
-      });
+      partes.push(`<div class="section-label">Últimas execuções · &#10005; apaga o registro</div><div class="stat-card">${recHtml}</div>`);
     }
+
+    body.innerHTML = partes.join("");
+
+    // religados aqui fora (não logo após cada seção): agora que tudo entra
+    // num só innerHTML no fim, os elementos só existem na DOM depois dele.
+    body.querySelectorAll("[data-adjust]").forEach(b=>{
+      b.onclick = () => {
+        const s = stepRows[+b.dataset.adjust];
+        const newSec = Math.ceil(s.medAct/30)*30;
+        confirmModal("Ajustar a etapa <b>"+escapeHtml(s.name)+"</b> de "+fmtTime(s.plan).replace("+","")+" para "+fmtTime(newSec).replace("+","")+"?", "Ajustar", ()=>{
+          r.steps.forEach(st=>{ if(st.name===s.name && st.type==="timer") st.seconds = newSec; });
+          save(K_ROUTINES, routines);
+          showAlertBanner("Etapa ajustada ✓");
+          render();
+        });
+      };
+    });
+    body.querySelectorAll("[data-delexec]").forEach(b=>{
+      b.onclick = () => {
+        confirmModal("Apagar este registro de execução?<br><small>Ele sai de todas as estatísticas.</small>", "Apagar", ()=>{
+          history = history.filter(h=>String(h.ts) !== b.dataset.delexec);
+          save(K_HISTORY, history);
+          render();
+        });
+      };
+    });
   }
 
   /* ================= MODELOS ================= */
@@ -5958,14 +6087,19 @@ window.addEventListener("unhandledrejection", function(e){
     }
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
-    el.innerHTML = `<div class="home-header">
+    const scroll = document.createElement("div");
+    scroll.className = "tab-scroll";
+    scroll.innerHTML = `<div class="home-header">
       <h1><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">&#8249;</span> ${icon} ${titleHtml}</h1>
     </div>`;
+    el.appendChild(scroll);
 
     docs = [...docs].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     if(docs.length){
       const list = document.createElement("div");
       list.className = "notes-list";
+      list.style.flex = "0 0 auto";
+      list.style.overflow = "visible";
       docs.forEach(t=>{
         const card = document.createElement("div");
         card.className = "note-card";
@@ -5983,14 +6117,14 @@ window.addEventListener("unhandledrejection", function(e){
           });
         }));
       });
-      el.appendChild(list);
+      scroll.appendChild(list);
     } else {
       const empty = document.createElement("div");
       empty.className = "empty-state";
       empty.innerHTML = kind==="routine"
         ? `<h2>Nenhuma nota ainda</h2><p>Rotinas com tarefas de anotação geram uma nota aqui a cada execução.</p>`
         : `<h2>Pasta vazia</h2><p>Toque em + para criar o primeiro.</p>`;
-      el.appendChild(empty);
+      scroll.appendChild(empty);
     }
     // botão flutuante de criar, igual ao da aba Rotinas (pastas-rotina de
     // journaling não criam nada à mão: as notas nascem da execução da rotina)
@@ -7154,12 +7288,6 @@ window.addEventListener("unhandledrejection", function(e){
     const alvo = areaInfoRoda(areaId).label;
     return (t.areas||[]).some(a => metaAreaInfo(a).label === alvo);
   }
-  function passaFiltroAreaMeta(t){
-    if(!homeAreaFiltro) return true;
-    if(homeAreaFiltro === FILTRO_SEM_AREA) return !(t.areas && t.areas.length);
-    return metaTemArea(t, homeAreaFiltro);
-  }
-
   /* ---- Metas recorrentes (hábitos): diárias/semanais que repetem N vezes no
      período — "beber água" 4x ao dia, "lavar e hidratar o cabelo" 2x na
      semana. Vivem no MESMO doc de countdown (doc.recorrentes), de propósito:
@@ -7199,8 +7327,6 @@ window.addEventListener("unhandledrejection", function(e){
       return { hour: Math.floor(m/60), minute: m%60 };
     });
   }
-  function passaFiltroAreaRec(rec){ return passaFiltroArea(rec.area || ""); }
-
   function metaAreaChipHtml(v){
     const info = metaAreaInfo(v);
     if(!info.label) return "";
@@ -7434,38 +7560,51 @@ window.addEventListener("unhandledrejection", function(e){
     if(!doc.recorrentes) doc.recorrentes = [];
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
-    const naPrazos = metasSubview === "prazos";
+    // Prazos e recorrentes eram um either/or (view toggle exclusivo). Virou
+    // multiselect (metasSubviewSel) para poder ver os dois juntos — sempre ao
+    // menos um dos dois fica marcado (ver o guard no handler abaixo).
+    const mostraPrazos = metasSubviewSel.includes("prazos");
+    const mostraRecorrentes = metasSubviewSel.includes("recorrentes");
+    const ambos = mostraPrazos && mostraRecorrentes;
     /* cabeçalho DENTRO da área que rola (padrão de Dados e Diário). O corpo é
-       irmão do cabeçalho, e não o mesmo nó: paint() monta os cards com
-       `innerHTML +=` e recriaria os botões do topo a cada meta. */
+       irmão do cabeçalho, e não o mesmo nó: pintarTudo() monta os cards com
+       um array (join no fim) e recriaria os botões do topo se fosse o mesmo nó. */
     el.innerHTML = `<div class="tab-scroll">
       <div class="home-header">
         <h1>Metas</h1>
         <div class="header-right">
-          ${naPrazos ? `<button class="bell-btn" id="cdMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
+          ${mostraPrazos ? `<button class="bell-btn" id="cdMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
           <button class="bell-btn" id="cdPdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>` : ""}
           ${cfgBtnHtml()}
         </div>
       </div>
       <div class="type-toggle" id="metasSubviewToggle" style="margin-bottom:14px;">
-        <span data-metasview="prazos" class="${naPrazos?'active':''}">Prazos</span>
-        <span data-metasview="recorrentes" class="${!naPrazos?'active':''}">Recorrentes</span>
+        <span data-metasview="prazos" class="${mostraPrazos?'active':''}">Prazos</span>
+        <span data-metasview="recorrentes" class="${mostraRecorrentes?'active':''}">Recorrentes</span>
       </div>
       <div class="header-right" style="margin-bottom:14px; flex-wrap:wrap;">
-        ${naPrazos ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>` : ""}
+        ${mostraPrazos ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>` : ""}
       </div>
-      ${areaFiltroChipsHtml()}
+      ${metasAreaFiltroChipsHtml()}
       <div id="metasBody" style="padding-bottom:20px;"></div>
     </div>`;
-    wireAreaFiltroChips(el);
+    wireMetasAreaFiltroChips(el);
+    // Toque em "Prazos"/"Recorrentes" alterna a presença no array — não troca
+    // de tela como antes. Nunca deixa os dois desmarcados (senão a tela ficaria
+    // vazia sem nenhum jeito óbvio de voltar).
     el.querySelectorAll("[data-metasview]").forEach(sp=>{
       sp.onclick = () => {
-        metasSubview = sp.dataset.metasview;
-        save(K_METASSUBVIEW, metasSubview);
+        const v = sp.dataset.metasview;
+        const pos = metasSubviewSel.indexOf(v);
+        if(pos >= 0){
+          if(metasSubviewSel.length === 1) return;
+          metasSubviewSel.splice(pos, 1);
+        } else metasSubviewSel.push(v);
+        save(K_METASSUBVIEWSEL, metasSubviewSel);
         render();
       };
     });
-    if(naPrazos) el.querySelector("#metasSoHojeBtn").onclick = () => {
+    if(mostraPrazos) el.querySelector("#metasSoHojeBtn").onclick = () => {
       homeSoHoje = !homeSoHoje;
       save(K_SOHOJE, homeSoHoje);
       render();
@@ -7473,155 +7612,171 @@ window.addEventListener("unhandledrejection", function(e){
     const body = el.querySelector("#metasBody");
     const fabMeta = document.createElement("button");
     fabMeta.className = "fab"; fabMeta.textContent = "+";
-    fabMeta.id = "cdNovaBtn"; fabMeta.title = naPrazos ? "Nova meta" : "Nova meta recorrente";
+    fabMeta.id = "cdNovaBtn"; fabMeta.title = mostraPrazos ? "Nova meta" : "Nova meta recorrente";
     el.appendChild(fabMeta);
     el.appendChild(renderTabbar("metas"));
     app.appendChild(el);
-
-    if(!naPrazos){
-      paintRecorrentes();
-      document.getElementById("cdNovaBtn").onclick = () => abrirFormMetaRec(doc, null);
-      wireCfgBtn(el);
-      return;
-    }
-
-    function paintRecorrentes(){
-      body.innerHTML = "";
-      const lista = [...doc.recorrentes].filter(passaFiltroAreaRec);
-      lista.forEach(rec=>{
-        const feitas = metaRecFeitas(rec);
-        const completa = metaRecCompleta(rec);
-        const areaChip = rec.area ? `<div class="sched-chip chip-block" style="color:${areaInfoRoda(rec.area).color};">${escapeHtml(areaInfoRoda(rec.area).label)}</div>` : "";
-        body.innerHTML += `
-          <div class="stat-card" style="margin-bottom:10px; ${completa?'border-color:var(--good);':''}">
-            <div class="dev-row" style="border:none; padding:0;">
-              <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}</span>
-              <button class="icon-btn" data-mredit="${rec.id}" title="Editar" aria-label="Editar">&#9998;</button>
-              <button class="del-exec" data-mrdel="${rec.id}" title="Remover" aria-label="Remover">&#10005;</button>
-            </div>
-            ${areaChip}
-            <div class="dev-n" style="margin-top:2px;">${rec.vezes}&times; ${rec.tipo==='semanal'?'na semana':'ao dia'}${rec.notif?' · lembretes '+rec.notif.inicio+'–'+rec.notif.fim:''}</div>
-            <div class="cd-topics">
-              <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-mrminus="${rec.id}" title="Menos um" aria-label="Menos um">&minus;</button>
-              <span>${feitas} / ${rec.vezes}</span>
-              <button class="ctrl-btn ${completa?'ok':''}" style="width:36px;height:36px;font-size:15px;" data-mrplus="${rec.id}" title="Mais um" aria-label="Mais um">+</button>
-            </div>
-            <div class="dev-n" style="margin-top:4px; color:${completa?'var(--good)':'var(--muted)'};">${completa?'concluída ✓ · ':''}${metaRecReiniciaEmTxt(rec)}</div>
-          </div>`;
-      });
-      if(doc.recorrentes.length === 0){
-        body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente</h2><p>Toque no + para criar um hábito que repete algumas vezes por dia ou por semana — "beber água" 4x ao dia, "lavar o cabelo" 2x na semana.</p></div>`;
-      } else if(lista.length === 0){
-        body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente nessa área</h2><p>Troque o filtro de área para ver as outras.</p></div>`;
-      }
-      body.querySelectorAll("[data-mredit]").forEach(b=> b.onclick = () => {
-        abrirFormMetaRec(doc, doc.recorrentes.find(r=>r.id===b.dataset.mredit));
-      });
-      body.querySelectorAll("[data-mrdel]").forEach(b=> b.onclick = () => {
-        confirmModal("Remover esta meta recorrente?", "Remover", ()=>{
-          doc.recorrentes = doc.recorrentes.filter(r=>r.id!==b.dataset.mrdel);
-          saveTemplates(doc); paintRecorrentes();
-        });
-      });
-      body.querySelectorAll("[data-mrplus]").forEach(b=> b.onclick = () => {
-        metaRecAjustar(doc, doc.recorrentes.find(r=>r.id===b.dataset.mrplus), 1); paintRecorrentes();
-      });
-      body.querySelectorAll("[data-mrminus]").forEach(b=> b.onclick = () => {
-        metaRecAjustar(doc, doc.recorrentes.find(r=>r.id===b.dataset.mrminus), -1); paintRecorrentes();
-      });
-    }
-
-    function paint(){
-      body.innerHTML = "";
-      const sorted = [...doc.targets]
-        .filter(t => !homeSoHoje || metaOcorreHoje(t))
-        .filter(passaFiltroAreaMeta)
-        .sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
-      sorted.forEach(t=>{
-        const d = daysUntil(t.date);
-        const p = cdPace(t);
-        const [y,m,dd] = t.date.split("-");
-        const cls = d < 0 ? "late" : (d <= 7 ? "late" : d <= 30 ? "ontime" : "early");
-        const esc = metaEscopo(t);
-        const feita = metaConcluida(t);
-        const areas = (t.areas||[]).map(metaAreaChipHtml).join("");
-        body.innerHTML += `
-          <div class="stat-card" style="margin-bottom:10px; ${feita?'border-color:var(--good);':''}">
-            <div class="dev-row" style="border:none; padding:0;">
-              <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(t.title)}</span>
-              <button class="icon-btn" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">&#9998;</button>
-              <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta">&#10005;</button>
-            </div>
-            ${areas ? `<div class="meta-areas" style="margin:6px 0 2px;">${areas}</div>` : ""}
-            ${metaDiasChipHtml(t)}
-            <div class="cd-big ${cls}">${d>=0 ? d : "+"+Math.abs(d)}<span> dia(s)${d<0?" atrás":""}</span></div>
-            <div class="dev-n">${dd}/${m}/${y} · escopo ${ESCOPO_META_LABEL[esc]} · peso ${TAG_LABELS[t.tagValor || "alto"].toLowerCase()}</div>
-            ${t.topics ? `<div class="dev-n" style="margin-top:2px;">boletim ${ESCOPO_META_LABEL[esc]}: <b style="color:var(--accent);">${metaCreditado(t).toFixed(1)}</b> de ${metaPontosTotais(t).toFixed(1)} pts · ${(metaPontosTotais(t)/t.topics).toFixed(2)} pts cada</div>` : ""}
-            ${t.topics != null ? `
-            <div class="cd-topics">
-              <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdminus="${t.id}" title="Menos um" aria-label="Menos um">&minus;</button>
-              <span><input type="number" class="cd-done-inp" data-cddone="${t.id}" value="${t.done||0}" inputmode="numeric" min="0" max="${t.topics}"> / <input type="number" class="cd-done-inp" data-cdtotal="${t.id}" value="${t.topics}" inputmode="numeric" min="1"> ${escapeHtml(cdUnit(t))}</span>
-              <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdplus="${t.id}" title="Mais um" aria-label="Mais um">+</button>
-            </div>
-            <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:${feita?'var(--good)':'var(--accent)'};">${p.txt}</b>${feita?" &#10003;":""}</div>` : ""}
-            ${(t.nota||"").trim()
-              ? `<div class="meta-nota" data-cdnotaview="${t.id}">${renderMdBlock(t.nota, "meta:"+t.id, "")}</div>
-                 <button class="link-btn" data-cdnota="${t.id}" style="margin-top:2px;">&#9998; editar anotação</button>`
-              : `<button class="link-btn" data-cdnota="${t.id}" style="margin-top:8px;">+ anotação</button>`}
-          </div>`;
-      });
-      if(doc.targets.length === 0){
-        body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta ainda</h2><p>Toque no + para criar uma meta com prazo — os dias restantes, o ritmo e a pontuação se atualizam sozinhos.</p></div>`;
-      } else if(sorted.length === 0){
-        body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta com esse filtro</h2><p>Desligue o "só hoje" ou troque a área para ver outras metas.</p></div>`;
-      }
-
-      body.querySelectorAll("[data-cdedit]").forEach(b=> b.onclick = () => {
-        abrirFormMeta(doc, doc.targets.find(t=>t.id===b.dataset.cdedit));
-      });
-      body.querySelectorAll("[data-cddel]").forEach(b=> b.onclick = () => {
-        confirmModal("Remover esta meta?", "Remover", ()=>{
-          const t = doc.targets.find(x=>x.id===b.dataset.cddel);
-          if(t) estornarMetaConcluida(t);
-          doc.targets = doc.targets.filter(x=>x.id!==b.dataset.cddel);
-          saveTemplates(doc); paint();
-        });
-      });
-      // anotação da meta: checklist e toggle funcionam direto no card, como no Diário
-      body.querySelectorAll("[data-cdnotaview]").forEach(view=>{
-        const t = doc.targets.find(x=>x.id===view.dataset.cdnotaview);
-        view.querySelectorAll("[data-ovcheck]").forEach(box=>{
-          box.onclick = () => { t.nota = toggleCheckLineInText(t.nota, +box.dataset.ovcheck); saveTemplates(doc); paint(); };
-        });
-        view.querySelectorAll("[data-ovtoggle]").forEach(sp=>{
-          sp.onclick = () => { flipToggle("meta:"+t.id, +sp.dataset.ovtoggle); paint(); };
-        });
-      });
-      body.querySelectorAll("[data-cdnota]").forEach(b=> b.onclick = () => {
-        abrirNotaMeta(doc, doc.targets.find(x=>x.id===b.dataset.cdnota), paint);
-      });
-      const mexeu = t => { sincronizarPontosMeta(t); saveTemplates(doc); paint(); };
-      body.querySelectorAll("[data-cdplus]").forEach(b=> b.onclick = () => { const t = doc.targets.find(x=>x.id===b.dataset.cdplus); t.done = Math.min(t.topics, (t.done||0)+1); mexeu(t); });
-      body.querySelectorAll("[data-cdminus]").forEach(b=> b.onclick = () => { const t = doc.targets.find(x=>x.id===b.dataset.cdminus); t.done = Math.max(0, (t.done||0)-1); mexeu(t); });
-      body.querySelectorAll("[data-cddone]").forEach(inp=> inp.onchange = () => { const t = doc.targets.find(x=>x.id===inp.dataset.cddone); t.done = Math.max(0, Math.min(t.topics, +inp.value||0)); mexeu(t); });
-      body.querySelectorAll("[data-cdtotal]").forEach(inp=> inp.onchange = () => { const t = doc.targets.find(x=>x.id===inp.dataset.cdtotal); t.topics = Math.max(1, +inp.value||1); t.done = Math.min(t.done||0, t.topics); mexeu(t); });
-    }
-    paint();
-    document.getElementById("cdNovaBtn").onclick = () => abrirFormMeta(doc, null);
     wireCfgBtn(el);
-    document.getElementById("cdMd").onclick = () => copyMarkdown(countdownMd(doc));
-    document.getElementById("cdPdf").onclick = () => {
-      let inner = "<h1>Metas</h1><ul>";
-      [...doc.targets].sort((a,b)=>daysUntil(a.date)-daysUntil(b.date)).forEach(t=>{
-        const d = daysUntil(t.date);
-        const p = cdPace(t);
-        const [y,m,dd] = t.date.split("-");
-        inner += "<li><b>" + escapeHtml(t.title) + "</b> — " + dd + "/" + m + "/" + y + " — " + (d>=0?"faltam "+d+" dia(s)":Math.abs(d)+" dia(s) atrás");
-        if(p && t.topics != null) inner += " — " + (t.done||0) + "/" + t.topics + " " + escapeHtml(cdUnit(t)) + " (" + p.txt + ")";
-        inner += "</li>";
-      });
-      exportPdfView("Metas", inner + "</ul><p class='meta'>gerado em " + localKey() + "</p>");
+
+    function metaCardHtml(t){
+      const d = daysUntil(t.date);
+      const p = cdPace(t);
+      const [y,m,dd] = t.date.split("-");
+      const cls = d < 0 ? "late" : (d <= 7 ? "late" : d <= 30 ? "ontime" : "early");
+      const esc = metaEscopo(t);
+      const feita = metaConcluida(t);
+      const areas = (t.areas||[]).map(metaAreaChipHtml).join("");
+      return `
+        <div class="stat-card" style="margin-bottom:10px; ${feita?'border-color:var(--good);':''}">
+          <div class="dev-row" style="border:none; padding:0;">
+            <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(t.title)}</span>
+            <button class="icon-btn" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">&#9998;</button>
+            <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta">&#10005;</button>
+          </div>
+          ${areas ? `<div class="meta-areas" style="margin:6px 0 2px;">${areas}</div>` : ""}
+          ${metaDiasChipHtml(t)}
+          <div class="cd-big ${cls}">${d>=0 ? d : "+"+Math.abs(d)}<span> dia(s)${d<0?" atrás":""}</span></div>
+          <div class="dev-n">${dd}/${m}/${y} · escopo ${ESCOPO_META_LABEL[esc]} · peso ${TAG_LABELS[t.tagValor || "alto"].toLowerCase()}</div>
+          ${t.topics ? `<div class="dev-n" style="margin-top:2px;">boletim ${ESCOPO_META_LABEL[esc]}: <b style="color:var(--accent);">${metaCreditado(t).toFixed(1)}</b> de ${metaPontosTotais(t).toFixed(1)} pts · ${(metaPontosTotais(t)/t.topics).toFixed(2)} pts cada</div>` : ""}
+          ${t.topics != null ? `
+          <div class="cd-topics">
+            <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdminus="${t.id}" title="Menos um" aria-label="Menos um">&minus;</button>
+            <span><input type="number" class="cd-done-inp" data-cddone="${t.id}" value="${t.done||0}" inputmode="numeric" min="0" max="${t.topics}"> / <input type="number" class="cd-done-inp" data-cdtotal="${t.id}" value="${t.topics}" inputmode="numeric" min="1"> ${escapeHtml(cdUnit(t))}</span>
+            <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdplus="${t.id}" title="Mais um" aria-label="Mais um">+</button>
+          </div>
+          <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:${feita?'var(--good)':'var(--accent)'};">${p.txt}</b>${feita?" &#10003;":""}</div>` : ""}
+          ${(t.nota||"").trim()
+            ? `<div class="meta-nota" data-cdnotaview="${t.id}">${renderMdBlock(t.nota, "meta:"+t.id, "")}</div>
+               <button class="link-btn" data-cdnota="${t.id}" style="margin-top:2px;">&#9998; editar anotação</button>`
+            : `<button class="link-btn" data-cdnota="${t.id}" style="margin-top:8px;">+ anotação</button>`}
+        </div>`;
+    }
+
+    function recCardHtml(rec){
+      const feitas = metaRecFeitas(rec);
+      const completa = metaRecCompleta(rec);
+      const areaChip = rec.area ? `<div class="sched-chip chip-block" style="color:${areaInfoRoda(rec.area).color};">${escapeHtml(areaInfoRoda(rec.area).label)}</div>` : "";
+      return `
+        <div class="stat-card" style="margin-bottom:10px; ${completa?'border-color:var(--good);':''}">
+          <div class="dev-row" style="border:none; padding:0;">
+            <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}</span>
+            <button class="icon-btn" data-mredit="${rec.id}" title="Editar" aria-label="Editar">&#9998;</button>
+            <button class="del-exec" data-mrdel="${rec.id}" title="Remover" aria-label="Remover">&#10005;</button>
+          </div>
+          ${areaChip}
+          <div class="dev-n" style="margin-top:2px;">${rec.vezes}&times; ${rec.tipo==='semanal'?'na semana':'ao dia'}${rec.notif?' · lembretes '+rec.notif.inicio+'–'+rec.notif.fim:''}</div>
+          <div class="cd-topics">
+            <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-mrminus="${rec.id}" title="Menos um" aria-label="Menos um">&minus;</button>
+            <span>${feitas} / ${rec.vezes}</span>
+            <button class="ctrl-btn ${completa?'ok':''}" style="width:36px;height:36px;font-size:15px;" data-mrplus="${rec.id}" title="Mais um" aria-label="Mais um">+</button>
+          </div>
+          <div class="dev-n" style="margin-top:4px; color:${completa?'var(--good)':'var(--muted)'};">${completa?'concluída ✓ · ':''}${metaRecReiniciaEmTxt(rec)}</div>
+        </div>`;
+    }
+
+    // Sempre reconstrói as duas seções (a que estiver visível) do zero — mesma
+    // filosofia de "replace" do resto do app, só que agora as duas listas podem
+    // conviver no mesmo #metasBody em vez de uma excluir a outra.
+    function pintarTudo(){
+      const partes = [];
+      if(mostraPrazos){
+        const sorted = [...doc.targets]
+          .filter(t => !homeSoHoje || metaOcorreHoje(t))
+          .filter(passaFiltroAreaMetaMulti)
+          .sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
+        if(ambos) partes.push(`<div class="section-label">Prazos</div>`);
+        partes.push(sorted.map(metaCardHtml).join(""));
+        if(doc.targets.length === 0){
+          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta ainda</h2><p>Toque no + para criar uma meta com prazo — os dias restantes, o ritmo e a pontuação se atualizam sozinhos.</p></div>`);
+        } else if(sorted.length === 0){
+          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta com esse filtro</h2><p>Desligue o "só hoje" ou troque a área para ver outras metas.</p></div>`);
+        }
+      }
+      if(mostraRecorrentes){
+        const lista = [...doc.recorrentes].filter(passaFiltroAreaRecMulti);
+        if(ambos) partes.push(`<div class="section-label">Recorrentes</div>`);
+        partes.push(lista.map(recCardHtml).join(""));
+        if(doc.recorrentes.length === 0){
+          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente</h2><p>Toque no + para criar um hábito que repete algumas vezes por dia ou por semana — "beber água" 4x ao dia, "lavar o cabelo" 2x na semana.</p></div>`);
+        } else if(lista.length === 0){
+          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente nessa área</h2><p>Troque o filtro de área para ver as outras.</p></div>`);
+        }
+      }
+      body.innerHTML = partes.join("");
+      wireCards();
+    }
+
+    function wireCards(){
+      if(mostraPrazos){
+        body.querySelectorAll("[data-cdedit]").forEach(b=> b.onclick = () => {
+          abrirFormMeta(doc, doc.targets.find(t=>t.id===b.dataset.cdedit));
+        });
+        body.querySelectorAll("[data-cddel]").forEach(b=> b.onclick = () => {
+          confirmModal("Remover esta meta?", "Remover", ()=>{
+            const t = doc.targets.find(x=>x.id===b.dataset.cddel);
+            if(t) estornarMetaConcluida(t);
+            doc.targets = doc.targets.filter(x=>x.id!==b.dataset.cddel);
+            saveTemplates(doc); pintarTudo();
+          });
+        });
+        // anotação da meta: checklist e toggle funcionam direto no card, como no Diário
+        body.querySelectorAll("[data-cdnotaview]").forEach(view=>{
+          const t = doc.targets.find(x=>x.id===view.dataset.cdnotaview);
+          view.querySelectorAll("[data-ovcheck]").forEach(box=>{
+            box.onclick = () => { t.nota = toggleCheckLineInText(t.nota, +box.dataset.ovcheck); saveTemplates(doc); pintarTudo(); };
+          });
+          view.querySelectorAll("[data-ovtoggle]").forEach(sp=>{
+            sp.onclick = () => { flipToggle("meta:"+t.id, +sp.dataset.ovtoggle); pintarTudo(); };
+          });
+        });
+        body.querySelectorAll("[data-cdnota]").forEach(b=> b.onclick = () => {
+          abrirNotaMeta(doc, doc.targets.find(x=>x.id===b.dataset.cdnota), pintarTudo);
+        });
+        const mexeu = t => { sincronizarPontosMeta(t); saveTemplates(doc); pintarTudo(); };
+        body.querySelectorAll("[data-cdplus]").forEach(b=> b.onclick = () => { const t = doc.targets.find(x=>x.id===b.dataset.cdplus); t.done = Math.min(t.topics, (t.done||0)+1); mexeu(t); });
+        body.querySelectorAll("[data-cdminus]").forEach(b=> b.onclick = () => { const t = doc.targets.find(x=>x.id===b.dataset.cdminus); t.done = Math.max(0, (t.done||0)-1); mexeu(t); });
+        body.querySelectorAll("[data-cddone]").forEach(inp=> inp.onchange = () => { const t = doc.targets.find(x=>x.id===inp.dataset.cddone); t.done = Math.max(0, Math.min(t.topics, +inp.value||0)); mexeu(t); });
+        body.querySelectorAll("[data-cdtotal]").forEach(inp=> inp.onchange = () => { const t = doc.targets.find(x=>x.id===inp.dataset.cdtotal); t.topics = Math.max(1, +inp.value||1); t.done = Math.min(t.done||0, t.topics); mexeu(t); });
+      }
+      if(mostraRecorrentes){
+        body.querySelectorAll("[data-mredit]").forEach(b=> b.onclick = () => {
+          abrirFormMetaRec(doc, doc.recorrentes.find(r=>r.id===b.dataset.mredit));
+        });
+        body.querySelectorAll("[data-mrdel]").forEach(b=> b.onclick = () => {
+          confirmModal("Remover esta meta recorrente?", "Remover", ()=>{
+            doc.recorrentes = doc.recorrentes.filter(r=>r.id!==b.dataset.mrdel);
+            saveTemplates(doc); pintarTudo();
+          });
+        });
+        body.querySelectorAll("[data-mrplus]").forEach(b=> b.onclick = () => {
+          metaRecAjustar(doc, doc.recorrentes.find(r=>r.id===b.dataset.mrplus), 1); pintarTudo();
+        });
+        body.querySelectorAll("[data-mrminus]").forEach(b=> b.onclick = () => {
+          metaRecAjustar(doc, doc.recorrentes.find(r=>r.id===b.dataset.mrminus), -1); pintarTudo();
+        });
+      }
+    }
+
+    pintarTudo();
+    document.getElementById("cdNovaBtn").onclick = () => {
+      if(mostraPrazos) abrirFormMeta(doc, null);
+      else abrirFormMetaRec(doc, null);
     };
+    if(mostraPrazos){
+      document.getElementById("cdMd").onclick = () => copyMarkdown(countdownMd(doc));
+      document.getElementById("cdPdf").onclick = () => {
+        let inner = "<h1>Metas</h1><ul>";
+        [...doc.targets].sort((a,b)=>daysUntil(a.date)-daysUntil(b.date)).forEach(t=>{
+          const d = daysUntil(t.date);
+          const p = cdPace(t);
+          const [y,m,dd] = t.date.split("-");
+          inner += "<li><b>" + escapeHtml(t.title) + "</b> — " + dd + "/" + m + "/" + y + " — " + (d>=0?"faltam "+d+" dia(s)":Math.abs(d)+" dia(s) atrás");
+          if(p && t.topics != null) inner += " — " + (t.done||0) + "/" + t.topics + " " + escapeHtml(cdUnit(t)) + " (" + p.txt + ")";
+          inner += "</li>";
+        });
+        exportPdfView("Metas", inner + "</ul><p class='meta'>gerado em " + localKey() + "</p>");
+      };
+    }
   }
 
   /* ============ DESPESAS RÁPIDAS ============ */
@@ -11138,7 +11293,9 @@ window.addEventListener("unhandledrejection", function(e){
     blocos.sort((a,b)=> a.ini - b.ini || (a.linha||0) - (b.linha||0));
     distribuirColunas(blocos);
     const hIni = Math.max(0, Math.floor(Math.min(...blocos.map(b=>b.ini))/60) - 1);
-    const hFim = Math.min(24, Math.ceil(Math.max(...blocos.map(b=>b.fim))/60) + 1);
+    // Nunca para logo depois do último bloco: sem o piso de 21h a grade parava
+    // no meio da tela em dias com poucos compromissos à tarde.
+    const hFim = Math.min(24, Math.max(Math.ceil(Math.max(...blocos.map(b=>b.fim))/60) + 1, 21));
     const topo = min => (min - hIni*60) * AG_PX_MIN;
     const hhmm = min => String(Math.floor(min/60)).padStart(2,"0") + ":" + String(min%60).padStart(2,"0");
     let horas = "";
@@ -11527,6 +11684,12 @@ window.addEventListener("unhandledrejection", function(e){
         <div style="margin:10px 0 4px;">
           <button class="${disp?'btn-cancel':'btn-danger-outline'}" id="blDispensar" style="width:100%;">${disp?'Reativar esta semana':'Dispensar esta semana (viagem, doença...)'}</button>
         </div>
+        ${(!rodaAtiva() || !gam.config.habito.ativo) ? `<div class="stat-card" style="margin-bottom:10px;">
+          <div class="section-label" style="margin-top:0;">Recursos avançados disponíveis</div>
+          ${!rodaAtiva() ? `<div class="dev-n" style="margin-bottom:4px;">Roda da vida desligada — rotinas de áreas diferentes ainda disputam o mesmo bolo de pontos da semana.</div>` : ""}
+          ${!gam.config.habito.ativo ? `<div class="dev-n">Hábito consolidado desligado — rotinas antigas não abrem espaço automaticamente para as que ainda não pegaram.</div>` : ""}
+          <button class="link-btn" id="blAbrirAvancado" style="margin-top:6px;">Configurar em Ajustes &rarr;</button>
+        </div>` : ""}
         ${roda.linhas.length ? `<div class="section-label">Roda da vida — pontos desta semana</div>
         <div class="stat-card">
           ${roda.linhas.map(l=>`<div class="bar-row">
@@ -11570,6 +11733,8 @@ window.addEventListener("unhandledrejection", function(e){
     `;
     app.appendChild(el);
     document.getElementById("blBack").onclick = () => { goTo({tab:"home", screen:"home"}); };
+    const abrirAvancadoBtn = document.getElementById("blAbrirAvancado");
+    if(abrirAvancadoBtn) abrirAvancadoBtn.onclick = () => { goTo({tab:"home", screen:"settings"}); };
     document.getElementById("blDispensar").onclick = () => {
       if(gam.semanaAtual.dispensada){ alternarDispensaSemana(); render(); return; }
       confirmModal("Dispensar esta semana?<br><small>Ela é arquivada sem badge e fica fora da média do mês. Use em viagem, doença ou semana atípica.</small>", "Dispensar", ()=>{
@@ -11652,6 +11817,19 @@ window.addEventListener("unhandledrejection", function(e){
     const v = load(K_NUDGEDAYS, null);
     return Array.isArray(v) && v.length ? v : [5]; // sexta por padrão
   }
+  /* Entrega compartilhada pelos três avisos proativos (ritmo, metas, streak):
+     nativo agenda notificação local; navegador com permissão concedida usa o
+     service worker (ou Notification direta como fallback); sem permissão,
+     degrada para o banner in-app — igual ao aviso de ritmo original. */
+  function dispararNudge(title, body, tag){
+    if(isNative){ try{ notifyNative(title, body, {}, notifIdFor(tag, 0)); }catch(e){} return; }
+    if(!("Notification" in window) || Notification.permission !== "granted"){ showAlertBanner(body); return; }
+    if("serviceWorker" in navigator){
+      navigator.serviceWorker.ready.then(reg=>{
+        reg.showNotification(title, { body, tag }).catch(()=>{ try{ new Notification(title,{body}); }catch(e){} });
+      });
+    } else { try{ new Notification(title,{body}); }catch(e){} }
+  }
   function checarNudgeRitmo(){
     if(!load(K_NUDGE, true)) return;
     const hoje = new Date();
@@ -11667,13 +11845,59 @@ window.addEventListener("unhandledrejection", function(e){
       ? "⏱ Faltam " + r.diasRestantes + " dias na semana"
       : "⏱ Último dia da semana";
     const body = "Nota " + r.nota.toFixed(0) + "/100 · " + r.porDia60.toFixed(1) + " pontos/dia para aprovar";
-    if(isNative){ try{ notifyNative(title, body, {}, notifIdFor("nudge-ritmo", 0)); }catch(e){} return; }
-    if(!("Notification" in window) || Notification.permission !== "granted"){ showAlertBanner(body); return; }
-    if("serviceWorker" in navigator){
-      navigator.serviceWorker.ready.then(reg=>{
-        reg.showNotification(title, { body, tag:"nudge-ritmo" }).catch(()=>{ try{ new Notification(title,{body}); }catch(e){} });
-      });
-    } else { try{ new Notification(title,{body}); }catch(e){} }
+    dispararNudge(title, body, "nudge-ritmo");
+  }
+  const K_NUDGEMETASDONE = "rotinas_v2_nudge_metas_done"; // dia (localKey) do último aviso de meta perto do prazo
+  /* Avisa no máximo 1x por dia quando alguma meta com prazo (doc.targets) está
+     a 0-2 dias do vencimento e ainda não foi concluída. Reusa o mesmo
+     interruptor K_NUDGE do aviso de ritmo em vez de criar uma tela nova em
+     Configurações só para isto. */
+  function checarNudgeMetas(){
+    if(!load(K_NUDGE, true)) return;
+    const hojeKey = localKey();
+    if(load(K_NUDGEMETASDONE, "") === hojeKey) return;
+    const doc = metaDoc();
+    const proximas = (doc.targets||[])
+      .filter(t => !metaConcluida(t) && daysUntil(t.date) >= 0 && daysUntil(t.date) <= 2)
+      .sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
+    if(!proximas.length) return;
+    save(K_NUDGEMETASDONE, hojeKey);
+    const perto = proximas[0];
+    const d = daysUntil(perto.date);
+    const title = d === 0 ? "🎯 Meta vence hoje" : "🎯 Meta perto do prazo";
+    const quando = d === 0 ? "hoje" : "em " + d + " dia" + (d > 1 ? "s" : "");
+    const body = proximas.length > 1
+      ? perto.title + " vence " + quando + " e mais " + (proximas.length-1) + " meta(s) perto do prazo"
+      : perto.title + " vence " + quando;
+    dispararNudge(title, body, "nudge-metas");
+  }
+  const K_NUDGESTREAKDONE = "rotinas_v2_nudge_streak_done"; // dia (localKey) do último aviso de streak em risco
+  /* Avisa no máximo 1x por dia (a partir das 18h, pra dar o dia inteiro antes
+     de incomodar) quando uma rotina de hoje ainda não foi feita e sua
+     sequência já está perto do limiar de hábito consolidado (ou já passou
+     dele) — é quando quebrar dói mais. */
+  function checarNudgeStreak(){
+    if(!load(K_NUDGE, true)) return;
+    const hoje = new Date();
+    if(hoje.getHours() < 18) return;
+    const hojeKey = localKey();
+    if(load(K_NUDGESTREAKDONE, "") === hojeKey) return;
+    const min = gam.config.habito.streakMin || 21;
+    const limiar = Math.max(3, min - 3);
+    const emRisco = routines.filter(r=>{
+      if(!rotinaOcorreHoje(r)) return false;
+      if(history.some(h=>h.routineId===r.id && h.date===hojeKey)) return false; // já feita hoje
+      return computeStreakFor(r.id) >= limiar;
+    });
+    if(!emRisco.length) return;
+    save(K_NUDGESTREAKDONE, hojeKey);
+    const r0 = [...emRisco].sort((a,b)=>computeStreakFor(b.id)-computeStreakFor(a.id))[0];
+    const s0 = computeStreakFor(r0.id);
+    const title = "🔥 Sequência em risco";
+    const body = emRisco.length > 1
+      ? r0.name + " está em " + s0 + " dia(s) seguidos e mais " + (emRisco.length-1) + " rotina(s) ainda não feita(s) hoje"
+      : r0.name + " está em " + s0 + " dia(s) seguidos — não quebre hoje";
+    dispararNudge(title, body, "nudge-streak");
   }
 
   /* ---------------- CONFIGURAÇÕES ---------------- */
