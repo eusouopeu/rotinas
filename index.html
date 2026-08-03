@@ -969,7 +969,7 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .nota-rot-corpo{ flex:1; min-height:0; overflow-y:auto; font-size:14.5px; line-height:1.55; }
   .nota-rot-ta{ width:100%; min-height:40vh; line-height:1.55; }
-  /* lista de ideias já anotadas no lançamento rápido do player */
+  /* lista de notas já anotadas no lançamento rápido do player */
   .qa-idea-list{ display:flex; flex-direction:column; gap:6px; max-height:34vh; overflow-y:auto; }
   .qa-idea-row{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;
     background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm);
@@ -1514,7 +1514,7 @@ window.addEventListener("unhandledrejection", function(e){
   let metasSubviewSel = (() => {
     const v = load(K_METASSUBVIEWSEL, null);
     if(Array.isArray(v) && v.length) return v;
-    return [load(K_METASSUBVIEW, "prazos")];
+    return [load(K_METASSUBVIEW, "recorrentes")];
   })();
   /* No desktop a agenda fica numa coluna AO LADO da anotação, então precisa
      acompanhar o que está sendo digitado — no celular isso não existia, porque
@@ -1596,6 +1596,10 @@ window.addEventListener("unhandledrejection", function(e){
   }
   let editorDraft = null;
   let noteDraft = null;
+  /* snapshot dos campos editáveis quando o editor de nota abre — permite
+     "voltar" descartar a sessão inteira e restaurar a versão anterior;
+     null quando a nota é nova (sem versão anterior: descartar = apagar) */
+  let noteDraftOriginal = null;
   let noteMode = "edit"; // edit | read
   let playerState = null;
   let ultimosPontosGanhos = 0;
@@ -1606,7 +1610,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-07-30 · 685fa7c+ (v6)";
+  const BUILD_STAMP = "2026-08-03 · 497c6cc (v8)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2802,18 +2806,98 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function pararOverlay(){
     const p = overlayPlugin();
-    if(!p) return;
+    if(p){
+      try{
+        const r = p.hide();
+        if(r && r.catch) r.catch(()=>{});
+      }catch(e){}
+    }
+    // independente da bolha: encerra também o alerta de fundo, se houver
+    cancelarAlertaFundo();
+  }
+  /* ---- Alerta sonoro/vibração de fim de etapa/descanso EM SEGUNDO PLANO ----
+     Em primeiro plano quem avisa é o WebAudio (timeUpCue/stepTransitionCue, ver
+     startTicking) — mas com o WebView suspenso essas funções não rodam. Como a
+     bolha do cronômetro (TimerOverlay) só existe se o Pedro ligou a preferência
+     e concedeu a permissão de sobreposição, este alerta usa OUTRO canal —
+     LocalNotifications, que já funciona para as notificações agendadas de
+     rotina/meta — e por isso não depende daquela preferência nem daquele
+     plugin: funciona sempre que a permissão de notificação estiver concedida.
+     Tag própria (extra.brita:"stepAlert") pra não se misturar com o
+     cancela-e-reagenda de syncNativeSchedules(), que só mexe em "sched". */
+  const STEPALERT_ID_BASE = 2000000000; // faixa reservada, longe do espaço de notifIdFor
+  async function ensureTimerAlertChannels(){
+    if(!isNative) return;
     try{
-      const r = p.hide();
-      if(r && r.catch) r.catch(()=>{});
-    }catch(e){}
+      await nativeLN().createChannel({ id:"brita_timer", name:"Fim de etapa/descanso", description:"Avisa quando o tempo de uma etapa ou descanso da rotina acaba", importance:4, vibration:true });
+      await nativeLN().createChannel({ id:"brita_timer_mudo", name:"Fim de etapa/descanso (só vibrar)", description:"Mesmo aviso, sem som", importance:2, vibration:true });
+    }catch(e){ console.error("ensureTimerAlertChannels:", e); }
+  }
+  async function cancelarAlertaFundo(){
+    if(!isNative) return;
+    try{
+      const LN = nativeLN();
+      const pending = await LN.getPending();
+      const mine = (pending.notifications||[]).filter(n=>n.extra && n.extra.brita==="stepAlert");
+      if(mine.length) await LN.cancel({ notifications: mine.map(n=>({id:n.id})) });
+    }catch(e){ console.error("cancelarAlertaFundo:", e); }
+  }
+  /* Reagenda a cada mudança relevante do player (ver sincronizarPlayerBackground)
+     — cancela sempre primeiro e só recria se: nativo, em segundo plano, com
+     rotina rodando, não pausada e na etapa atual em tempo (timer). Encadeia os
+     descansos automáticos seguintes (mesmo critério de filaOverlay()/auto),
+     até um teto de 10, para avisar mesmo se o app ficar minimizado por várias
+     etapas seguidas. */
+  async function sincronizarAlertaFundo(){
+    await cancelarAlertaFundo();
+    if(!isNative || !appEmSegundoPlano || !playerState || playerState.paused) return;
+    const step = currentStep();
+    if(!step || step.type !== "timer" || !playerState.stepEndTs) return;
+    try{
+      const LN = nativeLN();
+      const perm = await LN.checkPermissions();
+      if(perm.display !== "granted") return;
+      const channelId = soundMode(playerState.routine) === "mudo" ? "brita_timer_mudo" : "brita_timer";
+      const notifs = [];
+      let quando = playerState.stepEndTs;
+      let n = 0;
+      notifs.push({
+        id: STEPALERT_ID_BASE + n, channelId,
+        title: step.isRest ? "Descanso acabou" : "Tempo esgotado",
+        body: playerState.routine.name + (step.name ? " — " + step.name : ""),
+        extra: { brita:"stepAlert" },
+        schedule: { at: new Date(quando), allowWhileIdle: true }
+      });
+      n++;
+      for(let i = playerState.idx+1; i < playerState.steps.length && n < 10; i++){
+        const s = playerState.steps[i];
+        if(s.type !== "timer" || !s.isRest) break;
+        quando += s.seconds*1000;
+        notifs.push({
+          id: STEPALERT_ID_BASE + n, channelId,
+          title: "Descanso acabou",
+          body: playerState.routine.name + (s.name ? " — " + s.name : ""),
+          extra: { brita:"stepAlert" },
+          schedule: { at: new Date(quando), allowWhileIdle: true }
+        });
+        n++;
+      }
+      await LN.schedule({ notifications: notifs });
+    }catch(e){ console.error("sincronizarAlertaFundo:", e); }
+  }
+  /* ponto único chamado sempre que o estado do player muda de um jeito que
+     precisa refletir fora do WebView — bolha (se ligada) + alerta de fundo
+     (sempre, independente da bolha) */
+  function sincronizarPlayerBackground(){
+    sincronizarOverlay();
+    sincronizarAlertaFundo();
   }
   /* O sinal de "saiu da frente": no APK o appStateChange do Capacitor é o
      confiável; visibilitychange cobre o navegador e serve de rede. */
   function marcarSegundoPlano(v){
     if(appEmSegundoPlano === v) return;
     appEmSegundoPlano = v;
-    sincronizarOverlay();
+    sincronizarPlayerBackground();
   }
   document.addEventListener("visibilitychange", ()=> marcarSegundoPlano(!!document.hidden));
   if(isNative && window.Capacitor.Plugins.App){
@@ -2918,6 +3002,7 @@ window.addEventListener("unhandledrejection", function(e){
       const rid = a.notification && a.notification.extra && a.notification.extra.routineId;
       if(rid && routines.find(r => r.id === rid)) startPlayer(rid);
     });
+    ensureTimerAlertChannels();
     syncNativeSchedules();
     autoBackupNative();
     if(window.Capacitor.Plugins.Shortcuts){
@@ -3179,6 +3264,12 @@ window.addEventListener("unhandledrejection", function(e){
     if(view.screen === "player"){
       if(playerState && playerState.zen){ playerState.zen = false; render(); return; }
       confirmExitPlayer();
+      return;
+    }
+    if(view.screen === "noteEditor"){
+      descartarEdicaoNota();
+      view = navStack.length ? navStack.pop() : { tab:"templates", screen:"templates" };
+      render();
       return;
     }
     if(navStack.length){ view = navStack.pop(); render(); return; }
@@ -3557,6 +3648,8 @@ window.addEventListener("unhandledrejection", function(e){
         <div id="seNoteWrap" style="${s.type==='routine'?'display:none;':''}">
           <label class="switch-row" style="margin-top:12px;"><span>Inserir anotações durante esta tarefa</span><input type="checkbox" id="seJournal" ${s.journaling?'checked':''}></label>
         </div>
+        <div class="section-label" style="margin:12px 0 6px;">Nota da etapa (opcional)</div>
+        <div id="seNotaWrap"></div>
         <div id="seTagWrap" style="${s.type==='timer'?'':'display:none;'}">
           <div class="section-label" style="margin:12px 0 6px;">Peso no boletim</div>
           ${tagValorPillsHtml(s.tagValor, true)}
@@ -3571,6 +3664,59 @@ window.addEventListener("unhandledrejection", function(e){
     wireTagValorPills(ov);
     ov.onclick = e => { if(e.target===ov) ov.remove(); };
     let type = s.type;
+    /* nada é escrito em `s` até "Salvar" — mesma convenção do resto do editor
+       (cancelar não deve deixar rastro), então o vínculo de nota também fica
+       num rascunho local até lá */
+    let stepNoteId = s.noteId || null;
+    function pintarNotaEtapa(){
+      const wrap = ov.querySelector("#seNotaWrap");
+      const nota = stepNoteId ? notes.find(n=>n.id===stepNoteId) : null;
+      if(nota){
+        wrap.innerHTML = `<div class="qa-idea-row" style="flex-direction:row; align-items:center; justify-content:space-between;">
+          <span class="qa-idea-nome" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(nota.title||"(sem título)")}</span>
+          <button class="icon-btn" id="seNotaRemove" title="Remover vínculo" aria-label="Remover vínculo">&#10005;</button>
+        </div>`;
+        wrap.querySelector("#seNotaRemove").onclick = () => { stepNoteId = null; pintarNotaEtapa(); };
+      } else {
+        wrap.innerHTML = `<button class="tmpl-new qa-idea-nova" id="seNotaPick" style="margin-top:0;">
+          <span class="tmpl-ic">${svgIcon(ICON_D.notes)}</span><span>+ Vincular nota</span>
+        </button>`;
+        wrap.querySelector("#seNotaPick").onclick = abrirEscolhaNotaEtapa;
+      }
+    }
+    /* lista para escolher uma nota já existente ou criar uma em branco na
+       hora (o conteúdo é preenchido depois, em Modelos → Notas simples —
+       mesmo padrão "cria vazia, preenche depois" do lançamento rápido) */
+    function abrirEscolhaNotaEtapa(){
+      const pick = document.createElement("div");
+      pick.className = "confirm-overlay";
+      const lista = notes.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+      const linhas = lista.map(n=>`<button class="qa-idea-row" data-picknota="${n.id}">
+        <span class="qa-idea-nome">${escapeHtml(n.title||"(sem título)")}</span>
+      </button>`).join("");
+      pick.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <p style="margin:0;">Vincular nota</p>
+          <button class="icon-btn" id="pickClose">&#10005;</button>
+        </div>
+        ${lista.length ? `<div class="qa-idea-list">${linhas}</div>` : `<div class="dev-n" style="margin-bottom:10px;">Nenhuma nota criada ainda.</div>`}
+        <button class="tmpl-new qa-idea-nova" id="pickNova"><span class="tmpl-ic">${svgIcon(ICON_D.notes)}</span><span>+ Nova nota</span></button>
+      </div>`;
+      document.body.appendChild(pick);
+      pick.onclick = e => { if(e.target===pick) pick.remove(); };
+      pick.querySelector("#pickClose").onclick = () => pick.remove();
+      pick.querySelectorAll("[data-picknota]").forEach(b=>{
+        b.onclick = () => { stepNoteId = b.dataset.picknota; pick.remove(); pintarNotaEtapa(); };
+      });
+      pick.querySelector("#pickNova").onclick = () => {
+        const nova = { id: uid(), title: nomeAutoDoc(), content:"", subjects:[], updatedAt: Date.now(), createdAt: Date.now() };
+        notes.push(nova); save(K_NOTES, notes);
+        stepNoteId = nova.id;
+        pick.remove();
+        pintarNotaEtapa();
+      };
+    }
+    pintarNotaEtapa();
     function syncType(){
       ov.querySelector("#seNameWrap").style.display = type==='routine' ? 'none' : '';
       ov.querySelector("#seRefWrap").style.display = type==='routine' ? '' : 'none';
@@ -3599,6 +3745,7 @@ window.addEventListener("unhandledrejection", function(e){
         s.tagValor = readTagValorPills(ov);
       }
       s.optional = ov.querySelector("#seOpt").checked;
+      s.noteId = stepNoteId || undefined;
       save(K_ROUTINES, routines);
       ov.remove();
       render();
@@ -5778,7 +5925,6 @@ window.addEventListener("unhandledrejection", function(e){
     notes: "m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10",
     matrix: "M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z",
     kanban: "M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125Z",
-    idea: "M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18",
     countdown: "M6.75 2.994v2.25m10.5-2.25v2.25m-14.252 13.5V7.491a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v11.251m-18 0a2.25 2.25 0 0 0 2.25 2.25h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-7.5a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5m-6.75-6h2.25m-9 2.25h4.5m.002-2.25h.005v.006H12v-.006Zm-.001 4.5h.006v.006h-.006v-.005Zm-2.25.001h.005v.006H9.75v-.006Zm-2.25 0h.005v.005h-.006v-.005Zm6.75-2.247h.005v.005h-.005v-.005Zm0 2.247h.006v.006h-.006v-.006Zm2.25-2.248h.006V15H16.5v-.005Z",
     stats: "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z",
     templates: "M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z",
@@ -5794,7 +5940,6 @@ window.addEventListener("unhandledrejection", function(e){
     { type:"expense",   icon:svgIcon(ICON_D.expense), label:"Registro de Despesas" },
     { type:"proscons",  icon:"&#9878;",   label:"Prós e contras" },
     { type:"travel",    icon:"&#9992;", label:"Listas de viagem" },
-    { type:"idea",      icon:svgIcon(ICON_D.idea), label:"Ideias" },
     { type:"thoughtrecord", icon:"&#9670;", label:"RPD" },
     { type:"scoreboard", icon:"&#8721;", label:"Registros de pontos" }
   ];
@@ -5802,7 +5947,7 @@ window.addEventListener("unhandledrejection", function(e){
      é um TMPL_TYPES — é a única pasta que não vem de newTemplateDoc — por isso
      entra à mão em GERAL. */
   const TMPL_SECOES = [
-    { key:"geral",     label:"Geral",     tipos:["notes","thoughtrecord","idea","proscons","matrix"] },
+    { key:"geral",     label:"Geral",     tipos:["notes","thoughtrecord","proscons","matrix"] },
     { key:"listas",    label:"Listas",    tipos:["market","travel","kanban"] },
     { key:"registros", label:"Registros", tipos:["expense","scoreboard"] }
   ];
@@ -5887,11 +6032,6 @@ window.addEventListener("unhandledrejection", function(e){
       doc.title = nomeAutoDoc();
       doc.items = [];
       doc.catOrder = Object.keys(TRAVEL_DB).concat(["Outros"]);
-    } else if(type === "idea"){
-      doc.title = nomeAutoDoc();
-      doc.summary = "";
-      doc.improvements = "";
-      doc.subjects = [];
     } else if(type === "scoreboard"){
       doc.title = nomeAutoDoc();
       doc.players = [{ id: uid(), name:"" }, { id: uid(), name:"" }];
@@ -5938,10 +6078,6 @@ window.addEventListener("unhandledrejection", function(e){
     if(t.type === "travel"){
       const all = t.items || (t.sections||[]).flatMap(s=>s.items);
       return all.filter(i=>!i.checked).length + " pendente(s) de " + all.length;
-    }
-    if(t.type === "idea"){
-      if((t.subjects||[]).length) return t.subjects.slice(0,3).map(escapeHtml).join(", ") + (t.subjects.length>3 ? "…" : "");
-      return t.summary ? stripMdForSnippet(t.summary) : "sem resumo ainda";
     }
     if(t.type === "journal"){
       return (t.sections||[]).length + " anotação(ões)";
@@ -6149,7 +6285,7 @@ window.addEventListener("unhandledrejection", function(e){
   function renderTemplateDoc(){
     const doc = templates.find(t=>t.id===view.id);
     if(!doc){ goTo({ tab:"templates", screen:"templates" }); return; }
-    const map = { market:renderMarketDoc, matrix:renderMatrixDoc, kanban:renderKanbanDoc, countdown:()=>{ view = { tab:"metas", screen:"metas" }; renderMetas(); }, expenses:renderExpensesDoc, proscons:renderProsConsDoc, travel:renderTravelDoc, idea:renderIdeaDoc, journal:renderJournalDoc, thoughtrecord:renderThoughtRecordDoc, scoreboard:renderScoreboardDoc };
+    const map = { market:renderMarketDoc, matrix:renderMatrixDoc, kanban:renderKanbanDoc, countdown:()=>{ view = { tab:"metas", screen:"metas" }; renderMetas(); }, expenses:renderExpensesDoc, proscons:renderProsConsDoc, travel:renderTravelDoc, journal:renderJournalDoc, thoughtrecord:renderThoughtRecordDoc, scoreboard:renderScoreboardDoc };
     (map[doc.type] || renderTemplates)(doc);
   }
 
@@ -6413,38 +6549,6 @@ window.addEventListener("unhandledrejection", function(e){
     if(md) md.onclick = () => copyMarkdown(scoreboardMd(doc));
   }
 
-  /* ============ IDEIA ============ */
-  function ideaSubjectsPool(excludeId){
-    const set = new Set();
-    templates.filter(t=>t.type==="idea" && t.id!==excludeId).forEach(t=>(t.subjects||[]).forEach(s=>set.add(s)));
-    return [...set];
-  }
-  function renderIdeaDoc(doc){
-    if(!doc.subjects) doc.subjects = [];
-    const el = document.createElement("div");
-    el.className = "screen";
-    tmplHeader(el, doc);
-    const body = document.createElement("div");
-    body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
-    body.innerHTML = `
-      <div class="section-label" style="margin-top:6px;">Resumo da ideia</div>
-      <textarea class="mk-e-name" id="ideaSummary" rows="4" style="line-height:1.5;" placeholder="Do que se trata a ideia?">${escapeHtml(doc.summary||"")}</textarea>
-      <div class="section-label">Aprimoramentos</div>
-      <textarea class="mk-e-name" id="ideaImprovements" rows="4" style="line-height:1.5;" placeholder="O que poderia melhorar ou evoluir nela?">${escapeHtml(doc.improvements||"")}</textarea>
-      <div class="section-label">Assunto</div>
-      <div id="ideaSubjectsWrap"></div>
-    `;
-    el.appendChild(body);
-    app.appendChild(el);
-
-    autoGrowAll(body);
-    body.querySelector("#ideaSummary").oninput = e => { doc.summary = e.target.value; saveTemplates(doc); };
-    body.querySelector("#ideaImprovements").oninput = e => { doc.improvements = e.target.value; saveTemplates(doc); };
-    mountTagInput(body.querySelector("#ideaSubjectsWrap"), doc.subjects, ideaSubjectsPool(doc.id), newVals => {
-      doc.subjects = newVals; saveTemplates(doc);
-    });
-  }
-
   /* ============ REGISTRO DE PENSAMENTOS (registro cognitivo-comportamental) ============ */
   const COGNITIVE_DISTORTIONS = [
     "Pensamento tudo ou nada",
@@ -6496,7 +6600,31 @@ window.addEventListener("unhandledrejection", function(e){
      Cada seção é escrita em markdown (negrito, listas, checklist) durante a rotina
      e aqui é exibida já formatada; um toque no lápis abre a edição em texto bruto,
      com altura que cresce sozinha conforme o conteúdo (autoGrowTextarea). */
-  function autoGrowTextarea(ta){ ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }
+  /* Ancestral mais próximo que efetivamente rola — usado para não perder a
+     posição de rolagem ao redimensionar uma textarea que cresce sozinha (ver
+     autoGrowTextarea). */
+  function nearestScroller(el){
+    let node = el.parentElement;
+    while(node){
+      const cs = getComputedStyle(node);
+      if(/(auto|scroll)/.test(cs.overflowY) && node.scrollHeight > node.clientHeight) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+  /* Redefinir a altura para "auto" antes de recalcular faz a caixa colapsar
+     por um instante — dentro de um contêiner que rola, o navegador encolhe o
+     intervalo de rolagem nesse instante e "puxa" o scroll pra cima, sem
+     devolver sozinho depois que a caixa volta a crescer. Isso fazia o texto
+     que estava sendo digitado (embaixo, fora da vista) sumir a cada tecla.
+     Guardar e restaurar o scrollTop do ancestral resolve. */
+  function autoGrowTextarea(ta){
+    const scroller = nearestScroller(ta);
+    const prevScrollTop = scroller ? scroller.scrollTop : null;
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + "px";
+    if(scroller && prevScrollTop !== null) scroller.scrollTop = prevScrollTop;
+  }
   /* Faz toda caixa de texto livre de uma tela crescer junto com o conteúdo em vez
      de ganhar barra de rolagem interna. Chamar DEPOIS de inserir no DOM —
      scrollHeight é 0 fora dele. */
@@ -6578,6 +6706,15 @@ window.addEventListener("unhandledrejection", function(e){
       <button class="icon-btn" id="mkShare" title="Compartilhar como texto" aria-label="Compartilhar como texto">&#8599;</button>
     `);
 
+    /* A seção de adicionar produto ficava fora da área de rolagem (fixa acima
+       da lista) e tomava espaço demais da tela no celular, sobrando pouco
+       para ver os produtos durante a compra. Agora ela é o primeiro filho do
+       mesmo container que rola — some da vista ao rolar a lista, em vez de
+       ficar cravada no topo. */
+    const scrollWrap = document.createElement("div");
+    scrollWrap.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
+    el.appendChild(scrollWrap);
+
     if(!doc.shopMode){
       const form = document.createElement("div");
       form.className = "market-form";
@@ -6597,12 +6734,11 @@ window.addEventListener("unhandledrejection", function(e){
           <select id="mkAisle" style="flex:1; min-width:0;">${doc.aisleOrder.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join("")}</select>
           <button class="btn-primary" id="mkAdd" style="flex:0 0 auto; padding:10px 24px;">+</button>
         </div>`;
-      el.appendChild(form);
+      scrollWrap.appendChild(form);
     }
 
     const listBox = document.createElement("div");
-    listBox.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
-    el.appendChild(listBox);
+    scrollWrap.appendChild(listBox);
     app.appendChild(el);
 
     const nameInp = document.getElementById("mkName");
@@ -7305,9 +7441,56 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function metaRecFeitas(rec){ return metaRecProgresso(rec).feitas; }
   function metaRecCompleta(rec){ return metaRecFeitas(rec) >= rec.vezes; }
+  /* meta NEGATIVA (ex.: "delivery no máx. 2x/semana"): `vezes` vira o limite,
+     não o alvo — excedeu quando feitas > vezes. */
+  function metaRecExcesso(rec){ return Math.max(0, metaRecFeitas(rec) - rec.vezes); }
+  function metaRecExcedida(rec){ return metaRecExcesso(rec) > 0; }
+  function metaRecItemId(rec, per, n){ return "metarecneg:"+rec.id+":"+per+":"+n; }
+  /* Cada ocorrência ALÉM do limite credita uma penalidade (peso negativo) na
+     semana corrente — mesma "unidade de bloco" do peso de um cartão do kanban
+     (pesoBruto com a duração de referência), só que com o sinal invertido.
+     Peso "nenhum" não pontua, igual ao resto do app. */
+  function metaRecPenalidadeUnidade(rec){
+    return -pesoBruto(rec.tagValor || "medio", gam.config.divisorDuracao);
+  }
+  /* Ajusta a ficha de penalidades da semana corrente para bater com o excesso
+     atual — chamada tanto ao marcar/desmarcar uma ocorrência quanto por
+     completeness ao editar o limite/peso da meta (por isso recebe antes/depois
+     em vez de assumir só delta ±1). */
+  function sincronizarPenalidadeMetaRec(rec, excessoAntes, excessoDepois){
+    if(excessoDepois === excessoAntes) return;
+    avancarGamificacaoAteAgora();
+    const per = metaRecPeriodoAtual(rec);
+    const pb = metaRecPenalidadeUnidade(rec);
+    if(excessoDepois > excessoAntes){
+      if(pb >= 0) return; // peso "nenhum": não credita nada
+      for(let n = excessoAntes+1; n <= excessoDepois; n++){
+        gam.semanaAtual.concluidos.push({
+          itemId: metaRecItemId(rec, per, n), tipo:"metaRecNeg", dataISO: localKey(),
+          pontos: pb * fatorDaArea(rec.area||""), pb, agendado:false, area: rec.area||"", rotulo: rec.titulo
+        });
+      }
+    } else {
+      for(let n = excessoAntes; n > excessoDepois; n--){
+        const i = gam.semanaAtual.concluidos.findIndex(c=>c.itemId===metaRecItemId(rec, per, n));
+        if(i>-1) gam.semanaAtual.concluidos.splice(i,1);
+      }
+    }
+    save(K_GAMIFICACAO, gam);
+  }
+  /* Remove todas as penalidades já creditadas por esta meta na semana corrente
+     — usado quando a meta recorrente é apagada. */
+  function estornarPenalidadesMetaRec(rec){
+    if(!gam.semanaAtual) return;
+    const prefixo = "metarecneg:"+rec.id+":";
+    gam.semanaAtual.concluidos = gam.semanaAtual.concluidos.filter(c=>!c.itemId.startsWith(prefixo));
+    save(K_GAMIFICACAO, gam);
+  }
   function metaRecAjustar(doc, rec, delta){
     const p = metaRecProgresso(rec);
-    p.feitas = Math.max(0, Math.min(rec.vezes, p.feitas + delta));
+    const excessoAntes = metaRecExcesso(rec);
+    p.feitas = Math.max(0, rec.negativa ? (p.feitas + delta) : Math.min(rec.vezes, p.feitas + delta));
+    if(rec.negativa) sincronizarPenalidadeMetaRec(rec, excessoAntes, metaRecExcesso(rec));
     saveTemplates(doc);
   }
   function metaRecReiniciaEmTxt(rec){
@@ -7482,8 +7665,15 @@ window.addEventListener("unhandledrejection", function(e){
           <span data-mrtipo="diaria" class="${(!rec||rec.tipo==='diaria')?'active':''}">ao dia</span>
           <span data-mrtipo="semanal" class="${rec&&rec.tipo==='semanal'?'active':''}">na semana</span>
         </div>
-        <div class="section-label" style="margin:12px 0 6px;">Quantas vezes</div>
+        <label class="switch-row" style="margin-top:12px;"><span>Meta negativa (limitar algo, ex.: pedir delivery)</span><input type="checkbox" id="mrNegativa" ${rec&&rec.negativa?'checked':''}></label>
+        <div class="section-label" style="margin:12px 0 6px;" id="mrVezesLabel">Quantas vezes</div>
         <input type="number" id="mrVezes" inputmode="numeric" min="1" max="20" style="width:110px;" value="${rec?rec.vezes:4}">
+        <div class="dev-n" id="mrNegativaHint" style="margin-top:6px;"></div>
+        <div id="mrPesoWrap" style="margin-top:12px;">
+          <div class="section-label" style="margin:0 0 6px;">Peso da penalidade</div>
+          ${tagValorPillsHtml(rec ? (rec.tagValor||"medio") : "medio", false)}
+          <div class="dev-n" style="margin-top:6px;">Cada vez que passar do limite desconta pontos do boletim da semana.</div>
+        </div>
         ${rodaAtiva() ? `<div class="section-label" style="margin:12px 0 6px;">Área</div><div id="mrAreaWrap"></div>` : ""}
         <div class="section-label" style="margin:12px 0 6px;" id="mrNotifLabel">Notificar (só quando é ao dia)</div>
         <label class="switch-row"><span>Lembrar em horários fixos</span><input type="checkbox" id="mrNotifOn" ${rec&&rec.notif?'checked':''}></label>
@@ -7499,11 +7689,22 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       </div>`;
     document.body.appendChild(ov);
+    wireTagValorPills(ov);
     let tipoSel = rec ? rec.tipo : "diaria";
     let areaSel = rec ? (rec.area || null) : null;
     if(rodaAtiva()) pintarAreaChips(ov.querySelector("#mrAreaWrap"), areaSel, v => { areaSel = v; });
     ov.onclick = e => { if(e.target===ov) ov.remove(); };
     ov.querySelector("#mrCancel").onclick = () => ov.remove();
+    function atualizarNegativaVisibilidade(){
+      const neg = ov.querySelector("#mrNegativa").checked;
+      ov.querySelector("#mrVezesLabel").textContent = neg ? "Limite (vezes)" : "Quantas vezes";
+      ov.querySelector("#mrPesoWrap").style.display = neg ? "" : "none";
+      ov.querySelector("#mrNegativaHint").textContent = neg
+        ? "Marque cada vez que acontecer. Passar do limite desconta do boletim."
+        : "";
+    }
+    ov.querySelector("#mrNegativa").onchange = atualizarNegativaVisibilidade;
+    atualizarNegativaVisibilidade();
     function atualizarNotifVisibilidade(){
       const ehDiaria = tipoSel === "diaria";
       ov.querySelector("#mrNotifLabel").style.opacity = ehDiaria ? "1" : ".45";
@@ -7542,11 +7743,19 @@ window.addEventListener("unhandledrejection", function(e){
       const vezes = Math.max(1, +ov.querySelector("#mrVezes").value || 1);
       const notifOn = tipoSel === "diaria" && ov.querySelector("#mrNotifOn").checked;
       const notif = notifOn ? { inicio: ov.querySelector("#mrNotifIni").value, fim: ov.querySelector("#mrNotifFim").value } : null;
+      const negativa = ov.querySelector("#mrNegativa").checked;
+      const tagValor = readTagValorPills(ov) || "medio";
       if(rec){
+        // excesso ANTES considera o estado antigo de negativa/vezes; DEPOIS já
+        // com os campos novos — cobre tanto virar negativa quanto mudar o limite
+        const excessoAntes = rec.negativa ? metaRecExcesso(rec) : 0;
         rec.titulo = titulo; rec.tipo = tipoSel; rec.vezes = vezes; rec.area = areaSel; rec.notif = notif;
+        rec.negativa = negativa; rec.tagValor = tagValor;
         metaRecProgresso(rec); // reencaixa o progresso se vezes/tipo mudou de período
+        const excessoDepois = rec.negativa ? metaRecExcesso(rec) : 0;
+        sincronizarPenalidadeMetaRec(rec, excessoAntes, excessoDepois);
       } else {
-        doc.recorrentes.push({ id: uid(), titulo, tipo: tipoSel, vezes, area: areaSel, notif, criadoEm: Date.now(), progresso: null });
+        doc.recorrentes.push({ id: uid(), titulo, tipo: tipoSel, vezes, area: areaSel, notif, negativa, tagValor, criadoEm: Date.now(), progresso: null });
       }
       saveTemplates(doc);
       ov.remove();
@@ -7579,8 +7788,8 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       </div>
       <div class="type-toggle" id="metasSubviewToggle" style="margin-bottom:14px;">
-        <span data-metasview="prazos" class="${mostraPrazos?'active':''}">Prazos</span>
         <span data-metasview="recorrentes" class="${mostraRecorrentes?'active':''}">Recorrentes</span>
+        <span data-metasview="prazos" class="${mostraPrazos?'active':''}">Prazos</span>
       </div>
       <div class="header-right" style="margin-bottom:14px; flex-wrap:wrap;">
         ${mostraPrazos ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>` : ""}
@@ -7654,23 +7863,27 @@ window.addEventListener("unhandledrejection", function(e){
 
     function recCardHtml(rec){
       const feitas = metaRecFeitas(rec);
-      const completa = metaRecCompleta(rec);
+      const completa = rec.negativa ? !metaRecExcedida(rec) : metaRecCompleta(rec);
+      const excesso = rec.negativa ? metaRecExcesso(rec) : 0;
       const areaChip = rec.area ? `<div class="sched-chip chip-block" style="color:${areaInfoRoda(rec.area).color};">${escapeHtml(areaInfoRoda(rec.area).label)}</div>` : "";
+      const statusTxt = rec.negativa
+        ? (excesso>0 ? `excedeu em ${excesso} · -${(excesso*-metaRecPenalidadeUnidade(rec)*fatorDaArea(rec.area||"")).toFixed(1)} pts · ` : "dentro do limite · ")
+        : (completa?'concluída ✓ · ':'');
       return `
-        <div class="stat-card" style="margin-bottom:10px; ${completa?'border-color:var(--good);':''}">
+        <div class="stat-card" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--danger);':'border-color:var(--good);') : (completa?'border-color:var(--good);':'')}">
           <div class="dev-row" style="border:none; padding:0;">
-            <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}</span>
+            <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}${rec.negativa?' <span class="dev-n">(limite)</span>':''}</span>
             <button class="icon-btn" data-mredit="${rec.id}" title="Editar" aria-label="Editar">&#9998;</button>
             <button class="del-exec" data-mrdel="${rec.id}" title="Remover" aria-label="Remover">&#10005;</button>
           </div>
           ${areaChip}
-          <div class="dev-n" style="margin-top:2px;">${rec.vezes}&times; ${rec.tipo==='semanal'?'na semana':'ao dia'}${rec.notif?' · lembretes '+rec.notif.inicio+'–'+rec.notif.fim:''}</div>
+          <div class="dev-n" style="margin-top:2px;">${rec.negativa?'até ':''}${rec.vezes}&times; ${rec.tipo==='semanal'?'na semana':'ao dia'}${rec.notif?' · lembretes '+rec.notif.inicio+'–'+rec.notif.fim:''}</div>
           <div class="cd-topics">
             <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-mrminus="${rec.id}" title="Menos um" aria-label="Menos um">&minus;</button>
             <span>${feitas} / ${rec.vezes}</span>
-            <button class="ctrl-btn ${completa?'ok':''}" style="width:36px;height:36px;font-size:15px;" data-mrplus="${rec.id}" title="Mais um" aria-label="Mais um">+</button>
+            <button class="ctrl-btn ${rec.negativa ? (excesso>0?'':'ok') : (completa?'ok':'')}" style="width:36px;height:36px;font-size:15px;" data-mrplus="${rec.id}" title="Mais um" aria-label="Mais um">+</button>
           </div>
-          <div class="dev-n" style="margin-top:4px; color:${completa?'var(--good)':'var(--muted)'};">${completa?'concluída ✓ · ':''}${metaRecReiniciaEmTxt(rec)}</div>
+          <div class="dev-n" style="margin-top:4px; color:${rec.negativa ? (excesso>0?'var(--danger)':'var(--good)') : (completa?'var(--good)':'var(--muted)')};">${statusTxt}${metaRecReiniciaEmTxt(rec)}</div>
         </div>`;
     }
 
@@ -7744,6 +7957,8 @@ window.addEventListener("unhandledrejection", function(e){
         });
         body.querySelectorAll("[data-mrdel]").forEach(b=> b.onclick = () => {
           confirmModal("Remover esta meta recorrente?", "Remover", ()=>{
+            const rec = doc.recorrentes.find(r=>r.id===b.dataset.mrdel);
+            if(rec && rec.negativa) estornarPenalidadesMetaRec(rec);
             doc.recorrentes = doc.recorrentes.filter(r=>r.id!==b.dataset.mrdel);
             saveTemplates(doc); pintarTudo();
           });
@@ -8749,15 +8964,31 @@ window.addEventListener("unhandledrejection", function(e){
     if(id){
       noteDraft = notes.find(n=>n.id===id);
       if(!noteDraft.subjects) noteDraft.subjects = [];
+      noteDraftOriginal = { title: noteDraft.title, content: noteDraft.content, subjects: [...noteDraft.subjects], sinkChecked: noteDraft.sinkChecked, updatedAt: noteDraft.updatedAt };
     } else {
       noteDraft = { id: uid(), title: nomeAutoDoc(), content:"", subjects:[], updatedAt: Date.now(), createdAt: Date.now() };
       notes.push(noteDraft);
       save(K_NOTES, notes);
+      noteDraftOriginal = null; // nota nova: sem versão anterior, "voltar" descarta apagando
     }
     goTo({ tab:"templates", screen:"noteEditor" });
   }
-  /* mesmo padrão do Assunto da Ideia (ideaSubjectsPool): sugestões vêm dos
-     assuntos já usados nas outras notas */
+  /* Restaura noteDraft para o estado de quando o editor abriu (ou apaga, se a
+     nota é nova) — usado pelo "voltar" do editor de nota, tanto pelo botão
+     quanto pelo back nativo do Android, para descartar a sessão de edição. */
+  function descartarEdicaoNota(){
+    if(!noteDraft) return;
+    if(noteDraftOriginal){
+      Object.assign(noteDraft, noteDraftOriginal);
+      save(K_NOTES, notes);
+      syncNoteMd(noteDraft);
+    } else {
+      notes = notes.filter(n=>n.id!==noteDraft.id);
+      save(K_NOTES, notes);
+    }
+    noteDraftOriginal = null;
+  }
+  /* sugestões vêm dos assuntos já usados nas outras notas */
   function noteSubjectsPool(excludeId){
     const set = new Set();
     notes.filter(n=>n.id!==excludeId).forEach(n=>(n.subjects||[]).forEach(s=>set.add(s)));
@@ -8905,7 +9136,6 @@ window.addEventListener("unhandledrejection", function(e){
     };
   }
   function liveLines(){ const t = liveCtx.getText(); return t.length ? t.split("\n") : [""]; }
-  function noteLines(){ return noteDraft.content.length ? noteDraft.content.split("\n") : [""]; }
   function commitLines(lines){ liveCtx.setText(lines.join("\n")); }
 
   /* conversão entre {linha,coluna} e deslocamento absoluto no texto */
@@ -9512,7 +9742,7 @@ window.addEventListener("unhandledrejection", function(e){
   function mdTypeLabel(type){
     return {
       market:"mercado", matrix:"matriz", kanban:"kanban", countdown:"contagem",
-      expense:"despesa", proscons:"pros-contras", travel:"viagem", idea:"ideia",
+      expense:"despesa", proscons:"pros-contras", travel:"viagem",
       thoughtrecord:"pensamento", journal:"diario", note:"nota", scoreboard:"pontos"
     }[type] || type || "nota";
   }
@@ -9533,11 +9763,6 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function expenseEntryMd(doc){
     return "# " + (doc.desc||"Despesa") + "\n\n- Valor: " + brl(doc.value||0) + "\n- Categoria: " + (doc.cat||"") + "\n- Data: " + (doc.date||"") + (doc.time?" "+doc.time:"") + "\n";
-  }
-  function ideaMd(doc){
-    let md = "# " + (doc.title||"Ideia") + "\n\n## Resumo\n" + (doc.summary||"") + "\n\n## Aprimoramentos\n" + (doc.improvements||"") + "\n";
-    if((doc.subjects||[]).length) md += "\n## Assunto\n" + doc.subjects.map(s=>"#"+s.replace(/\s+/g,"-")).join(" ") + "\n";
-    return md;
   }
   function thoughtRecordMd(doc){
     return "# " + (doc.title||"Registro de pensamentos") + "\n\n## Gatilho\n" + (doc.trigger||"") +
@@ -9560,7 +9785,6 @@ window.addEventListener("unhandledrejection", function(e){
       case "expense": return expenseEntryMd(doc);
       case "proscons": return prosconsMd(doc);
       case "travel": return travelMd(doc);
-      case "idea": return ideaMd(doc);
       case "thoughtrecord": return thoughtRecordMd(doc);
       case "scoreboard": return scoreboardMd(doc);
       case "journal": return journalDocMd(doc);
@@ -9599,12 +9823,6 @@ window.addEventListener("unhandledrejection", function(e){
     a.href = url; a.download = filename;
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
-  }
-  function exportNoteMd(){
-    const title = noteDraft.title.trim() || "nota";
-    const md = "# " + title + "\n\n" + noteDraft.content + "\n";
-    downloadFile(slugify(title) + ".md", md, "text/markdown;charset=utf-8");
-    showAlertBanner("Nota exportada para Downloads ✓");
   }
   async function shareOrDownload(filename, text, mime){
     if(isNative){
@@ -9902,8 +10120,6 @@ window.addEventListener("unhandledrejection", function(e){
       <button class="link-btn muted" id="backNotes">&larr; Modelos</button>
       <div style="display:flex; gap:8px;">
         <button class="icon-btn ${noteDraft.sinkChecked?'pin-btn pinned':''}" id="sinkToggle" title="Itens marcados descem" aria-label="Itens marcados descem">&#8595;&#10003;</button>
-        <button class="icon-btn" id="noteToRoutine" title="Converter em rotina" aria-label="Converter em rotina">&#9654;+</button>
-        <button class="icon-btn" id="exportMd" title="Exportar .md" aria-label="Exportar .md">&#8681;</button>
         <button class="btn-save-note" id="saveNote">Salvar</button>
       </div>
     `;
@@ -9941,42 +10157,22 @@ window.addEventListener("unhandledrejection", function(e){
     renderLiveEditor();
 
     document.getElementById("backNotes").onclick = () => {
-      if(!noteDraft.title.trim() && !noteDraft.content.trim()){
-        notes = notes.filter(n=>n.id!==noteDraft.id); save(K_NOTES, notes);
-      } else {
-        syncNoteMd(noteDraft);
-      }
+      descartarEdicaoNota();
       goTo({ tab:"templates", screen:"templates" });
     };
     document.getElementById("saveNote").onclick = () => {
       noteDraft.updatedAt = Date.now();
       save(K_NOTES, notes);
       syncNoteMd(noteDraft);
+      noteDraftOriginal = { title: noteDraft.title, content: noteDraft.content, subjects: [...noteDraft.subjects], sinkChecked: noteDraft.sinkChecked, updatedAt: noteDraft.updatedAt };
       showAlertBanner("Nota salva ✓");
       goTo({ tab:"templates", screen:"notes" });
     };
-    document.getElementById("exportMd").onclick = exportNoteMd;
     document.getElementById("sinkToggle").onclick = () => {
       noteDraft.sinkChecked = !noteDraft.sinkChecked;
       save(K_NOTES, notes);
       showAlertBanner(noteDraft.sinkChecked ? "Itens marcados vão para o fim da lista" : "Itens marcados ficam no lugar");
       render();
-    };
-    document.getElementById("noteToRoutine").onclick = () => {
-      const items = noteLines().map(l=>l.match(RE_CHECK)).filter(Boolean).map(m=>m[4].trim()).filter(t=>t.length);
-      // (noteLines lê o noteDraft direto: aqui a nota é sempre a fonte)
-      if(items.length === 0){ showAlertBanner("A nota não tem itens de checklist para converter"); return; }
-      confirmModal("Criar rotina com " + items.length + " etapa(s) a partir desta nota?", "Criar", ()=>{
-        const r = {
-          id: uid(), name: noteDraft.title.trim() || "Rotina da nota",
-          steps: items.map(t=>({ id: uid(), name: t, type: "checklist" })),
-          schedule: { enabled:false, anchor:"start", time:"07:00", days:[0,1,2,3,4,5,6] },
-          restSeconds:0, color:"grad", icon:"", weeklyGoalMin:0, sound:"normal", createdAt: Date.now()
-        };
-        routines.push(r);
-        save(K_ROUTINES, routines);
-        openEditor(r.id);
-      });
     };
     document.getElementById("deleteNote").onclick = () => {
       confirmModal("Excluir a nota <b>"+escapeHtml(noteDraft.title||"sem título")+"</b>?", "Excluir", ()=>{
@@ -10156,7 +10352,7 @@ window.addEventListener("unhandledrejection", function(e){
     acquireWakeLock();
     savePlayerSnapshot(true);
     if(first.type==="timer") startTicking();
-    sincronizarOverlay();
+    sincronizarPlayerBackground();
     if(repescagem){
       const n = steps.filter(s=>!s.isRest).length;
       showAlertBanner("Repescagem: só " + n + " etapa" + (n>1?"s":"") + " não feita" + (n>1?"s":"") + " de hoje");
@@ -10176,7 +10372,7 @@ window.addEventListener("unhandledrejection", function(e){
     render();
     acquireWakeLock();
     if(currentStep().type==="timer" && !playerState.paused) startTicking();
-    sincronizarOverlay();
+    sincronizarPlayerBackground();
   }
 
   function clearTicking(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=null; } }
@@ -10238,7 +10434,7 @@ window.addEventListener("unhandledrejection", function(e){
       playerState.pausedAt = null;
     }
     savePlayerSnapshot(true);
-    sincronizarOverlay();
+    sincronizarPlayerBackground();
     render();
   }
 
@@ -10300,7 +10496,7 @@ window.addEventListener("unhandledrejection", function(e){
     render();
     savePlayerSnapshot(true);
     if(step.type==="timer") startTicking(); else clearTicking();
-    sincronizarOverlay();
+    sincronizarPlayerBackground();
   }
 
   /* "Não fazer": encerra a etapa sem concluir e sem pontuar, e a deixa anotada
@@ -10403,11 +10599,16 @@ window.addEventListener("unhandledrejection", function(e){
       playerState.steps.splice(para, 0, s);
       render();                 // o player fica atrás do overlay e precisa acompanhar
       savePlayerSnapshot(true);
-      sincronizarOverlay();     // a bolha nativa consome a fila das próximas etapas
+      sincronizarPlayerBackground();     // a bolha nativa consome a fila das próximas etapas
       pintar();
     }
 
     function pintar(){
+      // pintar() troca o innerHTML inteiro do overlay a cada mover(): sem
+      // guardar/restaurar o scroll da lista, o popup voltava pro topo a
+      // cada subir/descer, já que o novo nó nasce com scrollTop 0.
+      const listaAntiga = ov.querySelector(".pl-steps");
+      const scrollAnterior = listaAntiga ? listaAntiga.scrollTop : 0;
       const steps = playerState.steps;
       const idx = playerState.idx;
       const linhas = steps.map((s,i)=>{
@@ -10437,6 +10638,8 @@ window.addEventListener("unhandledrejection", function(e){
       ov.querySelector("#plClose").onclick = fechar;
       ov.querySelectorAll("[data-plup]").forEach(b=> b.onclick = () => { const i = +b.dataset.plup; mover(i, i-1); });
       ov.querySelectorAll("[data-pldown]").forEach(b=> b.onclick = () => { const i = +b.dataset.pldown; mover(i, i+1); });
+      const listaNova = ov.querySelector(".pl-steps");
+      if(listaNova) listaNova.scrollTop = scrollAnterior;
     }
     pintar();
   }
@@ -10455,7 +10658,7 @@ window.addEventListener("unhandledrejection", function(e){
     render();
     savePlayerSnapshot(true);
     if(s.type==="timer") startTicking(); else clearTicking();
-    sincronizarOverlay();
+    sincronizarPlayerBackground();
     showAlertBanner("“"+adiada.name+"” vem depois de “"+s.name+"”");
   }
 
@@ -10480,7 +10683,7 @@ window.addEventListener("unhandledrejection", function(e){
     render();
     savePlayerSnapshot(true);
     if(s.type==="timer") startTicking(); else clearTicking();
-    sincronizarOverlay();
+    sincronizarPlayerBackground();
   }
 
   function finishRoutine(){
@@ -10616,7 +10819,7 @@ window.addEventListener("unhandledrejection", function(e){
     paint();
     document.body.appendChild(ov);
   }
-  /* lançamento rápido de ideia/despesa sem sair da rotina em andamento (o timer continua rodando por trás) */
+  /* lançamento rápido de nota/despesa sem sair da rotina em andamento (o timer continua rodando por trás) */
   function openPlayerQuickAdd(){
     const ov = document.createElement("div");
     ov.className = "confirm-overlay";
@@ -10627,7 +10830,7 @@ window.addEventListener("unhandledrejection", function(e){
       ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
         <p style="margin:0 0 10px;">Lançar rápido</p>
         <div class="tmpl-new-grid" style="grid-template-columns:1fr 1fr;">
-          <button class="tmpl-new" id="qaIdea"><span class="tmpl-ic">${svgIcon(ICON_D.idea)}</span><span>Ideia</span></button>
+          <button class="tmpl-new" id="qaNota"><span class="tmpl-ic">${svgIcon(ICON_D.notes)}</span><span>Nota simples</span></button>
           <button class="tmpl-new" id="qaExpense"><span class="tmpl-ic">${svgIcon(ICON_D.expense)}</span><span>Nova despesa</span></button>
           <button class="tmpl-new" id="qaDiario"><span class="tmpl-ic">${svgIcon(ICON_D.notes)}</span><span>Nota do dia</span></button>
           <button class="tmpl-new" id="qaKanban"><span class="tmpl-ic">${svgIcon(ICON_D.kanban)}</span><span>Cartão a fazer</span></button>
@@ -10635,7 +10838,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="confirm-actions" style="margin-top:14px;"><button class="btn-cancel" id="qaCancel">Cancelar</button></div>
       </div>`;
       ov.querySelector("#qaCancel").onclick = () => ov.remove();
-      ov.querySelector("#qaIdea").onclick = paintIdeaChooser;
+      ov.querySelector("#qaNota").onclick = paintNotaChooser;
       ov.querySelector("#qaExpense").onclick = paintExpenseForm;
       ov.querySelector("#qaDiario").onclick = paintDiarioForm;
       ov.querySelector("#qaKanban").onclick = paintKanbanForm;
@@ -10709,70 +10912,74 @@ window.addEventListener("unhandledrejection", function(e){
       };
     }
 
-    /* Uma ideia nova quase sempre é a continuação de uma anotada antes. Listar
+    /* Uma nota nova quase sempre é a continuação de uma já anotada antes. Listar
        as que já existem evita a pilha de notas soltas sobre o mesmo assunto —
-       a criação de uma nova vem depois da lista, não antes. */
-    function paintIdeaChooser(){
-      const ideias = templates.filter(t=>t.type==="idea")
-        .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-      const linhas = ideias.map(d=>{
+       a criação de uma nova vem depois da lista, não antes. Textarea simples
+       (não o editor contínuo): só existe uma instância de liveCtx por vez e ela
+       pertence ao Diário/Notas (mesma razão de openPlayerNotaOverlay). */
+    function paintNotaChooser(){
+      const lista = notes.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+      const linhas = lista.map(d=>{
         const resumo = (d.subjects||[]).length
           ? d.subjects.slice(0,3).map(escapeHtml).join(", ")
-          : (d.summary ? escapeHtml(stripMdForSnippet(d.summary)) : "sem resumo ainda");
-        return `<button class="qa-idea-row" data-qaidea="${d.id}">
+          : (d.content ? escapeHtml(stripMdForSnippet(d.content)) : "sem conteúdo ainda");
+        return `<button class="qa-idea-row" data-qanota="${d.id}">
           <span class="qa-idea-nome">${escapeHtml(d.title || "(sem título)")}</span>
           <span class="qa-idea-meta">${resumo}</span>
         </button>`;
       }).join("");
       ov.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <p style="margin:0;">Ideia</p>
+          <p style="margin:0;">Nota simples</p>
           <button class="icon-btn" id="qaClose">&#10005;</button>
         </div>
-        ${ideias.length
-          ? `<div class="section-label">Adicionar a uma ideia existente</div><div class="qa-idea-list">${linhas}</div>`
-          : `<div class="dev-n" style="margin-bottom:10px;">Nenhuma ideia anotada ainda.</div>`}
-        <button class="tmpl-new qa-idea-nova" id="qaIdeaNova">
-          <span class="tmpl-ic">${svgIcon(ICON_D.idea)}</span><span>+ Nova ideia</span>
+        ${lista.length
+          ? `<div class="section-label">Adicionar a uma nota existente</div><div class="qa-idea-list">${linhas}</div>`
+          : `<div class="dev-n" style="margin-bottom:10px;">Nenhuma nota criada ainda.</div>`}
+        <button class="tmpl-new qa-idea-nova" id="qaNotaNova">
+          <span class="tmpl-ic">${svgIcon(ICON_D.notes)}</span><span>+ Nova nota</span>
         </button>
       </div>`;
       ov.querySelector("#qaClose").onclick = () => ov.remove();
-      ov.querySelector("#qaIdeaNova").onclick = () => paintIdeaForm(null);
-      ov.querySelectorAll("[data-qaidea]").forEach(b=>{
-        b.onclick = () => paintIdeaForm(templates.find(t=>t.id===b.dataset.qaidea) || null);
+      ov.querySelector("#qaNotaNova").onclick = () => paintNotaForm(null);
+      ov.querySelectorAll("[data-qanota]").forEach(b=>{
+        b.onclick = () => paintNotaForm(notes.find(n=>n.id===b.dataset.qanota) || null);
       });
     }
 
     /* `existente` null = cria na hora do primeiro toque (ensureDoc), para não
-       deixar documento vazio se o Pedro desistir. Com uma ideia existente o
-       doc já está lá e os campos vêm preenchidos para ele complementar. */
-    function paintIdeaForm(existente){
-      let ideaDoc = existente || null;
-      const ensureDoc = () => { if(!ideaDoc) ideaDoc = newTemplateDoc("idea"); return ideaDoc; };
+       deixar nota vazia se o Pedro desistir. Com uma nota existente o doc já
+       está lá e os campos vêm preenchidos para ele complementar. */
+    function paintNotaForm(existente){
+      let notaDoc = existente || null;
+      const ensureDoc = () => {
+        if(!notaDoc){
+          notaDoc = { id: uid(), title: nomeAutoDoc(), content:"", subjects:[], updatedAt: Date.now(), createdAt: Date.now() };
+          notes.push(notaDoc);
+        }
+        return notaDoc;
+      };
       const v = c => escapeHtml((existente && existente[c]) || "");
       ov.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <p style="margin:0;">${existente ? "Complementar ideia" : "Nova ideia"}</p>
+          <p style="margin:0;">${existente ? "Complementar nota" : "Nova nota"}</p>
           <button class="icon-btn" id="qaClose">&#10005;</button>
         </div>
         <div class="section-label">Título</div>
-        <input type="text" class="mk-e-name" id="qaTitle" style="width:100%;" placeholder="Nome da ideia" value="${v("title")}">
-        <div class="section-label">Resumo</div>
-        <textarea class="mk-e-name" id="qaSummary" rows="3" style="line-height:1.5;" placeholder="Do que se trata a ideia?">${v("summary")}</textarea>
-        <div class="section-label">Aprimoramentos</div>
-        <textarea class="mk-e-name" id="qaImprovements" rows="2" style="line-height:1.5;" placeholder="O que poderia melhorar ou evoluir nela?">${v("improvements")}</textarea>
+        <input type="text" class="mk-e-name" id="qaTitle" style="width:100%;" placeholder="Nome da nota" value="${v("title")}">
+        <div class="section-label">Conteúdo</div>
+        <textarea class="mk-e-name" id="qaContent" rows="5" style="line-height:1.5;" placeholder="Escreva em markdown…">${v("content")}</textarea>
         <div class="section-label">Assunto</div>
         <div id="qaSubjectsWrap"></div>
         <div class="confirm-actions" style="margin-top:14px;"><button class="btn-confirm" id="qaDone" style="background:var(--grad);">Concluído</button></div>
       </div>`;
       mountTagInput(ov.querySelector("#qaSubjectsWrap"), (existente && existente.subjects) || [],
-        ideaSubjectsPool(existente ? existente.id : null), vals => { ensureDoc().subjects = vals; saveTemplates(ideaDoc); });
-      ov.querySelector("#qaTitle").oninput = e => { ensureDoc().title = e.target.value; saveTemplates(ideaDoc); };
-      ov.querySelector("#qaSummary").oninput = e => { ensureDoc().summary = e.target.value; saveTemplates(ideaDoc); };
-      ov.querySelector("#qaImprovements").oninput = e => { ensureDoc().improvements = e.target.value; saveTemplates(ideaDoc); };
+        noteSubjectsPool(existente ? existente.id : null), vals => { ensureDoc().subjects = vals; ensureDoc().updatedAt = Date.now(); save(K_NOTES, notes); });
+      ov.querySelector("#qaTitle").oninput = e => { ensureDoc().title = e.target.value; ensureDoc().updatedAt = Date.now(); save(K_NOTES, notes); };
+      ov.querySelector("#qaContent").oninput = e => { ensureDoc().content = e.target.value; ensureDoc().updatedAt = Date.now(); save(K_NOTES, notes); };
       autoGrowAll(ov);
       ov.querySelector("#qaClose").onclick = () => ov.remove();
-      ov.querySelector("#qaDone").onclick = () => { ov.remove(); if(ideaDoc) showAlertBanner(existente ? "Ideia atualizada ✓" : "Ideia salva ✓"); };
+      ov.querySelector("#qaDone").onclick = () => { ov.remove(); if(notaDoc) showAlertBanner(existente ? "Nota atualizada ✓" : "Nota salva ✓"); };
     }
 
     function paintExpenseForm(){
@@ -12216,7 +12423,7 @@ window.addEventListener("unhandledrejection", function(e){
         render(); acquireWakeLock();
         if(currentStep().type==="timer" && !playerState.paused) startTicking();
         // o catch-up pode ter trocado a etapa: a bolha precisa saber
-        sincronizarOverlay();
+        sincronizarPlayerBackground();
       }
     }
     if(view.screen === "templateDoc"){
