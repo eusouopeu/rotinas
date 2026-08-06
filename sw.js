@@ -1,6 +1,6 @@
-const CACHE_NAME = "rotinas-cache-v19";
+const CACHE_NAME = "rotinas-cache-v20";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png",
-  "./fonts/fonts.css", "./fonts/Fraunces.woff2", "./fonts/Inter.woff2", "./fonts/IBMPlexMono-400.woff2", "./fonts/IBMPlexMono-500.woff2"];
+  "./fonts/fonts.css", "./fonts/Fraunces.woff2", "./fonts/Inter.woff2"];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

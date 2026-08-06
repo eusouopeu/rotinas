@@ -133,7 +133,7 @@
   .di-daterow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
   .di-daterow input[type=date]{
     background:var(--surface); border:1px solid var(--line); border-radius:9px;
-    color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:13px; padding:8px 10px;
+    color:var(--text); font-family:'Inter', sans-serif; font-size:13px; padding:8px 10px;
   }
   .di-daterow input[type=date]:focus{ outline:none; border-color:var(--accent); }
   /* botão de texto no lugar de ícone: precisa vencer o width fixo de .bell-btn */
@@ -152,7 +152,7 @@
   /* agenda de time-blocking: régua de horas + blocos posicionados por minuto */
   .ag-wrap{ position:relative; padding-left:52px; margin:4px 0 20px; }
   .ag-hora{ position:absolute; left:0; right:0; border-top:1px solid var(--line); }
-  .ag-hora span{ position:absolute; left:0; top:-8px; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
+  .ag-hora span{ position:absolute; left:0; top:-8px; font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); }
   .ag-blocos{ position:absolute; left:52px; right:0; top:0; bottom:0; }
   /* horário e nome na MESMA linha, o nome logo em seguida ao horário; só quebra
      para baixo quando o texto não cabe na largura do bloco */
@@ -173,7 +173,7 @@
     background:repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 7px, var(--surface) 7px, var(--surface) 14px);
   }
   .ag-bloco.adiado .ag-txt{ color:var(--muted); }
-  .ag-hh{ font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted); flex:0 0 auto; }
+  .ag-hh{ font-family:'Inter', sans-serif; font-size:10px; color:var(--muted); flex:0 0 auto; }
   /* basis 0 e não auto: com basis auto o texto largo já não caberia ao lado do
      horário e quebraria para a linha de baixo — o que era exatamente o problema */
   .ag-txt{ font-size:12.5px; line-height:1.25; flex:1 1 0; min-width:0; overflow-wrap:break-word; }
@@ -193,14 +193,14 @@
     background:repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 7px, var(--surface) 7px, var(--surface) 14px);
   }
   .ag-item.adiado .ag-item-txt{ color:var(--muted); }
-  .ag-item-hora{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); flex:0 0 auto; }
+  .ag-item-hora{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); flex:0 0 auto; }
   .ag-item-txt{ font-size:13.5px; line-height:1.3; flex:1 1 0; min-width:0; overflow-wrap:break-word; }
 
   /* ---------- HOME / HEADER ---------- */
   .home-header{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; gap:10px; }
   .home-header h1{ font-size:32px; }
   .header-right{ display:flex; align-items:center; gap:10px; }
-  .streak{ font-family:'IBM Plex Mono', monospace; font-size:13px; color: var(--accent); display:flex; align-items:center; gap:6px; }
+  .streak{ font-family:'Inter', sans-serif; font-size:13px; color: var(--accent); display:flex; align-items:center; gap:6px; }
   .streak .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); }
   .bell-btn{
     width:34px; height:34px; border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--line);
@@ -225,7 +225,7 @@
   .routine-card:active, .note-card:active{ background: var(--surface-2); transform: scale(.985); }
   .routine-info, .note-info{ min-width:0; flex:1; }
   .routine-info h3, .note-info h3{ font-size:19px; margin-bottom:6px; }
-  .routine-meta{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
+  .routine-meta{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
 
   /* ---------- SWIPE (revelar excluir / dispensar) ---------- */
   .swipe-item{ position:relative; overflow:hidden; border-radius:var(--radius); flex:0 0 auto; }
@@ -243,7 +243,7 @@
   .tar-bloco-head{ display:flex; align-items:center; gap:8px; cursor:pointer; margin:14px 0 6px; padding:2px 2px; flex:0 0 auto; }
   .tar-bloco-arrow{ color:var(--muted); font-size:11px; width:12px; flex:0 0 auto; text-align:center; }
   .tar-bloco-title{ flex:1; min-width:0; font-family:'Fraunces', serif; font-weight:600; font-size:15px; color:var(--text); line-height:1.3; }
-  .tar-bloco-count{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); flex:0 0 auto; }
+  .tar-bloco-count{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); flex:0 0 auto; }
   .tar-item{
     background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px;
     display:flex; justify-content:space-between; align-items:center; gap:10px; margin-left:14px;
@@ -273,7 +273,7 @@
   }
   .play-btn:active{ transform: scale(.92); }
   .sched-chip{
-    display:inline-flex; align-items:center; gap:4px; font-family:'IBM Plex Mono', monospace;
+    display:inline-flex; align-items:center; gap:4px; font-family:'Inter', sans-serif;
     font-size:11px; color:var(--accent); margin-top:6px;
   }
   /* inline-flex faria o chip dividir a linha com o de agendamento */
@@ -317,21 +317,21 @@
   }
   input.name-input:focus{ outline:none; border-color:var(--accent); }
 
-  .section-label{ font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 10px; }
+  .section-label{ font-family:'Inter', sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 10px; }
 
   .steps-list{ display:flex; flex-direction:column; gap:10px; overflow-y:auto; flex:1; }
   .step-row{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; align-items:flex-start; gap:12px; }
-  .step-num{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); width:22px; flex-shrink:0; padding-top:2px; }
+  .step-num{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); width:22px; flex-shrink:0; padding-top:2px; }
   .step-fields{ flex:1; display:flex; flex-direction:column; gap:8px; min-width:0; }
   .step-fields input[type=text]{ background:none; border:none; color:var(--text); font-size:16px; font-family:'Inter'; padding:0; width:100%; }
   .step-fields input[type=text]:focus{ outline:none; }
   .step-sub{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .type-toggle{ display:flex; background:var(--surface-2); border-radius:8px; padding:2px; font-size:11px; font-family:'IBM Plex Mono', monospace; }
+  .type-toggle{ display:flex; background:var(--surface-2); border-radius:8px; padding:2px; font-size:11px; font-family:'Inter', sans-serif; }
   /* 4 a 5 opções de peso: em tela estreita quebram a linha em vez de estourar */
   .tagval-pills{ flex-wrap:wrap; }
   .type-toggle span{ padding:4px 8px; border-radius:6px; color:var(--muted); }
   .type-toggle span.active{ background:var(--grad); color:var(--on-accent); }
-  .dur-input{ background:none; border:none; color:var(--muted); font-family:'IBM Plex Mono', monospace; font-size:13px; width:52px; }
+  .dur-input{ background:none; border:none; color:var(--muted); font-family:'Inter', sans-serif; font-size:13px; width:52px; }
   .dur-input:focus{ outline:none; color:var(--accent); }
   .remove-step{ color:var(--danger); background:none; border:none; font-size:18px; padding:4px 6px; flex-shrink:0; }
   .step-side{ display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
@@ -346,9 +346,9 @@
   .sched-time-row{ margin-top:14px; display:flex; align-items:center; gap:12px; }
   .sched-time-row input[type=time]{
     background:var(--surface-2); border:1px solid var(--line); border-radius:10px; color:var(--text);
-    font-family:'IBM Plex Mono', monospace; font-size:16px; padding:8px 10px;
+    font-family:'Inter', sans-serif; font-size:16px; padding:8px 10px;
   }
-  .sched-computed{ margin-top:12px; font-size:13px; color:var(--muted); font-family:'IBM Plex Mono', monospace; }
+  .sched-computed{ margin-top:12px; font-size:13px; color:var(--muted); font-family:'Inter', sans-serif; }
   .sched-computed b{ color:var(--accent); font-weight:600; }
 
   .bottom-actions{
@@ -367,7 +367,7 @@
   .note-topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; }
   /* carimbo automático de criação: informativo, nunca editável */
   .created-stamp{
-    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted);
+    font-family:'Inter', sans-serif; font-size:11px; color:var(--muted);
     margin:-4px 0 10px; letter-spacing:.01em;
   }
   .btn-save-note{ background:var(--grad); color:var(--on-accent); border:none; border-radius:10px; padding:0 14px; height:34px; font-family:'Inter'; font-size:13.5px; }
@@ -380,11 +380,11 @@
   }
   input.note-title-input:focus{ outline:none; border-color:var(--accent); }
   .mode-toggle{ display:flex; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:3px; }
-  .mode-toggle span{ padding:6px 12px; border-radius:8px; font-size:13px; color:var(--muted); font-family:'IBM Plex Mono', monospace; }
+  .mode-toggle span{ padding:6px 12px; border-radius:8px; font-size:13px; color:var(--muted); font-family:'Inter', sans-serif; }
   .mode-toggle span.active{ background:var(--grad); color:var(--on-accent); }
   textarea.note-content{
     flex:1; background:var(--surface); border:1px solid var(--line); border-radius:14px;
-    color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:15px; line-height:1.6;
+    color:var(--text); font-family:'Inter', sans-serif; font-size:15px; line-height:1.6;
     padding:14px; resize:none; width:100%;
   }
   textarea.note-content:focus{ outline:none; border-color:var(--accent); }
@@ -395,7 +395,7 @@
   .note-preview p{ margin:6px 0; font-size:15px; line-height:1.55; color:var(--text); }
   .note-preview ul, .note-preview ol{ margin:6px 0; padding-left:22px; }
   .note-preview li{ margin:3px 0; font-size:15px; line-height:1.5; }
-  .note-preview code{ background:var(--surface-2); padding:1px 6px; border-radius:5px; font-family:'IBM Plex Mono', monospace; font-size:13.5px; }
+  .note-preview code{ background:var(--surface-2); padding:1px 6px; border-radius:5px; font-family:'Inter', sans-serif; font-size:13.5px; }
   .checklist-item{ display:flex; align-items:flex-start; gap:10px; margin:6px 0; font-size:15px; line-height:1.4; }
   .checklist-box{ width:19px; height:19px; border-radius:5px; border:2px solid var(--accent); flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--accent); }
   .checklist-item.checked .checklist-box{ background:var(--grad); color:var(--on-accent); border-color:transparent; }
@@ -415,7 +415,7 @@
   .live-line h3.inline-h{ font-size:17px; }
   .li-line{ padding-left:8px; }
   .li-marker{ color:var(--accent); margin-right:6px; }
-  .live-line code{ background:var(--surface-2); padding:1px 6px; border-radius:5px; font-family:'IBM Plex Mono', monospace; font-size:13.5px; }
+  .live-line code{ background:var(--surface-2); padding:1px 6px; border-radius:5px; font-family:'Inter', sans-serif; font-size:13.5px; }
   /* superfície contínua: uma só caixa editável, com as linhas dentro */
   .live-editor{ white-space:pre-wrap; overflow-wrap:break-word; word-break:break-word; }
   .live-editor:focus{ outline:none; }
@@ -451,7 +451,7 @@
     flex:0 0 auto; min-width:38px; height:38px; padding:0 10px;
     display:flex; align-items:center; justify-content:center;
     border-radius:var(--radius-sm); border:1px solid var(--line);
-    background:var(--surface-2); color:var(--text); font-size:15px; font-family:'IBM Plex Mono', monospace;
+    background:var(--surface-2); color:var(--text); font-size:15px; font-family:'Inter', sans-serif;
   }
   .md-tb-btn:active{ transform:scale(.92); background:var(--surface); }
   .md-tb-btn.md-tb-b{ font-weight:700; }
@@ -461,14 +461,14 @@
   .player{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding: 6px 0 20px; width:100%; }
   .player-top{ width:100%; display:flex; justify-content:space-between; align-items:center; padding:0 4px; }
   .player-close{ color:var(--muted); background:none; border:none; font-size:15px; }
-  .player-progress-label{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
+  .player-progress-label{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
 
   .next-task-row{
-    width:100%; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); margin:10px 0 6px; line-height:1.5;
+    width:100%; text-align:center; font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); margin:10px 0 6px; line-height:1.5;
   }
   .estimate-row{
     width:100%; display:flex; justify-content:center; align-items:center; gap:8px;
-    font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--muted); margin:0 0 6px;
+    font-family:'Inter', sans-serif; font-size:12.5px; color:var(--muted); margin:0 0 6px;
   }
   .estimate-row b{ color:var(--accent); font-size:19px; font-weight:700; }
 
@@ -476,7 +476,7 @@
   .dial-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); transition: filter .3s; }
   .dial-track{ stroke: var(--line); }
   .dial-wrap.overtime svg circle#dialArc{ stroke: var(--danger) !important; }
-  .dial-time{ position:absolute; font-family:'IBM Plex Mono', monospace; font-size:15px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .dial-time{ position:absolute; font-family:'Inter', sans-serif; font-size:15px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:6px; }
   .dial-time .t{ font-size:50px; letter-spacing:-1px; }
   .dial-time .t.overtime{ color: var(--danger); }
   .dial-time .label{ font-family:'Fraunces', serif; font-size:16px; color:var(--muted); font-weight:500; max-width:200px; text-align:center; }
@@ -485,7 +485,7 @@
   .checklist-body h2{ font-size:26px; text-align:center; }
   .check-circle{ width:110px; height:110px; border-radius:50%; border:3px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:44px; }
 
-  .step-title{ font-size:15px; color:var(--muted); font-family:'IBM Plex Mono', monospace; letter-spacing:.04em; text-transform:uppercase; }
+  .step-title{ font-size:15px; color:var(--muted); font-family:'Inter', sans-serif; letter-spacing:.04em; text-transform:uppercase; }
 
   .player-controls{ display:flex; align-items:center; justify-content:center; gap:22px; width:100%; }
   /* com o botão de adiar são 4 controles na linha: aperta o espaçamento p/ caber */
@@ -515,12 +515,12 @@
   .cal-grid{ display:grid; grid-template-columns: repeat(14, 1fr); gap:5px; }
   .cal-dot{ aspect-ratio:1; border-radius:4px; background:var(--surface-2); }
   .cal-dot.on{ background:var(--grad); }
-  .stat-foot{ margin-top:12px; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
+  .stat-foot{ margin-top:12px; font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
   .bar-row{ display:flex; align-items:center; gap:10px; margin:8px 0; }
   .bar-name{ width:34%; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .bar-track{ flex:1; height:8px; background:var(--surface-2); border-radius:4px; overflow:hidden; }
   .bar-fill{ height:100%; background:var(--grad); border-radius:4px; }
-  .bar-val{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); width:52px; text-align:right; }
+  .bar-val{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); width:52px; text-align:right; }
   .dev-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
   .dev-row:last-child{ border-bottom:none; }
   /* Linha de tabela: a 1ª coluna é texto e fica com toda a sobra; as colunas de
@@ -539,14 +539,14 @@
   /* cabeçalho de tabela: mesma grade das linhas, tipografia de rótulo */
   .dev-row.dev-head{ border-bottom-color:var(--muted); }
   .dev-row.dev-head > *{
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:400;
+    font-family:'Inter', sans-serif; font-size:10.5px; font-weight:400;
     text-transform:uppercase; letter-spacing:.05em; color:var(--muted) !important;
   }
   .bar-val{ font-variant-numeric: tabular-nums; }
   .dev-row b.late{ color:var(--danger); }
   .dev-row b.early{ color:var(--good); }
   .dev-row b.ontime{ color:var(--accent); }
-  .dev-n{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
+  .dev-n{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
   .exec-row{ flex-direction:column; align-items:flex-start; gap:2px; }
   .exec-row .exec-name{ line-height:1.3; }
 
@@ -555,9 +555,9 @@
   .pl-steps{ display:block; overflow-y:auto; }
   .pl-step{ display:flex; align-items:center; gap:9px; padding:9px 2px; border-bottom:1px solid var(--line); }
   .pl-step:last-child{ border-bottom:none; }
-  .pl-step-i{ flex:0 0 22px; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
+  .pl-step-i{ flex:0 0 22px; text-align:center; font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
   .pl-step-nome{ flex:1 1 auto; min-width:0; font-size:14.5px; }
-  .pl-step-dur{ flex:0 0 auto; font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--muted); }
+  .pl-step-dur{ flex:0 0 auto; font-family:'Inter', sans-serif; font-size:11.5px; color:var(--muted); }
   .pl-step-moves{ display:flex; gap:4px; flex-shrink:0; }
   .pl-step.feita .pl-step-nome, .pl-step.feita .pl-step-dur{ color:var(--muted); text-decoration:line-through; }
   .pl-step.feita .pl-step-i{ color:var(--good); }
@@ -567,16 +567,16 @@
   .zen-screen{ justify-content:center; }
   .zen-wrap{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; }
   .zen-label{ font-family:'Fraunces', serif; font-size:22px; color:var(--muted); }
-  .zen-time{ font-family:'IBM Plex Mono', monospace; font-size:min(26vw, 120px); font-weight:500; letter-spacing:-2px; line-height:1; }
+  .zen-time{ font-family:'Inter', sans-serif; font-size:min(26vw, 120px); font-weight:500; letter-spacing:-2px; line-height:1; }
   .zen-time.overtime{ color:var(--danger); }
-  .zen-sub{ font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--muted); }
+  .zen-sub{ font-family:'Inter', sans-serif; font-size:13px; color:var(--muted); }
   .zen-sub b{ color:var(--accent); }
 
   /* ---------- DAY CHIPS / REST / SELECT ---------- */
   .day-chips{ display:flex; gap:6px; margin-top:14px; }
   .day-chip{
     flex:1; text-align:center; padding:8px 0; border-radius:9px; background:var(--surface-2);
-    color:var(--muted); font-family:'IBM Plex Mono', monospace; font-size:13px; border:1px solid var(--line);
+    color:var(--muted); font-family:'Inter', sans-serif; font-size:13px; border:1px solid var(--line);
   }
   .day-chip.active{ background:var(--grad); color:var(--on-accent); border-color:transparent; }
   .routine-select{
@@ -622,7 +622,7 @@
   .tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
   .tag-chip{
     padding:5px 11px; border-radius:20px; background:var(--surface); border:1px solid var(--line);
-    color:var(--muted); font-family:'IBM Plex Mono', monospace; font-size:12.5px;
+    color:var(--muted); font-family:'Inter', sans-serif; font-size:12.5px;
   }
   .tag-chip.active{ background:var(--grad); color:var(--on-accent); border-color:transparent; }
   .tag-token{ color:var(--accent); }
@@ -635,7 +635,7 @@
   }
   .tag-input-chip{
     display:flex; align-items:center; gap:5px; padding:4px 6px 4px 10px; border-radius:20px;
-    background:var(--grad); color:var(--on-accent); font-family:'IBM Plex Mono', monospace; font-size:12.5px;
+    background:var(--grad); color:var(--on-accent); font-family:'Inter', sans-serif; font-size:12.5px;
   }
   .tag-input-chip button{ background:none; border:none; color:inherit; font-size:14px; line-height:1; padding:0 2px; cursor:pointer; }
   .tag-input-field{ flex:1; min-width:80px; background:none; border:none; color:var(--text); font-size:14px; padding:4px; }
@@ -709,7 +709,7 @@
 
   /* ---------- AGENDA ---------- */
   .agenda-row{ cursor:pointer; }
-  .agenda-time{ font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--muted); width:96px; flex-shrink:0; }
+  .agenda-time{ font-family:'Inter', sans-serif; font-size:12.5px; color:var(--muted); width:96px; flex-shrink:0; }
   .agenda-today{ border-color:var(--accent-dim); }
 
   /* ---------- TREND ---------- */
@@ -720,13 +720,13 @@
   .trend-bar.late{ background:var(--danger); }
   .trend-bar.early{ background:var(--good); }
   .trend-bar.ontime{ background:var(--grad); }
-  .trend-val{ font-family:'IBM Plex Mono', monospace; font-size:9.5px; color:var(--muted); }
-  .trend-lbl{ font-family:'IBM Plex Mono', monospace; font-size:9.5px; color:var(--muted); }
+  .trend-val{ font-family:'Inter', sans-serif; font-size:9.5px; color:var(--muted); }
+  .trend-lbl{ font-family:'Inter', sans-serif; font-size:9.5px; color:var(--muted); }
 
   /* ---------- HEATMAP (estilo GitHub) ---------- */
   .hm-scroll{ overflow-x:auto; padding-bottom:4px; }
   .hm-months{ display:flex; gap:3px; margin-bottom:4px; }
-  .hm-mlabel{ width:13px; flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:9px; color:var(--muted); overflow:visible; white-space:nowrap; }
+  .hm-mlabel{ width:13px; flex-shrink:0; font-family:'Inter', sans-serif; font-size:9px; color:var(--muted); overflow:visible; white-space:nowrap; }
   .hm-grid{ display:flex; gap:3px; }
   .hm-col{ display:flex; flex-direction:column; gap:3px; }
   .hm-cell{ width:13px; height:13px; border-radius:3px; background:var(--surface-2); flex-shrink:0; }
@@ -737,7 +737,7 @@
   .hm-cell.lv4{ background:#5B8DEF; }
   body.light .hm-cell.lv1{ background:#EC6AA855; }
   .hm-cell.hm-sel{ outline:2px solid var(--text); outline-offset:1px; }
-  .hm-legend{ display:flex; align-items:center; gap:5px; margin-top:8px; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted); }
+  .hm-legend{ display:flex; align-items:center; gap:5px; margin-top:8px; font-family:'Inter', sans-serif; font-size:10px; color:var(--muted); }
 
   /* ---------- NAVEGAÇÃO E CALENDÁRIO MENSAL ---------- */
   .stats-nav{ margin-bottom:12px; display:flex; }
@@ -746,20 +746,20 @@
   .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
   .cal-title{ font-family:'Fraunces', serif; font-size:20px; font-weight:600; }
   .mcal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-  .mcal-dowlbl{ text-align:center; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted); padding-bottom:2px; }
+  .mcal-dowlbl{ text-align:center; font-family:'Inter', sans-serif; font-size:10px; color:var(--muted); padding-bottom:2px; }
   .mcal-cell{
     aspect-ratio:.85; border-radius:8px; background:var(--surface-2); position:relative;
     display:flex; flex-direction:column; align-items:center; padding-top:4px; gap:2px;
   }
   .mcal-cell.mcal-void{ background:transparent; }
-  .mcal-num{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
+  .mcal-num{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); }
   .mcal-today .mcal-num{ color:var(--accent); font-weight:700; }
   .mcal-today{ outline:1.5px solid var(--accent-dim); }
   .mcal-sel{ outline:2px solid var(--text); }
   .mcal-dots{ display:flex; gap:2px; flex-wrap:wrap; justify-content:center; max-width:90%; }
   .mcal-dot{ width:6px; height:6px; border-radius:50%; }
   .mcal-missed{
-    position:absolute; top:2px; right:3px; font-family:'IBM Plex Mono', monospace;
+    position:absolute; top:2px; right:3px; font-family:'Inter', sans-serif;
     font-size:9px; color:var(--danger); font-weight:700;
   }
 
@@ -787,7 +787,7 @@
   .suggest-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:2px 0 8px 12px; }
   .suggest-btn{
     background:var(--surface-2); border:1px dashed var(--accent-dim); color:var(--accent);
-    border-radius:8px; padding:5px 12px; font-size:12.5px; font-family:'IBM Plex Mono', monospace;
+    border-radius:8px; padding:5px 12px; font-size:12.5px; font-family:'Inter', sans-serif;
   }
   .cyc-inp{ background:var(--surface-2) !important; border:1px solid var(--line) !important; border-radius:8px !important; padding:7px 8px !important; color:var(--text) !important; font-size:15px !important; }
 
@@ -840,7 +840,7 @@
   .mk-chips{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
   .mk-item{ gap:8px; }
   .mk-name{ flex:1; min-width:0; overflow-wrap:break-word; }
-  .mk-right{ margin-left:auto; flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); text-align:right; }
+  .mk-right{ margin-left:auto; flex-shrink:0; font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); text-align:right; }
   .mk-edit{ background:var(--surface-2); border-radius:10px; padding:10px; margin:6px 0; }
   .mk-e-name{ width:100%; background:var(--surface); border:1px solid var(--line); border-radius:9px; color:var(--text); font-size:14.5px; padding:9px 10px; margin-bottom:8px; }
   .mk-e-name:focus{ outline:none; border-color:var(--accent); }
@@ -850,7 +850,7 @@
     resize:none; overflow:hidden; line-height:1.5;
     font-family:'Inter', -apple-system, sans-serif;
   }
-  .shop-counter{ font-family:'IBM Plex Mono', monospace; font-size:44px; text-align:center; padding:8px 0 2px; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .shop-counter{ font-family:'Inter', sans-serif; font-size:44px; text-align:center; padding:8px 0 2px; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
   .shop-counter span{ font-size:14px; color:var(--muted); -webkit-text-fill-color:var(--muted); }
   .tmpl-new-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:18px; }
   /* o nó que rola é o de fora (cabeçalho junto): aqui só o empilhamento */
@@ -859,7 +859,7 @@
   .tmpl-sep{ display:flex; align-items:center; gap:10px; margin:2px 0 14px; }
   .tmpl-sep::before, .tmpl-sep::after{ content:""; flex:1; height:1px; background:var(--line); }
   .tmpl-sep span{
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:.08em;
+    font-family:'Inter', sans-serif; font-size:10.5px; letter-spacing:.08em;
     text-transform:uppercase; color:var(--muted);
   }
 
@@ -871,7 +871,7 @@
   /* a coluna do número do turno gruda à esquerda: com muitos jogadores a grade
      rola e sem isso perde-se a referência de qual linha é qual turno */
   .sb-idx{
-    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted);
+    font-family:'Inter', sans-serif; font-size:11px; color:var(--muted);
     position:sticky; left:0; z-index:1; background:var(--bg);
   }
   .sb-tot.sb-idx{ background:var(--surface); }
@@ -885,13 +885,13 @@
   .sb-name:focus{ outline:none; color:var(--accent); }
   .sb-delp{ font-size:10px; padding:0; line-height:1; }
   .sb-tot{
-    font-family:'IBM Plex Mono', monospace; font-size:20px; font-weight:600;
+    font-family:'Inter', sans-serif; font-size:20px; font-weight:600;
     background:var(--surface); border-bottom:2px solid var(--line) !important;
   }
   .sb-tot.lider{ color:var(--accent); }
   .sb-in{
     width:100%; min-width:0; background:none; border:none; color:var(--text);
-    font-family:'IBM Plex Mono', monospace; font-size:16px; text-align:center; padding:4px 0;
+    font-family:'Inter', sans-serif; font-size:16px; text-align:center; padding:4px 0;
     -moz-appearance:textfield;
   }
   /* 4–5 e 6+ jogadores: a tipografia encolhe para tudo caber sem rolar */
@@ -915,8 +915,8 @@
   .mx-e-quad{ flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-size:12px; padding:6px; }
   .mx-axes{ display:flex; gap:8px; margin-bottom:8px; }
   .mx-axes input{ flex:1; background:var(--surface); border:1px solid var(--line); border-radius:9px; color:var(--text); font-size:13px; padding:8px 10px; }
-  .mx-axis-x{ text-align:center; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); margin-bottom:4px; }
-  .mx-axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); display:flex; align-items:center; }
+  .mx-axis-x{ text-align:center; font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); margin-bottom:4px; }
+  .mx-axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); display:flex; align-items:center; }
 
   /* ---------- KANBAN ---------- */
   .kb-board{ flex:1; display:flex; flex-direction:column; gap:10px; overflow-y:auto; padding-bottom:14px; min-height:0; }
@@ -931,7 +931,7 @@
   /* anotação da meta: bloco recuado, para não se confundir com os dados do prazo */
   .meta-nota{ margin-top:10px; padding-left:10px; border-left:2px solid var(--line); font-size:14px; line-height:1.55; }
   .meta-nota .live-line.empty{ height:6px; }
-  .area-chip{ font-family:'IBM Plex Mono', monospace; font-size:11px; padding:5px 9px; border-radius:999px;
+  .area-chip{ font-family:'Inter', sans-serif; font-size:11px; padding:5px 9px; border-radius:999px;
     border:1px solid var(--line); color:var(--muted); background:var(--surface-2); cursor:pointer; }
   .area-chip.sel{ border-color:var(--chip); color:var(--chip); background:transparent; }
   .area-chips{ display:flex; flex-wrap:wrap; gap:6px; flex:1; }
@@ -941,7 +941,7 @@
   .area-filter-row{ flex:0 0 auto; flex-wrap:nowrap; overflow-x:auto; margin-bottom:16px; padding-bottom:2px; }
   .area-filter-row .area-chip{ flex:0 0 auto; }
   /* selo da rotina já consolidada (desconto de hábito ativo na semana) */
-  .habito-chip{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--good); border:1px solid var(--good);
+  .habito-chip{ font-family:'Inter', sans-serif; font-size:10.5px; color:var(--good); border:1px solid var(--good);
     border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
   .kb-col.kb-s0 .kb-head{ color:var(--kb-todo); }
   .kb-col.kb-s1 .kb-head{ color:var(--kb-doing); }
@@ -958,7 +958,7 @@
   .kb-card-top{ display:flex; align-items:flex-start; gap:6px; }
   .kb-card-bot{ display:flex; align-items:center; gap:6px; padding-left:23px; } /* alinha com o texto, depois da alça */
   .kb-card-bot .kb-moves{ margin-left:auto; }
-  .kb-hora{ flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--accent-2);
+  .kb-hora{ flex-shrink:0; font-family:'Inter', sans-serif; font-size:10px; color:var(--accent-2);
     border:1px solid var(--accent-2); border-radius:6px; padding:1px 5px; }
   /* nota anexada à rotina, aberta por cima do player */
   .ed-nota-sel{ flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--line);
@@ -978,11 +978,11 @@
   /* o aspect-ratio 1/1 de .tmpl-new viraria um quadradão de largura total aqui */
   .qa-idea-nova{ width:100%; margin-top:12px; aspect-ratio:auto; flex-direction:row; gap:8px; padding:12px; }
   .qa-idea-nome{ font-size:14px; }
-  .qa-idea-meta{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted);
+  .qa-idea-meta{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
   .kb-e-horas{ display:flex; align-items:center; gap:8px; }
   .kb-e-horas input[type=time]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
-    color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:13px; padding:6px 8px; }
+    color:var(--text); font-family:'Inter', sans-serif; font-size:13px; padding:6px 8px; }
   /* segmentado de coluna do kanban do Diário (uma coluna por vez) */
   .kb-abas{ margin-bottom:8px; }
   .kb-abas span{ flex:1; text-align:center; white-space:nowrap; }
@@ -1006,7 +1006,7 @@
   /* cartão em edição empilha texto + peso: o flex em linha do .kb-card não serve */
   .kb-card.kb-editing{ flex-direction:column; align-items:stretch; }
   .kb-peso{
-    flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px;
+    flex-shrink:0; font-family:'Inter', sans-serif; font-size:10px;
     color:var(--accent); border:1px solid var(--accent-dim); border-radius:6px; padding:1px 5px;
   }
   .kb-peso.feito{ color:var(--good); border-color:var(--good); }
@@ -1014,15 +1014,15 @@
   .kb-add:focus{ outline:none; }
 
   /* ---------- CONTAGEM / PESOS ---------- */
-  .cd-big{ font-family:'IBM Plex Mono', monospace; font-size:40px; font-weight:500; }
+  .cd-big{ font-family:'Inter', sans-serif; font-size:40px; font-weight:500; }
   .cd-big span{ font-size:14px; color:var(--muted); }
   .cd-big.late{ color:var(--danger); }
   .cd-big.ontime{ color:var(--accent); }
   .cd-big.early{ color:var(--good); }
   .cd-topics{ display:flex; align-items:center; gap:12px; margin-top:8px; }
-  .cd-done-inp{ width:52px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:14px; padding:5px 6px; text-align:center; }
+  .cd-done-inp{ width:52px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:'Inter', sans-serif; font-size:14px; padding:5px 6px; text-align:center; }
   .pc-weights{ display:flex; gap:3px; flex-shrink:0; }
-  .pc-w{ width:24px; height:24px; border-radius:6px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--muted); }
+  .pc-w{ width:24px; height:24px; border-radius:6px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'Inter', sans-serif; font-size:11.5px; color:var(--muted); }
 
   /* ---------- PAISAGEM (celular deitado) ----------
      O app é desenhado para retrato; deitado sobra largura e falta altura. Aqui
@@ -1323,8 +1323,22 @@ window.addEventListener("unhandledrejection", function(e){
   const K_PREFIX = "rotinas_v2_";
   const mem = new Map();
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const isDesktop = !!window.electronBridge;
 
-  const storageBackend = isNative ? (function(){
+  const storageBackend = isDesktop ? (function(){
+    const EB = window.electronBridge;
+    return {
+      async getAll(){
+        const out = new Map();
+        let entries = [];
+        try{ entries = await EB.getAll(); }catch(e){ return out; } // pasta ainda não existe = primeira execução
+        entries.forEach(([k, v]) => out.set(k, v));
+        return out;
+      },
+      set(key, val){ return EB.set(key, val); },
+      async del(key){ try{ await EB.del(key); }catch(e){} }
+    };
+  })() : isNative ? (function(){
     const FS = window.Capacitor.Plugins.Filesystem;
     const fpath = k => "brita/" + k + ".json";
     return {
@@ -1474,6 +1488,19 @@ window.addEventListener("unhandledrejection", function(e){
     });
     if(mudou) saveDiaKanban();
   })();
+  /* Etapa "rotina" (aninhar outra rotina como etapa) e etapa "opcional" saíram
+     do editor — qualquer etapa antiga com esses vestígios vira checklist normal,
+     sem a flag. Idempotente. */
+  (function migrarEtapasRoutineEOpcional(){
+    let mudou = false;
+    routines.forEach(r=>{
+      (r.steps||[]).forEach(s=>{
+        if(s.type === "routine"){ s.type = "checklist"; delete s.refId; mudou = true; }
+        if(s.optional !== undefined){ delete s.optional; mudou = true; }
+      });
+    });
+    if(mudou) save(K_ROUTINES, routines);
+  })();
   /* A semana passou a começar no domingo: as chaves antigas apontavam para a
      segunda-feira e ficariam inalcançáveis. Cada uma é reancorada no domingo
      anterior — a semana com 6 dos 7 dias em comum. Idempotente: depois disso
@@ -1610,7 +1637,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-03 · 497c6cc (v8)";
+  const BUILD_STAMP = "2026-08-06 (v9)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -1652,7 +1679,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(r.restSeconds === undefined) r.restSeconds = 0;
     if(r.color === undefined || r.color === "#C98A3E") r.color = "grad";
     if(r.icon === undefined) r.icon = "";
-    if(r.weeklyGoalMin === undefined) r.weeklyGoalMin = 0;
+    if(r.weeklyGoalTimes === undefined) r.weeklyGoalTimes = 0;
     if(r.sound === undefined) r.sound = "normal";
     if(r.tagValor === undefined) r.tagValor = "medio";
     (r.steps||[]).forEach(s=>{ if(s.tagValor === undefined) s.tagValor = null; });
@@ -2272,7 +2299,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
   const TAG_LABELS = { nenhum:"Nenhum", baixo:"Baixo", medio:"Médio", alto:"Alto" };
   function tagValorPillsHtml(current, comHerdar){
-    const base = [["nenhum","Nenhum"],["baixo","Baixo"],["medio","Médio"],["alto","Alto"]];
+    const base = [["baixo","Baixo"],["medio","Médio"],["alto","Alto"]];
     const opts = comHerdar ? [["","Herdar"]].concat(base) : base;
     return `<div class="type-toggle tagval-pills">${opts.map(([v,l])=>`<span data-tagval="${v}" class="${(current||"")===v?'active':''}">${l}</span>`).join("")}</div>`;
   }
@@ -2692,6 +2719,25 @@ window.addEventListener("unhandledrejection", function(e){
     attachSwipeDismiss(banner, () => clearTimeout(hideTimer));
   }
 
+  /* ---- Notificação nativa do Electron (desktop) ----
+     Bypassa o caminho via Service Worker: no Electron, `navigator.serviceWorker`
+     existe (a propriedade está lá) mas o registro sobre file:// nunca ativa, então
+     `serviceWorker.ready` fica pendurado para sempre e a notificação nunca dispara.
+     `new Notification()` já mapeia direto para a notificação nativa do SO no
+     Chromium do Electron — não precisa de node-notifier nem de IPC para isso. */
+  function notifyDesktop(title, body, onClick){
+    if(!("Notification" in window) || Notification.permission !== "granted") return false;
+    try{
+      const n = new Notification(title, { body });
+      n.onclick = () => {
+        try{ window.electronBridge.showWindow(); }catch(e){}
+        try{ window.focus(); }catch(e){}
+        if(onClick) onClick();
+      };
+      return true;
+    }catch(e){ return false; }
+  }
+
   function requestNotifPermission(){
     if(isNative){
       nativeLN().requestPermissions().then(r=>{
@@ -2721,6 +2767,10 @@ window.addEventListener("unhandledrejection", function(e){
     if(isNative){
       // mesmo id da notificação pré-agendada do dia -> substitui em vez de duplicar
       notifyNative(title, body, { routineId }, notifIdFor(routineId, new Date().getDay()));
+      return;
+    }
+    if(isDesktop){
+      notifyDesktop(title, body, () => { goTo({ tab:"home", screen:"routineDetail", id:routineId }); render(); });
       return;
     }
     if(!("Notification" in window) || Notification.permission !== "granted") return;
@@ -3544,19 +3594,17 @@ window.addEventListener("unhandledrejection", function(e){
       const card = document.createElement("div");
       card.className = "routine-card";
       card.style.gap = "10px";
-      const icon = s.type==="timer" ? "&#9202;" : s.type==="checklist" ? "&#9745;" : "&#8635;";
+      const icon = s.type==="timer" ? "&#9202;" : "&#9745;";
       let metaTxt = "";
       if(s.type==="timer") metaTxt = fmtTime(s.seconds).replace("+","");
-      else if(s.type==="routine"){ const ref = routines.find(x=>x.id===s.refId); metaTxt = "sub-rotina" + (ref ? " · " + escapeHtml(ref.name) : ""); }
       else metaTxt = "checklist";
-      if(s.optional) metaTxt += " · opcional";
       if(s.journaling) metaTxt += " · &#9999; anotações";
       card.innerHTML = `
         <span class="drag-handle" data-drag="${i}">&#8801;</span>
         <div class="routine-info" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px;">
           <span style="flex:0 0 auto; font-size:16px; color:var(--muted);">${i+1}.</span>
           <div style="flex:1; min-width:0;">
-            <h3 style="font-size:15px;">${icon} ${escapeHtml(s.name || (s.type==="routine" ? (routines.find(x=>x.id===s.refId)?.name||"sub-rotina") : "sem nome"))}</h3>
+            <h3 style="font-size:15px;">${icon} ${escapeHtml(s.name || "sem nome")}</h3>
             <div class="routine-meta" style="margin-top:2px;">${metaTxt}</div>
           </div>
         </div>
@@ -3617,7 +3665,6 @@ window.addEventListener("unhandledrejection", function(e){
   function openStepEditor(r, idx){
     const s = r.steps[idx];
     if(!s) return;
-    const others = routines.filter(x=>x.id!==r.id);
     const ov = document.createElement("div");
     ov.className = "confirm-overlay";
     ov.innerHTML = `
@@ -3627,15 +3674,10 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="type-toggle" id="seType">
           <span data-t="timer" class="${s.type==='timer'?'active':''}">tempo</span>
           <span data-t="checklist" class="${s.type==='checklist'?'active':''}">check</span>
-          ${others.length?`<span data-t="routine" class="${s.type==='routine'?'active':''}">rotina</span>`:""}
         </div>
-        <div id="seNameWrap" style="${s.type==='routine'?'display:none;':''}">
+        <div id="seNameWrap">
           <div class="section-label" style="margin:12px 0 6px;">Nome</div>
           <input type="text" id="seName" class="mk-e-name" value="${escapeHtml(s.name||'')}" placeholder="Nome da etapa">
-        </div>
-        <div id="seRefWrap" style="${s.type==='routine'?'':'display:none;'}">
-          <div class="section-label" style="margin:12px 0 6px;">Sub-rotina</div>
-          <select id="seRef" class="routine-select">${others.map(x=>`<option value="${x.id}" ${s.refId===x.id?'selected':''}>${escapeHtml(x.name)}</option>`).join("")}</select>
         </div>
         <div id="seTimerWrap" style="${s.type==='timer'?'':'display:none;'}">
           <div class="section-label" style="margin:12px 0 6px;">Duração</div>
@@ -3644,8 +3686,7 @@ window.addEventListener("unhandledrejection", function(e){
             <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" max="59" id="seSec" value="${(s.seconds||0)%60}"> seg
           </div>
         </div>
-        <label class="switch-row" style="margin-top:12px;"><span>Opcional</span><input type="checkbox" id="seOpt" ${s.optional?'checked':''}></label>
-        <div id="seNoteWrap" style="${s.type==='routine'?'display:none;':''}">
+        <div id="seNoteWrap">
           <label class="switch-row" style="margin-top:12px;"><span>Inserir anotações durante esta tarefa</span><input type="checkbox" id="seJournal" ${s.journaling?'checked':''}></label>
         </div>
         <div class="section-label" style="margin:12px 0 6px;">Nota da etapa (opcional)</div>
@@ -3718,10 +3759,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
     pintarNotaEtapa();
     function syncType(){
-      ov.querySelector("#seNameWrap").style.display = type==='routine' ? 'none' : '';
-      ov.querySelector("#seRefWrap").style.display = type==='routine' ? '' : 'none';
       ov.querySelector("#seTimerWrap").style.display = type==='timer' ? '' : 'none';
-      ov.querySelector("#seNoteWrap").style.display = type==='routine' ? 'none' : '';
       ov.querySelector("#seTagWrap").style.display = type==='timer' ? '' : 'none';
       ov.querySelectorAll("#seType [data-t]").forEach(x=>x.classList.toggle("active", x.dataset.t===type));
     }
@@ -3729,22 +3767,14 @@ window.addEventListener("unhandledrejection", function(e){
     ov.querySelector("#seCancel").onclick = () => ov.remove();
     ov.querySelector("#seSave").onclick = () => {
       s.type = type;
-      if(type==='routine'){
-        const ref = others.find(x=>x.id===ov.querySelector("#seRef").value);
-        s.refId = ref ? ref.id : (s.refId||"");
-        s.name = ref ? ref.name : s.name;
-        s.journaling = false;
-      } else {
-        s.name = ov.querySelector("#seName").value.trim() || s.name || "";
-        s.journaling = ov.querySelector("#seJournal").checked;
-      }
+      s.name = ov.querySelector("#seName").value.trim() || s.name || "";
+      s.journaling = ov.querySelector("#seJournal").checked;
       if(type==='timer'){
         const mins = Math.max(0, +ov.querySelector("#seMin").value || 0);
         const secs = Math.min(59, Math.max(0, +ov.querySelector("#seSec").value || 0));
         s.seconds = Math.max(5, mins*60 + secs);
         s.tagValor = readTagValorPills(ov);
       }
-      s.optional = ov.querySelector("#seOpt").checked;
       s.noteId = stepNoteId || undefined;
       save(K_ROUTINES, routines);
       ov.remove();
@@ -3786,7 +3816,7 @@ window.addEventListener("unhandledrejection", function(e){
     const PALETTE = ["grad","#EC6AA8","#5B8DEF","#6B8F71","#B25B4C","#9C7BB8"];
     if(editorDraft.color === undefined || editorDraft.color === "#C98A3E") editorDraft.color = "grad";
     if(editorDraft.icon === undefined) editorDraft.icon = "";
-    if(editorDraft.weeklyGoalMin === undefined) editorDraft.weeklyGoalMin = 0;
+    if(editorDraft.weeklyGoalTimes === undefined) editorDraft.weeklyGoalTimes = 0;
     const identRow = document.createElement("div");
     identRow.className = "ident-row";
     identRow.innerHTML = `
@@ -3918,16 +3948,14 @@ window.addEventListener("unhandledrejection", function(e){
       editorDraft.steps.forEach((s,i)=>{
         const row = document.createElement("div");
         row.className = "step-row";
-        const otherRoutines = routines.filter(r=>r.id!==editorDraft.id);
         row.innerHTML = `
           <div class="step-num">${i+1}</div>
           <div class="step-fields">
-            ${s.type==='routine' ? "" : `<input type="text" placeholder="Nome da etapa" value="${escapeHtml(s.name)}" data-field="name" data-idx="${i}">`}
+            <input type="text" placeholder="Nome da etapa" value="${escapeHtml(s.name)}" data-field="name" data-idx="${i}">
             <div class="step-sub">
               <div class="type-toggle">
                 <span data-type="timer" data-idx="${i}" class="${s.type==='timer'?'active':''}">tempo</span>
                 <span data-type="checklist" data-idx="${i}" class="${s.type==='checklist'?'active':''}">check</span>
-                <span data-type="routine" data-idx="${i}" class="${s.type==='routine'?'active':''}">rotina</span>
               </div>
             </div>
             ${s.type==='timer' ? `
@@ -3935,24 +3963,12 @@ window.addEventListener("unhandledrejection", function(e){
               <input class="dur-input" type="number" inputmode="numeric" min="0" value="${Math.floor(s.seconds/60)}" data-field="min" data-idx="${i}"> min
               <input class="dur-input" type="number" inputmode="numeric" min="0" max="59" value="${s.seconds%60}" data-field="sec" data-idx="${i}"> seg
             </div>` : ""}
-            ${s.type==='routine' ? (otherRoutines.length ? `
-            <div class="step-sub">
-              <select class="routine-select" data-field="ref" data-idx="${i}">
-                ${otherRoutines.map(r=>`<option value="${r.id}" ${s.refId===r.id?'selected':''}>${escapeHtml(r.name)}</option>`).join("")}
-              </select>
-            </div>` : `<div class="step-sub" style="color:var(--muted); font-size:13px;">Crie outra rotina primeiro</div>`) : ""}
-            ${s.type!=='routine' ? `
-            <div class="step-sub">
-              <div class="type-toggle">
-                <span data-opt="${i}" class="${s.optional?'active':''}">opcional</span>
-              </div>
-            </div>
             <div class="step-sub">
               <label class="switch-row" style="margin-bottom:0; flex:1;">
                 <span>Inserir anotações durante esta tarefa</span>
                 <input type="checkbox" data-journal="${i}" ${s.journaling?'checked':''}>
               </label>
-            </div>` : ""}
+            </div>
           </div>
           <div class="step-side">
             <span class="drag-handle" data-drag="${i}">&#8801;</span>
@@ -3995,25 +4011,7 @@ window.addEventListener("unhandledrejection", function(e){
         const idx = +e.target.dataset.idx;
         const t = e.target.dataset.type;
         editorDraft.steps[idx].type = t;
-        if(t === "routine"){
-          const others = routines.filter(r=>r.id!==editorDraft.id);
-          if(others.length && !editorDraft.steps[idx].refId) editorDraft.steps[idx].refId = others[0].id;
-          const ref = routines.find(r=>r.id===editorDraft.steps[idx].refId);
-          editorDraft.steps[idx].name = ref ? ref.name : "sub-rotina";
-        }
         renderSteps(); renderSchedComputed();
-      });
-      stepsList.querySelectorAll("[data-field='ref']").forEach(sel=> sel.onchange = e => {
-        const idx = +e.target.dataset.idx;
-        editorDraft.steps[idx].refId = e.target.value;
-        const ref = routines.find(r=>r.id===e.target.value);
-        editorDraft.steps[idx].name = ref ? ref.name : "sub-rotina";
-        renderSchedComputed();
-      });
-      stepsList.querySelectorAll("[data-opt]").forEach(sp=> sp.onclick = e => {
-        const idx = +e.target.dataset.opt;
-        editorDraft.steps[idx].optional = !editorDraft.steps[idx].optional;
-        renderSteps();
       });
       stepsList.querySelectorAll("[data-journal]").forEach(cb=> cb.onchange = e => {
         editorDraft.steps[+e.target.dataset.journal].journaling = e.target.checked;
@@ -4193,12 +4191,12 @@ window.addEventListener("unhandledrejection", function(e){
     goalBox.className = "schedule-box";
     goalBox.innerHTML = `
       <div class="sched-time-row" style="margin-top:0;">
-        <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="weeklyGoal" value="${editorDraft.weeklyGoalMin||0}"> min/semana
+        <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="weeklyGoal" value="${editorDraft.weeklyGoalTimes||0}"> vezes/semana
         <span style="color:var(--muted); font-size:12.5px;">(0 = sem meta)</span>
       </div>
     `;
     stepsWrap.appendChild(goalBox);
-    goalBox.querySelector("#weeklyGoal").oninput = e => { editorDraft.weeklyGoalMin = Math.max(0, +e.target.value || 0); };
+    goalBox.querySelector("#weeklyGoal").oninput = e => { editorDraft.weeklyGoalTimes = Math.max(0, +e.target.value || 0); };
 
     const bottom = document.createElement("div");
     bottom.className = "bottom-actions";
@@ -4217,7 +4215,7 @@ window.addEventListener("unhandledrejection", function(e){
       const clean = editorDraft.name.trim();
       if(!clean){ nameInput.focus(); return; }
       editorDraft.name = clean;
-      editorDraft.steps = editorDraft.steps.filter(s=> s.type==="routine" ? routines.some(r=>r.id===s.refId) : s.name.trim().length>0);
+      editorDraft.steps = editorDraft.steps.filter(s=> s.name.trim().length>0);
       if(editorDraft.steps.length===0) return;
       // o limite de vagas do nível de peso é cobrado aqui, com a troca explícita
       validarVagaPeso(editorDraft, ()=>{
@@ -4701,6 +4699,7 @@ window.addEventListener("unhandledrejection", function(e){
     const title = "\u23F1 Tempo esgotado";
     const body = m.tipo + ": " + m.conteudo + " (" + m.dur + " min)";
     if(isNative){ notifyNative(title, body, {}, notifIdFor("tarefa-" + m.id, 0)); return; }
+    if(isDesktop){ notifyDesktop(title, body); return; }
     if(!("Notification" in window) || Notification.permission !== "granted") return;
     if("serviceWorker" in navigator){
       navigator.serviceWorker.ready.then(reg=>{
@@ -4764,7 +4763,7 @@ window.addEventListener("unhandledrejection", function(e){
 
     if(tarefas.length===0){
       list.innerHTML = `<div class="empty-state"><h2>Fila vazia</h2><p>Importe um arquivo .md (&#8679; acima) ou adicione tarefas com o botão +.</p>
-        <div class="stat-card" style="text-align:left; margin-top:14px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; line-height:1.6; color:var(--muted); white-space:pre;">&gt; **Idiomas — Mandarim**
+        <div class="stat-card" style="text-align:left; margin-top:14px; font-family:'Inter', sans-serif; font-size:11.5px; line-height:1.6; color:var(--muted); white-space:pre;">&gt; **Idiomas — Mandarim**
 &gt;
 &gt; &gt; **15 minutos**
 &gt; &gt;
@@ -4997,7 +4996,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div style="text-align:center; display:flex; flex-direction:column; gap:16px; align-items:center;">
         <div class="section-label" style="color:${ex.color};">${ex.label} · ${escapeHtml(m.area)}</div>
         <h2 style="font-size:22px;">${escapeHtml(m.tipo)}: ${escapeHtml(m.conteudo)}</h2>
-        <div id="tarClock" style="font-family:'IBM Plex Mono',monospace; font-size:64px; font-weight:500;">--:--</div>
+        <div id="tarClock" style="font-family:'Inter', sans-serif; font-size:64px; font-weight:500;">--:--</div>
         <div id="tarHint" class="routine-meta">contagem não para sozinha — marque quando concluir</div>
         <button class="btn-primary" id="tarDone" style="width:220px; background:${ex.color};">&#10003; Concluída</button>
         <button class="btn-cancel" id="tarCancel">Cancelar (não conta)</button>
@@ -5381,7 +5380,7 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="bell-btn" id="statsBackupBtn" title="Exportar backup completo" aria-label="Exportar backup completo">&#8681;</button>
             <button class="bell-btn" id="statsImportBtn" title="Importar backup" aria-label="Importar backup">&#8679;</button>
             <input type="file" id="statsImportFile" accept="application/json" style="display:none">
-            <button class="bell-btn" id="csvBtn" title="Exportar CSV" aria-label="Exportar CSV" style="width:auto; padding:0 10px; font-size:12px; font-family:'IBM Plex Mono',monospace;">CSV</button>
+            <button class="bell-btn" id="csvBtn" title="Exportar CSV" aria-label="Exportar CSV" style="width:auto; padding:0 10px; font-size:12px; font-family:'Inter', sans-serif;">CSV</button>
             ${cfgBtnHtml()}
           </div>
         </div>
@@ -5476,19 +5475,19 @@ window.addEventListener("unhandledrejection", function(e){
     const weekStart = isoToDate(inicioSemanaISO(new Date()));
     const elapsedDays = Math.min(7, Math.floor((Date.now() - weekStart.getTime())/86400000) + 1);
     const weekEntries = allRich.filter(h=>h.ts >= weekStart.getTime());
-    const goalRoutines = routines.filter(r=>r.weeklyGoalMin > 0);
+    const goalRoutines = routines.filter(r=>r.weeklyGoalTimes > 0);
     if(goalRoutines.length){
       let goalsHtml = goalRoutines.map(r=>{
-        const doneMin = Math.round(weekEntries.filter(h=>h.routineId===r.id).reduce((a,h)=>a+(h.actualSec||0),0)/60);
-        const pct = Math.min(100, Math.round(doneMin / r.weeklyGoalMin * 100));
-        const expMin = Math.round(r.weeklyGoalMin * elapsedDays / 7);
-        const expPct = Math.min(100, Math.round(expMin / r.weeklyGoalMin * 100));
-        const onPace = doneMin >= expMin;
+        const doneCount = weekEntries.filter(h=>h.routineId===r.id).length;
+        const pct = Math.min(100, Math.round(doneCount / r.weeklyGoalTimes * 100));
+        const expCount = r.weeklyGoalTimes * elapsedDays / 7;
+        const expPct = Math.min(100, Math.round(expCount / r.weeklyGoalTimes * 100));
+        const onPace = doneCount >= expCount;
         return `
         <div class="bar-row tappable" data-rstats="${r.id}">
           <div class="bar-name">${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</div>
           <div class="bar-track goal-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${fillStyle(r.color)}"></div><span class="goal-marker" style="left:${expPct}%"></span></div>
-          <div class="bar-val ${onPace?'early':'late'}" style="color:${onPace?'var(--good)':'var(--danger)'}">${doneMin}/${r.weeklyGoalMin}m</div>
+          <div class="bar-val ${onPace?'early':'late'}" style="color:${onPace?'var(--good)':'var(--danger)'}">${doneCount}/${r.weeklyGoalTimes}x</div>
         </div>`;
       }).join("");
       partes.push(`<div class="section-label">Metas da semana (${janelaSemanaLabel()}) · | = esperado até hoje</div><div class="stat-card">${goalsHtml}</div>`);
@@ -5512,7 +5511,7 @@ window.addEventListener("unhandledrejection", function(e){
           const h = Math.max(2, sec/maxDow*80);
           return `<div class="stack-seg" style="height:${h}px; background:${solidColor(r&&r.color)}" title="${r?escapeHtml(r.name):''}: ${Math.round(sec/60)}min"></div>`;
         }).join("");
-        return `<div class="stack-col"><div class="stack-bars">${segs}</div><span class="trend-lbl">${DOWL[dow]}</span><span class="trend-val">${dowTotals[dow]?Math.round(dowTotals[dow]/60)+"m":""}</span></div>`;
+        return `<div class="stack-col"><span class="trend-val">${dowTotals[dow]?Math.round(dowTotals[dow]/60)+"m":""}</span><div class="stack-bars">${segs}</div><span class="trend-lbl">${DOWL[dow]}</span></div>`;
       }).join("") + `</div>`;
       partes.push(`<div class="section-label">Por dia da semana (${statsPeriod})</div><div class="stat-card">${stackHtml}</div>`);
     }
@@ -5570,7 +5569,7 @@ window.addEventListener("unhandledrejection", function(e){
       let puncHtml = Object.entries(byR).map(([name,arr])=>{
         const med = Math.round(median(arr));
         const cls = med > 5 ? "late" : (med < -5 ? "early" : "ontime");
-        const label = med === 0 ? "em ponto" : (med > 0 ? med+"min atrasado" : Math.abs(med)+"min adiantado");
+        const label = med === 0 ? "0min" : (med > 0 ? "+"+med+"min" : "&minus;"+Math.abs(med)+"min");
         return `<div class="dev-row"><span>${escapeHtml(name)}</span><b class="${cls}">${label}</b><span class="dev-n">${arr.length}x</span></div>`;
       }).join("");
       partes.push(`<div class="section-label">Pontualidade mediana (${statsPeriod})</div><div class="stat-card">${puncHtml}</div>`);
@@ -5596,11 +5595,11 @@ window.addEventListener("unhandledrejection", function(e){
       return `<div class="trend-chart">` + vals.map((v,i)=>{
         const d = new Date(weeks[i]);
         const lbl = String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0");
-        if(v === null) return `<div class="trend-col"><div class="trend-bar-area"></div><span class="trend-lbl">${lbl}</span><span class="trend-val"></span></div>`;
+        if(v === null) return `<div class="trend-col"><div class="trend-bar-area"></div><span class="trend-lbl">${lbl}</span></div>`;
         const h = Math.max(6, Math.abs(v)/maxAbs*46);
         const cls = v > 0.5 ? "late" : (v < -0.5 ? "early" : "ontime");
         const valLbl = (v>=0?"+":"&minus;") + Math.abs(v).toFixed(1).replace(".",",");
-        return `<div class="trend-col"><div class="trend-bar-area"><span class="trend-val">${valLbl}</span><div class="trend-bar ${cls}" style="height:${h}px"></div></div><span class="trend-lbl">${lbl}</span><span class="trend-val">n=${buckets[i].length}</span></div>`;
+        return `<div class="trend-col"><div class="trend-bar-area"><span class="trend-val">${valLbl}</span><div class="trend-bar ${cls}" style="height:${h}px"></div></div><span class="trend-lbl">${lbl}</span></div>`;
       }).join("") + `</div><div class="stat-foot">${unit} · mediana semanal</div>`;
     }
     if(Object.keys(delayByWeek).length){
@@ -5612,11 +5611,14 @@ window.addEventListener("unhandledrejection", function(e){
     if(recent.length){
       let recHtml = recent.map(h=>{
         const d = new Date(h.ts);
-        const dateStr = String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + " " + fmtClock(d);
-        const cmp = h.plannedSec ? `${fmtTime(h.plannedSec).replace("+","")} &rarr; ${fmtTime(h.actualSec).replace("+","")}` : fmtTime(h.actualSec||0).replace("+","");
+        const dateStr = String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0");
+        const timeStr = fmtClock(d);
+        const plannedStr = h.plannedSec ? fmtTime(h.plannedSec).replace("+","") : "—";
+        const actualStr = fmtTime(h.actualSec||0).replace("+","");
+        const cls = h.plannedSec ? (h.actualSec > h.plannedSec ? "late" : (h.actualSec < h.plannedSec ? "early" : "ontime")) : "";
         // nome em cima, dados da execução na linha de baixo — o nome da rotina
         // costuma ser longo e brigava por espaço com os números na mesma linha
-        return `<div class="dev-row exec-row"><span class="exec-name">${escapeHtml(h.routineName)}</span><span class="dev-n">${cmp} · ${dateStr}</span></div>`;
+        return `<div class="dev-row exec-row"><span class="exec-name">${escapeHtml(h.routineName)}</span><span class="dev-n">${dateStr} · ${timeStr} · planejado ${plannedStr} · real <b class="${cls}">${actualStr}</b></span></div>`;
       }).join("");
       partes.push(`<div class="section-label">Execuções recentes (${statsPeriod})</div><div class="stat-card">${recHtml}</div>`);
     }
@@ -5938,7 +5940,6 @@ window.addEventListener("unhandledrejection", function(e){
     { type:"matrix",    icon:svgIcon(ICON_D.matrix),   label:"Matrizes 2&times;2" },
     { type:"kanban",    icon:svgIcon(ICON_D.kanban), label:"Kanbans" },
     { type:"expense",   icon:svgIcon(ICON_D.expense), label:"Registro de Despesas" },
-    { type:"proscons",  icon:"&#9878;",   label:"Prós e contras" },
     { type:"travel",    icon:"&#9992;", label:"Listas de viagem" },
     { type:"thoughtrecord", icon:"&#9670;", label:"RPD" },
     { type:"scoreboard", icon:"&#8721;", label:"Registros de pontos" }
@@ -5947,7 +5948,7 @@ window.addEventListener("unhandledrejection", function(e){
      é um TMPL_TYPES — é a única pasta que não vem de newTemplateDoc — por isso
      entra à mão em GERAL. */
   const TMPL_SECOES = [
-    { key:"geral",     label:"Geral",     tipos:["notes","thoughtrecord","proscons","matrix"] },
+    { key:"geral",     label:"Geral",     tipos:["notes","thoughtrecord","matrix"] },
     { key:"listas",    label:"Listas",    tipos:["market","travel","kanban"] },
     { key:"registros", label:"Registros", tipos:["expense","scoreboard"] }
   ];
@@ -6614,16 +6615,30 @@ window.addEventListener("unhandledrejection", function(e){
   }
   /* Redefinir a altura para "auto" antes de recalcular faz a caixa colapsar
      por um instante — dentro de um contêiner que rola, o navegador encolhe o
-     intervalo de rolagem nesse instante e "puxa" o scroll pra cima, sem
-     devolver sozinho depois que a caixa volta a crescer. Isso fazia o texto
-     que estava sendo digitado (embaixo, fora da vista) sumir a cada tecla.
-     Guardar e restaurar o scrollTop do ancestral resolve. */
-  function autoGrowTextarea(ta){
-    const scroller = nearestScroller(ta);
-    const prevScrollTop = scroller ? scroller.scrollTop : null;
-    ta.style.height = "auto";
-    ta.style.height = ta.scrollHeight + "px";
-    if(scroller && prevScrollTop !== null) scroller.scrollTop = prevScrollTop;
+     intervalo de rolagem nesse instante e "puxa" o scroll pra cima. Guardar e
+     restaurar o scrollTop do ancestral cobre a maioria dos casos, mas não o
+     de digitar espaço com a caixa cheia: o espaço no fim de uma linha às
+     vezes não força quebra visual (o navegador "pendura" o espaço fora da
+     largura), então esse colapso-e-remedida troca a altura por um valor
+     igual ou momentaneamente menor, e o teclado virtual do celular reage
+     nesse instante — antes do JS restaurar o scrollTop — puxando a página.
+     Por isso, ao digitar para a frente (inserção), nem colapsamos: o
+     scrollHeight de uma textarea já reflete a altura real do conteúdo
+     mesmo com a altura em CSS menor que ele (ela só corta visualmente, não
+     limita a medida), então basta crescer direto. O colapso-e-remedida só
+     roda quando o conteúdo pode ter encolhido (apagar, colar, ou a pintura
+     inicial), para o campo também conseguir diminuir de novo. */
+  function autoGrowTextarea(ta, e){
+    const isDelecao = e && typeof e.inputType === "string" && e.inputType.indexOf("delete") === 0;
+    if(!e || isDelecao){
+      const scroller = nearestScroller(ta);
+      const prevScrollTop = scroller ? scroller.scrollTop : null;
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+      if(scroller && prevScrollTop !== null) scroller.scrollTop = prevScrollTop;
+    } else if(ta.scrollHeight > ta.clientHeight){
+      ta.style.height = ta.scrollHeight + "px";
+    }
   }
   /* Faz toda caixa de texto livre de uma tela crescer junto com o conteúdo em vez
      de ganhar barra de rolagem interna. Chamar DEPOIS de inserir no DOM —
@@ -6631,7 +6646,7 @@ window.addEventListener("unhandledrejection", function(e){
   function autoGrowAll(scope){
     scope.querySelectorAll("textarea.mk-e-name, textarea.mx-e-text").forEach(ta=>{
       autoGrowTextarea(ta);
-      ta.addEventListener("input", ()=>autoGrowTextarea(ta));
+      ta.addEventListener("input", (e)=>autoGrowTextarea(ta, e));
     });
   }
   function renderJournalDoc(doc){
@@ -6671,7 +6686,7 @@ window.addEventListener("unhandledrejection", function(e){
         ta.oninput = e => {
           doc.sections[+e.target.dataset.jsec].text = e.target.value;
           saveTemplates(doc);
-          autoGrowTextarea(e.target);
+          autoGrowTextarea(e.target, e);
         };
       });
       body.querySelectorAll(".jsec-view").forEach(view=>{
@@ -7550,7 +7565,7 @@ window.addEventListener("unhandledrejection", function(e){
     document.body.appendChild(ov);
     const ta = ov.querySelector("#cdNotaTxt");
     autoGrowTextarea(ta);
-    ta.oninput = () => autoGrowTextarea(ta);
+    ta.oninput = e => autoGrowTextarea(ta, e);
     ta.focus();
     ov.onclick = e => { if(e.target===ov) ov.remove(); };
     ov.querySelector("#cdNotaClose").onclick = () => ov.remove();
@@ -8244,7 +8259,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div style="position:relative; flex:0 0 auto;">${donutSvg(segs, total)}
             <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
               <div style="font-size:11px; color:var(--muted);">total</div>
-              <div style="font-family:'IBM Plex Mono',monospace; font-size:13px;">${brl(total)}</div>
+              <div style="font-family:'Inter', sans-serif; font-size:13px;">${brl(total)}</div>
             </div>
           </div>
           <div style="flex:1; min-width:140px;">${legend || '<div class="dev-n">sem dados</div>'}</div>
@@ -8534,7 +8549,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div style="position:relative; flex:0 0 auto;">${donutSvg(segs, total)}
             <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
               <div style="font-size:11px; color:var(--muted);">total</div>
-              <div style="font-family:'IBM Plex Mono',monospace; font-size:13px;">${brl(total)}</div>
+              <div style="font-family:'Inter', sans-serif; font-size:13px;">${brl(total)}</div>
             </div>
           </div>
           <div style="flex:1; min-width:140px;">${legend}</div>
@@ -9521,6 +9536,12 @@ window.addEventListener("unhandledrejection", function(e){
       }
       // Tocar no texto entra em edição naquele ponto. Não dá para depender só do
       // foco nativo do contenteditable: em linha formatada ele nem sempre vem.
+      // Mas esse "click" também dispara depois de um arrastar-para-selecionar
+      // (mousedown e mouseup no mesmo alvo) — se já existe uma seleção de
+      // verdade nesse momento, é isso, e reposicionar o cursor aqui colapsaria
+      // a seleção que acabou de ser feita.
+      const selAtual = window.getSelection();
+      if(selAtual && !selAtual.isCollapsed) return;
       liveFocarNoPonto(box, e.clientX, e.clientY);
     });
 
@@ -9544,7 +9565,15 @@ window.addEventListener("unhandledrejection", function(e){
 
     /* O cursor mudou de linha: a linha nova precisa virar crua e a antiga,
        formatada. Só redesenha quando a linha muda, para não atrapalhar a
-       digitação nem a seleção dentro da mesma linha. */
+       digitação nem a seleção dentro da mesma linha.
+       Enquanto a seleção não está colapsada (arrastando para selecionar,
+       inclusive atravessando linhas), NÃO redesenha: recriar o DOM no meio
+       de um arrastar derruba a âncora da seleção nativa do navegador — era
+       isso que limitava a seleção a uma linha por vez. Sem redesenhar, a
+       seleção sobre linhas formatadas fica sobre o texto renderizado (sem a
+       sintaxe markdown), o que já basta para copiar; editar (apagar/colar)
+       nela continua funcionando via liveSelecao, que mapeia a posição de
+       volta pro texto cru mesmo em linha formatada. */
     document.addEventListener("selectionchange", () => {
       if(liveRedesenhando || !liveFocado) return;
       if(!document.getElementById("liveEditor")) return;
@@ -9552,6 +9581,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(!b.contains(document.activeElement) && document.activeElement !== b) return;
       const p = liveSelecao(b);
       if(!p) return;
+      if(!p.colapsada){ liveCaret = p.f; return; }
       if(p.f.line !== liveCaret.line) renderLiveEditor(p.f);
       else liveCaret = p.f;
     });
@@ -9688,6 +9718,14 @@ window.addEventListener("unhandledrejection", function(e){
   function slugify(s){
     return (s||"nota").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g,"-").replace(/^-+|-+$/g,"").toLowerCase() || "nota";
   }
+  /* Sufixo de desambigua\u00e7\u00e3o do espelho markdown: s\u00f3 existe quando o slug do
+     t\u00edtulo colide com outro documento do mesmo tipo \u2014 "-2", "-3"... pela ordem
+     de cria\u00e7\u00e3o, nunca um id aleat\u00f3rio aparente. Sem colis\u00e3o, sem sufixo nenhum. */
+  function mdDedupSuffix(entries, objId){
+    const dedup = entries.slice().sort((a,b)=> (a.createdAt||0)-(b.createdAt||0) || (a.id<b.id?-1:(a.id>b.id?1:0)));
+    const idx = dedup.findIndex(e=>e.id===objId);
+    return idx<=0 ? "" : "-"+(idx+1);
+  }
   /* Nome da subpasta em Documentos onde backup/exports/espelho markdown são
      gravados (nativo) — configurável em Configurações → Backup. Sanitizado na
      escrita (sem "/" nem caracteres que o Android rejeita em nome de pasta). */
@@ -9791,10 +9829,10 @@ window.addEventListener("unhandledrejection", function(e){
       default: return "# " + (doc.title||"Documento") + "\n";
     }
   }
-  async function syncMdFile(obj, mdText, typeLabel, titleForSlug){
+  async function syncMdFile(obj, mdText, typeLabel, titleForSlug, suffix){
     if(!isNative || !window.Capacitor.Plugins.Filesystem) return;
     const FS = window.Capacitor.Plugins.Filesystem;
-    const newPath = dataFolderName() + "/Notas/" + typeLabel + "-" + slugify(titleForSlug).slice(0,40) + "-" + obj.id.slice(0,6) + ".md";
+    const newPath = dataFolderName() + "/Notas/" + typeLabel + "-" + slugify(titleForSlug).slice(0,40) + (suffix||"") + ".md";
     try{
       if(obj._mdPath && obj._mdPath !== newPath){
         try{ await FS.deleteFile({ path: obj._mdPath, directory:"DOCUMENTS" }); }catch(e){}
@@ -9804,10 +9842,21 @@ window.addEventListener("unhandledrejection", function(e){
     }catch(e){ console.error("syncMdFile falhou:", e); }
   }
   function syncNoteMd(note){
-    syncMdFile(note, noteMd(note), "nota", note.title || "sem-titulo");
+    const titleForSlug = note.title || "sem-titulo";
+    const base = slugify(titleForSlug).slice(0,40);
+    const dupes = notes.filter(n => slugify(n.title||"sem-titulo").slice(0,40) === base).map(n=>({id:n.id, createdAt:n.createdAt||0}));
+    syncMdFile(note, noteMd(note), "nota", titleForSlug, mdDedupSuffix(dupes, note.id));
   }
   function syncDocMd(doc){
-    syncMdFile(doc, docToMarkdown(doc), mdTypeLabel(doc.type), doc.title || doc.trigger || doc.desc || mdTypeLabel(doc.type));
+    const typeLabel = mdTypeLabel(doc.type);
+    const titleForSlug = doc.title || doc.trigger || doc.desc || typeLabel;
+    const base = slugify(titleForSlug).slice(0,40);
+    const dupes = templates.filter(d=>{
+      if(mdTypeLabel(d.type) !== typeLabel) return false;
+      const dTitle = d.title || d.trigger || d.desc || typeLabel;
+      return slugify(dTitle).slice(0,40) === base;
+    }).map(d=>({id:d.id, createdAt:d.createdAt||0}));
+    syncMdFile(doc, docToMarkdown(doc), typeLabel, titleForSlug, mdDedupSuffix(dupes, doc.id));
   }
 
   function downloadFile(filename, text, mime){
@@ -10117,7 +10166,7 @@ window.addEventListener("unhandledrejection", function(e){
     const top = document.createElement("div");
     top.className = "note-topbar";
     top.innerHTML = `
-      <button class="link-btn muted" id="backNotes">&larr; Modelos</button>
+      <button class="link-btn muted" id="backNotes">&larr; Notas</button>
       <div style="display:flex; gap:8px;">
         <button class="icon-btn ${noteDraft.sinkChecked?'pin-btn pinned':''}" id="sinkToggle" title="Itens marcados descem" aria-label="Itens marcados descem">&#8595;&#10003;</button>
         <button class="btn-save-note" id="saveNote">Salvar</button>
@@ -10158,7 +10207,7 @@ window.addEventListener("unhandledrejection", function(e){
 
     document.getElementById("backNotes").onclick = () => {
       descartarEdicaoNota();
-      goTo({ tab:"templates", screen:"templates" });
+      goTo({ tab:"templates", screen:"notes" });
     };
     document.getElementById("saveNote").onclick = () => {
       noteDraft.updatedAt = Date.now();
@@ -10561,7 +10610,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(editando){
         const ta = ov.querySelector("#nrTa");
         autoGrowTextarea(ta);
-        ta.oninput = () => { autoGrowTextarea(ta); salvar(); };
+        ta.oninput = e => { autoGrowTextarea(ta, e); salvar(); };
         ta.focus();
       } else {
         // checklist e toggle funcionam direto na leitura, como no card da meta
@@ -10863,7 +10912,7 @@ window.addEventListener("unhandledrejection", function(e){
       </div>`;
       const ta = ov.querySelector("#qaDiarioTxt");
       autoGrowTextarea(ta);
-      ta.oninput = () => autoGrowTextarea(ta);
+      ta.oninput = e => autoGrowTextarea(ta, e);
       ov.querySelector("#qaClose").onclick = () => ov.remove();
       ov.querySelector("#qaCancel3").onclick = () => ov.remove();
       ov.querySelector("#qaDiarioSave").onclick = () => {
@@ -11028,15 +11077,13 @@ window.addEventListener("unhandledrejection", function(e){
       goTo({tab:"home",screen:"home"});
     });
   }
-  /* "pular" e "não fazer" aparecem no player e no modo zen — mesma dupla de
-     botões nos dois, montada aqui para não divergir. */
+  /* "não fazer" aparece no player e no modo zen — mesmo botão nos dois,
+     montado aqui para não divergir. */
   function skipRowHtml(step){
     if(step.isRest) return "";
-    return (step.optional ? `<button class="skip-btn" id="skipStep" title="Descartar esta etapa de vez">pular etapa</button>` : "")
-      + `<button class="skip-btn" id="undoneStep" title="Encerrar sem concluir e sem pontuar">não fazer</button>`;
+    return `<button class="skip-btn" id="undoneStep" title="Encerrar sem concluir e sem pontuar">não fazer</button>`;
   }
   function wireSkipRow(scope){
-    const sk = scope.querySelector("#skipStep"); if(sk) sk.onclick = () => advanceStep(true);
     const un = scope.querySelector("#undoneStep"); if(un) un.onclick = naoFazerEtapa;
   }
 
@@ -11083,7 +11130,7 @@ window.addEventListener("unhandledrejection", function(e){
       wireSkipRow(el);
       const nb = document.getElementById("viewStepNote"); if(nb) nb.onclick = () => openNoteOverlay(step.noteId);
       const ji = document.getElementById("journalInput");
-      if(ji){ autoGrowTextarea(ji); ji.oninput = e => { playerState.journalTexts[step.id] = e.target.value; autoGrowTextarea(ji); }; }
+      if(ji){ autoGrowTextarea(ji); ji.oninput = e => { playerState.journalTexts[step.id] = e.target.value; autoGrowTextarea(ji, e); }; }
       return;
     }
 
@@ -11222,7 +11269,7 @@ window.addEventListener("unhandledrejection", function(e){
     const postponeBtn = document.getElementById("postponeStep"); if(postponeBtn) postponeBtn.onclick = adiarEtapa;
     const noteBtn = document.getElementById("viewStepNote"); if(noteBtn) noteBtn.onclick = () => openNoteOverlay(step.noteId);
     const journalInput = document.getElementById("journalInput");
-    if(journalInput){ autoGrowTextarea(journalInput); journalInput.oninput = e => { playerState.journalTexts[step.id] = e.target.value; autoGrowTextarea(journalInput); }; }
+    if(journalInput){ autoGrowTextarea(journalInput); journalInput.oninput = e => { playerState.journalTexts[step.id] = e.target.value; autoGrowTextarea(journalInput, e); }; }
   }
 
   function renderDone(){
@@ -11873,7 +11920,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div style="overflow-y:auto; flex:1; padding-bottom:24px;">
         <div class="home-header" style="margin-bottom:6px;"><h1>Boletim</h1></div>
         <div class="stat-card" style="text-align:center;">
-          <div style="font-family:'IBM Plex Mono',monospace; font-size:48px; font-weight:600; color:${disp?'var(--muted)':r.cor};">${r.nota.toFixed(1)}</div>
+          <div style="font-family:'Inter', sans-serif; font-size:48px; font-weight:600; color:${disp?'var(--muted)':r.cor};">${r.nota.toFixed(1)}</div>
           <div class="routine-meta">de 100 · semana termina sábado ${String(fimSemana.getDate()).padStart(2,"0")}/${String(fimSemana.getMonth()+1).padStart(2,"0")}</div>
           <div class="bar-track" style="margin:12px 0 6px;"><div class="bar-fill" style="width:${pctNota}%; background:${disp?'var(--muted)':r.cor};"></div></div>
           ${disp
@@ -11981,7 +12028,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="home-header" style="margin-bottom:2px;"><h1>Semana fechada</h1></div>
         <div class="routine-meta" style="margin-bottom:12px;">${dd(ini)} a ${dd(fim)}</div>
         <div class="stat-card" style="text-align:center;">
-          <div style="font-family:'IBM Plex Mono',monospace; font-size:48px; font-weight:600; color:${cor};">${sem.nota.toFixed(1)}</div>
+          <div style="font-family:'Inter', sans-serif; font-size:48px; font-weight:600; color:${cor};">${sem.nota.toFixed(1)}</div>
           ${sem.dispensada
             ? `<div class="routine-meta">semana dispensada — não entra na média do mês</div>`
             : `<div class="routine-meta">${sem.nota >= gam.config.notaMinima ? "aprovado" : "abaixo da nota mínima ("+gam.config.notaMinima+")"}</div>`}
@@ -12000,7 +12047,7 @@ window.addEventListener("unhandledrejection", function(e){
     app.appendChild(el);
     const ta = document.getElementById("sfReflexao");
     autoGrowTextarea(ta);
-    ta.oninput = () => autoGrowTextarea(ta);
+    ta.oninput = e => autoGrowTextarea(ta, e);
     document.getElementById("sfSkip").onclick = () => { marcarSemanaVista(); goTo({tab:"home", screen:"home"}); };
     document.getElementById("sfSalvar").onclick = () => {
       const txt = ta.value.trim();
@@ -12030,6 +12077,7 @@ window.addEventListener("unhandledrejection", function(e){
      degrada para o banner in-app — igual ao aviso de ritmo original. */
   function dispararNudge(title, body, tag){
     if(isNative){ try{ notifyNative(title, body, {}, notifIdFor(tag, 0)); }catch(e){} return; }
+    if(isDesktop){ if(!notifyDesktop(title, body)) showAlertBanner(body); return; }
     if(!("Notification" in window) || Notification.permission !== "granted"){ showAlertBanner(body); return; }
     if("serviceWorker" in navigator){
       navigator.serviceWorker.ready.then(reg=>{
@@ -12173,6 +12221,12 @@ window.addEventListener("unhandledrejection", function(e){
           <input type="file" id="cfgImportFile" accept="application/json" style="display:none">
           <div class="stat-foot">${ultBak ? "Último backup: " + new Date(ultBak).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
         </div>
+
+        ${isDesktop ? `<div class="section-label">Sincronização com nuvem</div>
+        <div class="stat-card" id="cfgSyncCard"><div class="routine-meta">Carregando status…</div></div>` : ""}
+
+        ${isDesktop ? `<div class="section-label">Integrações (MCP)</div>
+        <div class="stat-card" id="cfgMcpCard"><div class="routine-meta">Carregando status…</div></div>` : ""}
 
         <div class="section-label">Início da semana</div>
         <div class="stat-card">
@@ -12382,6 +12436,192 @@ window.addEventListener("unhandledrejection", function(e){
         save(K_GAMIFICACAO, gam);
       };
     });
+
+    if(isDesktop) refreshMcpCard();
+    if(isDesktop) refreshSyncCard();
+  }
+
+  /* ---- Configurações → Integrações (MCP), só no desktop ----
+     Card à parte, atualizado sem passar por render(): o status (token, log de
+     chamadas) vem do main process via IPC e mudaria embaixo dos pés do resto
+     do formulário se disparasse um render() completo a cada refresh. */
+  function mcpConfigJson(status){
+    return JSON.stringify({
+      mcpServers: { brita: { url: `http://127.0.0.1:${status.port}/mcp`, headers: { Authorization: `Bearer ${status.token}` } } }
+    }, null, 2);
+  }
+  function mcpCardHtml(status){
+    const modos = [["off","desligado"],["read","somente leitura"],["write","leitura e escrita"]];
+    const logRows = (status.log||[]).slice(0,20).map(l=>{
+      const hora = new Date(l.ts).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+      const cor = l.kind==="write" ? "var(--accent)" : "var(--muted)";
+      return `<div class="bar-row" style="padding:4px 0;"><span style="flex:1; color:${cor};">${escapeHtml(l.tool)}</span><span style="color:var(--muted); font-size:12px;">${hora}</span></div>`;
+    }).join("") || `<div class="routine-meta">Nenhuma chamada ainda.</div>`;
+    return `
+      <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Servidor MCP</div>
+        <div class="bar-val" style="width:auto; color:${status.running?'var(--good)':'var(--muted)'};">${status.running?'ativo':'desligado'}</div></div>
+      <div class="type-toggle" id="mcpModeToggle" style="margin-top:8px;">
+        ${modos.map(([v,l])=>`<span data-mcpmode="${v}" class="${status.mode===v?'active':''}">${l}</span>`).join("")}
+      </div>
+      <div class="stat-foot" style="margin-top:8px;">Somente leitura por padrão. Ative "leitura e escrita" só se quiser que o Claude crie/edite dados diretamente.</div>
+
+      <div class="sched-time-row" style="margin-top:14px;"><span style="flex:1;">Porta</span><input class="dur-input" type="number" min="1024" max="65535" id="mcpPort" value="${status.port}"></div>
+      <button class="btn-cancel" id="mcpPortSave" style="width:100%; margin-top:8px;">Salvar porta</button>
+
+      <div class="section-label" style="margin:14px 0 4px;">Conexão</div>
+      <textarea class="mk-e-name" id="mcpConfigJson" rows="6" readonly style="width:100%; font-family:'Inter', sans-serif; font-size:11.5px; line-height:1.4;">${escapeHtml(mcpConfigJson(status))}</textarea>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button class="btn-cancel" id="mcpCopyConfig" style="flex:1;">Copiar config MCP</button>
+        <button class="btn-cancel" id="mcpNewToken" style="flex:1;">Gerar novo token</button>
+      </div>
+      <div class="stat-foot">Cole esse trecho no claude_desktop_config.json (Claude Desktop) ou aponte o Claude Code para essa URL (claude mcp add).</div>
+
+      <div class="section-label" style="margin:14px 0 4px;">Últimas chamadas</div>
+      <div style="max-height:180px; overflow-y:auto;">${logRows}</div>
+    `;
+  }
+  function wireMcpCard(card){
+    card.querySelectorAll("[data-mcpmode]").forEach(sp=>{
+      sp.onclick = async () => { await window.electronBridge.mcp.setMode(sp.dataset.mcpmode); refreshMcpCard(); };
+    });
+    card.querySelector("#mcpPortSave").onclick = async () => {
+      const v = +card.querySelector("#mcpPort").value;
+      try{ await window.electronBridge.mcp.setPort(v); showAlertBanner("Porta do MCP atualizada ✓"); }
+      catch(e){ showAlertBanner("Porta inválida — use um número entre 1024 e 65535"); }
+      refreshMcpCard();
+    };
+    card.querySelector("#mcpCopyConfig").onclick = () => {
+      const txt = card.querySelector("#mcpConfigJson").value;
+      navigator.clipboard.writeText(txt).then(
+        ()=> showAlertBanner("Config MCP copiada ✓"),
+        ()=> showAlertBanner("Não deu para copiar — selecione o texto manualmente")
+      );
+    };
+    card.querySelector("#mcpNewToken").onclick = async () => {
+      confirmModal("Gerar um novo token invalida o acesso dos clientes MCP já configurados. Continuar?", "Gerar", async ()=>{
+        await window.electronBridge.mcp.regenerateToken();
+        showAlertBanner("Novo token gerado — copie a config de novo nos clientes conectados");
+        refreshMcpCard();
+      });
+    };
+  }
+  async function refreshMcpCard(){
+    const card = document.getElementById("cfgMcpCard");
+    if(!card) return;
+    let status;
+    try{ status = await window.electronBridge.mcp.getStatus(); }
+    catch(e){ card.innerHTML = `<div class="routine-meta">Não foi possível carregar o status do MCP.</div>`; return; }
+    if(!document.getElementById("cfgMcpCard")) return; // saiu da tela enquanto esperava
+    card.innerHTML = mcpCardHtml(status);
+    wireMcpCard(card);
+  }
+
+  /* ---- Configurações → Backup → Sincronização com nuvem (Google Drive), só no desktop ----
+     Mesmo padrão de auto-refresh do card do MCP, sem passar por render(). A resolução de
+     conflito é uma UI própria (manter local / usar remoto) em vez do modal de import de
+     backup: aquele modal foi desenhado para "mesclar ou substituir tudo" de um arquivo
+     inteiro, não para escolher um lado numa única chave — forçar esse encaixe ficaria
+     confuso, então o conflito por chave ganhou os dois botões diretos. */
+  let syncForceEditCreds = false;
+  function syncCardHtml(status){
+    if(!status.hasClientCreds || syncForceEditCreds){
+      return `
+        <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Google Drive</div>
+          <div class="bar-val" style="width:auto; color:var(--muted);">não configurado</div></div>
+        <div class="stat-foot" style="margin-top:8px;">Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a Drive API ativada. Fica guardado só neste computador, nunca no repositório.</div>
+        <div class="section-label" style="margin:14px 0 4px;">Client ID</div>
+        <input type="text" id="syncClientId" class="mk-e-name" placeholder="xxxxxxxx.apps.googleusercontent.com">
+        <div class="section-label" style="margin:14px 0 4px;">Client Secret</div>
+        <input type="text" id="syncClientSecret" class="mk-e-name" placeholder="GOCSPX-...">
+        <button class="btn-primary" id="syncSaveCreds" style="width:100%; margin-top:12px;">Salvar credenciais</button>
+      `;
+    }
+    if(!status.connected){
+      return `
+        <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Google Drive</div>
+          <div class="bar-val" style="width:auto; color:var(--muted);">desconectado</div></div>
+        <div class="stat-foot" style="margin-top:8px;">Cria uma pasta "brita-sync" no seu Drive e sincroniza a cada 10 minutos com o app aberto. Escopo mínimo (drive.file): o app só enxerga o que ele mesmo criar.</div>
+        <button class="btn-primary" id="syncConnect" style="width:100%; margin-top:12px;">Conectar ao Google Drive</button>
+        <button class="btn-cancel" id="syncEditCreds" style="width:100%; margin-top:8px;">Trocar credenciais</button>
+      `;
+    }
+    const ultimo = status.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString("pt-BR") : "ainda não sincronizou";
+    const conflitos = status.pendingConflicts || [];
+    const conflitosHtml = conflitos.length ? conflitos.map(k=>`
+      <div class="bar-row" style="padding:6px 0; align-items:center;">
+        <span style="flex:1;">${escapeHtml(k)}</span>
+        <button class="btn-cancel" data-resolve="${escapeHtml(k)}" data-choice="local" style="padding:4px 10px; font-size:12px;">manter local</button>
+        <button class="btn-cancel" data-resolve="${escapeHtml(k)}" data-choice="remote" style="padding:4px 10px; font-size:12px; margin-left:6px;">usar remoto</button>
+      </div>`).join("") : "";
+    return `
+      <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Google Drive</div>
+        <div class="bar-val" style="width:auto; color:var(--good);">conectado</div></div>
+      <div class="stat-foot" style="margin-top:6px;">Último sync: ${ultimo}.</div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn-primary" id="syncNow" style="flex:1;">Sincronizar agora</button>
+        <button class="btn-cancel" id="syncDisconnect" style="flex:1;">Desconectar</button>
+      </div>
+      ${conflitos.length ? `<div class="section-label" style="margin:14px 0 4px;">Conflitos pendentes — os dois lados mudaram desde o último sync</div>${conflitosHtml}` : ""}
+    `;
+  }
+  function wireSyncCard(card){
+    const saveCreds = card.querySelector("#syncSaveCreds");
+    if(saveCreds) saveCreds.onclick = async () => {
+      const id = card.querySelector("#syncClientId").value.trim();
+      const secret = card.querySelector("#syncClientSecret").value.trim();
+      if(!id){ showAlertBanner("Cole o Client ID"); return; }
+      await window.electronBridge.sync.saveClientCreds(id, secret);
+      syncForceEditCreds = false;
+      showAlertBanner("Credenciais salvas ✓");
+      refreshSyncCard();
+    };
+    const editCreds = card.querySelector("#syncEditCreds");
+    if(editCreds) editCreds.onclick = () => { syncForceEditCreds = true; refreshSyncCard(); };
+    const connectBtn = card.querySelector("#syncConnect");
+    if(connectBtn) connectBtn.onclick = async () => {
+      connectBtn.disabled = true; connectBtn.textContent = "Abrindo o navegador...";
+      try{
+        await window.electronBridge.sync.connect();
+        showAlertBanner("Google Drive conectado ✓");
+      }catch(e){ showAlertBanner("Não deu para conectar: " + e.message); }
+      refreshSyncCard();
+    };
+    const nowBtn = card.querySelector("#syncNow");
+    if(nowBtn) nowBtn.onclick = async () => {
+      nowBtn.disabled = true; nowBtn.textContent = "Sincronizando...";
+      try{
+        const r = await window.electronBridge.sync.syncNow();
+        showAlertBanner(`Sync: ${r.uploaded.length} enviado(s), ${r.downloaded.length} recebido(s)` + (r.conflicts.length ? `, ${r.conflicts.length} conflito(s)` : ""));
+      }catch(e){ showAlertBanner("Falha no sync: " + e.message); }
+      refreshSyncCard();
+    };
+    const discBtn = card.querySelector("#syncDisconnect");
+    if(discBtn) discBtn.onclick = () => {
+      confirmModal("Desconectar do Google Drive? O sync automático para até reconectar.", "Desconectar", async ()=>{
+        await window.electronBridge.sync.disconnect();
+        refreshSyncCard();
+      });
+    };
+    card.querySelectorAll("[data-resolve]").forEach(btn=>{
+      btn.onclick = async () => {
+        btn.disabled = true;
+        try{
+          await window.electronBridge.sync.resolveConflict(btn.dataset.resolve, btn.dataset.choice);
+          showAlertBanner("Conflito resolvido ✓");
+        }catch(e){ showAlertBanner("Falha ao resolver: " + e.message); }
+        refreshSyncCard();
+      };
+    });
+  }
+  async function refreshSyncCard(){
+    const card = document.getElementById("cfgSyncCard");
+    if(!card) return;
+    let status;
+    try{ status = await window.electronBridge.sync.getStatus(); }
+    catch(e){ card.innerHTML = `<div class="routine-meta">Não foi possível carregar o status da sincronização.</div>`; return; }
+    if(!document.getElementById("cfgSyncCard")) return;
+    card.innerHTML = syncCardHtml(status);
+    wireSyncCard(card);
   }
 
   /* ---------------- INIT ---------------- */
@@ -12389,6 +12629,181 @@ window.addEventListener("unhandledrejection", function(e){
   render();
   window.__britaBooted = true; // boot ok: overlay de erro fatal não é mais necessário
   startScheduler();
+
+  /* ---------------- Bridge para o servidor MCP embutido (desktop) ----------------
+     Registrado só no Electron (isDesktop). O servidor MCP roda no main process e
+     não conhece a lógica de negócio do app — cada tool cai aqui e reaproveita as
+     mesmas funções que a UI já usa (registrarConclusao via concludeTarefa,
+     sincronizarPontosCartao, saveTarefas, saveDiario, etc.), nunca reimplementa. */
+  if(isDesktop){
+    function mcpTagValor(v){ return ["nenhum","baixo","medio","alto"].includes(v) ? v : undefined; }
+    const britaMCP = {
+      list_routines(args){
+        const apenasHoje = !!(args && args.apenas_hoje);
+        return rotinasOrdenadas()
+          .filter(r => !apenasHoje || rotinaOcorreHoje(r))
+          .map(r => {
+            const sch = computeSchedule(r) || {};
+            return {
+              id: r.id, name: r.name, icon: r.icon || "",
+              agendada: !!(r.schedule && r.schedule.enabled),
+              dias: (r.schedule && r.schedule.days) || [],
+              horario: sch.startStr || null,
+              passos: (r.steps||[]).length
+            };
+          });
+      },
+      get_today_agenda(){
+        const iso = localKey();
+        const chaveDia = diarioChave("dia", iso);
+        return {
+          data: iso,
+          rotinas_hoje: rotinasOrdenadas().filter(rotinaOcorreHoje).map(r=>{
+            const sch = computeSchedule(r) || {};
+            return { id:r.id, name:r.name, horario: sch.startStr || null };
+          }),
+          diario: diario[chaveDia] || "",
+          kanban: colunasKanban(perAtual("dia")).map(c=>({
+            col:c.key, title:c.title,
+            items:c.items.map(it=>({ id:it.id, texto:it.text, tagValor:it.tagValor||"nenhum" }))
+          }))
+        };
+      },
+      list_tasks(args){
+        const eixo = args && args.eixo;
+        const apenasAtivas = !args || args.apenas_ativas !== false;
+        return tarefas
+          .filter(m => !eixo || m.eixo === eixo)
+          .filter(m => !apenasAtivas || tarefaAtiva(m))
+          .map(m => ({
+            id:m.id, eixo:m.eixo, area:m.area, tipo:m.tipo, conteudo:m.conteudo,
+            tipoTarefa:m.tipoTarefa||"", dur:m.dur, tagValor:m.tagValor||"medio",
+            lastDone:m.lastDone||null, ativa: tarefaAtiva(m)
+          }));
+      },
+      list_metas(){
+        const out = [];
+        templates.filter(t=>t.type==="countdown").forEach(doc=>{
+          (doc.targets||[]).forEach(t=>{
+            out.push({
+              id:t.id, title:t.title, date:t.date, diasRestantes: daysUntil(t.date),
+              topics:t.topics, done:t.done||0, unit:t.unit||"", tagValor:t.tagValor||"alto"
+            });
+          });
+        });
+        return out;
+      },
+      read_note(args){
+        const n = notes.find(x=>x.id===(args&&args.id));
+        if(!n) throw new Error("nota não encontrada");
+        return { id:n.id, title:n.title, content:n.content, createdAt:n.createdAt, updatedAt:n.updatedAt };
+      },
+      search_notes(args){
+        const q = String((args&&args.query)||"").trim().toLowerCase();
+        if(!q) return [];
+        return notes
+          .filter(n => (n.title||"").toLowerCase().includes(q) || (n.content||"").toLowerCase().includes(q))
+          .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))
+          .map(n => ({ id:n.id, title:n.title, snippet:(n.content||"").slice(0,200) }));
+      },
+      read_diario(args){
+        const escopo = (args && args.escopo) || "dia";
+        const iso = (args && args.iso) || localKey();
+        const chave = diarioChave(escopo, iso);
+        return { chave, texto: diario[chave] || "" };
+      },
+      get_gamificacao_status(){
+        return { notaSemana: notaSemanaAtual(), ritmo: ritmoInfo(), pontosPorArea: pontosPorAreaSemana() };
+      },
+
+      create_task(args){
+        const t = {
+          id: uid(), eixo: args.eixo, area: args.area, tipo: args.tipo, conteudo: args.conteudo,
+          tipoTarefa: args.tipo_tarefa || "", detalhes: args.detalhes || "",
+          dur: args.dur || 15, tagValor: mcpTagValor(args.tag_valor) || "medio",
+          lastDone: null, ord: tarefas.length, genero: "pool"
+        };
+        tarefas.push(t); saveTarefas(); render();
+        return { id: t.id };
+      },
+      complete_task(args){
+        const m = tarefas.find(x=>x.id===(args&&args.id));
+        if(!m) throw new Error("tarefa não encontrada");
+        concludeTarefa(m);
+        render();
+        return { id:m.id, lastDone:m.lastDone };
+      },
+      update_task(args){
+        const m = tarefas.find(x=>x.id===(args&&args.id));
+        if(!m) throw new Error("tarefa não encontrada");
+        if(args.conteudo != null) m.conteudo = args.conteudo;
+        if(args.detalhes != null) m.detalhes = args.detalhes;
+        if(args.dur != null) m.dur = args.dur;
+        if(mcpTagValor(args.tag_valor)) m.tagValor = args.tag_valor;
+        saveTarefas(); render();
+        return { id:m.id };
+      },
+      append_diario(args){
+        const escopo = args.escopo || "dia";
+        const iso = args.iso || localKey();
+        const chave = diarioChave(escopo, iso);
+        const atual = diario[chave] || "";
+        diario[chave] = atual ? atual.replace(/\n*$/, "\n") + args.texto : args.texto;
+        saveDiario(); render();
+        return { chave };
+      },
+      add_kanban_card(args){
+        const per = perAtual("dia");
+        const naColuna = diaKanban.filter(c=>c.per===per && c.col==="todo").length;
+        const card = { id: uid(), text: args.texto, col:"todo", per, ord: naColuna, tagValor: mcpTagValor(args.tag_valor) || "baixo" };
+        if(args.eixo) card.eixo = args.eixo;
+        diaKanban.push(card); saveDiaKanban(); render();
+        return { id: card.id };
+      },
+      create_note(args){
+        const n = { id: uid(), title: args.title || "(sem título)", content: args.content || "", subjects:[], createdAt:Date.now(), updatedAt:Date.now() };
+        notes.push(n); save(K_NOTES, notes); render();
+        return { id: n.id };
+      },
+      append_note(args){
+        const n = notes.find(x=>x.id===(args&&args.id));
+        if(!n) throw new Error("nota não encontrada");
+        n.content = (n.content||"").replace(/\n*$/, "\n") + args.texto;
+        n.updatedAt = Date.now();
+        save(K_NOTES, notes); render();
+        return { id:n.id };
+      }
+    };
+    window.electronBridge.onMcpCall(async (tool, args) => {
+      const fn = britaMCP[tool];
+      if(!fn) throw new Error("tool desconhecida: " + tool);
+      return fn(args || {});
+    });
+
+    /* ---- Sync com Google Drive: aplica no app o que o motor (main process)
+       já baixou e gravou em disco. Espelha exatamente o branch "Substituir tudo"
+       do import de backup — é sempre a chave inteira, nunca item a item (fase 2
+       do plano, mesclagem granular, ainda não existe). */
+    function applySyncedKey(key, value){
+      switch(key){
+        case K_ROUTINES: routines = value; save(K_ROUTINES, routines); break;
+        case K_NOTES: notes = value; save(K_NOTES, notes); break;
+        case K_HISTORY: history = value; save(K_HISTORY, history); break;
+        case K_TEMPLATES: templates = value; save(K_TEMPLATES, templates); break;
+        case K_SNOOZES: snoozes = value; save(K_SNOOZES, snoozes); break;
+        case K_TAREFAS: tarefas = value; saveTarefas(); break;
+        case K_TAREFAS_HIST: tarefasHist = value; saveTarefasHist(); break;
+        case K_DIARIO: diario = value; saveDiario(); break;
+        case K_DIAKANBAN: diaKanban = value; saveDiaKanban(); break;
+        default: return;
+      }
+      render();
+    }
+    window.electronBridge.onSyncApplied((key, value) => applySyncedKey(key, value));
+    window.electronBridge.onSyncConflict(() => {
+      showAlertBanner("⚠️ Conflito de sincronização — resolva em Configurações → Backup");
+    });
+  }
 
   (function handleStartParam(){
     const params = new URLSearchParams(window.location.search);
