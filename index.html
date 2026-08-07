@@ -770,8 +770,10 @@
   .stack-seg{ width:100%; }
   .stack-seg:first-child{ border-radius:0 0 3px 3px; }
   .stack-seg:last-child{ border-radius:3px 3px 0 0; }
-  .hour-chart{ display:flex; gap:2px; align-items:flex-end; height:72px; }
-  .hour-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .hour-chart{ display:flex; gap:2px; align-items:flex-end; height:84px; }
+  .hour-col{ flex:1; display:flex; flex-direction:column; align-items:center; height:100%; }
+  .hour-col .trend-lbl{ height:12px; line-height:12px; }
+  .hour-bar-area{ flex:1; width:100%; display:flex; align-items:flex-end; justify-content:center; }
   .hour-bar{ width:100%; max-width:12px; background:var(--grad); border-radius:2px 2px 0 0; }
   .tappable{ cursor:pointer; }
   .tappable:active{ opacity:.6; }
@@ -1301,7 +1303,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function themeIcon(){
     const t = load(K_THEME, "auto");
-    return t === "auto" ? "&#9681;" : (t === "light" ? "&#9728;" : "&#9790;");
+    return t === "auto" ? svgIcon(ICON_D.computerDesktop,16) : (t === "light" ? svgIcon(ICON_D.sun,16) : svgIcon(ICON_D.moon,16));
   }
   function toggleTheme(){
     const order = ["auto","light","dark"];
@@ -1637,7 +1639,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-06 (v9)";
+  const BUILD_STAMP = "2026-08-07 (v10)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -1653,6 +1655,13 @@ window.addEventListener("unhandledrejection", function(e){
     return (neg?"+":"") + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
   }
   function fmtClock(date){ return String(date.getHours()).padStart(2,"0") + ":" + String(date.getMinutes()).padStart(2,"0"); }
+  /* "+171min" vira "+2h51" — minutos crus só até 59; a partir de 1h vira h+min. */
+  function fmtMinLabel(min){
+    const abs = Math.abs(Math.round(min));
+    const sinal = min > 0 ? "+" : (min < 0 ? "&minus;" : "");
+    if(abs < 60) return sinal + (abs || 0) + "min";
+    return sinal + Math.floor(abs/60) + "h" + String(abs%60).padStart(2,"0");
+  }
   function localKey(d){
     d = d || new Date();
     const p = n => String(n).padStart(2,"0");
@@ -2416,6 +2425,26 @@ window.addEventListener("unhandledrejection", function(e){
     return { linhas, max };
   }
 
+  /* Resumo compacto da roda da vida (pontos da semana por área), reaproveitado
+     no topo das abas Rotinas, Metas, Diário e Dados — mesma marcação das barras
+     do boletim, mas sem a linha "Sem área" (ela não diz nada sobre a roda) e
+     sem seções nem rodapé explicativo. Vazio (sem chamar attention) quando não
+     há pelo menos uma área com pontos. */
+  function rodaVidaResumoHtml(){
+    const roda = pontosPorAreaSemana();
+    const linhas = roda.linhas.filter(l=>l.label !== "Sem área");
+    if(!linhas.length) return "";
+    const max = Math.max(...linhas.map(l=>Math.max(l.pontos, l.previsto)), 0);
+    return `<div class="stat-card roda-resumo-card" style="margin-bottom:14px;">
+      <div class="section-label" style="margin-top:0;">Roda da vida — semana</div>
+      ${linhas.map(l=>`<div class="bar-row">
+        <div class="bar-name" style="color:${l.color};">${escapeHtml(l.label)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${max ? Math.max(3, Math.round(l.pontos/max*100)) : 0}%; background:${l.color};"></div></div>
+        <div class="bar-val" style="width:auto; white-space:nowrap; flex:0 0 auto;">${l.pontos.toFixed(1)}${l.previsto ? " / " + l.previsto.toFixed(0) : ""}</div>
+      </div>`).join("")}
+    </div>`;
+  }
+
   function alternarDispensaSemana(){
     gam.semanaAtual.dispensada = !gam.semanaAtual.dispensada;
     save(K_GAMIFICACAO, gam);
@@ -3086,7 +3115,7 @@ window.addEventListener("unhandledrejection", function(e){
      nível do título e do lado oposto a ele. Um par html+wire para não repetir
      os botões (nem o destino) em cinco telas. */
   function cfgBtnHtml(){
-    return `<button class="bell-btn" data-searchbtn="1" title="Buscar em tudo" aria-label="Buscar em tudo">&#8981;</button>`
+    return `<button class="bell-btn" data-searchbtn="1" title="Buscar em tudo" aria-label="Buscar em tudo">${svgIcon(ICON_D.magnifyingGlass,16)}</button>`
          + `<button class="bell-btn" data-cfgbtn="1" title="Configurações" aria-label="Configurações">${svgIcon(ICON_D.settings, 17)}</button>`;
   }
   function wireCfgBtn(scope){
@@ -3125,13 +3154,13 @@ window.addEventListener("unhandledrejection", function(e){
       if(q.length < 2) return;
       const hits = [];
       routines.forEach(r=>{ if((r.name||"").toLowerCase().includes(q))
-        hits.push({ icon:r.icon||"&#9654;", title:r.name, sub:"Rotina", go:()=>{ goTo({tab:"home",screen:"routineDetail",id:r.id}); } }); });
+        hits.push({ icon:r.icon||svgIcon(ICON_D.play,16), title:r.name, sub:"Rotina", go:()=>{ goTo({tab:"home",screen:"routineDetail",id:r.id}); } }); });
       tarefas.forEach(t=>{ if(((t.tipo||"")+" "+(t.conteudo||"")+" "+(t.area||"")).toLowerCase().includes(q))
-        hits.push({ icon:"&#9745;", title:(t.tipo?t.tipo+": ":"")+(t.conteudo||""), sub:"Tarefa"+(t.area?" · "+t.area:""), go:()=>{ tarefaDraft = JSON.parse(JSON.stringify(t)); goTo({tab:"tarefas",screen:"tarefaEditor"}); } }); });
+        hits.push({ icon:svgIcon(ICON_D.check,13), title:(t.tipo?t.tipo+": ":"")+(t.conteudo||""), sub:"Tarefa"+(t.area?" · "+t.area:""), go:()=>{ tarefaDraft = JSON.parse(JSON.stringify(t)); goTo({tab:"tarefas",screen:"tarefaEditor"}); } }); });
       notes.forEach(n=>{ if(((n.title||"")+" "+(n.content||"")).toLowerCase().includes(q))
-        hits.push({ icon:"&#9998;", title:n.title||"Sem título", sub:"Nota", go:()=>openNoteEditor(n.id) }); });
+        hits.push({ icon:svgIcon(ICON_D.notes,14), title:n.title||"Sem título", sub:"Nota", go:()=>openNoteEditor(n.id) }); });
       templates.forEach(t=>{ if((t.title||"").toLowerCase().includes(q))
-        hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||"&#9638;", title:t.title, sub:"Modelo", go:()=>{ goTo({tab:"templates",screen:"templateDoc",id:t.id}); } }); });
+        hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||svgIcon(ICON_D.templates,14), title:t.title, sub:"Modelo", go:()=>{ goTo({tab:"templates",screen:"templateDoc",id:t.id}); } }); });
       // Histórico: só entra quando a rotina de origem já foi excluída — enquanto
       // ela ainda existir, a busca por rotinas acima já encontra o mesmo nome.
       const rotinasVistas = new Set();
@@ -3140,7 +3169,7 @@ window.addEventListener("unhandledrejection", function(e){
         if(!h.routineName.toLowerCase().includes(q)) return;
         rotinasVistas.add(h.routineId);
         if(routines.some(r=>r.id===h.routineId)) return;
-        hits.push({ icon:"&#8987;", title:h.routineName, sub:"Histórico (rotina excluída)", go:()=>{ goTo({tab:"stats",screen:"stats"}); } });
+        hits.push({ icon:svgIcon(ICON_D.clock,14), title:h.routineName, sub:"Histórico (rotina excluída)", go:()=>{ goTo({tab:"stats",screen:"stats"}); } });
       });
       // Diário: um resultado por período com texto batendo, abre direto nele.
       Object.keys(diario).forEach(k=>{
@@ -3148,14 +3177,14 @@ window.addEventListener("unhandledrejection", function(e){
         if(!texto || !texto.toLowerCase().includes(q)) return;
         const escopo = escopoDoPer(k);
         const iso = k.slice(k.indexOf(":")+1);
-        hits.push({ icon:"&#128213;", title: diarioRotulo(escopo, iso), sub:"Diário", go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
+        hits.push({ icon:svgIcon(ICON_D.calendar,14), title: diarioRotulo(escopo, iso), sub:"Diário", go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
       });
       // Cartões do kanban do Diário, em qualquer escopo/período.
       diaKanban.forEach(c=>{
         if(!c.text || !c.text.toLowerCase().includes(q)) return;
         const escopo = escopoDoPer(c.per);
         const iso = c.per.slice(c.per.indexOf(":")+1);
-        hits.push({ icon:"&#128203;", title:c.text, sub:"Kanban · "+diarioRotulo(escopo, iso), go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
+        hits.push({ icon:svgIcon(ICON_D.clipboard,14), title:c.text, sub:"Kanban · "+diarioRotulo(escopo, iso), go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
       });
       if(hits.length === 0){
         results.innerHTML = `<div class="routine-meta" style="padding:8px 2px;">Nada encontrado.</div>`;
@@ -3277,6 +3306,7 @@ window.addEventListener("unhandledrejection", function(e){
     else if(view.screen === "templates") renderTemplates();
     else if(view.screen === "tmplFolder") renderTmplFolder();
     else if(view.screen === "expenseFolder") renderExpenseFolder();
+    else if(view.screen === "diarioFolder") renderDiarioFolder();
     else if(view.screen === "templateDoc") renderTemplateDoc();
     else if(view.screen === "editor") renderEditor();
     else if(view.screen === "noteEditor") renderNoteEditor();
@@ -3380,12 +3410,13 @@ window.addEventListener("unhandledrejection", function(e){
         <h1>Rotinas</h1>
         <div class="header-right">${cfgBtnHtml()}</div>
       </div>
+      ${rodaVidaResumoHtml()}
       <div class="header-right" style="margin-bottom:18px; flex-wrap:wrap;">
         ${streak>0?`<div class="streak"><span class="dot"></span>${streak} dia${streak>1?'s':''}</div>`:""}
         <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>
-        <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">&#9636; agenda</button>
-        <button class="bell-btn" id="tarefasBtn" title="Tarefas de estudo" aria-label="Tarefas de estudo">&#9776;</button>
-        <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">&#8679;</button>
+        <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">${svgIcon(ICON_D.calendar,14)} agenda</button>
+        <button class="bell-btn" id="tarefasBtn" title="Tarefas de estudo" aria-label="Tarefas de estudo">${svgIcon(ICON_D.bars3,15)}</button>
+        <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">${svgIcon(ICON_D.arrowUpTray,14)}</button>
         <button class="bell-btn" id="boletimBtn" title="Boletim da semana" aria-label="Boletim da semana">${svgIcon(ICON_D.trophy, 17)}</button>
         <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
       </div>
@@ -3398,7 +3429,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(backupOverdue()){
       const bk = document.createElement("div");
       bk.className = "notice-card";
-      bk.innerHTML = `<span>&#8681; Faz mais de 30 dias sem backup. Seus dados vivem só neste navegador.</span>
+      bk.innerHTML = `<span>${svgIcon(ICON_D.arrowDownTray,14)} Faz mais de 30 dias sem backup. Seus dados vivem só neste navegador.</span>
         <div class="notice-actions"><button id="doBackupNow">Exportar</button><button id="dismissBackup" class="ghost">Depois</button></div>`;
       scroll.appendChild(bk);
       bk.querySelector("#doBackupNow").onclick = () => { exportBackup(); render(); };
@@ -3446,8 +3477,8 @@ window.addEventListener("unhandledrejection", function(e){
             <div class="routine-meta">${escapeHtml(sr.name)} · etapa ${snap.idx+1}/${snap.steps.length}</div>
           </div>
           <div class="routine-actions">
-            <button class="icon-btn" id="discardResume" title="Descartar rotina em andamento" aria-label="Descartar rotina em andamento">&#10005;</button>
-            <button class="play-btn" id="doResume" title="Retomar rotina" aria-label="Retomar rotina">&#9654;</button>
+            <button class="icon-btn" id="discardResume" title="Descartar rotina em andamento" aria-label="Descartar rotina em andamento">${svgIcon(ICON_D.xmark,14)}</button>
+            <button class="play-btn" id="doResume" title="Retomar rotina" aria-label="Retomar rotina">${svgIcon(ICON_D.play,16)}</button>
           </div>
         `;
         scroll.appendChild(resumeCard);
@@ -3493,12 +3524,12 @@ window.addEventListener("unhandledrejection", function(e){
             <h3><span class="r-dot" style="background:${fillStyle(r.color)}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h3>
             <div class="routine-meta">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}${rStreak>0?` · &#9679; ${rStreak}d`:""}${rotinaEhHabito(r)?`<span class="habito-chip" title="Hábito consolidado: vale ${Math.round((gam.config.habito.fator||0.6)*100)}% do peso, para abrir espaço ao que ainda não pegou">hábito</span>`:""}</div>
             ${rodaAtiva() && areaDaRotina(r) ? `<div class="sched-chip chip-block" style="color:${areaInfoRoda(areaDaRotina(r)).color};">${escapeHtml(areaInfoRoda(areaDaRotina(r)).label)}</div>` : ""}
-            ${rPend ? `<div class="sched-chip chip-block" style="color:var(--danger);">&#8635; ${rPend} etapa${rPend>1?'s':''} não feita${rPend>1?'s':''} hoje</div>` : ""}
-            ${sched ? `<div class="sched-chip">&#9200; ${sched.startStr} &rarr; ${sched.endStr}</div>` : ""}
+            ${rPend ? `<div class="sched-chip chip-block" style="color:var(--danger);">${svgIcon(ICON_D.arrowPath,15)} ${rPend} etapa${rPend>1?'s':''} não feita${rPend>1?'s':''} hoje</div>` : ""}
+            ${sched ? `<div class="sched-chip">${svgIcon(ICON_D.clock,13)} ${sched.startStr} &rarr; ${sched.endStr}</div>` : ""}
             ${sched ? diasChipHtml(r) : ""}
           </div>
           <div class="routine-actions">
-            <button class="play-btn" data-play="${r.id}" title="Iniciar rotina" aria-label="Iniciar rotina">&#9654;</button>
+            <button class="play-btn" data-play="${r.id}" title="Iniciar rotina" aria-label="Iniciar rotina">${svgIcon(ICON_D.play,16)}</button>
           </div>
         `;
         list.appendChild(wrapSwipeActions(card, {
@@ -3579,12 +3610,12 @@ window.addEventListener("unhandledrejection", function(e){
           <h1 style="font-size:26px;"><span class="r-dot" style="background:${fillStyle(r.color)}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h1>
         </div>
         <div class="routine-meta" style="margin-bottom:4px;">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}</div>
-        ${sched ? `<div class="sched-chip">&#9200; ${sched.startStr} &rarr; ${sched.endStr}</div>${diasChipHtml(r)}<div style="height:10px;"></div>` : ""}
+        ${sched ? `<div class="sched-chip">${svgIcon(ICON_D.clock,13)} ${sched.startStr} &rarr; ${sched.endStr}</div>${diasChipHtml(r)}<div style="height:10px;"></div>` : ""}
         <div class="section-label">Etapas</div>
       </div>
       <div class="bottom-actions">
         <button class="btn-danger-outline" id="rdEdit" style="border-color:var(--line); color:var(--muted);">Editar</button>
-        <button class="btn-primary" id="rdStart">&#9654; Começar</button>
+        <button class="btn-primary" id="rdStart">${svgIcon(ICON_D.play,16)} Começar</button>
       </div>
     `;
     app.appendChild(el);
@@ -3594,13 +3625,13 @@ window.addEventListener("unhandledrejection", function(e){
       const card = document.createElement("div");
       card.className = "routine-card";
       card.style.gap = "10px";
-      const icon = s.type==="timer" ? "&#9202;" : "&#9745;";
+      const icon = s.type==="timer" ? svgIcon(ICON_D.clock,13) : svgIcon(ICON_D.check,13);
       let metaTxt = "";
       if(s.type==="timer") metaTxt = fmtTime(s.seconds).replace("+","");
       else metaTxt = "checklist";
-      if(s.journaling) metaTxt += " · &#9999; anotações";
+      if(s.journaling) metaTxt += ` · ${svgIcon(ICON_D.notes,13)} anotações`;
       card.innerHTML = `
-        <span class="drag-handle" data-drag="${i}">&#8801;</span>
+        <span class="drag-handle" data-drag="${i}">${svgIcon(ICON_D.bars3,15)}</span>
         <div class="routine-info" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px;">
           <span style="flex:0 0 auto; font-size:16px; color:var(--muted);">${i+1}.</span>
           <div style="flex:1; min-width:0;">
@@ -3608,7 +3639,7 @@ window.addEventListener("unhandledrejection", function(e){
             <div class="routine-meta" style="margin-top:2px;">${metaTxt}</div>
           </div>
         </div>
-        <button class="icon-btn" data-stepedit="${i}" title="Editar etapa" aria-label="Editar etapa">&#9998;</button>`;
+        <button class="icon-btn" data-stepedit="${i}" title="Editar etapa" aria-label="Editar etapa">${svgIcon(ICON_D.notes,14)}</button>`;
       stepsBox.appendChild(card);
     });
     if(r.steps.length===0) stepsBox.insertAdjacentHTML("beforeend", `<div class="empty-state" style="min-height:20vh;"><p>Esta rotina não tem etapas.</p></div>`);
@@ -3715,7 +3746,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(nota){
         wrap.innerHTML = `<div class="qa-idea-row" style="flex-direction:row; align-items:center; justify-content:space-between;">
           <span class="qa-idea-nome" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(nota.title||"(sem título)")}</span>
-          <button class="icon-btn" id="seNotaRemove" title="Remover vínculo" aria-label="Remover vínculo">&#10005;</button>
+          <button class="icon-btn" id="seNotaRemove" title="Remover vínculo" aria-label="Remover vínculo">${svgIcon(ICON_D.xmark,14)}</button>
         </div>`;
         wrap.querySelector("#seNotaRemove").onclick = () => { stepNoteId = null; pintarNotaEtapa(); };
       } else {
@@ -3738,7 +3769,7 @@ window.addEventListener("unhandledrejection", function(e){
       pick.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <p style="margin:0;">Vincular nota</p>
-          <button class="icon-btn" id="pickClose">&#10005;</button>
+          <button class="icon-btn" id="pickClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         ${lista.length ? `<div class="qa-idea-list">${linhas}</div>` : `<div class="dev-n" style="margin-bottom:10px;">Nenhuma nota criada ainda.</div>`}
         <button class="tmpl-new qa-idea-nova" id="pickNova"><span class="tmpl-ic">${svgIcon(ICON_D.notes)}</span><span>+ Nova nota</span></button>
@@ -3971,9 +4002,9 @@ window.addEventListener("unhandledrejection", function(e){
             </div>
           </div>
           <div class="step-side">
-            <span class="drag-handle" data-drag="${i}">&#8801;</span>
-            <button class="order-btn" data-up="${i}" title="Mover para cima" aria-label="Mover para cima" ${i===0?'disabled':''}>&#9650;</button>
-            <button class="order-btn" data-down="${i}" title="Mover para baixo" aria-label="Mover para baixo" ${i===editorDraft.steps.length-1?'disabled':''}>&#9660;</button>
+            <span class="drag-handle" data-drag="${i}">${svgIcon(ICON_D.bars3,15)}</span>
+            <button class="order-btn" data-up="${i}" title="Mover para cima" aria-label="Mover para cima" ${i===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,14)}</button>
+            <button class="order-btn" data-down="${i}" title="Mover para baixo" aria-label="Mover para baixo" ${i===editorDraft.steps.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,14)}</button>
           </div>
         `;
         stepsList.appendChild(wrapSwipeActions(row, {
@@ -4016,7 +4047,7 @@ window.addEventListener("unhandledrejection", function(e){
       stepsList.querySelectorAll("[data-journal]").forEach(cb=> cb.onchange = e => {
         editorDraft.steps[+e.target.dataset.journal].journaling = e.target.checked;
       });
-      // arrastar para reordenar (alça &#8801;)
+      // arrastar para reordenar (alça ${svgIcon(ICON_D.bars3,15)})
       stepsList.querySelectorAll("[data-drag]").forEach(handle=>{
         handle.onpointerdown = ev => {
           ev.preventDefault();
@@ -4559,7 +4590,7 @@ window.addEventListener("unhandledrejection", function(e){
     el.innerHTML = `
       <div class="home-header">
         <h1>Importar tarefas</h1>
-        <button class="bell-btn" id="tiCancel">&#10005;</button>
+        <button class="bell-btn" id="tiCancel">${svgIcon(ICON_D.xmark,14)}</button>
       </div>
       <div style="display:flex; flex-direction:column; gap:14px; overflow-y:auto;">
         <div class="stat-card">
@@ -4569,7 +4600,7 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
 
         ${!matchedEixo ? `<div class="stat-card" style="border-color:var(--danger);">
-          <div style="font-size:13px; color:var(--danger); margin-bottom:8px;">&#9888; Eixo "${escapeHtml(p.eixoLabel)}" não bate com nenhum eixo existente. Escolha manualmente:</div>
+          <div style="font-size:13px; color:var(--danger); margin-bottom:8px;">${svgIcon(ICON_D.exclamationTriangle,14)} Eixo "${escapeHtml(p.eixoLabel)}" não bate com nenhum eixo existente. Escolha manualmente:</div>
           <select id="tiEixo" class="routine-select">${eixoOptions}</select>
         </div>` : `<div>
           <div class="section-label">Eixo detectado</div>
@@ -4738,9 +4769,9 @@ window.addEventListener("unhandledrejection", function(e){
       durValues.map(d=>`<span data-dur="${d}" class="${tarefaDurFilter===d?'active':''}">${d} min</span>`).join("");
     el.innerHTML = `
       <div class="tab-scroll">
-        <div class="home-header"><h1>Tarefas &#9776;</h1>
+        <div class="home-header"><h1>Tarefas ${svgIcon(ICON_D.bars3,15)}</h1>
           <div class="header-right">
-            <button class="bell-btn" id="tarImportBtn" title="Importar tarefas (.md)" aria-label="Importar tarefas (.md)">&#8679;</button>
+            <button class="bell-btn" id="tarImportBtn" title="Importar tarefas (.md)" aria-label="Importar tarefas (.md)">${svgIcon(ICON_D.arrowUpTray,14)}</button>
             <input type="file" id="tarImportFile" accept=".md,.txt,text/markdown,text/plain" style="display:none">
           </div>
         </div>
@@ -4762,7 +4793,7 @@ window.addEventListener("unhandledrejection", function(e){
     const list = document.getElementById("tarList");
 
     if(tarefas.length===0){
-      list.innerHTML = `<div class="empty-state"><h2>Fila vazia</h2><p>Importe um arquivo .md (&#8679; acima) ou adicione tarefas com o botão +.</p>
+      list.innerHTML = `<div class="empty-state"><h2>Fila vazia</h2><p>Importe um arquivo .md (${svgIcon(ICON_D.arrowUpTray,14)} acima) ou adicione tarefas com o botão +.</p>
         <div class="stat-card" style="text-align:left; margin-top:14px; font-family:'Inter', sans-serif; font-size:11.5px; line-height:1.6; color:var(--muted); white-space:pre;">&gt; **Idiomas — Mandarim**
 &gt;
 &gt; &gt; **15 minutos**
@@ -4797,7 +4828,7 @@ window.addEventListener("unhandledrejection", function(e){
         const collapsed = !!tarefaCollapsed[secKey];
         const sec = document.createElement("div");
         sec.innerHTML = `<div class="section-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${ex.color};" data-eixosec="${escapeHtml(secKey)}">
-          <span>${collapsed?'&#9656;':'&#9662;'}</span><span style="flex:1;">${ex.label} · ${escapeHtml(area)}</span><span style="color:var(--muted); font-weight:400;">${active.length}</span>
+          <span>${collapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span><span style="flex:1;">${ex.label} · ${escapeHtml(area)}</span><span style="color:var(--muted); font-weight:400;">${active.length}</span>
         </div>`;
         sec.querySelector("[data-eixosec]").onclick = () => { tarefaCollapsed[secKey] = !collapsed; save("rotinas_v2_tar_collapsed", tarefaCollapsed); render(); };
         list.appendChild(sec);
@@ -4820,7 +4851,7 @@ window.addEventListener("unhandledrejection", function(e){
           const detalhesHtml = tarefaDetalhesHtml(m.detalhes);
           card.innerHTML = `
             <div class="tar-item-info" data-medit="${m.id}">
-              <span class="tar-bullet" style="${isNext?`color:${ex.color};`:''}">${isNext?'&#8594;':'&bull;'}</span>
+              <span class="tar-bullet" style="${isNext?`color:${ex.color};`:''}">${isNext?svgIcon(ICON_D.arrowRight,13):'&bull;'}</span>
               <div style="flex:1; min-width:0;">
                 <div class="tar-conteudo">${escapeHtml(m.conteudo)}</div>
                 <div class="routine-meta tar-item-meta">${metaBits}</div>
@@ -4828,8 +4859,8 @@ window.addEventListener("unhandledrejection", function(e){
               </div>
             </div>
             ${dim?'':`<div class="tar-item-actions">
-              <button class="bell-btn" data-mplay="${m.id}" title="Iniciar timer" aria-label="Iniciar timer" style="color:${ex.color};">&#9654;</button>
-              <button class="bell-btn" data-mdone="${m.id}" title="Marcar feita hoje" aria-label="Marcar feita hoje">&#10003;</button>
+              <button class="bell-btn" data-mplay="${m.id}" title="Iniciar timer" aria-label="Iniciar timer" style="color:${ex.color};">${svgIcon(ICON_D.play,16)}</button>
+              <button class="bell-btn" data-mdone="${m.id}" title="Marcar feita hoje" aria-label="Marcar feita hoje">${svgIcon(ICON_D.check,14)}</button>
             </div>`}`;
           return wrapSwipeDelete(card, () => deleteTarefaComUndo(m));
         }
@@ -4849,7 +4880,7 @@ window.addEventListener("unhandledrejection", function(e){
           const bh = document.createElement("div");
           bh.className = "tar-bloco-head";
           bh.dataset.bloco = blocoKey;
-          bh.innerHTML = `<span class="tar-bloco-arrow">${blocoCollapsed?'&#9656;':'&#9662;'}</span>
+          bh.innerHTML = `<span class="tar-bloco-arrow">${blocoCollapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span>
             <span class="tar-bloco-title">${escapeHtml(block.tipo)}</span>
             <span class="tar-bloco-count">${block.items.length}</span>`;
           bh.onclick = () => { tarefaBlocoCollapsed[blocoKey] = !blocoCollapsed; save("rotinas_v2_tar_bloco_collapsed", tarefaBlocoCollapsed); render(); };
@@ -4863,7 +4894,7 @@ window.addEventListener("unhandledrejection", function(e){
           const doneCollapsed = tarefaConcluidasCollapsed[doneKey] !== false; // colapsada por padrão
           const doneSec = document.createElement("div");
           doneSec.innerHTML = `<div class="section-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;" data-donesec="${escapeHtml(doneKey)}">
-            <span>${doneCollapsed?'&#9656;':'&#9662;'}</span><span style="flex:1;">&#10003; Concluídas</span><span style="color:var(--muted); font-weight:400;">${done.length}</span>
+            <span>${doneCollapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span><span style="flex:1;">${svgIcon(ICON_D.check,14)} Concluídas</span><span style="color:var(--muted); font-weight:400;">${done.length}</span>
           </div>`;
           doneSec.querySelector("[data-donesec]").onclick = () => { tarefaConcluidasCollapsed[doneKey] = !doneCollapsed; save("rotinas_v2_tar_concl_collapsed", tarefaConcluidasCollapsed); render(); };
           list.appendChild(doneSec);
@@ -4878,7 +4909,7 @@ window.addEventListener("unhandledrejection", function(e){
             doneBlocks.forEach(block=>{
               const bh = document.createElement("div");
               bh.className = "tar-bloco-head done";
-              bh.innerHTML = `<span class="tar-bloco-arrow" style="visibility:hidden;">&#9662;</span>
+              bh.innerHTML = `<span class="tar-bloco-arrow" style="visibility:hidden;">${svgIcon(ICON_D.chevronDown,13)}</span>
                 <span class="tar-bloco-title" style="color:var(--muted);">${escapeHtml(block.tipo)}</span>
                 <span class="tar-bloco-count">${block.items.length}</span>`;
               list.appendChild(bh);
@@ -4910,7 +4941,7 @@ window.addEventListener("unhandledrejection", function(e){
     el.innerHTML = `
       <div class="home-header">
         <h1>${isNew?'Nova tarefa':'Editar tarefa'}</h1>
-        <button class="bell-btn" id="tarBack">&#10005;</button>
+        <button class="bell-btn" id="tarBack">${svgIcon(ICON_D.xmark,14)}</button>
       </div>
       <div style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; padding-bottom:20px;">
         <div class="section-label">Eixo</div>
@@ -4998,7 +5029,7 @@ window.addEventListener("unhandledrejection", function(e){
         <h2 style="font-size:22px;">${escapeHtml(m.tipo)}: ${escapeHtml(m.conteudo)}</h2>
         <div id="tarClock" style="font-family:'Inter', sans-serif; font-size:64px; font-weight:500;">--:--</div>
         <div id="tarHint" class="routine-meta">contagem não para sozinha — marque quando concluir</div>
-        <button class="btn-primary" id="tarDone" style="width:220px; background:${ex.color};">&#10003; Concluída</button>
+        <button class="btn-primary" id="tarDone" style="width:220px; background:${ex.color};">${svgIcon(ICON_D.check,14)} Concluída</button>
         <button class="btn-cancel" id="tarCancel">Cancelar (não conta)</button>
       </div>`;
     app.appendChild(el);
@@ -5030,11 +5061,11 @@ window.addEventListener("unhandledrejection", function(e){
     el.innerHTML = `
       <div class="tab-scroll">
         <div class="home-header">
-          <h1><span id="notesBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">&#8249;</span> Notas simples</h1>
+          <h1><span id="notesBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> Notas simples</h1>
           <div class="header-right">
-            <button class="bell-btn" id="exportAllMd" title="Exportar todas em .md" aria-label="Exportar todas em .md">&#9998;&#8681;</button>
-            <button class="bell-btn" id="backupBtn" title="Exportar backup" aria-label="Exportar backup">&#8681;</button>
-            <button class="bell-btn" id="importBtn" title="Importar backup" aria-label="Importar backup">&#8679;</button>
+            <button class="bell-btn" id="exportAllMd" title="Exportar todas em .md" aria-label="Exportar todas em .md">${svgIcon(ICON_D.notes,14)}${svgIcon(ICON_D.arrowDownTray,14)}</button>
+            <button class="bell-btn" id="backupBtn" title="Exportar backup" aria-label="Exportar backup">${svgIcon(ICON_D.arrowDownTray,14)}</button>
+            <button class="bell-btn" id="importBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
             <input type="file" id="importFile" accept="application/json" style="display:none">
           </div>
         </div>
@@ -5148,7 +5179,7 @@ window.addEventListener("unhandledrejection", function(e){
         <button class="link-btn muted" id="backFromAgenda">&larr; Rotinas</button>
         <button class="link-btn" id="snoozeBtn">${snoozed ? "retomar agenda" : "pausar agenda"}</button>
       </div>
-      ${snoozed ? `<div class="notice-card" style="margin-bottom:14px;"><span>&#9208; Agenda pausada até ${(()=>{ const s = snoozes.find(x=>Date.now()>=x.from && Date.now()<=x.to); const dd = new Date(s.to); return String(dd.getDate()).padStart(2,"0")+"/"+String(dd.getMonth()+1).padStart(2,"0"); })()} — sem alertas, e os dias pausados não contam no cumprimento.</span></div>` : ""}`;
+      ${snoozed ? `<div class="notice-card" style="margin-bottom:14px;"><span>${svgIcon(ICON_D.exclamationTriangle,14)} Agenda pausada até ${(()=>{ const s = snoozes.find(x=>Date.now()>=x.from && Date.now()<=x.to); const dd = new Date(s.to); return String(dd.getDate()).padStart(2,"0")+"/"+String(dd.getMonth()+1).padStart(2,"0"); })()} — sem alertas, e os dias pausados não contam no cumprimento.</span></div>` : ""}`;
 
     const body = document.createElement("div");
     body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
@@ -5312,7 +5343,7 @@ window.addEventListener("unhandledrejection", function(e){
       executed.forEach(h=>{
         const t = h.ts ? fmtClock(new Date(h.ts)) : "";
         const dur = h.actualSec != null ? fmtTime(h.actualSec).replace("+","") : "";
-        out += `<div class="dev-row"><span>&#10003; ${escapeHtml(h.routineName)}</span><span class="dev-n">${dur}</span><span class="dev-n">${t}</span></div>`;
+        out += `<div class="dev-row"><span>${svgIcon(ICON_D.check,14)} ${escapeHtml(h.routineName)}</span><span class="dev-n">${dur}</span><span class="dev-n">${t}</span></div>`;
       });
       planned.forEach(r=>{
         const done = executed.some(h=>h.routineId === r.id);
@@ -5377,13 +5408,14 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="home-header">
           <h1>Dados</h1>
           <div class="header-right">
-            <button class="bell-btn" id="statsBackupBtn" title="Exportar backup completo" aria-label="Exportar backup completo">&#8681;</button>
-            <button class="bell-btn" id="statsImportBtn" title="Importar backup" aria-label="Importar backup">&#8679;</button>
+            <button class="bell-btn" id="statsBackupBtn" title="Exportar backup completo" aria-label="Exportar backup completo">${svgIcon(ICON_D.arrowDownTray,14)}</button>
+            <button class="bell-btn" id="statsImportBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
             <input type="file" id="statsImportFile" accept="application/json" style="display:none">
             <button class="bell-btn" id="csvBtn" title="Exportar CSV" aria-label="Exportar CSV" style="width:auto; padding:0 10px; font-size:12px; font-family:'Inter', sans-serif;">CSV</button>
             ${cfgBtnHtml()}
           </div>
         </div>
+        ${rodaVidaResumoHtml()}
         <div class="stats-nav">
           <div class="type-toggle view-toggle">
             <span data-sview="resumo" class="${statsView==='resumo'?'active':''}">resumo</span>
@@ -5449,7 +5481,7 @@ window.addEventListener("unhandledrejection", function(e){
       const pct = last7.length ? Math.round(n7/Math.max(1,last7.length)*100) : 0;
       rows += `<div class="bar-row"><div class="bar-name" style="color:${ex.color};">${ex.label}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${ex.color};"></div></div><div class="bar-val">${n7} / 7d · ${n30} / 30d</div></div>`;
     });
-    body.innerHTML += `<div class="section-label">Tarefas &#9776;</div>
+    body.innerHTML += `<div class="section-label">Tarefas ${svgIcon(ICON_D.bars3,15)}</div>
       <div class="stat-card">${rows || '<div class="dev-n">sem conclusões nos últimos 30 dias</div>'}
       <div class="stat-foot">${last7.length} tarefa(s) e ${min7} min na última semana · ${tarefasHist.length} no total</div></div>`;
   }
@@ -5464,10 +5496,17 @@ window.addEventListener("unhandledrejection", function(e){
     const allRich = history.filter(h=>h.ts);
     const byDate = minutesByDate(history);
 
-    /* --- heatmap 17 semanas, alinhado por dia da semana --- */
+    /* --- heatmap, alinhado por dia da semana --- para 7d/30d/90d o heatmap fica
+       restrito ao próprio período selecionado (não faz sentido mostrar 17
+       semanas atrás de uma pergunta sobre a última semana); ano e tudo mantêm
+       o heatmap genérico de sempre. */
     const to = new Date(); to.setHours(12,0,0,0);
-    const from = new Date(to); from.setDate(from.getDate() - 7*17 + 1);
-    partes.push(`<div class="section-label">Últimas 17 semanas · toque num dia</div><div class="stat-card" id="hmCard">${heatmapHtml(from, to, byDate)}
+    let from, hmLabel;
+    if(statsPeriod === "7d"){ from = new Date(to); from.setDate(from.getDate()-6); hmLabel = "Últimos 7 dias"; }
+    else if(statsPeriod === "30d"){ from = new Date(to); from.setDate(from.getDate()-29); hmLabel = "Últimos 30 dias"; }
+    else if(statsPeriod === "90d"){ from = new Date(to); from.setDate(from.getDate()-89); hmLabel = "Últimos 90 dias"; }
+    else { from = new Date(to); from.setDate(from.getDate() - 7*17 + 1); hmLabel = "Últimas 17 semanas"; }
+    partes.push(`<div class="section-label">${hmLabel} · toque num dia</div><div class="stat-card" id="hmCard">${heatmapHtml(from, to, byDate)}
       <div class="stat-foot">${computeStreak()} dia(s) seguidos · ${Object.keys(byDate).length} dias ativos no total</div></div>`);
     if(selectedDay) partes.push(dayDetailHtml(selectedDay));
 
@@ -5523,7 +5562,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(hourCounts.some(c=>c>0)){
       let hHtml = `<div class="hour-chart">` + hourCounts.map((c,hh)=>{
         const bh = c ? Math.max(3, c/maxHour*54) : 0;
-        return `<div class="hour-col"><div class="hour-bar" style="height:${bh}px"></div>${hh%6===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}</div>`;
+        return `<div class="hour-col">${hh%3===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}<div class="hour-bar-area"><div class="hour-bar" style="height:${bh}px"></div></div></div>`;
       }).join("") + `</div>`;
       partes.push(`<div class="section-label">Horário real de início (${statsPeriod})</div><div class="stat-card">${hHtml}</div>`);
     }
@@ -5569,7 +5608,7 @@ window.addEventListener("unhandledrejection", function(e){
       let puncHtml = Object.entries(byR).map(([name,arr])=>{
         const med = Math.round(median(arr));
         const cls = med > 5 ? "late" : (med < -5 ? "early" : "ontime");
-        const label = med === 0 ? "0min" : (med > 0 ? "+"+med+"min" : "&minus;"+Math.abs(med)+"min");
+        const label = fmtMinLabel(med);
         return `<div class="dev-row"><span>${escapeHtml(name)}</span><b class="${cls}">${label}</b><span class="dev-n">${arr.length}x</span></div>`;
       }).join("");
       partes.push(`<div class="section-label">Pontualidade mediana (${statsPeriod})</div><div class="stat-card">${puncHtml}</div>`);
@@ -5618,7 +5657,7 @@ window.addEventListener("unhandledrejection", function(e){
         const cls = h.plannedSec ? (h.actualSec > h.plannedSec ? "late" : (h.actualSec < h.plannedSec ? "early" : "ontime")) : "";
         // nome em cima, dados da execução na linha de baixo — o nome da rotina
         // costuma ser longo e brigava por espaço com os números na mesma linha
-        return `<div class="dev-row exec-row"><span class="exec-name">${escapeHtml(h.routineName)}</span><span class="dev-n">${dateStr} · ${timeStr} · planejado ${plannedStr} · real <b class="${cls}">${actualStr}</b></span></div>`;
+        return `<div class="dev-row exec-row"><span class="exec-name">${escapeHtml(h.routineName)}</span><span class="dev-n">${dateStr} · ${timeStr} | <b>${plannedStr}</b> &rarr; <b class="${cls}">${actualStr}</b></span></div>`;
       }).join("");
       partes.push(`<div class="section-label">Execuções recentes (${statsPeriod})</div><div class="stat-card">${recHtml}</div>`);
     }
@@ -5848,7 +5887,7 @@ window.addEventListener("unhandledrejection", function(e){
       const maxHour = Math.max(...hourCounts, 1);
       let hHtml = `<div class="hour-chart">` + hourCounts.map((c,hh)=>{
         const bh = c ? Math.max(3, c/maxHour*54) : 0;
-        return `<div class="hour-col"><div class="hour-bar" style="height:${bh}px; ${c?`background:${fillStyle(r.color)};`:""}"></div>${hh%6===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}</div>`;
+        return `<div class="hour-col">${hh%3===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}<div class="hour-bar-area"><div class="hour-bar" style="height:${bh}px; ${c?`background:${fillStyle(r.color)};`:""}"></div></div></div>`;
       }).join("") + `</div>`;
       partes.push(`<div class="section-label">Horário real de início</div><div class="stat-card">${hHtml}</div>`);
     }
@@ -5861,9 +5900,9 @@ window.addEventListener("unhandledrejection", function(e){
         const dateStr = String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + " " + fmtClock(d);
         const cmp = h.plannedSec ? `${fmtTime(h.plannedSec).replace("+","")} &rarr; ${fmtTime(h.actualSec).replace("+","")}` : fmtTime(h.actualSec||0).replace("+","");
         const mood = h.mood ? ["&#9733;&#9734;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9733;"][h.mood-1] : "";
-        return `<div class="dev-row"><span class="dev-n">${dateStr}</span><span class="dev-n">${cmp} ${mood}</span><button class="del-exec" data-delexec="${h.ts}">&#10005;</button></div>`;
+        return `<div class="dev-row"><span class="dev-n">${dateStr}</span><span class="dev-n">${cmp} ${mood}</span><button class="del-exec" data-delexec="${h.ts}">${svgIcon(ICON_D.xmark,14)}</button></div>`;
       }).join("");
-      partes.push(`<div class="section-label">Últimas execuções · &#10005; apaga o registro</div><div class="stat-card">${recHtml}</div>`);
+      partes.push(`<div class="section-label">Últimas execuções · ${svgIcon(ICON_D.xmark,14)} apaga o registro</div><div class="stat-card">${recHtml}</div>`);
     }
 
     body.innerHTML = partes.join("");
@@ -5932,7 +5971,43 @@ window.addEventListener("unhandledrejection", function(e){
     templates: "M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z",
     home: "M8.242 5.992h12m-12 6.003H20.24m-12 5.999h12M4.117 7.495v-3.75H2.99m1.125 3.75H2.99m1.125 0H5.24m-1.92 2.577a1.125 1.125 0 1 1 1.591 1.59l-1.83 1.83h2.16M2.99 15.745h1.125a1.125 1.125 0 0 1 0 2.25H3.74m0-.002h.375a1.125 1.125 0 0 1 0 2.25H2.99",
     trophy: "M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 0 0 7.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 0 0 2.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 0 1 2.916.52 6.003 6.003 0 0 1-5.396 4.972m0 0a6.726 6.726 0 0 1-2.749 1.35m0 0a6.772 6.772 0 0 1-3.044 0",
-    settings: "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.431l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+    settings: "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.431l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
+    xmark: "M6 18 18 6M6 6l12 12",
+    check: "m4.5 12.75 6 6 9-13.5",
+    chevronLeft: "M15.75 19.5 8.25 12l7.5-7.5",
+    chevronRight: "m8.25 4.5 7.5 7.5-7.5 7.5",
+    chevronUp: "m4.5 15.75 7.5-7.5 7.5 7.5",
+    chevronDown: "m19.5 8.25-7.5 7.5-7.5-7.5",
+    chevronDoubleRight: "m5.25 4.5 7.5 7.5-7.5 7.5m6-15 7.5 7.5-7.5 7.5",
+    chevronDoubleLeft: "m18.75 4.5-7.5 7.5 7.5 7.5m-6-15L5.25 12l7.5 7.5",
+    bars3: "M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5",
+    arrowUpTray: "M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 7.5 12 3m0 0L7.5 7.5M12 3v13.5",
+    arrowDownTray: "M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3",
+    arrowLeft: "M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18",
+    arrowRight: "M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3",
+    arrowUp: "M12 19.5V4.5m0 0L5.25 11.25M12 4.5l6.75 6.75",
+    arrowDown: "M12 4.5v15m0 0-6.75-6.75M12 19.5l6.75-6.75",
+    arrowUturnRight: "M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3",
+    arrowPath: "M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99",
+    arrowUpRight: "M4.5 19.5 19.5 4.5m0 0v11.25m0-11.25H8.25",
+    arrowsUpDown: "M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5",
+    arrowsPointingOut: "M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15",
+    arrowsPointingIn: "M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25",
+    pause: "M15.75 5.25v13.5m-7.5-13.5v13.5",
+    play: "M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 0 1 0 1.971l-11.54 6.347a1.125 1.125 0 0 1-1.667-.985V5.653Z",
+    clock: "M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+    exclamationTriangle: "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z",
+    magnifyingGlass: "m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z",
+    calendar: "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5",
+    clipboard: "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z",
+    eye: "M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
+    trash: "m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0",
+    tag: "M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z",
+    sun: "M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z",
+    moon: "M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z",
+    computerDesktop: "M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25",
+    diamond: "M12 3 21 12 12 21 3 12Z",
+    paperAirplane: "M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
   };
 
   const TMPL_TYPES = [
@@ -5940,15 +6015,15 @@ window.addEventListener("unhandledrejection", function(e){
     { type:"matrix",    icon:svgIcon(ICON_D.matrix),   label:"Matrizes 2&times;2" },
     { type:"kanban",    icon:svgIcon(ICON_D.kanban), label:"Kanbans" },
     { type:"expense",   icon:svgIcon(ICON_D.expense), label:"Registro de Despesas" },
-    { type:"travel",    icon:"&#9992;", label:"Listas de viagem" },
-    { type:"thoughtrecord", icon:"&#9670;", label:"RPD" },
-    { type:"scoreboard", icon:"&#8721;", label:"Registros de pontos" }
+    { type:"travel",    icon:svgIcon(ICON_D.paperAirplane), label:"Listas de viagem" },
+    { type:"thoughtrecord", icon:svgIcon(ICON_D.diamond), label:"RPD" },
+    { type:"scoreboard", icon:svgIcon(ICON_D.stats), label:"Registros de pontos" }
   ];
   /* Pastas fixas agrupadas em seções na aba Modelos. "notes" (nota simples) não
      é um TMPL_TYPES — é a única pasta que não vem de newTemplateDoc — por isso
      entra à mão em GERAL. */
   const TMPL_SECOES = [
-    { key:"geral",     label:"Geral",     tipos:["notes","thoughtrecord","matrix"] },
+    { key:"geral",     label:"Geral",     tipos:["notes","diarioDias","thoughtrecord","matrix"] },
     { key:"listas",    label:"Listas",    tipos:["market","travel","kanban"] },
     { key:"registros", label:"Registros", tipos:["expense","scoreboard"] }
   ];
@@ -6104,10 +6179,19 @@ window.addEventListener("unhandledrejection", function(e){
   /* Duas famílias de pasta, apresentadas em seções separadas: as fixas (uma por
      tipo de modelo, criadas à mão) e as de rotina (uma por rotina que gera notas
      de journaling, criadas sozinhas ao executar a rotina). */
+  /* dias (escopo "dia" do Diário) cujo texto da anotação não está vazio —
+     não conta o kanban, só o que foi escrito na nota do dia. */
+  function diarioDiasComAnotacao(){
+    return Object.keys(diario)
+      .filter(k=>k.startsWith("dia:") && (diario[k]||"").trim())
+      .map(k=>k.slice(4))
+      .sort((a,b)=>b.localeCompare(a));
+  }
   function templateFolderTiles(){
     const journalRoutineIds = [...new Set(templates.filter(t=>t.type==="journal").map(t=>t.routineId))];
     const todas = [
       { key:"notes", icon:svgIcon(ICON_D.notes), label:"Notas simples" },
+      { key:"diarioDias", icon:svgIcon(ICON_D.countdown), label:"Notas do Diário" },
       ...TMPL_TYPES.map(t=>({ key:t.type, icon:t.icon, label:t.label }))
     ];
     const porKey = key => todas.find(f=>f.key===key);
@@ -6115,7 +6199,7 @@ window.addEventListener("unhandledrejection", function(e){
       secoes: TMPL_SECOES.map(s=>({ key:s.key, label:s.label, tiles: s.tipos.map(porKey).filter(Boolean) })),
       rotinas: journalRoutineIds.map(rid=>{
         const r = routines.find(x=>x.id===rid);
-        return { key:"journal:"+rid, icon:"&#9999;", label: escapeHtml(r ? r.name : "Rotina excluída") };
+        return { key:"journal:"+rid, icon:svgIcon(ICON_D.notes,14), label: escapeHtml(r ? r.name : "Rotina excluída") };
       })
     };
   }
@@ -6149,6 +6233,7 @@ window.addEventListener("unhandledrejection", function(e){
       b.onclick = () => {
         const key = b.dataset.folder;
         if(key === "notes"){ goTo({ tab:"templates", screen:"notes" }); return; }
+        if(key === "diarioDias"){ goTo({ tab:"templates", screen:"diarioFolder" }); return; }
         if(key === "expense"){ goTo({ tab:"templates", screen:"expenseFolder" }); return; }
         if(key.startsWith("journal:")){ goTo({ tab:"templates", screen:"tmplFolder", folderKind:"routine", folderKey:key.slice(8) }); return; }
         goTo({ tab:"templates", screen:"tmplFolder", folderKind:"type", folderKey:key });
@@ -6214,7 +6299,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(kind === "routine"){
       const r = routines.find(x=>x.id===key);
       titleHtml = escapeHtml(r ? r.name : "Rotina excluída");
-      icon = "&#9999;";
+      icon = svgIcon(ICON_D.notes,14);
       docs = templates.filter(t=>t.type==="journal" && t.routineId===key);
     } else {
       const typeInfo = TMPL_TYPES.find(t=>t.type===key) || { label:key, icon:"" };
@@ -6227,7 +6312,7 @@ window.addEventListener("unhandledrejection", function(e){
     const scroll = document.createElement("div");
     scroll.className = "tab-scroll";
     scroll.innerHTML = `<div class="home-header">
-      <h1><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">&#8249;</span> ${icon} ${titleHtml}</h1>
+      <h1><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${icon} ${titleHtml}</h1>
     </div>`;
     el.appendChild(scroll);
 
@@ -6283,6 +6368,51 @@ window.addEventListener("unhandledrejection", function(e){
     };
   }
 
+  /* pasta virtual: um cartão por dia com algo escrito na anotação do Diário
+     (kanban não conta). Abrir um cartão leva direto para aquele dia no Diário
+     — não existe editor próprio aqui, é a mesma nota, só listada por data. */
+  function renderDiarioFolder(){
+    const dias = diarioDiasComAnotacao();
+    const el = document.createElement("div");
+    el.className = "screen with-tabbar";
+    const scroll = document.createElement("div");
+    scroll.className = "tab-scroll";
+    scroll.innerHTML = `<div class="home-header">
+      <h1><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${svgIcon(ICON_D.countdown)} Notas do Diário</h1>
+    </div>`;
+    el.appendChild(scroll);
+
+    if(dias.length){
+      const list = document.createElement("div");
+      list.className = "notes-list";
+      list.style.flex = "0 0 auto";
+      list.style.overflow = "visible";
+      dias.forEach(iso=>{
+        const texto = diario["dia:"+iso] || "";
+        const card = document.createElement("div");
+        card.className = "note-card";
+        card.innerHTML = `<div class="note-info">
+          <h3>${iso}</h3>
+          <div class="routine-meta" style="margin-top:4px;">${escapeHtml(stripMdForSnippet(texto))}</div>
+        </div>`;
+        card.onclick = () => {
+          diarioEscopo = "dia"; diarioData = iso; diarioAgenda = false;
+          goTo({ tab:"diario", screen:"diario" });
+        };
+        list.appendChild(card);
+      });
+      scroll.appendChild(list);
+    } else {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.innerHTML = `<h2>Nenhuma nota ainda</h2><p>Escreva algo na anotação de um dia no Diário para ele aparecer aqui.</p>`;
+      scroll.appendChild(empty);
+    }
+    el.appendChild(renderTabbar("templates"));
+    app.appendChild(el);
+    document.getElementById("folderBackBtn").onclick = () => { goTo({ tab:"templates", screen:"templates" }); };
+  }
+
   function renderTemplateDoc(){
     const doc = templates.find(t=>t.id===view.id);
     if(!doc){ goTo({ tab:"templates", screen:"templates" }); return; }
@@ -6303,7 +6433,7 @@ window.addEventListener("unhandledrejection", function(e){
     top.innerHTML = `
       <button class="link-btn muted" id="backTmpl">&larr; Modelos</button>
       <div style="display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end;">${extraButtons||""}
-        <button class="icon-btn" id="delTmpl">&#10005;</button>
+        <button class="icon-btn" id="delTmpl">${svgIcon(ICON_D.xmark,14)}</button>
       </div>`;
     el.appendChild(top);
     const titleInput = document.createElement("input");
@@ -6336,7 +6466,7 @@ window.addEventListener("unhandledrejection", function(e){
   function mountTagInput(container, values, suggestions, onChange){
     function paint(){
       container.innerHTML = `<div class="tag-input-box">
-        ${values.map((v,i)=>`<span class="tag-input-chip">${escapeHtml(v)}<button data-rmtag="${i}" title="Remover" aria-label="Remover">&#10005;</button></span>`).join("")}
+        ${values.map((v,i)=>`<span class="tag-input-chip">${escapeHtml(v)}<button data-rmtag="${i}" title="Remover" aria-label="Remover">${svgIcon(ICON_D.xmark,14)}</button></span>`).join("")}
         <input type="text" class="tag-input-field" id="tagInputField" placeholder="${values.length?'':'digite e pressione Enter…'}">
       </div>
       <div class="tag-input-suggest" id="tagInputSuggest"></div>`;
@@ -6459,7 +6589,7 @@ window.addEventListener("unhandledrejection", function(e){
             <div class="sb-h sb-idx">#</div>
             ${doc.players.map((p,pi)=>`<div class="sb-h">
               <input type="text" class="sb-name" data-sbname="${pi}" value="${escapeHtml(p.name||"")}" placeholder="J${pi+1}">
-              ${n>1 ? `<button class="del-exec sb-delp" data-sbdelp="${pi}" title="Remover jogador" aria-label="Remover jogador">&#10005;</button>` : ""}
+              ${n>1 ? `<button class="del-exec sb-delp" data-sbdelp="${pi}" title="Remover jogador" aria-label="Remover jogador">${svgIcon(ICON_D.xmark,14)}</button>` : ""}
             </div>`).join("")}
             <div class="sb-h"></div>
             <div class="sb-tot sb-idx">&Sigma;</div>
@@ -6468,7 +6598,7 @@ window.addEventListener("unhandledrejection", function(e){
             ${doc.rounds.map((r,ri)=>`
               <div class="sb-c sb-idx">${ri+1}</div>
               ${doc.players.map(p=>`<div class="sb-c"><input type="number" inputmode="numeric" class="sb-in" data-sbs="${ri}|${p.id}" value="${r.scores && r.scores[p.id] != null ? r.scores[p.id] : ""}" placeholder="–"></div>`).join("")}
-              <div class="sb-c"><button class="del-exec" data-sbdelr="${ri}" title="Remover turno" aria-label="Remover turno">&#10005;</button></div>
+              <div class="sb-c"><button class="del-exec" data-sbdelr="${ri}" title="Remover turno" aria-label="Remover turno">${svgIcon(ICON_D.xmark,14)}</button></div>
             `).join("")}
           </div>
         </div>
@@ -6666,7 +6796,7 @@ window.addEventListener("unhandledrejection", function(e){
       body.innerHTML = doc.sections.map((sec,i)=>`
         <div class="section-label" style="margin-top:${i===0?6:14}px; display:flex; justify-content:space-between; align-items:center;">
           <span>${escapeHtml(sec.taskName)}</span>
-          <button class="icon-btn" data-jedit="${i}" title="${editing.has(i)?'Concluir edição':'Editar'}" aria-label="${editing.has(i)?'Concluir edição':'Editar'}">${editing.has(i)?'&#10003;':'&#9998;'}</button>
+          <button class="icon-btn" data-jedit="${i}" title="${editing.has(i)?'Concluir edição':'Editar'}" aria-label="${editing.has(i)?'Concluir edição':'Editar'}">${editing.has(i)?svgIcon(ICON_D.check,14):svgIcon(ICON_D.notes,14)}</button>
         </div>
         ${editing.has(i)
           ? `<textarea class="mk-e-name jsec-edit" data-jsec="${i}" rows="1" style="width:100%; resize:none; overflow:hidden; line-height:1.5;">${escapeHtml(sec.text||"")}</textarea>`
@@ -6716,9 +6846,9 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     tmplHeader(el, doc, `
-      <button class="icon-btn ${doc.shopMode?'pin-btn pinned':''}" id="mkShop" title="Modo compra" aria-label="Modo compra">&#9634;</button>
-      <button class="icon-btn" id="mkRebuy" title="Recomprar (desmarcar tudo)" aria-label="Recomprar (desmarcar tudo)">&#8635;</button>
-      <button class="icon-btn" id="mkShare" title="Compartilhar como texto" aria-label="Compartilhar como texto">&#8599;</button>
+      <button class="icon-btn ${doc.shopMode?'pin-btn pinned':''}" id="mkShop" title="Modo compra" aria-label="Modo compra">${svgIcon(ICON_D.market,15)}</button>
+      <button class="icon-btn" id="mkRebuy" title="Recomprar (desmarcar tudo)" aria-label="Recomprar (desmarcar tudo)">${svgIcon(ICON_D.arrowPath,15)}</button>
+      <button class="icon-btn" id="mkShare" title="Compartilhar como texto" aria-label="Compartilhar como texto">${svgIcon(ICON_D.arrowUpRight,13)}</button>
     `);
 
     /* A seção de adicionar produto ficava fora da área de rolagem (fixa acima
@@ -6834,7 +6964,7 @@ window.addEventListener("unhandledrejection", function(e){
         listBox.innerHTML += `<div class="stat-foot" style="margin:2px 0 8px;">${pending.length} pendente(s) de ${doc.items.length}</div>`;
       }
       if(!doc.shopMode){
-        listBox.innerHTML += `<button class="link-btn" id="mkOrderBtn" style="font-size:13px; padding:0 0 8px;">${mkReorderAisles?"concluir ordenação":"&#8645; ordenar gôndolas"}</button>`;
+        listBox.innerHTML += `<button class="link-btn" id="mkOrderBtn" style="font-size:13px; padding:0 0 8px;">${mkReorderAisles?"concluir ordenação":`${svgIcon(ICON_D.arrowsUpDown,13)} ordenar gôndolas`}</button>`;
       }
       if(doc.items.length === 0){
         listBox.innerHTML += `<div class="empty-state" style="min-height:30vh;"><p>Adicione itens — eles serão agrupados por gôndola.</p></div>`;
@@ -6854,7 +6984,7 @@ window.addEventListener("unhandledrejection", function(e){
         visible = [...visible].sort((a,b)=>(a.checked?1:0)-(b.checked?1:0));
 
         let head = `<div class="section-label" style="display:flex; align-items:center; gap:8px;">${escapeHtml(aisle)}`;
-        if(mkReorderAisles) head += ` <button class="order-btn" data-aup="${ai}" ${ai===0?'disabled':''}>&#9650;</button><button class="order-btn" data-adown="${ai}" ${ai===order.length-1?'disabled':''}>&#9660;</button>`;
+        if(mkReorderAisles) head += ` <button class="order-btn" data-aup="${ai}" ${ai===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,14)}</button><button class="order-btn" data-adown="${ai}" ${ai===order.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,14)}</button>`;
         head += `</div>`;
 
         let rows = visible.map(it=>{
@@ -6875,7 +7005,7 @@ window.addEventListener("unhandledrejection", function(e){
             </div>`;
           }
           return `<div class="checklist-item mk-item ${it.checked?'checked':''}">
-            <span class="checklist-box" data-mkcheck="${it.id}">${it.checked?'&#10003;':''}</span>
+            <span class="checklist-box" data-mkcheck="${it.id}">${it.checked?svgIcon(ICON_D.check,14):''}</span>
             <span class="txt mk-name" data-mkedit="${it.id}">${escapeHtml(it.name)}</span>
             <span class="mk-right" data-mkedit="${it.id}">${itemRight(it)}</span>
           </div>`;
@@ -6979,7 +7109,7 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     tmplHeader(el, doc, `
-      <button class="icon-btn" id="mxAxes" title="Rótulos dos eixos" aria-label="Rótulos dos eixos">&#10011;</button>
+      <button class="icon-btn" id="mxAxes" title="Rótulos dos eixos" aria-label="Rótulos dos eixos">${svgIcon(ICON_D.tag,15)}</button>
       <button class="icon-btn" id="mxMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
       <button class="icon-btn" id="mxPdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>
     `);
@@ -6996,10 +7126,10 @@ window.addEventListener("unhandledrejection", function(e){
             <textarea class="mx-e-text" rows="1">${escapeHtml(it.text)}</textarea>
             <div class="mx-e-tools">
               <select class="mx-e-quad">${doc.quadrants.map((qq,qqi)=>`<option value="${qqi}" ${qqi===qi?'selected':''}>${escapeHtml(qq.title.slice(0,18))}</option>`).join("")}</select>
-              <button class="order-btn" data-mxind="1" title="Indentar" aria-label="Indentar">&#8677;</button>
-              <button class="order-btn" data-mxind="0" title="Remover indentação" aria-label="Remover indentação">&#8676;</button>
-              <button class="order-btn" data-mxup="1" ${ii===0?'disabled':''}>&#9650;</button>
-              <button class="order-btn" data-mxdown="1" ${ii===q.items.length-1?'disabled':''}>&#9660;</button>
+              <button class="order-btn" data-mxind="1" title="Indentar" aria-label="Indentar">${svgIcon(ICON_D.chevronDoubleRight,14)}</button>
+              <button class="order-btn" data-mxind="0" title="Remover indentação" aria-label="Remover indentação">${svgIcon(ICON_D.chevronDoubleLeft,14)}</button>
+              <button class="order-btn" data-mxup="1" ${ii===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,14)}</button>
+              <button class="order-btn" data-mxdown="1" ${ii===q.items.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,14)}</button>
             </div>
             <div class="notice-actions">
               <button data-mxok="1">ok</button>
@@ -7010,7 +7140,7 @@ window.addEventListener("unhandledrejection", function(e){
         const indStyle = it.indent ? "margin-left:16px;" : "";
         if(q.mode === "check"){
           return `<div class="checklist-item ${it.checked?'checked':''}" style="margin:3px 0; font-size:${big?15:13.5}px; ${indStyle}">
-            <span class="checklist-box mx-box" data-q="${qi}" data-i="${ii}" style="width:16px;height:16px;border-color:${q.color};${it.checked?`background:${q.color};`:""}">${it.checked?'&#10003;':''}</span>
+            <span class="checklist-box mx-box" data-q="${qi}" data-i="${ii}" style="width:16px;height:16px;border-color:${q.color};${it.checked?`background:${q.color};`:""}">${it.checked?svgIcon(ICON_D.check,14):''}</span>
             <span class="txt" style="flex:1;" data-mxe="${qi}-${ii}">${escapeHtml(it.text)}</span>
           </div>`;
         }
@@ -7027,9 +7157,9 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="mx-colors">${MATRIX_COLORS.map(c=>`<span class="color-chip mx-chip ${q.color===c?'sel':''}" data-q="${qi}" data-color="${c}" style="background:${c}; width:16px; height:16px;"></span>`).join("")}</div>
           <div style="display:flex; gap:4px; align-items:center;">
             <div class="type-toggle" style="font-size:10px;">
-              ${["check","ul","ol"].map(m=>`<span data-qm="${qi}" data-mode="${m}" class="${q.mode===m?'active':''}">${m==="check"?"&#9745;":m==="ul"?"&bull;":"1."}</span>`).join("")}
+              ${["check","ul","ol"].map(m=>`<span data-qm="${qi}" data-mode="${m}" class="${q.mode===m?'active':''}">${m==="check"?svgIcon(ICON_D.check,13):m==="ul"?"&bull;":"1."}</span>`).join("")}
             </div>
-            <button class="order-btn" data-expand="${qi}" title="${big?'Voltar à grade':'Expandir'}" aria-label="${big?'Voltar à grade':'Expandir'}">${big?"&#10530;":"&#10529;"}</button>
+            <button class="order-btn" data-expand="${qi}" title="${big?'Voltar à grade':'Expandir'}" aria-label="${big?'Voltar à grade':'Expandir'}">${big?svgIcon(ICON_D.arrowsPointingIn,15):svgIcon(ICON_D.arrowsPointingOut,15)}</button>
           </div>
         </div>
         <div class="mx-items">${itemsHtml}</div>
@@ -7212,8 +7342,8 @@ window.addEventListener("unhandledrejection", function(e){
             ${opts.pesos && rodaAtiva() ? `<div class="section-label" style="margin:10px 0 4px;">Área</div><div class="kb-e-area"></div>` : ""}
             <div class="notice-actions kb-e-acoes" style="margin-top:10px;">
               <button data-kbok="1">ok</button>
-              <button class="ghost" data-kbcancel="1">&#10005;</button>
-              <button class="ghost" data-kbdel="1" style="color:var(--danger);" title="Excluir cartão" aria-label="Excluir cartão">&#128465;</button>
+              <button class="ghost" data-kbcancel="1">${svgIcon(ICON_D.xmark,14)}</button>
+              <button class="ghost" data-kbdel="1" style="color:var(--danger);" title="Excluir cartão" aria-label="Excluir cartão">${svgIcon(ICON_D.trash,15)}</button>
             </div></div>`;
         }
         const tag = it.tagValor || "nenhum";
@@ -7228,16 +7358,16 @@ window.addEventListener("unhandledrejection", function(e){
            entre a alça e três botões. */
         return `<div class="kb-card" data-kbcard="${ci}-${ii}">
           <div class="kb-card-top">
-            <span class="kb-drag" data-kbdrag="${ci}-${ii}">&#8801;</span>
+            <span class="kb-drag" data-kbdrag="${ci}-${ii}">${svgIcon(ICON_D.bars3,15)}</span>
             <span class="kb-text" data-kbe="${ci}-${ii}">${escapeHtml(it.text)}</span>
           </div>
           <div class="kb-card-bot">
-            ${hora ? `<span class="kb-hora" title="Aparece como bloco na agenda">&#9200; ${escapeHtml(hora)}</span>` : ""}
+            ${hora ? `<span class="kb-hora" title="Aparece como bloco na agenda">${svgIcon(ICON_D.clock,13)} ${escapeHtml(hora)}</span>` : ""}
             ${pesoHtml}
             <div class="kb-moves">
-              ${podeAdiar ? `<button class="kb-move-btn" data-kbadiar="${ci}-${ii}" title="Adiar para amanhã" aria-label="Adiar para amanhã">&#8618;</button>` : ""}
+              ${podeAdiar ? `<button class="kb-move-btn" data-kbadiar="${ci}-${ii}" title="Adiar para amanhã" aria-label="Adiar para amanhã">${svgIcon(ICON_D.arrowUturnRight,14)}</button>` : ""}
               <button class="kb-move-btn" data-kbl="${ci}-${ii}" title="${ci===0?'Já está na primeira coluna':'Voltar para '+escapeHtml(cols[ci-1].title)}" aria-label="Voltar para ${ci===0?'':escapeHtml(cols[ci-1].title)}" ${ci===0?'disabled':''}>&lsaquo;</button>
-              <button class="kb-move-btn ${ci===cols.length-2?'para-feito':''}" data-kbr="${ci}-${ii}" title="${ci===cols.length-1?'Já está na última coluna':'Avançar para '+escapeHtml(cols[ci+1].title)}" aria-label="Avançar para ${ci===cols.length-1?'':escapeHtml(cols[ci+1].title)}" ${ci===cols.length-1?'disabled':''}>${ci===cols.length-2?'&#10003;':'&rsaquo;'}</button>
+              <button class="kb-move-btn ${ci===cols.length-2?'para-feito':''}" data-kbr="${ci}-${ii}" title="${ci===cols.length-1?'Já está na última coluna':'Avançar para '+escapeHtml(cols[ci+1].title)}" aria-label="Avançar para ${ci===cols.length-1?'':escapeHtml(cols[ci+1].title)}" ${ci===cols.length-1?'disabled':''}>${ci===cols.length-2?svgIcon(ICON_D.check,14):'&rsaquo;'}</button>
             </div>
           </div>
         </div>`;
@@ -7248,7 +7378,7 @@ window.addEventListener("unhandledrejection", function(e){
       body.appendChild(col);
     });
     body.querySelectorAll("[data-kbe]").forEach(sp=> sp.onclick = () => { const [ci,ii]=sp.dataset.kbe.split("-").map(Number); kbEdit={ci,ii}; repaint(); setTimeout(()=>{const i=body.querySelector(".kb-e-text"); if(i) i.focus();},30); });
-    // arrastar cartão para outra coluna/posição (alça &#8801;); botões ‹ › continuam como fallback
+    // arrastar cartão para outra coluna/posição (alça ${svgIcon(ICON_D.bars3,15)}); botões ‹ › continuam como fallback
     body.querySelectorAll("[data-kbdrag]").forEach(h=>{
       h.onpointerdown = ev => {
         ev.preventDefault();
@@ -7553,7 +7683,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="confirm-box" style="text-align:left; max-width:460px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <p style="margin:0;">Anotação — ${escapeHtml(t.title)}</p>
-          <button class="icon-btn" id="cdNotaClose">&#10005;</button>
+          <button class="icon-btn" id="cdNotaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         <textarea class="mk-e-name" id="cdNotaTxt" rows="7" style="width:100%; line-height:1.5;"
           placeholder="Como está indo, o que travou, o que fazer a seguir... (markdown: - lista, - [ ] tarefa, **negrito**)">${escapeHtml(t.nota||"")}</textarea>
@@ -7802,6 +7932,7 @@ window.addEventListener("unhandledrejection", function(e){
           ${cfgBtnHtml()}
         </div>
       </div>
+      ${rodaVidaResumoHtml()}
       <div class="type-toggle" id="metasSubviewToggle" style="margin-bottom:14px;">
         <span data-metasview="recorrentes" class="${mostraRecorrentes?'active':''}">Recorrentes</span>
         <span data-metasview="prazos" class="${mostraPrazos?'active':''}">Prazos</span>
@@ -7854,8 +7985,8 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="stat-card" style="margin-bottom:10px; ${feita?'border-color:var(--good);':''}">
           <div class="dev-row" style="border:none; padding:0;">
             <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(t.title)}</span>
-            <button class="icon-btn" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">&#9998;</button>
-            <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta">&#10005;</button>
+            <button class="icon-btn" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">${svgIcon(ICON_D.notes,14)}</button>
+            <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta">${svgIcon(ICON_D.xmark,14)}</button>
           </div>
           ${areas ? `<div class="meta-areas" style="margin:6px 0 2px;">${areas}</div>` : ""}
           ${metaDiasChipHtml(t)}
@@ -7868,10 +7999,10 @@ window.addEventListener("unhandledrejection", function(e){
             <span><input type="number" class="cd-done-inp" data-cddone="${t.id}" value="${t.done||0}" inputmode="numeric" min="0" max="${t.topics}"> / <input type="number" class="cd-done-inp" data-cdtotal="${t.id}" value="${t.topics}" inputmode="numeric" min="1"> ${escapeHtml(cdUnit(t))}</span>
             <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdplus="${t.id}" title="Mais um" aria-label="Mais um">+</button>
           </div>
-          <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:${feita?'var(--good)':'var(--accent)'};">${p.txt}</b>${feita?" &#10003;":""}</div>` : ""}
+          <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:${feita?'var(--good)':'var(--accent)'};">${p.txt}</b>${feita?" "+svgIcon(ICON_D.check,13):""}</div>` : ""}
           ${(t.nota||"").trim()
             ? `<div class="meta-nota" data-cdnotaview="${t.id}">${renderMdBlock(t.nota, "meta:"+t.id, "")}</div>
-               <button class="link-btn" data-cdnota="${t.id}" style="margin-top:2px;">&#9998; editar anotação</button>`
+               <button class="link-btn" data-cdnota="${t.id}" style="margin-top:2px;">${svgIcon(ICON_D.notes,14)} editar anotação</button>`
             : `<button class="link-btn" data-cdnota="${t.id}" style="margin-top:8px;">+ anotação</button>`}
         </div>`;
     }
@@ -7888,8 +8019,8 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="stat-card" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--danger);':'border-color:var(--good);') : (completa?'border-color:var(--good);':'')}">
           <div class="dev-row" style="border:none; padding:0;">
             <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}${rec.negativa?' <span class="dev-n">(limite)</span>':''}</span>
-            <button class="icon-btn" data-mredit="${rec.id}" title="Editar" aria-label="Editar">&#9998;</button>
-            <button class="del-exec" data-mrdel="${rec.id}" title="Remover" aria-label="Remover">&#10005;</button>
+            <button class="icon-btn" data-mredit="${rec.id}" title="Editar" aria-label="Editar">${svgIcon(ICON_D.notes,14)}</button>
+            <button class="del-exec" data-mrdel="${rec.id}" title="Remover" aria-label="Remover">${svgIcon(ICON_D.xmark,14)}</button>
           </div>
           ${areaChip}
           <div class="dev-n" style="margin-top:2px;">${rec.negativa?'até ':''}${rec.vezes}&times; ${rec.tipo==='semanal'?'na semana':'ao dia'}${rec.notif?' · lembretes '+rec.notif.inicio+'–'+rec.notif.fim:''}</div>
@@ -8176,9 +8307,9 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
     el.innerHTML = `<div class="home-header">
-      <h1><span id="expBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">&#8249;</span> ${svgIcon(ICON_D.expense)} Despesas</h1>
+      <h1><span id="expBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${svgIcon(ICON_D.expense)} Despesas</h1>
       <div class="header-right">
-        <button class="bell-btn" id="exImportBtn" title="Importar extrato CSV" aria-label="Importar extrato CSV">&#8679;</button>
+        <button class="bell-btn" id="exImportBtn" title="Importar extrato CSV" aria-label="Importar extrato CSV">${svgIcon(ICON_D.arrowUpTray,14)}</button>
         <button class="bell-btn" id="exMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
         <button class="bell-btn" id="exCsv" title="Exportar CSV" aria-label="Exportar CSV">CSV</button>
         <input type="file" id="exCsvFile" accept=".csv,text/csv,text/plain" style="display:none">
@@ -8290,14 +8421,14 @@ window.addEventListener("unhandledrejection", function(e){
             <select data-exef="cat" style="flex:1;">${EXP_CATS.map(c=>`<option ${e.cat===c?'selected':''}>${c}</option>`).join("")}</select>
             <input type="date" value="${e.date}" data-exef="date" style="width:130px;">
             <input type="time" value="${e.time||''}" data-exef="time" style="width:100px;">
-            <button class="btn-primary" data-exsave="${e.id}" style="padding:8px 14px;">&#10003;</button>
-            <button class="del-exec" data-excancel="1">&#10005;</button>
+            <button class="btn-primary" data-exsave="${e.id}" style="padding:8px 14px;">${svgIcon(ICON_D.check,14)}</button>
+            <button class="del-exec" data-excancel="1">${svgIcon(ICON_D.xmark,14)}</button>
           </div>` : `
           <div class="dev-row">
             <span class="dev-n" style="width:44px;">${e.date.slice(8,10)}/${e.date.slice(5,7)}</span>
             <span style="flex:1; cursor:pointer;" data-exedit="${e.id}" title="Tocar para editar">${escapeHtml(e.desc)}<br><span class="dev-n">${escapeHtml(e.cat)}${e.time?' · '+e.time:''}</span></span>
             <b class="ontime">${brl(e.value)}</b>
-            <button class="del-exec" data-exdel="${e.id}">&#10005;</button>
+            <button class="del-exec" data-exdel="${e.id}">${svgIcon(ICON_D.xmark,14)}</button>
           </div>`).join("");
         let catsHtml = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>{
           const pct = Math.round(v/tot*100);
@@ -8307,7 +8438,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="stat-card">${catsHtml}</div>
           <div class="stat-card" style="margin-top:6px;">${rows}</div>`;
       });
-      if(docs.length === 0) html += `<div class="empty-state" style="min-height:25vh;"><p>${expenseDocs().length ? "Nenhum lançamento corresponde ao filtro." : "Registre um gasto, ou importe um extrato CSV (&#8679; no topo)."}</p></div>`;
+      if(docs.length === 0) html += `<div class="empty-state" style="min-height:25vh;"><p>${expenseDocs().length ? "Nenhum lançamento corresponde ao filtro." : `Registre um gasto, ou importe um extrato CSV (${svgIcon(ICON_D.arrowUpTray,13)} no topo).`}</p></div>`;
       resultsBox.innerHTML = html;
 
       resultsBox.querySelectorAll("[data-exdel]").forEach(b=> b.onclick = () => {
@@ -8507,7 +8638,7 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     tmplHeader(el, doc, `
-      <button class="icon-btn" id="exImportBtn" title="Importar extrato CSV" aria-label="Importar extrato CSV">&#8679;CSV</button>
+      <button class="icon-btn" id="exImportBtn" title="Importar extrato CSV" aria-label="Importar extrato CSV">${svgIcon(ICON_D.arrowUpTray,14)}CSV</button>
       <button class="icon-btn" id="exMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
       <button class="icon-btn" id="exCsv" title="Exportar CSV" aria-label="Exportar CSV">CSV</button>
       <input type="file" id="exCsvFile" accept=".csv,text/csv,text/plain" style="display:none">`);
@@ -8602,14 +8733,14 @@ window.addEventListener("unhandledrejection", function(e){
             <input type="number" inputmode="decimal" min="0" step="0.01" value="${e.value}" data-exef="value" style="width:90px;">
             <select data-exef="cat" style="flex:1;">${EXP_CATS.map(c=>`<option ${e.cat===c?'selected':''}>${c}</option>`).join("")}</select>
             <input type="date" value="${e.date}" data-exef="date" style="width:130px;">
-            <button class="btn-primary" data-exsave="${e.id}" style="padding:8px 14px;">&#10003;</button>
-            <button class="del-exec" data-excancel="1">&#10005;</button>
+            <button class="btn-primary" data-exsave="${e.id}" style="padding:8px 14px;">${svgIcon(ICON_D.check,14)}</button>
+            <button class="del-exec" data-excancel="1">${svgIcon(ICON_D.xmark,14)}</button>
           </div>` : `
           <div class="dev-row">
             <span class="dev-n" style="width:44px;">${e.date.slice(8,10)}/${e.date.slice(5,7)}</span>
             <span style="flex:1; cursor:pointer;" data-exedit="${e.id}" title="Tocar para editar">${escapeHtml(e.desc)}<br><span class="dev-n">${escapeHtml(e.cat)}</span></span>
             <b class="ontime">${brl(e.value)}</b>
-            <button class="del-exec" data-exdel="${e.id}">&#10005;</button>
+            <button class="del-exec" data-exdel="${e.id}">${svgIcon(ICON_D.xmark,14)}</button>
           </div>`).join("");
         let catsHtml = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>{
           const pct = Math.round(v/tot*100);
@@ -8619,7 +8750,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="stat-card">${catsHtml}</div>
           <div class="stat-card" style="margin-top:6px;">${rows}</div>`;
       });
-      if(doc.entries.length === 0) body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><p>Registre um gasto, ou importe um extrato CSV (&#8679;CSV no topo).</p></div>`;
+      if(doc.entries.length === 0) body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><p>Registre um gasto, ou importe um extrato CSV (${svgIcon(ICON_D.arrowUpTray,13)}CSV no topo).</p></div>`;
 
       body.querySelectorAll("[data-exview]").forEach(sp=> sp.onclick = () => { exView = sp.dataset.exview; paint(); });
       document.getElementById("exAdd").onclick = () => {
@@ -8776,12 +8907,12 @@ window.addEventListener("unhandledrejection", function(e){
         let rows = doc[key].map((i,ii)=> pcEditing===key+"-"+ii ? `
           <div class="dev-row">
             <textarea data-pcef="${key}-${ii}" class="mk-e-name" rows="1" style="flex:1; margin-bottom:0;">${escapeHtml(i.text)}</textarea>
-            <button class="btn-primary" data-pcsave="${key}-${ii}" style="padding:8px 14px;">&#10003;</button>
+            <button class="btn-primary" data-pcsave="${key}-${ii}" style="padding:8px 14px;">${svgIcon(ICON_D.check,14)}</button>
           </div>` : `
           <div class="dev-row">
             <span style="flex:1; cursor:pointer;" data-pcedit="${key}-${ii}" title="Tocar para editar">${escapeHtml(i.text)}</span>
             <span class="pc-weights">${[1,2,3,4,5].map(w=>`<span class="pc-w ${i.w===w?'sel':''}" data-pcw="${key}-${ii}-${w}" style="${i.w===w?`background:${color}; color:#fff; border-color:transparent;`:""}">${w}</span>`).join("")}</span>
-            <button class="del-exec" data-pcdel="${key}-${ii}">&#10005;</button>
+            <button class="del-exec" data-pcdel="${key}-${ii}">${svgIcon(ICON_D.xmark,14)}</button>
           </div>`).join("");
         body.innerHTML += `<div class="section-label" style="color:${color};">${label} · soma ${key==="pros"?ps:cs}</div>
           <div class="stat-card">${rows || '<div class="dev-n">vazio</div>'}
@@ -8867,7 +8998,7 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     tmplHeader(el, doc, `
-      <button class="icon-btn" id="tvReset" title="Desmarcar tudo (reusar)" aria-label="Desmarcar tudo (reusar)">&#8635;</button>
+      <button class="icon-btn" id="tvReset" title="Desmarcar tudo (reusar)" aria-label="Desmarcar tudo (reusar)">${svgIcon(ICON_D.arrowPath,15)}</button>
       <button class="icon-btn" id="tvMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
       <button class="icon-btn" id="tvPdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>`);
     const form = document.createElement("div");
@@ -8937,7 +9068,7 @@ window.addEventListener("unhandledrejection", function(e){
             </div>
           </div>` : `
           <div class="checklist-item mk-item ${it.checked?'checked':''}">
-            <span class="checklist-box" data-tvcheck="${it.id}">${it.checked?'&#10003;':''}</span>
+            <span class="checklist-box" data-tvcheck="${it.id}">${it.checked?svgIcon(ICON_D.check,14):''}</span>
             <span class="txt mk-name" data-tvedit="${it.id}">${escapeHtml(it.name)}</span>
             <span class="mk-right" data-tvedit="${it.id}">${it.qty&&it.qty>1?'&times;'+it.qty:''}</span>
           </div>`).join("") || `<div class="dev-n" style="padding:4px 2px; opacity:.6;">— vazia —</div>`;
@@ -9082,12 +9213,12 @@ window.addEventListener("unhandledrejection", function(e){
       if(t.match(RE_HR)){ out += '<div style="border-top:1px solid var(--border, rgba(128,128,128,.35)); margin:8px 0;"></div>'; return; }
       if((m = t.match(RE_TOGGLE))){
         const collapsed = isToggleCollapsed(keyId, i);
-        out += `<div class="live-line li-line"${est_}><span class="li-marker" data-ovtoggle="${i}" style="cursor:pointer; user-select:none;">${collapsed?'&#9656;':'&#9662;'}</span> <strong>${mdInline(escapeHtml(m[1]))}</strong></div>`;
+        out += `<div class="live-line li-line"${est_}><span class="li-marker" data-ovtoggle="${i}" style="cursor:pointer; user-select:none;">${collapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span> <strong>${mdInline(escapeHtml(m[1]))}</strong></div>`;
         return;
       }
       if((m = t.match(RE_CHECK))){
         const est = estadoCheck(m);
-        out += `<div class="checklist-item ${est==='feito'?'checked':''} ${est==='adiado'?'adiado':''}"${est_}><span class="checklist-box" data-ovcheck="${i}">${est==='feito'?'&#10003;':(est==='adiado'?'&#8250;':'')}</span><span class="txt">${mdInline(escapeHtml(m[4]))}</span></div>`;
+        out += `<div class="checklist-item ${est==='feito'?'checked':''} ${est==='adiado'?'adiado':''}"${est_}><span class="checklist-box" data-ovcheck="${i}">${est==='feito'?svgIcon(ICON_D.check,14):(est==='adiado'?svgIcon(ICON_D.chevronRight,13):'')}</span><span class="txt">${mdInline(escapeHtml(m[4]))}</span></div>`;
         return;
       }
       if((m = t.match(RE_HEAD))){ const lv=m[1].length; out += `<h${lv} class="inline-h">${mdInline(escapeHtml(m[2]))}</h${lv}>`; return; }
@@ -9348,12 +9479,12 @@ window.addEventListener("unhandledrejection", function(e){
       } else if((m = raw.trim().match(RE_TOGGLE))){
         const collapsed = isToggleCollapsed(nid, i);
         div.classList.add("li-line");
-        div.innerHTML = `<span class="li-marker" data-toggle="${i}">${collapsed?'&#9656;':'&#9662;'}</span> <strong>${mdInline(escapeHtml(m[1]))}</strong>`;
+        div.innerHTML = `<span class="li-marker" data-toggle="${i}">${collapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span> <strong>${mdInline(escapeHtml(m[1]))}</strong>`;
       } else if((m = raw.trim().match(RE_CHECK))){
         const est = estadoCheck(m);
         div.className = "checklist-item live-line" + (est==="feito"?" checked":"") + (est==="adiado"?" adiado":"");
         div.dataset.idx = i;
-        div.innerHTML = `<span class="checklist-box" data-check="${i}">${est==="feito"?'&#10003;':(est==="adiado"?'&#8250;':'')}</span><span class="txt">${mdInline(escapeHtml(m[4]))}</span>`;
+        div.innerHTML = `<span class="checklist-box" data-check="${i}">${est==="feito"?svgIcon(ICON_D.check,14):(est==="adiado"?svgIcon(ICON_D.chevronRight,13):'')}</span><span class="txt">${mdInline(escapeHtml(m[4]))}</span>`;
       } else if((m = raw.trim().match(RE_HEAD))){
         div.innerHTML = `<h${m[1].length} class="inline-h">${mdInline(escapeHtml(m[2]))}</h${m[1].length}>`;
       } else if((m = raw.trim().match(RE_OL))){
@@ -9398,9 +9529,9 @@ window.addEventListener("unhandledrejection", function(e){
         const m = corpo.match(RE_CHECK);
         return pad + (m ? m[4] : "- [ ] " + corpo);
       }) },
-    { label:"&#8676;", title:"Diminuir recuo", acao: () => mdToolbarPrefixo(raw =>
+    { label:svgIcon(ICON_D.chevronDoubleLeft,14), title:"Diminuir recuo", acao: () => mdToolbarPrefixo(raw =>
         raw.replace(new RegExp("^ {1," + INDENT_PASSO.length + "}"), "")) },
-    { label:"&#8677;", title:"Aumentar recuo", acao: () => mdToolbarPrefixo(raw =>
+    { label:svgIcon(ICON_D.chevronDoubleRight,14), title:"Aumentar recuo", acao: () => mdToolbarPrefixo(raw =>
         // linha vazia não ganha recuo: viraria só espaço solto no texto
         raw.trim() === "" || nivelIndent(raw) >= INDENT_MAX ? raw : INDENT_PASSO + raw) }
   ];
@@ -10168,7 +10299,7 @@ window.addEventListener("unhandledrejection", function(e){
     top.innerHTML = `
       <button class="link-btn muted" id="backNotes">&larr; Notas</button>
       <div style="display:flex; gap:8px;">
-        <button class="icon-btn ${noteDraft.sinkChecked?'pin-btn pinned':''}" id="sinkToggle" title="Itens marcados descem" aria-label="Itens marcados descem">&#8595;&#10003;</button>
+        <button class="icon-btn ${noteDraft.sinkChecked?'pin-btn pinned':''}" id="sinkToggle" title="Itens marcados descem" aria-label="Itens marcados descem">${svgIcon(ICON_D.arrowDown,14)}${svgIcon(ICON_D.check,14)}</button>
         <button class="btn-save-note" id="saveNote">Salvar</button>
       </div>
     `;
@@ -10594,8 +10725,8 @@ window.addEventListener("unhandledrejection", function(e){
       ov.innerHTML = `<div class="confirm-box search-box nota-rot-box" style="text-align:left;">
         <div class="nota-rot-top">
           <span class="nota-rot-titulo">${escapeHtml(nota.title || "(sem título)")}</span>
-          <button class="icon-btn" id="nrEdit" title="${editando?'Ver formatado':'Editar'}" aria-label="${editando?'Ver formatado':'Editar'}">${editando?'&#128065;':'&#9998;'}</button>
-          <button class="icon-btn" id="nrClose" title="Fechar" aria-label="Fechar">&#10005;</button>
+          <button class="icon-btn" id="nrEdit" title="${editando?'Ver formatado':'Editar'}" aria-label="${editando?'Ver formatado':'Editar'}">${editando?svgIcon(ICON_D.eye,15):svgIcon(ICON_D.notes,14)}</button>
+          <button class="icon-btn" id="nrClose" title="Fechar" aria-label="Fechar">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         <div class="nota-rot-corpo">${editando
           ? `<textarea class="mk-e-name nota-rot-ta" id="nrTa" placeholder="Escreva em markdown…">${escapeHtml(nota.content||"")}</textarea>`
@@ -10666,12 +10797,12 @@ window.addEventListener("unhandledrejection", function(e){
         const podeDescer = i > idx && i < steps.length - 1;
         const dur = s.type === "timer" ? fmtTime(s.seconds) : "livre";
         return `<div class="pl-step ${estado}">
-          <span class="pl-step-i">${estado==="feita" ? "&#10003;" : i+1}</span>
+          <span class="pl-step-i">${estado==="feita" ? svgIcon(ICON_D.check,14) : i+1}</span>
           <span class="pl-step-nome">${escapeHtml(s.name)}${s.isRest?' <span class="dev-n">descanso</span>':''}</span>
           <span class="pl-step-dur">${dur}</span>
           <span class="pl-step-moves">
-            <button class="kb-move-btn" data-plup="${i}" title="Subir etapa" aria-label="Subir etapa" ${podeSubir?'':'disabled'}>&#8593;</button>
-            <button class="kb-move-btn" data-pldown="${i}" title="Descer etapa" aria-label="Descer etapa" ${podeDescer?'':'disabled'}>&#8595;</button>
+            <button class="kb-move-btn" data-plup="${i}" title="Subir etapa" aria-label="Subir etapa" ${podeSubir?'':'disabled'}>${svgIcon(ICON_D.arrowUp,14)}</button>
+            <button class="kb-move-btn" data-pldown="${i}" title="Descer etapa" aria-label="Descer etapa" ${podeDescer?'':'disabled'}>${svgIcon(ICON_D.arrowDown,14)}</button>
           </span>
         </div>`;
       }).join("");
@@ -10679,7 +10810,7 @@ window.addEventListener("unhandledrejection", function(e){
       ov.innerHTML = `<div class="confirm-box search-box" style="text-align:left;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
           <p style="margin:0;">Etapas — ${escapeHtml(playerState.routine.name)}</p>
-          <button class="icon-btn" id="plClose">&#10005;</button>
+          <button class="icon-btn" id="plClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         <div class="dev-n" style="margin-bottom:10px;">${idx+1} de ${steps.length} · faltam ~${fmtTime(restantes)}. Só dá para reordenar da etapa atual em diante.</div>
         <div class="pl-steps notes-list">${linhas}</div>
@@ -10849,7 +10980,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="note-overlay-box">
           <div class="note-overlay-top">
             <h3>${escapeHtml(note.title||"Sem título")}</h3>
-            <button class="icon-btn" id="closeOverlay">&#10005;</button>
+            <button class="icon-btn" id="closeOverlay">${svgIcon(ICON_D.xmark,14)}</button>
           </div>
           <div class="note-overlay-body">${renderNoteReadonly(note)}</div>
         </div>`;
@@ -10901,7 +11032,7 @@ window.addEventListener("unhandledrejection", function(e){
       ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <p style="margin:0;">Nota do dia</p>
-          <button class="icon-btn" id="qaClose">&#10005;</button>
+          <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         <textarea class="mk-e-name" id="qaDiarioTxt" rows="4" style="width:100%; line-height:1.5;" placeholder="O que registrar no diário de hoje?"></textarea>
         <div class="dev-n" style="margin-top:6px;">${jaTem ? "Vai para o fim da nota de hoje." : "Começa a nota de hoje."} Markdown vale (- lista, - [ ] tarefa).</div>
@@ -10931,7 +11062,7 @@ window.addEventListener("unhandledrejection", function(e){
       ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <p style="margin:0;">Cartão em "A fazer"</p>
-          <button class="icon-btn" id="qaClose">&#10005;</button>
+          <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         <input type="text" class="mk-e-name" id="qaKbText" style="width:100%;" placeholder="O que precisa ser feito?">
         <div class="section-label" style="margin:12px 0 4px;">Peso no boletim</div>
@@ -10980,7 +11111,7 @@ window.addEventListener("unhandledrejection", function(e){
       ov.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <p style="margin:0;">Nota simples</p>
-          <button class="icon-btn" id="qaClose">&#10005;</button>
+          <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         ${lista.length
           ? `<div class="section-label">Adicionar a uma nota existente</div><div class="qa-idea-list">${linhas}</div>`
@@ -11012,7 +11143,7 @@ window.addEventListener("unhandledrejection", function(e){
       ov.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <p style="margin:0;">${existente ? "Complementar nota" : "Nova nota"}</p>
-          <button class="icon-btn" id="qaClose">&#10005;</button>
+          <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         <div class="section-label">Título</div>
         <input type="text" class="mk-e-name" id="qaTitle" style="width:100%;" placeholder="Nome da nota" value="${v("title")}">
@@ -11035,7 +11166,7 @@ window.addEventListener("unhandledrejection", function(e){
       ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <p style="margin:0;">Nova despesa</p>
-          <button class="icon-btn" id="qaClose">&#10005;</button>
+          <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         <input type="text" id="qaDesc" class="mk-e-name" placeholder="Descrição" style="width:100%; margin-bottom:8px;">
         <div class="market-form-row" style="margin-bottom:8px;">
@@ -11104,19 +11235,19 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="zen-label">${escapeHtml(step.name)}</div>
           ${isTimer
             ? `<div class="zen-time ${rem<0?'overtime':''}">${fmtTime(rem)}</div>`
-            : `<div class="check-circle" style="width:140px;height:140px;font-size:56px;">&#10003;</div>`}
+            : `<div class="check-circle" style="width:140px;height:140px;font-size:56px;">${svgIcon(ICON_D.check,14)}</div>`}
           <div class="zen-sub">término ~ <b id="estimateTime">--:--</b> &nbsp;·&nbsp; ${playerState.idx+1}/${steps.length}</div>
           <div class="player-controls" style="margin-top:26px;">
-            <button class="ctrl-btn" id="zenPrev">&#8592;</button>
+            <button class="ctrl-btn" id="zenPrev">${svgIcon(ICON_D.arrowLeft,15)}</button>
             ${isTimer
-              ? `<button class="ctrl-btn big" id="pauseBtn">${playerState.paused?"&#9654;":"&#10074;&#10074;"}</button>`
-              : `<button class="ctrl-btn big ok" id="nextStep">&#10003;</button>`}
-            ${isTimer ? `<button class="ctrl-btn ok ${rem<0?'pulse':''}" id="nextStep" title="Concluir etapa" aria-label="Concluir etapa">&#10003;</button>` : `<div style="width:56px"></div>`}
+              ? `<button class="ctrl-btn big" id="pauseBtn">${playerState.paused?svgIcon(ICON_D.play,22):svgIcon(ICON_D.pause,22)}</button>`
+              : `<button class="ctrl-btn big ok" id="nextStep">${svgIcon(ICON_D.check,14)}</button>`}
+            ${isTimer ? `<button class="ctrl-btn ok ${rem<0?'pulse':''}" id="nextStep" title="Concluir etapa" aria-label="Concluir etapa">${svgIcon(ICON_D.check,14)}</button>` : `<div style="width:56px"></div>`}
           </div>
           <div class="skip-row" style="margin-top:14px;">
             ${skipRowHtml(step)}
-            ${step.noteId && notes.some(n=>n.id===step.noteId) ? `<button class="skip-btn note-link-btn" id="viewStepNote">&#8599; nota</button>` : ""}
-            <button class="skip-btn" id="zenExit">&#8996; sair do zen</button>
+            ${step.noteId && notes.some(n=>n.id===step.noteId) ? `<button class="skip-btn note-link-btn" id="viewStepNote">${svgIcon(ICON_D.arrowUpRight,13)} nota</button>` : ""}
+            <button class="skip-btn" id="zenExit">${svgIcon(ICON_D.arrowsPointingIn,14)} sair do zen</button>
           </div>
           ${step.journaling && !step.isRest ? `<textarea id="journalInput" class="mk-e-name" rows="1" placeholder="Escreva aqui... (markdown: **negrito**, - lista, 1. lista, - [ ] check)" style="width:100%; max-width:340px; margin-top:14px; resize:none; overflow:hidden; line-height:1.5;">${escapeHtml(playerState.journalTexts[step.id]||"")}</textarea>` : ""}
         </div>
@@ -11142,10 +11273,10 @@ window.addEventListener("unhandledrejection", function(e){
     top.innerHTML = `
       <button class="player-close" id="exitPlayer">Sair</button>
       <div style="display:flex; align-items:center; gap:12px;">
-        <button class="player-close" id="stepsBtn" title="Ver todas as etapas" aria-label="Ver todas as etapas">&#9776;</button>
-        ${notaDaRotina(playerState.routine) ? `<button class="player-close" id="notaBtn" title="Abrir nota anexada" aria-label="Abrir nota anexada">&#9998;</button>` : ""}
+        <button class="player-close" id="stepsBtn" title="Ver todas as etapas" aria-label="Ver todas as etapas">${svgIcon(ICON_D.bars3,15)}</button>
+        ${notaDaRotina(playerState.routine) ? `<button class="player-close" id="notaBtn" title="Abrir nota anexada" aria-label="Abrir nota anexada">${svgIcon(ICON_D.notes,14)}</button>` : ""}
         <button class="player-close" id="quickAddBtn" title="Lançar rápido" aria-label="Lançar rápido">+</button>
-        <button class="player-close" id="zenBtn" title="Modo tela cheia" aria-label="Modo tela cheia">&#9974;</button>
+        <button class="player-close" id="zenBtn" title="Modo tela cheia" aria-label="Modo tela cheia">${svgIcon(ICON_D.arrowsPointingOut,16)}</button>
         <div class="player-progress-label">${playerState.idx+1} / ${steps.length}</div>
       </div>
     `;
@@ -11179,7 +11310,7 @@ window.addEventListener("unhandledrejection", function(e){
     } else {
       const body = document.createElement("div");
       body.className = "checklist-body";
-      body.innerHTML = `<div class="step-title">Etapa ${playerState.idx+1}</div><div class="check-circle">&#10003;</div><h2>${escapeHtml(step.name)}</h2>`;
+      body.innerHTML = `<div class="step-title">Etapa ${playerState.idx+1}</div><div class="check-circle">${svgIcon(ICON_D.check,14)}</div><h2>${escapeHtml(step.name)}</h2>`;
       wrap.appendChild(body);
     }
 
@@ -11212,21 +11343,21 @@ window.addEventListener("unhandledrejection", function(e){
 
     // só faz sentido adiar se ainda existe uma próxima etapa para trocar de lugar
     const podeAdiar = !!nextStepObj;
-    const adiarBtn = `<button class="ctrl-btn" id="postponeStep" ${podeAdiar?"":"disabled style=\"opacity:.35;\""} title="Adiar: vai para depois da próxima etapa" aria-label="Adiar etapa">&#8618;</button>`;
+    const adiarBtn = `<button class="ctrl-btn" id="postponeStep" ${podeAdiar?"":"disabled style=\"opacity:.35;\""} title="Adiar: vai para depois da próxima etapa" aria-label="Adiar etapa">${svgIcon(ICON_D.arrowUturnRight,14)}</button>`;
     if(step.type === "timer"){
       const controls = document.createElement("div");
       controls.className = "player-controls four";
       controls.innerHTML = `
-        <button class="ctrl-btn" id="prevStep" title="Etapa anterior" aria-label="Etapa anterior">&#8592;</button>
-        <button class="ctrl-btn big" id="pauseBtn">${playerState.paused?"&#9654;":"&#10074;&#10074;"}</button>
-        <button class="ctrl-btn ok ${rem<0?'pulse':''}" id="nextStep" title="Concluir etapa" aria-label="Concluir etapa">&#10003;</button>
+        <button class="ctrl-btn" id="prevStep" title="Etapa anterior" aria-label="Etapa anterior">${svgIcon(ICON_D.arrowLeft,15)}</button>
+        <button class="ctrl-btn big" id="pauseBtn">${playerState.paused?svgIcon(ICON_D.play,22):svgIcon(ICON_D.pause,22)}</button>
+        <button class="ctrl-btn ok ${rem<0?'pulse':''}" id="nextStep" title="Concluir etapa" aria-label="Concluir etapa">${svgIcon(ICON_D.check,14)}</button>
         ${adiarBtn}
       `;
       wrap.appendChild(controls);
     } else {
       const controls = document.createElement("div");
       controls.className = "player-controls";
-      controls.innerHTML = `<button class="ctrl-btn" id="prevStep" title="Etapa anterior" aria-label="Etapa anterior">&#8592;</button><button class="ctrl-btn big ok" id="nextStep">&#10003;</button>${adiarBtn}`;
+      controls.innerHTML = `<button class="ctrl-btn" id="prevStep" title="Etapa anterior" aria-label="Etapa anterior">${svgIcon(ICON_D.arrowLeft,15)}</button><button class="ctrl-btn big ok" id="nextStep">${svgIcon(ICON_D.check,14)}</button>${adiarBtn}`;
       wrap.appendChild(controls);
     }
 
@@ -11242,7 +11373,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(step.noteId && notes.some(n=>n.id===step.noteId)){
       const noteRow = document.createElement("div");
       noteRow.style.cssText = "width:100%; text-align:center; padding:6px 0 2px;";
-      noteRow.innerHTML = `<button class="skip-btn note-link-btn" id="viewStepNote">&#8599; ver nota vinculada</button>`;
+      noteRow.innerHTML = `<button class="skip-btn note-link-btn" id="viewStepNote">${svgIcon(ICON_D.arrowUpRight,13)} ver nota vinculada</button>`;
       wrap.appendChild(noteRow);
     }
 
@@ -11289,7 +11420,7 @@ window.addEventListener("unhandledrejection", function(e){
     const MOODS = ["&#9733;&#9734;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9733;"];
     el.innerHTML = `
       <div class="done-screen">
-        <div class="mark">&#10003;</div>
+        <div class="mark">${svgIcon(ICON_D.check,14)}</div>
         <h2>Rotina concluída</h2>
         <p>${streak} dia${streak>1?'s':''} seguido${streak>1?'s':''} de prática.</p>
         ${detail}
@@ -11369,7 +11500,6 @@ window.addEventListener("unhandledrejection", function(e){
      naquele escopo é trazido para cá. Navegar pelo histórico não move nada. */
   const DIA_KB_COLS = [["todo","A fazer"],["doing","Fazendo"],["done","Feito"]];
   const KB_ESCOPO_LABEL = { dia:"do dia", semana:"da semana", mes:"do mês", ano:"do ano" };
-  const KB_ESCOPO_DESTINO = { dia:"no período de hoje", semana:"na semana atual", mes:"no mês atual", ano:"no ano atual" };
   /* Escopo mais longo vale mais: um marco do mês não pode pesar igual a um
      recado do dia. Multiplica o peso do cartão. */
   const KB_ESCOPO_MULT = { dia:1, semana:2, mes:3, ano:4 };
@@ -11727,6 +11857,7 @@ window.addEventListener("unhandledrejection", function(e){
           <input type="date" id="diData" value="${diarioData}">
           <span class="dev-n">${diarioRotulo(diarioEscopo, diarioData)}</span>
         </div>
+        ${rodaVidaResumoHtml()}
         <div id="diContent"></div>
       </div>
     `;
@@ -11794,15 +11925,14 @@ window.addEventListener("unhandledrejection", function(e){
               <div class="di-pane-body" id="diAgendaPane">${agendaHtmlPara(esc, texto(), diarioData)}</div>
             </section>
             <section class="di-pane">
-              <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]}</div>
-              <div class="di-pane-body"><div class="live-editor di-live" id="liveEditor"></div></div>
-            </section>
-            <section class="di-pane">
               <div class="section-label">Kanban ${KB_ESCOPO_LABEL[esc]}</div>
               <div class="di-pane-body">
                 <div class="kb-board kb-inline" id="diKanban"></div>
-                <div class="dev-n" style="margin:8px 2px 4px;">O que fica em "Feito" pertence a este período. O que sobrar em "A fazer" ou "Fazendo" aparece ${KB_ESCOPO_DESTINO[esc]}. Clique no texto de um cartão para dar peso e fazê-lo pontuar no boletim.</div>
               </div>
+            </section>
+            <section class="di-pane">
+              <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]}</div>
+              <div class="di-pane-body"><div class="live-editor di-live" id="liveEditor"></div></div>
             </section>
           </div>`;
         liveCtx = diarioLiveCtx();
@@ -11824,7 +11954,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(diarioAgenda){
         // o caminho de volta mora na mesma linha do botão que abriu a agenda
         body.innerHTML = `<div class="di-tools">
-            <button class="bell-btn di-hoje" id="diAgenda" title="Voltar para a nota do dia">&#8592; nota</button>
+            <button class="bell-btn di-hoje" id="diAgenda" title="Voltar para a nota do dia">${svgIcon(ICON_D.arrowLeft,15)} nota</button>
           </div>` + agendaHtmlPara(esc, texto(), diarioData);
         wireAgendaBlocos();
         wireAgendaToggle();
@@ -11833,12 +11963,12 @@ window.addEventListener("unhandledrejection", function(e){
       // fora da agenda, a nota do período é o editor contínuo — sempre editável
       body.innerHTML = `
         <div class="di-tools">
-          <button class="bell-btn di-hoje" id="diAgenda" title="Ver a agenda">&#9636; agenda</button>
+          <button class="bell-btn di-hoje" id="diAgenda" title="Ver a agenda">${svgIcon(ICON_D.calendar,14)} agenda</button>
         </div>
-        <div class="live-editor di-live" id="liveEditor"></div>
         <div class="section-label">Kanban ${KB_ESCOPO_LABEL[esc]}</div>
         <div class="kb-board kb-inline" id="diKanban"></div>
-        <div class="dev-n" style="margin:2px 2px 20px;">O que fica em "Feito" pertence a este período. O que sobrar em "A fazer" ou "Fazendo" aparece ${KB_ESCOPO_DESTINO[esc]}. Toque no texto de um cartão para dar peso e fazê-lo pontuar no boletim.</div>`;
+        <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]}</div>
+        <div class="live-editor di-live" id="liveEditor"></div>`;
       liveCtx = diarioLiveCtx();
       renderLiveEditor();
       pintarKanbanDoPeriodo();
@@ -12387,7 +12517,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="sched-time-row" style="margin-top:0;">
           <span style="flex:1; color:${a.color};">${escapeHtml(a.label)}</span>
           <input class="dur-input" type="number" min="1" max="10" data-rodapeso="${a.id}" value="${a.peso}">
-          <button class="icon-btn" data-rodadel="${a.id}" title="Remover área" aria-label="Remover área">&#10005;</button>
+          <button class="icon-btn" data-rodadel="${a.id}" title="Remover área" aria-label="Remover área">${svgIcon(ICON_D.xmark,14)}</button>
         </div>`).join("") || `<div class="dev-n">Nenhuma área — adicione abaixo.</div>`;
       lista.querySelectorAll("[data-rodapeso]").forEach(inp=> inp.onchange = () => {
         const a = rodaAreas().find(x=>x.id===inp.dataset.rodapeso);
