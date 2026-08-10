@@ -99,6 +99,7 @@
   /* nó de rolagem que leva o cabeçalho da aba junto (Metas, Modelos) */
   .tab-scroll{ flex:1; overflow-y:auto; min-height:0; }
   @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  @media (prefers-reduced-motion: reduce){ .screen{ animation:none; } }
 
   h1,h2,h3{ font-family:'Fraunces', serif; font-weight:600; margin:0; letter-spacing:-0.01em; }
 
@@ -226,6 +227,13 @@
   .routine-info, .note-info{ min-width:0; flex:1; }
   .routine-info h3, .note-info h3{ font-size:19px; margin-bottom:6px; }
   .routine-meta{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
+  /* densidade compacta (Rotinas/Metas): menos respiro por card pra caber mais
+     itens na tela sem rolar tanto — toggle em Configurações → Aparência. */
+  body.compacto .routine-card, body.compacto .note-card{ padding:10px 14px; }
+  body.compacto .routine-info h3, body.compacto .note-info h3{ font-size:15px; margin-bottom:2px; }
+  body.compacto .routine-meta{ font-size:11px; }
+  body.compacto #metasBody .stat-card{ padding:10px 12px; margin-bottom:6px; }
+  body.compacto #metasBody .cd-big{ font-size:20px; }
 
   /* ---------- SWIPE (revelar excluir / dispensar) ---------- */
   .swipe-item{ position:relative; overflow:hidden; border-radius:var(--radius); flex:0 0 auto; }
@@ -304,6 +312,10 @@
   }
   .alert-banner.hide{ opacity:0; transform:translateY(-10px); transition:.4s; }
   @keyframes slideIn{ from{opacity:0; transform:translateY(-12px);} to{opacity:1; transform:translateY(0);} }
+  /* celebração (badge/meta concluída): mesmo banner, com ícone + leve "pop" de
+     entrada pra marcar que este é diferente dos toasts neutros do dia a dia */
+  .alert-banner.celebrate{ display:flex; align-items:center; gap:8px; font-size:14.5px; animation: slideIn .3s ease, popIn .4s ease; box-shadow:0 8px 28px rgba(224,97,158,.45); }
+  @keyframes popIn{ 0%{transform:scale(.96);} 60%{transform:scale(1.02);} 100%{transform:scale(1);} }
 
   /* ---------- EDITOR (shared) ---------- */
   .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; gap:12px; }
@@ -1284,6 +1296,7 @@ window.addEventListener("unhandledrejection", function(e){
   const K_NAOFEITAS = "rotinas_v2_naofeitas"; // etapas marcadas como não feitas hoje
   const K_DIAKANBAN = "rotinas_v2_diakanban"; // kanban do diário, por dia
   const K_SOHOJE   = "rotinas_v2_so_hoje";    // filtro "só as rotinas de hoje" na aba Rotinas
+  const K_DENSIDADE = "rotinas_v2_densidade"; // densidade compacta nas listas de Rotinas/Metas
   const K_HOMEAREA = "rotinas_v2_home_area";  // filtro de área da roda da vida nas abas Rotinas/Metas
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
@@ -1536,6 +1549,12 @@ window.addEventListener("unhandledrejection", function(e){
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
   let homeAreaFiltro = load(K_HOMEAREA, ""); // "" = todas as áreas; ver FILTRO_SEM_AREA
+  let densidadeCompacta = load(K_DENSIDADE, false); // listas de Rotinas/Metas mais densas, pra quem tem muitos itens
+  function toggleDensidade(){
+    densidadeCompacta = !densidadeCompacta;
+    save(K_DENSIDADE, densidadeCompacta);
+    document.body.classList.toggle("compacto", densidadeCompacta);
+  }
   const K_METASSUBVIEW = "rotinas_v2_metas_subview";       // legado, só para migração
   const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
   // multiselect: array com "prazos" e/ou "recorrentes" — permite ver os dois
@@ -1639,10 +1658,15 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-07 (v10)";
+  const BUILD_STAMP = "2026-08-07 (v11)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  /* empty-state com botão de ação embutido — a maioria dos empty-states só tinha
+     texto, obrigando a procurar o FAB; este atalho pula direto para a ação. */
+  function emptyStateActionHtml(title, desc, actionId, actionLabel){
+    return `<h2>${title}</h2><p>${desc}</p><button class="btn-primary" id="${actionId}" style="margin-top:14px;">${actionLabel}</button>`;
+  }
   /* ícone outline (mesmo tamanho dos ícones da barra de navegação inferior por padrão) */
   function svgIcon(d, size){
     size = size || 19;
@@ -1770,6 +1794,21 @@ window.addEventListener("unhandledrejection", function(e){
   function areaDaRotina(r){
     const id = r && r.eixo ? r.eixo : "";
     return rodaAreas().some(a=>a.id===id) ? id : "";
+  }
+  /* Preview de quanto a área escolhida já reserva da semana congelada — só faz
+     sentido com a roda ativa (desligada, tudo cai no fator único, sem fatia
+     própria). Lê agendaCongelada direto, sem recalcular nada: é só leitura,
+     então não corre risco de descasar do que o boletim vai mostrar depois. */
+  function areaPreviewHtml(eixoId){
+    if(!rodaAtiva()) return "";
+    const k = eixoId || "";
+    const info = areaInfoRoda(k);
+    const congelada = gam.semanaAtual.agendaCongelada || [];
+    const previsto = congelada.filter(a=>(a.area||"")===k).reduce((s,a)=>s+a.pontos,0);
+    const totalPrevisto = congelada.reduce((s,a)=>s+a.pontos,0);
+    if(totalPrevisto <= 0) return `<span>${escapeHtml(info.label)}: ainda sem pontos previstos nesta semana.</span>`;
+    const pct = Math.round(previsto/totalPrevisto*100);
+    return `<span style="color:${info.color};">${escapeHtml(info.label)}</span> já reserva <b>${previsto.toFixed(0)}</b> dos ${totalPrevisto.toFixed(0)} pontos previstos nesta semana (${pct}%).`;
   }
   /* Chips de área da roda da vida — mesmo seletor no editor de rotina, no
      cartão do kanban do Diário e no lançamento rápido, para não desenhar a
@@ -2110,7 +2149,12 @@ window.addEventListener("unhandledrejection", function(e){
     }
     save(K_GAMIFICACAO, gam);
   })();
+  const badgesAntesDoBoot = gam.badges.length;
   avancarGamificacaoAteAgora();
+  // vira semana/mês pode render badges silenciosamente durante o boot (rollover
+  // acontece antes de qualquer render) — guardadas aqui pra celebrar depois que
+  // a tela já estiver de pé, em vez de perder o momento.
+  let badgesGanhasNoBoot = gam.badges.slice(badgesAntesDoBoot);
   repararFatorSemanaAtual();
   /* Metas ganharam peso (padrão "alto"), o que triplicou o total que cada uma
      vale. Sem reconciliar, uma meta antiga ficaria mostrando o crédito da
@@ -2217,9 +2261,11 @@ window.addEventListener("unhandledrejection", function(e){
     if(silencioso) return;
     if(delta > 0){
       const esc = ESCOPO_META_LABEL[metaEscopo(t)];
-      showAlertBanner(metaConcluida(t)
-        ? `Meta concluída · +${delta.toFixed(1)} pts (${devido.toFixed(1)} no total) no boletim ${esc} ✓`
-        : `+${delta.toFixed(1)} pontos no boletim ${esc}`);
+      if(metaConcluida(t)){
+        showCelebrationBanner(`Meta <b>${escapeHtml(t.title)}</b> concluída · +${delta.toFixed(1)} pts (${devido.toFixed(1)} no total) no boletim ${esc}`);
+      } else {
+        showAlertBanner(`+${delta.toFixed(1)} pontos no boletim ${esc}`);
+      }
     }
   }
   /* Meta apagada: devolve tudo que ela creditou. */
@@ -2417,10 +2463,13 @@ window.addEventListener("unhandledrejection", function(e){
       .filter(k => (ganhos[k] || 0) > 0 || (previsto[k] || 0) > 0);
     // uma linha só, toda em "sem área", não diz nada sobre a roda
     if(chaves.length <= 1 && !chaves.some(k=>k)) return { linhas:[], max:0 };
+    // ordem manual das áreas (Configurações → Roda da vida, ↑/↓) — "sem área"
+    // sempre por último, por não fazer parte da lista editável.
+    const ordemArea = k => { const i = rodaAreas().findIndex(a=>a.id===k); return k && i>=0 ? i : 999; };
     const linhas = chaves.map(k=>{
       const info = areaInfoRoda(k);
-      return { label: info.label, color: info.color, pontos: ganhos[k] || 0, previsto: rodaAtiva() ? (previsto[k] || 0) : 0 };
-    }).sort((a,b)=> b.pontos - a.pontos || b.previsto - a.previsto);
+      return { label: info.label, color: info.color, pontos: ganhos[k] || 0, previsto: rodaAtiva() ? (previsto[k] || 0) : 0, _ordem: ordemArea(k) };
+    }).sort((a,b)=> a._ordem - b._ordem || b.pontos - a.pontos);
     const max = Math.max(...linhas.map(l=>Math.max(l.pontos, l.previsto)), 0);
     return { linhas, max };
   }
@@ -2693,6 +2742,14 @@ window.addEventListener("unhandledrejection", function(e){
     }
     return streak;
   }
+  /* streak em risco: já existe uma sequência de dias e hoje ainda não foi
+     concluído nada — some sozinho assim que alguma rotina fechar hoje, sem
+     precisar dispensar nada (mesmo espírito do aviso de backup). */
+  function streakEmRisco(){
+    const s = computeStreak();
+    if(s <= 0) return false;
+    return !history.some(h=>h.date===localKey());
+  }
 
   /* ---------------- SOUND / HAPTICS ---------------- */
   let audioCtx = null;
@@ -2744,6 +2801,20 @@ window.addEventListener("unhandledrejection", function(e){
     banner.textContent = text;
     document.body.appendChild(banner);
     if(onTap) banner.onclick = onTap;
+    const hideTimer = setTimeout(()=>{ banner.classList.add("hide"); setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 400); }, 7000);
+    attachSwipeDismiss(banner, () => clearTimeout(hideTimer));
+  }
+  /* Igual ao alert-banner, mas com destaque de conquista (gradiente + ícone) —
+     reservado pra badge ganha e meta concluída, pra essas duas não se perderem
+     no meio dos toasts neutros do dia a dia ("item removido" etc.). */
+  function showCelebrationBanner(html){
+    let banner = document.getElementById("alertBanner");
+    if(banner) banner.remove();
+    banner = document.createElement("div");
+    banner.id = "alertBanner";
+    banner.className = "alert-banner celebrate";
+    banner.innerHTML = `${svgIcon(ICON_D.trophy,16)} <span>${html}</span>`;
+    document.body.appendChild(banner);
     const hideTimer = setTimeout(()=>{ banner.classList.add("hide"); setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 400); }, 7000);
     attachSwipeDismiss(banner, () => clearTimeout(hideTimer));
   }
@@ -3125,6 +3196,23 @@ window.addEventListener("unhandledrejection", function(e){
     scope.querySelectorAll("[data-searchbtn]").forEach(b=>{
       b.onclick = openGlobalSearch;
     });
+    // affordance de descoberta no mobile: a lupa é pequena e passa despercebida —
+    // puxar o cabeçalho pra baixo também abre a busca, como um "pull to search".
+    const header = scope.querySelector(".home-header");
+    if(header) wireSwipeDownSearch(header);
+  }
+  function wireSwipeDownSearch(header){
+    let sy = 0, active = false;
+    header.addEventListener("touchstart", e=>{
+      if(e.touches.length!==1) return;
+      sy = e.touches[0].clientY; active = true;
+    }, {passive:true});
+    header.addEventListener("touchmove", e=>{
+      if(!active) return;
+      if(e.touches[0].clientY - sy > 60){ active = false; openGlobalSearch(); }
+    }, {passive:true});
+    header.addEventListener("touchend", ()=>{ active = false; });
+    header.addEventListener("touchcancel", ()=>{ active = false; });
   }
 
   /* Busca global em overlay: a mesma superfície serve as cinco abas sem que
@@ -3414,6 +3502,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="header-right" style="margin-bottom:18px; flex-wrap:wrap;">
         ${streak>0?`<div class="streak"><span class="dot"></span>${streak} dia${streak>1?'s':''}</div>`:""}
         <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>
+        <button class="bell-btn ${densidadeCompacta?'on':''}" id="densidadeBtn" title="Alternar densidade da lista" aria-label="Alternar densidade da lista" aria-pressed="${densidadeCompacta?'true':'false'}">${svgIcon(ICON_D.listBullet,14)}</button>
         <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">${svgIcon(ICON_D.calendar,14)} agenda</button>
         <button class="bell-btn" id="tarefasBtn" title="Tarefas de estudo" aria-label="Tarefas de estudo">${svgIcon(ICON_D.bars3,15)}</button>
         <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">${svgIcon(ICON_D.arrowUpTray,14)}</button>
@@ -3434,6 +3523,14 @@ window.addEventListener("unhandledrejection", function(e){
       scroll.appendChild(bk);
       bk.querySelector("#doBackupNow").onclick = () => { exportBackup(); render(); };
       bk.querySelector("#dismissBackup").onclick = () => { dismissedBackupNotice = true; render(); };
+    }
+    // some sozinho ao concluir qualquer rotina hoje — não precisa de dispensa
+    if(streakEmRisco()){
+      const sk = document.createElement("div");
+      sk.className = "notice-card";
+      sk.style.borderColor = "var(--danger)";
+      sk.innerHTML = `<span style="color:var(--danger);">${svgIcon(ICON_D.exclamationTriangle,14)} Sua sequência de ${streak} dia${streak>1?'s':''} quebra hoje se nenhuma rotina for concluída.</span>`;
+      scroll.appendChild(sk);
     }
 
     const semFechada = semanaFechadaPendente();
@@ -3495,8 +3592,9 @@ window.addEventListener("unhandledrejection", function(e){
     if(routines.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
-      empty.innerHTML = `<h2>Nenhuma rotina ainda</h2><p>Crie sua primeira sequência de etapas com tempo — igual um ritual de prática.</p>`;
+      empty.innerHTML = emptyStateActionHtml("Nenhuma rotina ainda", "Crie sua primeira sequência de etapas com tempo — igual um ritual de prática.", "emptyNewRoutine", "+ Nova rotina");
       scroll.appendChild(empty);
+      empty.querySelector("#emptyNewRoutine").onclick = () => openEditor(null);
     } else if(visiveis.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
@@ -3551,6 +3649,7 @@ window.addEventListener("unhandledrejection", function(e){
       save(K_SOHOJE, homeSoHoje);
       render();
     };
+    document.getElementById("densidadeBtn").onclick = () => { toggleDensidade(); render(); };
     document.getElementById("agendaBtn").onclick = () => { goTo({ tab:"home", screen:"agenda" }); };
     document.getElementById("boletimBtn").onclick = () => { goTo({ tab:"home", screen:"boletim" }); };
     // Tarefas perdeu a aba para Metas, mas continua acessível como destino de topo
@@ -3912,7 +4011,12 @@ window.addEventListener("unhandledrejection", function(e){
     areaRow.className = "ident-row";
     areaRow.style.cssText = "margin-top:-4px; flex-wrap:wrap;";
     areaRow.innerHTML = `<span style="color:var(--muted); font-size:13px;">área:</span><div id="edAreaWrap" style="flex:1;"></div>`;
-    pintarAreaChips(areaRow.querySelector("#edAreaWrap"), editorDraft.eixo, v => { editorDraft.eixo = v; atualizarVagaHint(); });
+    const areaPreviewRow = document.createElement("div");
+    areaPreviewRow.className = "dev-n";
+    areaPreviewRow.style.cssText = "margin:-4px 0 2px; padding:0 2px;";
+    function atualizarAreaPreview(){ areaPreviewRow.innerHTML = areaPreviewHtml(editorDraft.eixo); }
+    atualizarAreaPreview();
+    pintarAreaChips(areaRow.querySelector("#edAreaWrap"), editorDraft.eixo, v => { editorDraft.eixo = v; atualizarVagaHint(); atualizarAreaPreview(); });
 
     // opt-out do desconto de hábito, rotina a rotina
     const habRow = document.createElement("div");
@@ -3962,6 +4066,7 @@ window.addEventListener("unhandledrejection", function(e){
     stepsWrap.appendChild(tagRow);
     stepsWrap.appendChild(vagaRow);
     stepsWrap.appendChild(areaRow);
+    stepsWrap.appendChild(areaPreviewRow);
     stepsWrap.appendChild(habRow);
     stepsWrap.appendChild(notaRow);
     stepsWrap.appendChild(nameInput);
@@ -5110,8 +5215,10 @@ window.addEventListener("unhandledrejection", function(e){
         listBox.innerHTML = `<div class="empty-state" style="min-height:40vh;">${
           (q || notesTag)
           ? `<h2>Nada encontrado</h2><p>Nenhuma nota corresponde ao filtro.</p>`
-          : `<h2>Nenhuma nota ainda</h2><p>Listas de compras, tarefas, notas de estudo — tudo rápido, em markdown.</p>`
+          : emptyStateActionHtml("Nenhuma nota ainda", "Listas de compras, tarefas, notas de estudo — tudo rápido, em markdown.", "emptyNewNote", "+ Nova nota")
         }</div>`;
+        const btn = listBox.querySelector("#emptyNewNote");
+        if(btn) btn.onclick = () => openNoteEditor(null);
         return;
       }
       sorted.forEach(n=>{
@@ -6007,6 +6114,7 @@ window.addEventListener("unhandledrejection", function(e){
     moon: "M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z",
     computerDesktop: "M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25",
     diamond: "M12 3 21 12 12 21 3 12Z",
+    listBullet: "M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z",
     paperAirplane: "M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
   };
 
@@ -6345,7 +6453,7 @@ window.addEventListener("unhandledrejection", function(e){
       empty.className = "empty-state";
       empty.innerHTML = kind==="routine"
         ? `<h2>Nenhuma nota ainda</h2><p>Rotinas com tarefas de anotação geram uma nota aqui a cada execução.</p>`
-        : `<h2>Pasta vazia</h2><p>Toque em + para criar o primeiro.</p>`;
+        : emptyStateActionHtml("Pasta vazia", "Crie o primeiro documento aqui.", "emptyNewDoc", "+ Novo");
       scroll.appendChild(empty);
     }
     // botão flutuante de criar, igual ao da aba Rotinas (pastas-rotina de
@@ -6360,12 +6468,15 @@ window.addEventListener("unhandledrejection", function(e){
     app.appendChild(el);
 
     document.getElementById("folderBackBtn").onclick = () => { goTo({ tab:"templates", screen:"templates" }); };
-    const addBtn = document.getElementById("folderAddBtn");
-    if(addBtn) addBtn.onclick = () => {
+    function criarNovoDoc(){
       if(key === "matrix"){ openMatrixPresetPicker(); return; }
       const doc = newTemplateDoc(key);
       goTo({ tab:"templates", screen:"templateDoc", id:doc.id, folderKind:kind, folderKey:key });
-    };
+    }
+    const addBtn = document.getElementById("folderAddBtn");
+    if(addBtn) addBtn.onclick = criarNovoDoc;
+    const emptyAddBtn = document.getElementById("emptyNewDoc");
+    if(emptyAddBtn) emptyAddBtn.onclick = criarNovoDoc;
   }
 
   /* pasta virtual: um cartão por dia com algo escrito na anotação do Diário
@@ -7037,7 +7148,14 @@ window.addEventListener("unhandledrejection", function(e){
         };
       });
       listBox.querySelectorAll("[data-edel]").forEach(b=>{
-        b.onclick = () => { doc.items = doc.items.filter(x=>x.id!==b.dataset.edel); mkEditId = null; saveTemplates(doc); paintList(); };
+        b.onclick = () => {
+          const idx = doc.items.findIndex(x=>x.id===b.dataset.edel);
+          const removed = idx>-1 ? doc.items[idx] : null;
+          doc.items = doc.items.filter(x=>x.id!==b.dataset.edel); mkEditId = null; saveTemplates(doc); paintList();
+          if(removed) showUndoBanner("Item removido", ()=>{
+            doc.items.splice(Math.min(idx, doc.items.length), 0, removed); saveTemplates(doc); paintList();
+          });
+        };
       });
       listBox.querySelectorAll("[data-ecancel]").forEach(b=>{ b.onclick = () => { mkEditId = null; paintList(); }; });
       listBox.querySelectorAll("[data-aup]").forEach(b=>{
@@ -7480,7 +7598,13 @@ window.addEventListener("unhandledrejection", function(e){
         kbEdit=null; commit();
       };
       eb.querySelector("[data-kbcancel]").onclick = () => { kbEdit=null; repaint(); };
-      eb.querySelector("[data-kbdel]").onclick = () => { cols[ci].items.splice(ii,1); kbEdit=null; commit(); };
+      eb.querySelector("[data-kbdel]").onclick = () => {
+        const removed = cols[ci].items[ii];
+        cols[ci].items.splice(ii,1); kbEdit=null; commit();
+        if(removed) showUndoBanner("Cartão excluído", ()=>{
+          cols[ci].items.splice(Math.min(ii, cols[ci].items.length), 0, removed); commit();
+        });
+      };
       eb.querySelector(".kb-e-text").onkeydown = e => { if(e.key==="Enter") eb.querySelector("[data-kbok]").click(); };
     }
   }
@@ -7939,6 +8063,7 @@ window.addEventListener("unhandledrejection", function(e){
       </div>
       <div class="header-right" style="margin-bottom:14px; flex-wrap:wrap;">
         ${mostraPrazos ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>` : ""}
+        <button class="bell-btn ${densidadeCompacta?'on':''}" id="metasDensidadeBtn" title="Alternar densidade da lista" aria-label="Alternar densidade da lista" aria-pressed="${densidadeCompacta?'true':'false'}">${svgIcon(ICON_D.listBullet,14)}</button>
       </div>
       ${metasAreaFiltroChipsHtml()}
       <div id="metasBody" style="padding-bottom:20px;"></div>
@@ -7964,6 +8089,7 @@ window.addEventListener("unhandledrejection", function(e){
       save(K_SOHOJE, homeSoHoje);
       render();
     };
+    el.querySelector("#metasDensidadeBtn").onclick = () => { toggleDensidade(); render(); };
     const body = el.querySelector("#metasBody");
     const fabMeta = document.createElement("button");
     fabMeta.className = "fab"; fabMeta.textContent = "+";
@@ -8046,7 +8172,7 @@ window.addEventListener("unhandledrejection", function(e){
         if(ambos) partes.push(`<div class="section-label">Prazos</div>`);
         partes.push(sorted.map(metaCardHtml).join(""));
         if(doc.targets.length === 0){
-          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta ainda</h2><p>Toque no + para criar uma meta com prazo — os dias restantes, o ritmo e a pontuação se atualizam sozinhos.</p></div>`);
+          partes.push(`<div class="empty-state" style="min-height:25vh;">${emptyStateActionHtml("Nenhuma meta ainda", "Crie uma meta com prazo — os dias restantes, o ritmo e a pontuação se atualizam sozinhos.", "emptyNewMetaPrazo", "+ Nova meta")}</div>`);
         } else if(sorted.length === 0){
           partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta com esse filtro</h2><p>Desligue o "só hoje" ou troque a área para ver outras metas.</p></div>`);
         }
@@ -8056,7 +8182,7 @@ window.addEventListener("unhandledrejection", function(e){
         if(ambos) partes.push(`<div class="section-label">Recorrentes</div>`);
         partes.push(lista.map(recCardHtml).join(""));
         if(doc.recorrentes.length === 0){
-          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente</h2><p>Toque no + para criar um hábito que repete algumas vezes por dia ou por semana — "beber água" 4x ao dia, "lavar o cabelo" 2x na semana.</p></div>`);
+          partes.push(`<div class="empty-state" style="min-height:25vh;">${emptyStateActionHtml("Nenhuma meta recorrente", `Crie um hábito que repete algumas vezes por dia ou por semana — "beber água" 4x ao dia, "lavar o cabelo" 2x na semana.`, "emptyNewMetaRec", "+ Nova meta recorrente")}</div>`);
         } else if(lista.length === 0){
           partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente nessa área</h2><p>Troque o filtro de área para ver as outras.</p></div>`);
         }
@@ -8066,6 +8192,10 @@ window.addEventListener("unhandledrejection", function(e){
     }
 
     function wireCards(){
+      const emptyPrazo = body.querySelector("#emptyNewMetaPrazo");
+      if(emptyPrazo) emptyPrazo.onclick = () => abrirFormMeta(doc, null);
+      const emptyRec = body.querySelector("#emptyNewMetaRec");
+      if(emptyRec) emptyRec.onclick = () => abrirFormMetaRec(doc, null);
       if(mostraPrazos){
         body.querySelectorAll("[data-cdedit]").forEach(b=> b.onclick = () => {
           abrirFormMeta(doc, doc.targets.find(t=>t.id===b.dataset.cdedit));
@@ -9086,7 +9216,14 @@ window.addEventListener("unhandledrejection", function(e){
         it.qty = Math.max(1, +row.querySelector(".tv-e-qty").value || 1);
         tvEditing = null; saveTemplates(doc); paint();
       });
-      body.querySelectorAll("[data-tvdel]").forEach(b=> b.onclick = () => { doc.items = doc.items.filter(x=>x.id!==b.dataset.tvdel); tvEditing = null; saveTemplates(doc); paint(); });
+      body.querySelectorAll("[data-tvdel]").forEach(b=> b.onclick = () => {
+        const idx = doc.items.findIndex(x=>x.id===b.dataset.tvdel);
+        const removed = idx>-1 ? doc.items[idx] : null;
+        doc.items = doc.items.filter(x=>x.id!==b.dataset.tvdel); tvEditing = null; saveTemplates(doc); paint();
+        if(removed) showUndoBanner("Item removido", ()=>{
+          doc.items.splice(Math.min(idx, doc.items.length), 0, removed); saveTemplates(doc); paint();
+        });
+      });
       body.querySelectorAll("[data-tvcancel]").forEach(b=> b.onclick = () => { tvEditing = null; paint(); });
     }
     paint();
@@ -9272,12 +9409,19 @@ window.addEventListener("unhandledrejection", function(e){
      anotações de journaling usam o mesmo editor e o mesmo parser. */
   let liveCtx = null;
   let liveCaret = { line: 0, col: 0 };
+  /* "salvo às HH:MM" — não mexe no DOM do editor (que perderia o cursor se
+     fosse redesenhado); só atualiza um <span> à parte, fora do contenteditable. */
+  let liveSavedAt = null;
+  function marcarLiveSalvo(){
+    liveSavedAt = Date.now();
+    document.querySelectorAll(".live-saved-badge").forEach(b=>{ b.textContent = "salvo às " + fmtClock(new Date(liveSavedAt)); });
+  }
 
   function noteLiveCtx(){
     return {
       id: () => noteDraft.id,
       getText: () => noteDraft.content || "",
-      setText: t => { noteDraft.content = t; noteDraft.updatedAt = Date.now(); save(K_NOTES, notes); },
+      setText: t => { noteDraft.content = t; noteDraft.updatedAt = Date.now(); save(K_NOTES, notes); marcarLiveSalvo(); },
       sinkChecked: () => !!noteDraft.sinkChecked
     };
   }
@@ -10290,6 +10434,7 @@ window.addEventListener("unhandledrejection", function(e){
     liveCtx = noteLiveCtx();
     liveCaret = { line:0, col:0 };
     liveFocado = false;
+    liveSavedAt = null;
     const el = document.createElement("div");
     el.className = "screen";
     el.style.paddingBottom = "16px";
@@ -10311,7 +10456,7 @@ window.addEventListener("unhandledrejection", function(e){
     titleInput.oninput = e => { noteDraft.title = e.target.value; noteDraft.updatedAt = Date.now(); save(K_NOTES, notes); };
     el.appendChild(titleInput);
     const stamp = document.createElement("div");
-    stamp.innerHTML = criadoEmHtml(noteDraft.createdAt);
+    stamp.innerHTML = criadoEmHtml(noteDraft.createdAt) + ` <span class="live-saved-badge dev-n"></span>`;
     el.appendChild(stamp);
 
     const subjectsWrap = document.createElement("div");
@@ -11464,7 +11609,7 @@ window.addEventListener("unhandledrejection", function(e){
     return {
       id: () => "diario:" + k,
       getText: () => diario[k] || "",
-      setText: t => { if(t.trim()) diario[k] = t; else delete diario[k]; saveDiario(); agendarRepinturaDaAgenda(); },
+      setText: t => { if(t.trim()) diario[k] = t; else delete diario[k]; saveDiario(); agendarRepinturaDaAgenda(); marcarLiveSalvo(); },
       sinkChecked: () => false
     };
   }
@@ -11931,7 +12076,7 @@ window.addEventListener("unhandledrejection", function(e){
               </div>
             </section>
             <section class="di-pane">
-              <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]}</div>
+              <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]} <span class="live-saved-badge dev-n"></span></div>
               <div class="di-pane-body"><div class="live-editor di-live" id="liveEditor"></div></div>
             </section>
           </div>`;
@@ -11967,7 +12112,7 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
         <div class="section-label">Kanban ${KB_ESCOPO_LABEL[esc]}</div>
         <div class="kb-board kb-inline" id="diKanban"></div>
-        <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]}</div>
+        <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]} <span class="live-saved-badge dev-n"></span></div>
         <div class="live-editor di-live" id="liveEditor"></div>`;
       liveCtx = diarioLiveCtx();
       renderLiveEditor();
@@ -11984,6 +12129,7 @@ window.addEventListener("unhandledrejection", function(e){
     function trocarPeriodo(fn){
       liveFocado = false;
       liveCaret = { line:0, col:0 };
+      liveSavedAt = null;
       kbEdit = null; // o índice de cartão em edição não vale para o outro dia
       fn();
       render();
@@ -12513,8 +12659,13 @@ window.addEventListener("unhandledrejection", function(e){
     function pintarRodaLista(){
       const lista = document.getElementById("cfgRodaLista");
       if(!lista) return;
-      lista.innerHTML = rodaAreas().map(a=>`
+      const areas = rodaAreas();
+      // ordem de exibição das barras (roda-vida-resumo, boletim, filtros) segue
+      // esta mesma ordem do array — mover aqui reordena em todo lugar de uma vez.
+      lista.innerHTML = areas.map((a,i)=>`
         <div class="sched-time-row" style="margin-top:0;">
+          <button class="icon-btn" data-rodaup="${a.id}" title="Mover para cima" aria-label="Mover para cima" ${i===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,13)}</button>
+          <button class="icon-btn" data-rodadown="${a.id}" title="Mover para baixo" aria-label="Mover para baixo" ${i===areas.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,13)}</button>
           <span style="flex:1; color:${a.color};">${escapeHtml(a.label)}</span>
           <input class="dur-input" type="number" min="1" max="10" data-rodapeso="${a.id}" value="${a.peso}">
           <button class="icon-btn" data-rodadel="${a.id}" title="Remover área" aria-label="Remover área">${svgIcon(ICON_D.xmark,14)}</button>
@@ -12523,6 +12674,17 @@ window.addEventListener("unhandledrejection", function(e){
         const a = rodaAreas().find(x=>x.id===inp.dataset.rodapeso);
         if(a){ a.peso = Math.max(1, Math.min(10, +inp.value || 5)); save(K_GAMIFICACAO, gam); }
       });
+      function moverArea(id, delta){
+        const arr = gam.config.roda.areas;
+        const i = arr.findIndex(a=>a.id===id);
+        const j = i + delta;
+        if(i<0 || j<0 || j>=arr.length) return;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        save(K_GAMIFICACAO, gam);
+        pintarRodaLista();
+      }
+      lista.querySelectorAll("[data-rodaup]").forEach(b=> b.onclick = () => moverArea(b.dataset.rodaup, -1));
+      lista.querySelectorAll("[data-rodadown]").forEach(b=> b.onclick = () => moverArea(b.dataset.rodadown, 1));
       lista.querySelectorAll("[data-rodadel]").forEach(b=> b.onclick = () => {
         const id = b.dataset.rodadel;
         const usadas = routines.filter(r=>r.eixo===id).length;
@@ -12756,9 +12918,17 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* ---------------- INIT ---------------- */
   applyTheme();
+  document.body.classList.toggle("compacto", densidadeCompacta);
   render();
   window.__britaBooted = true; // boot ok: overlay de erro fatal não é mais necessário
   startScheduler();
+  // badge ganha durante a virada de semana/mês no boot (antes de qualquer
+  // render): celebra só agora, com a tela já de pé, pra não passar batido.
+  if(badgesGanhasNoBoot.length){
+    const b = badgesGanhasNoBoot[badgesGanhasNoBoot.length - 1];
+    const escLabel = { semanal:"da semana", mensal:"do mês", trimestral:"do trimestre", anual:"do ano" }[b.escopo] || "";
+    setTimeout(()=> showCelebrationBanner(`Badge <b style="color:${BADGE_COR[b.tipo]};">${BADGE_NOME[b.tipo]}</b> ${escLabel} · nota ${b.nota.toFixed(1)}`), 500);
+  }
 
   /* ---------------- Bridge para o servidor MCP embutido (desktop) ----------------
      Registrado só no Electron (isDesktop). O servidor MCP roda no main process e
