@@ -33,7 +33,15 @@ function extractFn(name) {
   throw new Error("chaves desbalanceadas em " + name);
 }
 
-const NAMES = ["sanitizeFolderName", "migrarPastaDados"];
+function extractConst(name) {
+  const re = new RegExp("^\\s*const " + name + "\\s*=[\\s\\S]*?^\\s*\\};", "m");
+  const m = src.match(re);
+  if (!m) throw new Error("const não encontrada no index.html: " + name);
+  return m[0];
+}
+
+const NAMES = ["sanitizeFolderName", "migrarPastaDados", "subpastasConhecidas"];
+const CONSTS = ["TIPO_SUBPASTA"];
 
 /* Filesystem falso: um Map plano "pasta/arquivo.json" -> conteúdo, imitando
    readdir/readFile/writeFile/deleteFile do plugin real o suficiente para
@@ -67,7 +75,11 @@ function novoSandbox(arquivosIniciais) {
     _fs: fsFalso
   };
   vm.createContext(sandbox);
-  vm.runInContext(NAMES.map(extractFn).join("\n"), sandbox);
+  vm.runInContext(
+    CONSTS.map(extractConst).join("\n") + "\n" +
+    NAMES.map(extractFn).join("\n") + "\n" +
+    CONSTS.map(n => "globalThis." + n + " = " + n + ";").join("\n"),
+    sandbox);
   return sandbox;
 }
 
@@ -110,6 +122,23 @@ function novoSandbox(arquivosIniciais) {
     const movidos = await F.migrarPastaDados("Rotinas", "Rotinas");
     eq("mesmo nome não migra nada", movidos, 0);
     check("arquivo original intacto", F._fs.files.has("Rotinas/backup1.json"));
+  }
+  {
+    // cada subpasta por categoria migra junto — não só a raiz e a "Notas" legada
+    const F = novoSandbox({
+      "Rotinas/Rotinas/estudar-mandarim.json": "{}",
+      "Rotinas/Backups/rotinas-backup-2026-08-07.json": "{}",
+      "Rotinas/Dados/rotinas-estatisticas.csv": "data;valor",
+      "Rotinas/Listas de mercado/mercado-feira.md": "# Feira",
+      "Rotinas/Anotações de Rotinas/diario-corrida-2026-08-07.md": "# Corrida"
+    });
+    const movidos = await F.migrarPastaDados("Rotinas", "Dados Pessoais");
+    eq("migra as 5 subpastas por categoria de uma vez", movidos, 5);
+    check("rotina exportada chega na pasta nova", F._fs.files.has("Dados Pessoais/Rotinas/estudar-mandarim.json"));
+    check("backup chega na pasta nova", F._fs.files.has("Dados Pessoais/Backups/rotinas-backup-2026-08-07.json"));
+    check("CSV de dados chega na pasta nova", F._fs.files.has("Dados Pessoais/Dados/rotinas-estatisticas.csv"));
+    check("espelho de modelo (mercado) chega na pasta nova", F._fs.files.has("Dados Pessoais/Listas de mercado/mercado-feira.md"));
+    check("anotação de rotina chega na pasta nova", F._fs.files.has("Dados Pessoais/Anotações de Rotinas/diario-corrida-2026-08-07.md"));
   }
 
   console.log(failures === 0 ? "\nDATAFOLDER OK" : "\n" + failures + " FALHA(S)");

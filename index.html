@@ -1658,7 +1658,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-07 (v11)";
+  const BUILD_STAMP = "2026-08-11 (v12)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -3048,6 +3048,30 @@ window.addEventListener("unhandledrejection", function(e){
     if(appEmSegundoPlano === v) return;
     appEmSegundoPlano = v;
     sincronizarPlayerBackground();
+    // widgets de tela inicial (streak, rotina, metas do dia): o momento de ir
+    // para trás é exatamente quando a tela inicial está prestes a aparecer —
+    // eles também se atualizam sozinhos a cada 30min, isto só evita a espera.
+    if(v && isNative && window.Capacitor.Plugins.Widgets){
+      try{ window.Capacitor.Plugins.Widgets.refresh(); }catch(e){}
+    }
+    // sync com o Google Drive: sem processo em segundo plano (o app Android é
+    // encerrado quando fecha de verdade), então o gancho é "acabou de voltar
+    // para frente" — o mais parecido que dá do "sync a cada N min" do desktop.
+    if(!v) tentarAutoSyncNative();
+  }
+  async function tentarAutoSyncNative(){
+    if(!isNative || !window.Capacitor.Plugins.DriveSync) return;
+    try{
+      const P = window.Capacitor.Plugins.DriveSync;
+      const status = await P.getStatus();
+      if(!status.connected) return;
+      const DEZ_MIN = 10*60*1000;
+      if(status.lastSyncAt && Date.now()-status.lastSyncAt < DEZ_MIN) return;
+      const r = await P.syncNow();
+      await aplicarChavesSincronizadasNative(r.downloaded);
+      if(r.conflicts && r.conflicts.length) showAlertBanner("⚠️ Conflito de sincronização — resolva em Configurações → Backup");
+      if(document.getElementById("cfgSyncCard")) refreshSyncCard();
+    }catch(e){ console.error("auto-sync nativo falhou:", e); }
   }
   document.addEventListener("visibilitychange", ()=> marcarSegundoPlano(!!document.hidden));
   if(isNative && window.Capacitor.Plugins.App){
@@ -4367,7 +4391,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(shareBtn) shareBtn.onclick = () => {
       const data = { type:"rotina-share", version:1, routine: JSON.parse(JSON.stringify(editorDraft)) };
       if(data.routine.schedule) data.routine.schedule.enabled = false;
-      downloadFile("rotina-" + slugify(editorDraft.name||"rotina") + ".json", JSON.stringify(data, null, 2), "application/json");
+      downloadFile("rotina-" + slugify(editorDraft.name||"rotina") + ".json", JSON.stringify(data, null, 2), "application/json", "Rotinas");
       showAlertBanner("Rotina exportada para Downloads ✓");
     };
     const delBtn = document.getElementById("deleteRoutine");
@@ -5266,7 +5290,7 @@ window.addEventListener("unhandledrejection", function(e){
           let base = slugify(title);
           usedNames[base] = (usedNames[base]||0) + 1;
           const fname = usedNames[base] > 1 ? base + "-" + usedNames[base] : base;
-          downloadFile(fname + ".md", "# " + title + "\n\n" + n.content + "\n", "text/markdown;charset=utf-8");
+          downloadFile(fname + ".md", "# " + title + "\n\n" + n.content + "\n", "text/markdown;charset=utf-8", "Notas simples");
         }, i*350);
       });
       showAlertBanner(notes.length + " nota(s) exportadas para Downloads ✓");
@@ -5391,6 +5415,59 @@ window.addEventListener("unhandledrejection", function(e){
   function dateKey(d){ return localKey(d); }
   function startTsOf(h){ return h.ts - ((h.actualSec||0)+(h.pausedSec||0))*1000; }
 
+  /* ---- Insights proativos: cruza o que a aba Dados já calcula separadamente
+     (pontualidade, dia da semana, desvio planejado×real) em vez de deixar o
+     Pedro juntar os pontos sozinho olhando três gráficos diferentes. Cada
+     regra só fala se tiver pelo menos 3 execuções — abaixo disso é ruído, não
+     padrão. Função pura (recebe as execuções do período, devolve texto),
+     testada em test/insights.cjs. */
+  function gerarInsights(rich){
+    const insights = [];
+    const DOW_NOME = ["domingos","segundas","terças","quartas","quintas","sextas","sábados"];
+
+    // rotina com atraso mediano alto no início
+    const porRotinaAtraso = {};
+    rich.forEach(h=>{
+      if(h.schedDelayMin === undefined) return;
+      (porRotinaAtraso[h.routineName] = porRotinaAtraso[h.routineName] || []).push(h.schedDelayMin);
+    });
+    Object.entries(porRotinaAtraso).forEach(([nome, arr])=>{
+      if(arr.length < 3) return;
+      const med = median(arr);
+      if(med > 10) insights.push(`<b>${escapeHtml(nome)}</b> atrasa em média ${Math.round(med)}min pra começar — considere mudar o horário agendado.`);
+    });
+
+    // dia da semana com atraso bem acima da mediana geral
+    const comDelay = rich.filter(h=>h.schedDelayMin !== undefined);
+    if(comDelay.length >= 6){
+      const porDow = Array.from({length:7}, ()=>[]);
+      comDelay.forEach(h=> porDow[new Date(h.ts).getDay()].push(h.schedDelayMin));
+      const medGeral = median(comDelay.map(h=>h.schedDelayMin));
+      let pior = null;
+      porDow.forEach((arr,dow)=>{
+        if(arr.length < 3) return;
+        const med = median(arr);
+        if(med - medGeral >= 10 && (!pior || med > pior.med)) pior = { dow, med };
+      });
+      if(pior) insights.push(`Você atrasa mais às <b>${DOW_NOME[pior.dow]}</b> — média de ${Math.round(pior.med)}min, contra ${Math.round(medGeral)}min nos outros dias.`);
+    }
+
+    // rotina que estoura (ou sobra folga) do tempo planejado com frequência
+    const porRotinaDur = {};
+    rich.forEach(h=>{
+      if(!h.plannedSec) return;
+      (porRotinaDur[h.routineName] = porRotinaDur[h.routineName] || []).push(h);
+    });
+    Object.entries(porRotinaDur).forEach(([nome, arr])=>{
+      if(arr.length < 3) return;
+      const med = median(arr.map(h=> (h.actualSec - h.plannedSec) / h.plannedSec));
+      if(med >= 0.25) insights.push(`<b>${escapeHtml(nome)}</b> costuma estourar o tempo planejado em ${Math.round(med*100)}% — talvez valha ajustar a duração.`);
+      else if(med <= -0.25) insights.push(`<b>${escapeHtml(nome)}</b> costuma terminar bem antes do planejado (${Math.round(-med*100)}% mais rápido) — talvez valha encurtar o tempo agendado.`);
+    });
+
+    return insights.slice(0, 5); // no máximo 5, pra não afogar a tela
+  }
+
   /* Cache pelo tamanho de `entries`: renderResumo/renderMonthView/renderYearView
      chamam isto com o `history` inteiro a cada visita à aba Dados, e ele só
      cresce por push() (mesma referência) — recontar do zero a cada troca de
@@ -5432,7 +5509,7 @@ window.addEventListener("unhandledrejection", function(e){
       ]);
     });
     const csv = "\ufeff" + rows.map(r=>r.map(v=>String(v).replace(/;/g,",")).join(";")).join("\n");
-    downloadFile("rotinas-estatisticas.csv", csv, "text/csv;charset=utf-8");
+    downloadFile("rotinas-estatisticas.csv", csv, "text/csv;charset=utf-8", "Dados");
     showAlertBanner("CSV exportado para Downloads ✓");
   }
 
@@ -5616,6 +5693,14 @@ window.addEventListener("unhandledrejection", function(e){
     partes.push(`<div class="section-label">${hmLabel} · toque num dia</div><div class="stat-card" id="hmCard">${heatmapHtml(from, to, byDate)}
       <div class="stat-foot">${computeStreak()} dia(s) seguidos · ${Object.keys(byDate).length} dias ativos no total</div></div>`);
     if(selectedDay) partes.push(dayDetailHtml(selectedDay));
+
+    /* --- insights: cruza pontualidade × dia da semana × desvio de duração --- */
+    const insights = gerarInsights(rich);
+    if(insights.length){
+      partes.push(`<div class="section-label">Insights (${statsPeriod})</div><div class="stat-card">
+        ${insights.map((txt,i)=>`<div style="display:flex; align-items:flex-start; gap:8px; ${i?'margin-top:10px; padding-top:10px; border-top:1px solid var(--line);':''}"><span style="flex:0 0 auto; color:var(--accent); margin-top:1px;">${svgIcon(ICON_D.exclamationTriangle,14)}</span><span class="routine-meta" style="font-size:13.5px; color:var(--text);">${txt}</span></div>`).join("")}
+      </div>`);
+    }
 
     /* --- metas: semana-calendário (janela configurada) com pró-rata --- */
     const weekStart = isoToDate(inicioSemanaISO(new Date()));
@@ -6148,11 +6233,11 @@ window.addEventListener("unhandledrejection", function(e){
       ta.remove();
     }
   }
-  function exportPdfView(title, innerHtml){
+  function exportPdfView(title, innerHtml, subpasta){
     if(isNative){
       // WebView não suporta window.print(): salva o HTML e abre o share sheet
       const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>' + title + '</title></head><body style="font-family:Georgia,serif;color:#222;margin:28px;line-height:1.5;">' + innerHtml + '</body></html>';
-      shareOrDownload(slugify(title || "documento") + ".html", html, "text/html");
+      shareOrDownload(slugify(title || "documento") + ".html", html, "text/html", subpasta);
       return;
     }
     const w = window.open("", "_blank");
@@ -7387,7 +7472,7 @@ window.addEventListener("unhandledrejection", function(e){
 
     document.getElementById("mxAxes").onclick = () => { mxShowAxes = !mxShowAxes; paint(); };
     document.getElementById("mxMd").onclick = () => copyMarkdown(matrixMd(doc));
-    document.getElementById("mxPdf").onclick = () => exportPdfView(doc.title, matrixPdfHtml(doc));
+    document.getElementById("mxPdf").onclick = () => exportPdfView(doc.title, matrixPdfHtml(doc), "Matrizes 2x2");
   }
 
   /* ============ KANBAN ============ */
@@ -7624,7 +7709,7 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("kbPdf").onclick = () => {
       let inner = "<h1>" + escapeHtml(doc.title) + "</h1>";
       doc.cols.forEach(c=>{ inner += "<h2>" + escapeHtml(c.title) + " (" + c.items.length + ")</h2><ul>" + c.items.map(i=>"<li>"+escapeHtml(i.text)+"</li>").join("") + "</ul>"; });
-      exportPdfView(doc.title, inner);
+      exportPdfView(doc.title, inner, "Kanbans");
     };
   }
 
@@ -8265,7 +8350,7 @@ window.addEventListener("unhandledrejection", function(e){
           if(p && t.topics != null) inner += " — " + (t.done||0) + "/" + t.topics + " " + escapeHtml(cdUnit(t)) + " (" + p.txt + ")";
           inner += "</li>";
         });
-        exportPdfView("Metas", inner + "</ul><p class='meta'>gerado em " + localKey() + "</p>");
+        exportPdfView("Metas", inner + "</ul><p class='meta'>gerado em " + localKey() + "</p>", "Metas");
       };
     }
   }
@@ -8759,7 +8844,7 @@ window.addEventListener("unhandledrejection", function(e){
         rows.push([e.date, e.time||"", e.desc.replace(/;/g,","), e.value.toFixed(2).replace(".",","), e.cat]);
       });
       const csv = "\ufeff" + rows.map(r=>r.join(";")).join("\n");
-      downloadFile("despesas.csv", csv, "text/csv;charset=utf-8");
+      downloadFile("despesas.csv", csv, "text/csv;charset=utf-8", "Despesas");
       showAlertBanner("CSV exportado ✓");
     };
   }
@@ -9002,7 +9087,7 @@ window.addEventListener("unhandledrejection", function(e){
         rows.push([e.date, e.desc.replace(/;/g,","), e.value.toFixed(2).replace(".",","), e.cat]);
       });
       const csv = "\ufeff" + rows.map(r=>r.join(";")).join("\n");
-      downloadFile(slugify(doc.title) + ".csv", csv, "text/csv;charset=utf-8");
+      downloadFile(slugify(doc.title) + ".csv", csv, "text/csv;charset=utf-8", "Despesas");
       showAlertBanner("CSV exportado ✓");
     };
   }
@@ -9076,7 +9161,7 @@ window.addEventListener("unhandledrejection", function(e){
       inner += "<h2 style='color:#4F7A57;'>Prós (" + ps + ")</h2><ul>" + doc.pros.map(i=>"<li>"+escapeHtml(i.text)+" <span class='meta'>(peso "+i.w+")</span></li>").join("") + "</ul>";
       inner += "<h2 style='color:#B0503F;'>Contras (" + cs + ")</h2><ul>" + doc.cons.map(i=>"<li>"+escapeHtml(i.text)+" <span class='meta'>(peso "+i.w+")</span></li>").join("") + "</ul>";
       inner += "<p class='score'>Placar: " + (ps-cs>0?"+":"") + (ps-cs) + " — " + (ps>cs?"prós vencem":cs>ps?"contras vencem":"empate") + "</p>";
-      exportPdfView(doc.title, inner);
+      exportPdfView(doc.title, inner, "Pros e Contras");
     };
   }
 
@@ -9239,7 +9324,7 @@ window.addEventListener("unhandledrejection", function(e){
         const list = byCat[cat]; if(!list || !list.length) return;
         inner += "<h2>" + escapeHtml(cat) + "</h2><ul>" + list.map(i=>`<li class="${i.checked?'done':''}">${i.checked?'☑':'☐'} ${escapeHtml(i.name)}${i.qty&&i.qty>1?' ×'+i.qty:''}</li>`).join("") + "</ul>";
       });
-      exportPdfView(doc.title, inner);
+      exportPdfView(doc.title, inner, "Listas de viagem");
     };
   }
 
@@ -10008,11 +10093,17 @@ window.addEventListener("unhandledrejection", function(e){
   function sanitizeFolderName(s){
     return (s||"").trim().replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g," ").slice(0,60) || "Rotinas";
   }
-  /* Move os arquivos da pasta antiga para a nova (raiz + Notas/), best-effort.
-     Lê como texto e regrava — os únicos arquivos que este app escreve aqui são
-     JSON/markdown próprios, nunca binário. Tentar ler cada nome como arquivo
-     e ignorar falha é o jeito mais simples de pular a própria subpasta "Notas"
-     sem depender do plugin devolver um campo `type` (versões variam). */
+  /* Subpastas conhecidas onde o app grava algo (ver TIPO_SUBPASTA, mais as que
+     não são "modelo": Rotinas/Backups/Dados). "Notas" entra por compatibilidade
+     — é a pasta única que o espelho markdown usava antes desta versão passar a
+     separar por tipo; arquivos velhos que ainda estejam lá continuam migrando
+     junto quando o Pedro troca o nome da pasta. */
+  function subpastasConhecidas(){
+    return [...new Set(Object.values(TIPO_SUBPASTA))].concat(["Rotinas", "Backups", "Dados", "Notas"]);
+  }
+  /* Move os arquivos da pasta antiga para a nova (raiz + cada subpasta conhecida),
+     best-effort. Lê como texto e regrava — os únicos arquivos que este app
+     escreve aqui são JSON/markdown próprios, nunca binário. */
   async function migrarPastaDados(antigo, novo){
     if(!isNative || antigo === novo) return 0;
     const FS = window.Capacitor.Plugins.Filesystem;
@@ -10031,18 +10122,20 @@ window.addEventListener("unhandledrejection", function(e){
           await FS.writeFile({ path: para + "/" + nome, directory: "DOCUMENTS", encoding: "utf8", data: lido.data, recursive: true });
           await FS.deleteFile({ path: de + "/" + nome, directory: "DOCUMENTS" });
           movidos++;
-        }catch(e){} // provavelmente a própria subpasta "Notas" — tratada à parte
+        }catch(e){} // provavelmente uma subpasta — tratada à parte, no seu próprio moverConteudo
       }
     }
-    await moverConteudo("");      // backups e exports soltos na raiz
-    await moverConteudo("Notas"); // espelho markdown de notas/modelos
+    await moverConteudo("");           // exports soltos na raiz (legado)
+    for(const sub of subpastasConhecidas()) await moverConteudo(sub);
     return movidos;
   }
   /* No APK, blob + <a download> não funciona (WebView sem DownloadListener):
-     grava em Documentos/<pasta> via Filesystem e confirma só após a escrita real. */
-  async function nativeWriteExport(filename, text){
+     grava em Documentos/<pasta> via Filesystem e confirma só após a escrita real.
+     `subpasta` é opcional — omitido, grava na raiz (compatibilidade). */
+  async function nativeWriteExport(filename, text, subpasta){
+    const path = dataFolderName() + (subpasta ? "/" + subpasta : "") + "/" + filename;
     const r = await window.Capacitor.Plugins.Filesystem.writeFile({
-      path: dataFolderName() + "/" + filename, directory: "DOCUMENTS", encoding: "utf8", data: text, recursive: true
+      path, directory: "DOCUMENTS", encoding: "utf8", data: text, recursive: true
     });
     return r.uri;
   }
@@ -10059,6 +10152,18 @@ window.addEventListener("unhandledrejection", function(e){
       thoughtrecord:"pensamento", journal:"diario", note:"nota", scoreboard:"pontos"
     }[type] || type || "nota";
   }
+  /* Subpasta em Documentos/<pasta>/ onde cada tipo de arquivo gerado pelo app
+     é gravado — uma por modelo de nota (espelha os nomes das pastas em
+     Modelos), mais Rotinas/Backups/Dados pros exports que não são um "modelo".
+     Tudo em um mapa só: usado tanto pelo espelho markdown (syncMdFile) quanto
+     pelos exports avulsos (CSV, PDF, JSON de rotina, backup). */
+  const TIPO_SUBPASTA = {
+    note:"Notas simples", market:"Listas de mercado", matrix:"Matrizes 2x2",
+    kanban:"Kanbans", countdown:"Metas", expense:"Despesas",
+    proscons:"Pros e Contras", travel:"Listas de viagem", thoughtrecord:"RPD",
+    scoreboard:"Registros de pontos", journal:"Anotações de Rotinas"
+  };
+  function subpastaDoTipo(type){ return TIPO_SUBPASTA[type] || "Notas simples"; }
   function noteMd(note){
     let md = "# " + (note.title||"Sem título") + "\n\n" + (note.content||"") + "\n";
     if((note.subjects||[]).length) md += "\n## Assunto\n" + note.subjects.map(s=>"#"+s.replace(/\s+/g,"-")).join(" ") + "\n";
@@ -10104,10 +10209,10 @@ window.addEventListener("unhandledrejection", function(e){
       default: return "# " + (doc.title||"Documento") + "\n";
     }
   }
-  async function syncMdFile(obj, mdText, typeLabel, titleForSlug, suffix){
+  async function syncMdFile(obj, mdText, typeLabel, tipo, titleForSlug, suffix){
     if(!isNative || !window.Capacitor.Plugins.Filesystem) return;
     const FS = window.Capacitor.Plugins.Filesystem;
-    const newPath = dataFolderName() + "/Notas/" + typeLabel + "-" + slugify(titleForSlug).slice(0,40) + (suffix||"") + ".md";
+    const newPath = dataFolderName() + "/" + subpastaDoTipo(tipo) + "/" + typeLabel + "-" + slugify(titleForSlug).slice(0,40) + (suffix||"") + ".md";
     try{
       if(obj._mdPath && obj._mdPath !== newPath){
         try{ await FS.deleteFile({ path: obj._mdPath, directory:"DOCUMENTS" }); }catch(e){}
@@ -10120,7 +10225,7 @@ window.addEventListener("unhandledrejection", function(e){
     const titleForSlug = note.title || "sem-titulo";
     const base = slugify(titleForSlug).slice(0,40);
     const dupes = notes.filter(n => slugify(n.title||"sem-titulo").slice(0,40) === base).map(n=>({id:n.id, createdAt:n.createdAt||0}));
-    syncMdFile(note, noteMd(note), "nota", titleForSlug, mdDedupSuffix(dupes, note.id));
+    syncMdFile(note, noteMd(note), "nota", "note", titleForSlug, mdDedupSuffix(dupes, note.id));
   }
   function syncDocMd(doc){
     const typeLabel = mdTypeLabel(doc.type);
@@ -10131,13 +10236,15 @@ window.addEventListener("unhandledrejection", function(e){
       const dTitle = d.title || d.trigger || d.desc || typeLabel;
       return slugify(dTitle).slice(0,40) === base;
     }).map(d=>({id:d.id, createdAt:d.createdAt||0}));
-    syncMdFile(doc, docToMarkdown(doc), typeLabel, titleForSlug, mdDedupSuffix(dupes, doc.id));
+    syncMdFile(doc, docToMarkdown(doc), typeLabel, doc.type, titleForSlug, mdDedupSuffix(dupes, doc.id));
   }
 
-  function downloadFile(filename, text, mime){
+  /* `subpasta` é opcional — organiza os exports por categoria dentro de
+     Documentos/<pasta>/ (ver TIPO_SUBPASTA). Omitido, grava na raiz. */
+  function downloadFile(filename, text, mime, subpasta){
     if(isNative){
-      nativeWriteExport(filename, text)
-        .then(() => showAlertBanner("Salvo em Documentos/" + dataFolderName() + "/" + filename + " ✓"))
+      nativeWriteExport(filename, text, subpasta)
+        .then(() => showAlertBanner("Salvo em Documentos/" + dataFolderName() + (subpasta?"/"+subpasta:"") + "/" + filename + " ✓"))
         .catch(e => { console.error("Export falhou:", e); showAlertBanner("⚠️ Não foi possível salvar " + filename); });
       return;
     }
@@ -10148,10 +10255,10 @@ window.addEventListener("unhandledrejection", function(e){
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
   }
-  async function shareOrDownload(filename, text, mime){
+  async function shareOrDownload(filename, text, mime, subpasta){
     if(isNative){
       try{
-        const uri = await nativeWriteExport(filename, text);
+        const uri = await nativeWriteExport(filename, text, subpasta);
         try{ await window.Capacitor.Plugins.Share.share({ title: filename, files: [uri] }); }catch(e){} // cancelar o share é ok, o arquivo já está salvo
         return true;
       }catch(e){
@@ -10169,7 +10276,7 @@ window.addEventListener("unhandledrejection", function(e){
         }
       }
     }catch(e){ if(e && e.name === "AbortError") return true; }
-    downloadFile(filename, text, mime);
+    downloadFile(filename, text, mime, subpasta);
     return true;
   }
 
@@ -10178,14 +10285,14 @@ window.addEventListener("unhandledrejection", function(e){
     return { version: 5, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist, diario, diaKanban };
   }
   async function exportBackup(){
-    const ok = await shareOrDownload("rotinas-backup-" + localKey() + ".json", JSON.stringify(backupData(), null, 2), "application/json");
+    const ok = await shareOrDownload("rotinas-backup-" + localKey() + ".json", JSON.stringify(backupData(), null, 2), "application/json", "Backups");
     if(!ok) return; // banner de erro já foi mostrado
     save(K_LASTBACKUP, Date.now());
-    showAlertBanner(isNative ? "Backup salvo em Documentos/" + dataFolderName() + " ✓" : "Backup exportado ✓");
+    showAlertBanner(isNative ? "Backup salvo em Documentos/" + dataFolderName() + "/Backups ✓" : "Backup exportado ✓");
   }
 
-  /* Auto-backup no APK: cópia de segurança silenciosa em Documentos/<pasta> a
-     cada 3 dias — sobrevive à desinstalação do app (Directory.Data não).
+  /* Auto-backup no APK: cópia de segurança silenciosa em Documentos/<pasta>/Backups
+     a cada 3 dias — sobrevive à desinstalação do app (Directory.Data não).
      Arquivos datados, com retenção dos 5 mais recentes: um backup corrompido
      ou vazio não destrói mais o único backup existente. */
   async function autoBackupNative(){
@@ -10193,15 +10300,15 @@ window.addEventListener("unhandledrejection", function(e){
     if(routines.length + notes.length + tarefas.length + templates.length === 0) return; // nunca sobrescrever com dados vazios
     if(Date.now() - load(K_AUTOBAK, 0) < 3 * 86400000) return;
     try{
-      await nativeWriteExport("rotinas-backup-auto-" + localKey() + ".json", JSON.stringify(backupData(), null, 2));
+      await nativeWriteExport("rotinas-backup-auto-" + localKey() + ".json", JSON.stringify(backupData(), null, 2), "Backups");
       save(K_AUTOBAK, Date.now());
       // retenção: mantém só os 5 auto-backups mais recentes (nome contém a data)
       const FS = window.Capacitor.Plugins.Filesystem;
-      const r = await FS.readdir({ path:dataFolderName(), directory:"DOCUMENTS" });
+      const r = await FS.readdir({ path:dataFolderName()+"/Backups", directory:"DOCUMENTS" });
       const autos = (r.files || []).map(f => typeof f === "string" ? f : f.name)
         .filter(n => /^rotinas-backup-auto-.*\.json$/.test(n)).sort();
       for(const old of autos.slice(0, Math.max(0, autos.length - 5))){
-        try{ await FS.deleteFile({ path:dataFolderName() + "/" + old, directory:"DOCUMENTS" }); }catch(e){}
+        try{ await FS.deleteFile({ path:dataFolderName() + "/Backups/" + old, directory:"DOCUMENTS" }); }catch(e){}
       }
     }catch(e){ console.error("Auto-backup falhou:", e); }
   }
@@ -12481,7 +12588,7 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="${bakLigado?'btn-cancel':'btn-primary'}" id="cfgBakToggle" style="width:100%; margin-top:8px;">${bakLigado?'Desativar':'Escolher arquivo de backup'}</button>
             <div class="stat-foot">O app regrava esse arquivo sozinho ao sair. Sem isso, seus dados vivem só no armazenamento do navegador, que pode ser apagado.</div>
             <div class="stat-foot">Escolha um arquivo dentro de uma pasta sincronizada pelo Google Drive ou Dropbox no computador para sincronizar com outro aparelho que grave no mesmo arquivo — ao voltar para a aba, o app avisa se achar uma versão mais recente.</div>
-          ` : `<div class="routine-meta">${isNative?'Backup automático a cada 3 dias em Documentos/'+escapeHtml(dataFolderName())+'.':'Este navegador não permite gravar em arquivo automaticamente — exporte manualmente.'}</div>`}
+          ` : `<div class="routine-meta">${isNative?'Backup automático a cada 3 dias em Documentos/'+escapeHtml(dataFolderName())+'/Backups.':'Este navegador não permite gravar em arquivo automaticamente — exporte manualmente.'}</div>`}
           ${isNative ? `
           <div class="section-label" style="margin:14px 0 4px;">Pasta em Documentos</div>
           <div class="market-form-row">
@@ -12498,7 +12605,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="stat-foot">${ultBak ? "Último backup: " + new Date(ultBak).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
         </div>
 
-        ${isDesktop ? `<div class="section-label">Sincronização com nuvem</div>
+        ${(isDesktop || isNative) ? `<div class="section-label">Sincronização com nuvem</div>
         <div class="stat-card" id="cfgSyncCard"><div class="routine-meta">Carregando status…</div></div>` : ""}
 
         ${isDesktop ? `<div class="section-label">Integrações (MCP)</div>
@@ -12730,7 +12837,7 @@ window.addEventListener("unhandledrejection", function(e){
     });
 
     if(isDesktop) refreshMcpCard();
-    if(isDesktop) refreshSyncCard();
+    if(isDesktop || isNative) refreshSyncCard();
   }
 
   /* ---- Configurações → Integrações (MCP), só no desktop ----
@@ -12814,6 +12921,29 @@ window.addEventListener("unhandledrejection", function(e){
      backup: aquele modal foi desenhado para "mesclar ou substituir tudo" de um arquivo
      inteiro, não para escolher um lado numa única chave — forçar esse encaixe ficaria
      confuso, então o conflito por chave ganhou os dois botões diretos. */
+  /* Ponte comum entre desktop (electronBridge.sync, IPC) e celular (plugin
+     Capacitor DriveSync) — os dois expõem os mesmos métodos, só a forma de
+     empacotar os argumentos difere (posicional vs. objeto único, convenção do
+     Capacitor). No celular a credencial já vem embutida (mesmo Client ID/Secret
+     do desktop — ver sync/oauth-client.js e a nota de segurança lá: client
+     secret de app instalado não é segredo de verdade), então getStatus()
+     sempre reporta hasClientCreds:true e a UI nunca cai no branch de digitar
+     credencial. */
+  function syncBridge(){
+    if(isDesktop && window.electronBridge && window.electronBridge.sync) return window.electronBridge.sync;
+    if(isNative && window.Capacitor.Plugins.DriveSync){
+      const P = window.Capacitor.Plugins.DriveSync;
+      return {
+        saveClientCreds: () => Promise.resolve(),
+        connect: () => P.connect(),
+        disconnect: () => P.disconnect(),
+        syncNow: () => P.syncNow(),
+        getStatus: () => P.getStatus(),
+        resolveConflict: (key, choice) => P.resolveConflict({ key, choice })
+      };
+    }
+    return null;
+  }
   let syncForceEditCreds = false;
   function syncCardHtml(status){
     if(!status.hasClientCreds || syncForceEditCreds){
@@ -12832,9 +12962,9 @@ window.addEventListener("unhandledrejection", function(e){
       return `
         <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Google Drive</div>
           <div class="bar-val" style="width:auto; color:var(--muted);">desconectado</div></div>
-        <div class="stat-foot" style="margin-top:8px;">Cria uma pasta "brita-sync" no seu Drive e sincroniza a cada 10 minutos com o app aberto. Escopo mínimo (drive.file): o app só enxerga o que ele mesmo criar.</div>
+        <div class="stat-foot" style="margin-top:8px;">Cria uma pasta "brita-sync" no seu Drive. ${isDesktop ? "Sincroniza a cada 10 minutos com o app aberto." : "Sincroniza sozinho ao abrir o app (se fizer um tempo desde o último) e quando você tocar em \"sincronizar agora\"."} Escopo mínimo (drive.file): o app só enxerga o que ele mesmo criar.</div>
         <button class="btn-primary" id="syncConnect" style="width:100%; margin-top:12px;">Conectar ao Google Drive</button>
-        <button class="btn-cancel" id="syncEditCreds" style="width:100%; margin-top:8px;">Trocar credenciais</button>
+        ${isDesktop ? `<button class="btn-cancel" id="syncEditCreds" style="width:100%; margin-top:8px;">Trocar credenciais</button>` : ""}
       `;
     }
     const ultimo = status.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString("pt-BR") : "ainda não sincronizou";
@@ -12857,12 +12987,14 @@ window.addEventListener("unhandledrejection", function(e){
     `;
   }
   function wireSyncCard(card){
+    const bridge = syncBridge();
+    if(!bridge) return;
     const saveCreds = card.querySelector("#syncSaveCreds");
     if(saveCreds) saveCreds.onclick = async () => {
       const id = card.querySelector("#syncClientId").value.trim();
       const secret = card.querySelector("#syncClientSecret").value.trim();
       if(!id){ showAlertBanner("Cole o Client ID"); return; }
-      await window.electronBridge.sync.saveClientCreds(id, secret);
+      await bridge.saveClientCreds(id, secret);
       syncForceEditCreds = false;
       showAlertBanner("Credenciais salvas ✓");
       refreshSyncCard();
@@ -12873,7 +13005,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(connectBtn) connectBtn.onclick = async () => {
       connectBtn.disabled = true; connectBtn.textContent = "Abrindo o navegador...";
       try{
-        await window.electronBridge.sync.connect();
+        await bridge.connect();
         showAlertBanner("Google Drive conectado ✓");
       }catch(e){ showAlertBanner("Não deu para conectar: " + e.message); }
       refreshSyncCard();
@@ -12882,7 +13014,8 @@ window.addEventListener("unhandledrejection", function(e){
     if(nowBtn) nowBtn.onclick = async () => {
       nowBtn.disabled = true; nowBtn.textContent = "Sincronizando...";
       try{
-        const r = await window.electronBridge.sync.syncNow();
+        const r = await bridge.syncNow();
+        if(isNative) await aplicarChavesSincronizadasNative(r.downloaded);
         showAlertBanner(`Sync: ${r.uploaded.length} enviado(s), ${r.downloaded.length} recebido(s)` + (r.conflicts.length ? `, ${r.conflicts.length} conflito(s)` : ""));
       }catch(e){ showAlertBanner("Falha no sync: " + e.message); }
       refreshSyncCard();
@@ -12890,7 +13023,7 @@ window.addEventListener("unhandledrejection", function(e){
     const discBtn = card.querySelector("#syncDisconnect");
     if(discBtn) discBtn.onclick = () => {
       confirmModal("Desconectar do Google Drive? O sync automático para até reconectar.", "Desconectar", async ()=>{
-        await window.electronBridge.sync.disconnect();
+        await bridge.disconnect();
         refreshSyncCard();
       });
     };
@@ -12898,7 +13031,8 @@ window.addEventListener("unhandledrejection", function(e){
       btn.onclick = async () => {
         btn.disabled = true;
         try{
-          await window.electronBridge.sync.resolveConflict(btn.dataset.resolve, btn.dataset.choice);
+          await bridge.resolveConflict(btn.dataset.resolve, btn.dataset.choice);
+          if(isNative && btn.dataset.choice === "remote") await aplicarChavesSincronizadasNative([btn.dataset.resolve]);
           showAlertBanner("Conflito resolvido ✓");
         }catch(e){ showAlertBanner("Falha ao resolver: " + e.message); }
         refreshSyncCard();
@@ -12908,8 +13042,10 @@ window.addEventListener("unhandledrejection", function(e){
   async function refreshSyncCard(){
     const card = document.getElementById("cfgSyncCard");
     if(!card) return;
+    const bridge = syncBridge();
+    if(!bridge) return;
     let status;
-    try{ status = await window.electronBridge.sync.getStatus(); }
+    try{ status = await bridge.getStatus(); }
     catch(e){ card.innerHTML = `<div class="routine-meta">Não foi possível carregar o status da sincronização.</div>`; return; }
     if(!document.getElementById("cfgSyncCard")) return;
     card.innerHTML = syncCardHtml(status);
@@ -12928,6 +13064,43 @@ window.addEventListener("unhandledrejection", function(e){
     const b = badgesGanhasNoBoot[badgesGanhasNoBoot.length - 1];
     const escLabel = { semanal:"da semana", mensal:"do mês", trimestral:"do trimestre", anual:"do ano" }[b.escopo] || "";
     setTimeout(()=> showCelebrationBanner(`Badge <b style="color:${BADGE_COR[b.tipo]};">${BADGE_NOME[b.tipo]}</b> ${escLabel} · nota ${b.nota.toFixed(1)}`), 500);
+  }
+
+  /* ---- Sync com Google Drive: aplica no app o que o motor de sync já baixou
+     e gravou em disco (desktop: main process; celular: SyncEngine nativo).
+     Espelha exatamente o branch "Substituir tudo" do import de backup — é
+     sempre a chave inteira, nunca item a item (fase 2 do plano, mesclagem
+     granular, ainda não existe). Top-level (não só dentro de isDesktop) porque
+     o celular também precisa dela. */
+  function applySyncedKey(key, value){
+    switch(key){
+      case K_ROUTINES: routines = value; save(K_ROUTINES, routines); break;
+      case K_NOTES: notes = value; save(K_NOTES, notes); break;
+      case K_HISTORY: history = value; save(K_HISTORY, history); break;
+      case K_TEMPLATES: templates = value; save(K_TEMPLATES, templates); break;
+      case K_SNOOZES: snoozes = value; save(K_SNOOZES, snoozes); break;
+      case K_TAREFAS: tarefas = value; saveTarefas(); break;
+      case K_TAREFAS_HIST: tarefasHist = value; saveTarefasHist(); break;
+      case K_DIARIO: diario = value; saveDiario(); break;
+      case K_DIAKANBAN: diaKanban = value; saveDiaKanban(); break;
+      default: return;
+    }
+    render();
+  }
+  /* No celular não existe canal de push (IPC) como no Electron: cada chamada de
+     syncNow() já devolve quais chaves baixaram, então aplica ali mesmo, logo
+     depois do syncNow() resolver — em vez de esperar um evento assíncrono. Lê
+     de volta o MESMO arquivo que o SyncEngine (Java) acabou de gravar
+     (Directory.Data/brita/<chave>.json, igual ao storageBackend nativo). */
+  async function aplicarChavesSincronizadasNative(keys){
+    if(!isNative || !keys || !keys.length) return;
+    const FS = window.Capacitor.Plugins.Filesystem;
+    for(const key of keys){
+      try{
+        const r = await FS.readFile({ path:"brita/"+key+".json", directory:"DATA", encoding:"utf8" });
+        applySyncedKey(key, JSON.parse(r.data));
+      }catch(e){ console.error("Falha ao aplicar chave sincronizada", key, e); }
+    }
   }
 
   /* ---------------- Bridge para o servidor MCP embutido (desktop) ----------------
@@ -13080,25 +13253,8 @@ window.addEventListener("unhandledrejection", function(e){
       return fn(args || {});
     });
 
-    /* ---- Sync com Google Drive: aplica no app o que o motor (main process)
-       já baixou e gravou em disco. Espelha exatamente o branch "Substituir tudo"
-       do import de backup — é sempre a chave inteira, nunca item a item (fase 2
-       do plano, mesclagem granular, ainda não existe). */
-    function applySyncedKey(key, value){
-      switch(key){
-        case K_ROUTINES: routines = value; save(K_ROUTINES, routines); break;
-        case K_NOTES: notes = value; save(K_NOTES, notes); break;
-        case K_HISTORY: history = value; save(K_HISTORY, history); break;
-        case K_TEMPLATES: templates = value; save(K_TEMPLATES, templates); break;
-        case K_SNOOZES: snoozes = value; save(K_SNOOZES, snoozes); break;
-        case K_TAREFAS: tarefas = value; saveTarefas(); break;
-        case K_TAREFAS_HIST: tarefasHist = value; saveTarefasHist(); break;
-        case K_DIARIO: diario = value; saveDiario(); break;
-        case K_DIAKANBAN: diaKanban = value; saveDiaKanban(); break;
-        default: return;
-      }
-      render();
-    }
+    // aplica o que o motor de sync (main process) já baixou e gravou em disco —
+    // applySyncedKey é top-level agora, o celular também usa (ver mais acima)
     window.electronBridge.onSyncApplied((key, value) => applySyncedKey(key, value));
     window.electronBridge.onSyncConflict(() => {
       showAlertBanner("⚠️ Conflito de sincronização — resolva em Configurações → Backup");

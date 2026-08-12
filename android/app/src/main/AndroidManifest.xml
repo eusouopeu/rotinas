@@ -41,6 +41,30 @@
             </intent-filter>
         </activity>
 
+        <!-- Widget de streak: sem configuração, mostra a sequência de dias seguidos -->
+        <receiver
+            android:name=".StreakWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_streak_info" />
+        </receiver>
+
+        <!-- Widget de metas do dia: sem configuração, lista as metas recorrentes diárias -->
+        <receiver
+            android:name=".DailyGoalWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_daily_goal_info" />
+        </receiver>
+
         <!-- Bolha do cronômetro por cima de outros apps. specialUse porque o
              Android não tem um tipo de foreground service para cronômetro. -->
         <service

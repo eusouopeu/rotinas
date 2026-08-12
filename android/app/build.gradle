@@ -12,8 +12,8 @@ android {
         // versionCode igual ou menor como "nada para atualizar" e em vários
         // aparelhos só oferece "Abrir" em vez de reinstalar de fato — foi o que
         // fez updates sumirem mesmo depois de reinstalar (2026-07-28).
-        versionCode 11
-        versionName "2026.08.07-11"
+        versionCode 12
+        versionName "2026.08.11-12"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -58,6 +58,9 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    // tokens do sync com Google Drive, criptografados (mesmo espírito do safeStorage
+    // do desktop) — ver SyncTokenStore.java
+    implementation "androidx.security:security-crypto:1.1.0-alpha06"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

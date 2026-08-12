@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget de streak: número grande + rótulo, sem configuração nenhuma.
+     O clique abre o app. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="10dp">
+
+    <TextView
+        android:id="@+id/streakNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#E0619E"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:text="0" />
+
+    <TextView
+        android:id="@+id/streakLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textColor="#8A8478"
+        android:textSize="11sp"
+        android:maxLines="1"
+        android:text="dias seguidos" />
+</LinearLayout>
