@@ -1321,6 +1321,7 @@ window.addEventListener("unhandledrejection", function(e){
   const K_ORDEMMANUAL = "rotinas_v2_ordem_manual"; // ordenar rotinas na home manualmente em vez de por horário
   const K_DIGESTSEMANAL = "rotinas_v2_digest_semanal"; // notificação de resumo ao fechar a semana
   const K_PIN = "rotinas_v2_pin"; // hash SHA-256 (hex) do PIN de bloqueio, null = sem bloqueio
+  const K_EXERCICIOS = "rotinas_v2_exercicios"; // biblioteca de exercícios (séries/reps/carga) reaproveitada por etapas de rotina
 
   const mqLight = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
   function resolvedTheme(){
@@ -1591,6 +1592,11 @@ window.addEventListener("unhandledrejection", function(e){
      cairia em TDZ. */
   let diaKanban = load(K_DIAKANBAN, []);
   function saveDiaKanban(){ save(K_DIAKANBAN, diaKanban); }
+  /* Biblioteca de exercícios: [{id,nome,grupo,pesoAtual}], referenciada por
+     etapas de rotina do tipo "exercicio" (s.exercicioId). Declarada aqui junto
+     dos outros dados, mesma razão do diaKanban acima (TDZ com backupData()). */
+  let exercicios = load(K_EXERCICIOS, []);
+  function saveExercicios(){ save(K_EXERCICIOS, exercicios); }
   /* O kanban nasceu só no escopo "dia", com o campo `dia` guardando a data.
      Agora existe um kanban por escopo e a chave é `per`. Idempotente. */
   (function migrarKanbanParaPeriodo(){
@@ -1756,7 +1762,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-13 (v13)";
+  const BUILD_STAMP = "2026-08-13 (v14)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2010,8 +2016,8 @@ window.addEventListener("unhandledrejection", function(e){
         const fh = fatorHabito(r.id, mapaHab);
         const area = areaDaRotina(r);
         (r.steps||[]).forEach(s=>{
-          if(s.type !== "timer" || s.isRest) return;
-          const minutos = (s.seconds||0)/60;
+          if(s.isRest || (s.type !== "timer" && s.type !== "exercicio")) return;
+          const minutos = s.type==="exercicio" ? ((s.sets||1)*(s.restSeconds||60))/60 : (s.seconds||0)/60;
           const tag = stepTagEfetiva(s, r);
           const pb = pesoBruto(tag, minutos) * fh;
           if(pb <= 0) return;
@@ -2462,6 +2468,33 @@ window.addEventListener("unhandledrejection", function(e){
       porDia100: diasRestantes>0 ? faltaPara100/diasRestantes : faltaPara100,
       porDia60: diasRestantes>0 ? faltaPara60/diasRestantes : faltaPara60
     };
+  }
+  /* Previsão de sobrecarga: soma o que ainda está pela frente na semana
+     configurada (rotinas agendadas dos dias restantes + cartões do kanban
+     ainda não feitos + metas de prazo vencendo nesses dias) — heurística
+     simples, não é gamificação, só um alerta de "semana carregada". */
+  function previsaoCargaSemana(){
+    const diaIdxHoje = offsetSemana(diaSemanaHoje());
+    const diasRestantes = 7 - diaIdxHoje; // inclui hoje
+    let minutosRotinas = 0;
+    for(let off=0; off<diasRestantes; off++){
+      const dow = (diaSemanaHoje() + off) % 7;
+      routines.forEach(r=>{
+        if(!r.schedule || !r.schedule.enabled || !r.schedule.days.includes(dow)) return;
+        (r.steps||[]).forEach(s=>{
+          if(s.isRest) return;
+          if(s.type==="timer") minutosRotinas += (s.seconds||0)/60;
+          else if(s.type==="exercicio") minutosRotinas += ((s.sets||1)*(s.restSeconds||60))/60;
+        });
+      });
+    }
+    const hojeKey = localKey();
+    const semanaKey = "semana:" + inicioSemanaISO(new Date());
+    const cartoesPendentes = diaKanban.filter(c=> c.col !== "done" && (c.per === "dia:"+hojeKey || c.per === semanaKey)).length;
+    const doc = getOrCreateCountdownDoc();
+    const metasVencendo = (doc.targets||[]).filter(t=>{ const d = daysUntil(t.date); return d>=0 && d<diasRestantes; }).length;
+    const nivel = minutosRotinas > 900 ? "alta" : (minutosRotinas > 450 ? "normal" : "baixa");
+    return { minutosRotinas: Math.round(minutosRotinas), cartoesPendentes, metasVencendo, diasRestantes, nivel };
   }
   const TAG_LABELS = { nenhum:"Nenhum", baixo:"Baixo", medio:"Médio", alto:"Alto" };
   function tagValorPillsHtml(current, comHerdar){
@@ -3384,11 +3417,33 @@ window.addEventListener("unhandledrejection", function(e){
   /* Busca global em overlay: a mesma superfície serve as cinco abas sem que
      cada layout precise reservar espaço para o campo e para os resultados.
      Usa .confirm-overlay para o voltar do Android fechá-la (closeTopOverlay). */
+  /* opções de área para o filtro da busca: EIXOS + qualquer área livre já
+     usada em rotina/tarefa/cartão, mesma convenção de área-texto-livre das
+     metas (metaAreaInfo) */
+  function areaOptionsFromData(){
+    const out = EIXOS.map(e=>({ id:e.id, label:e.label }));
+    const vistos = new Set(out.map(o=>o.id));
+    [...routines.map(r=>r.eixo), ...tarefas.map(t=>t.eixo), ...diaKanban.map(c=>c.eixo)].forEach(v=>{
+      if(v && !vistos.has(v)){ vistos.add(v); out.push({ id:v, label:v }); }
+    });
+    return out;
+  }
   function openGlobalSearch(){
     const ov = document.createElement("div");
     ov.className = "confirm-overlay search-overlay";
+    const areaOpts = areaOptionsFromData();
     ov.innerHTML = `<div class="confirm-box search-box" role="dialog" aria-modal="true" aria-label="Busca" style="text-align:left;">
       <input type="search" id="globalSearch" class="note-search" style="margin-bottom:10px;" placeholder="Buscar rotinas, tarefas, notas, modelos, histórico, diário...">
+      <div class="sched-time-row" style="margin:0 0 10px; gap:8px;">
+        <select id="gsPeso" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 6px; font-size:13px; color:var(--text);">
+          <option value="">peso: todos</option>
+          ${Object.entries(TAG_LABELS).map(([k,v])=>`<option value="${k}">peso: ${v}</option>`).join("")}
+        </select>
+        <select id="gsArea" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 6px; font-size:13px; color:var(--text);">
+          <option value="">área: todas</option>
+          ${areaOpts.map(a=>`<option value="${escapeHtml(a.id)}">área: ${escapeHtml(a.label)}</option>`).join("")}
+        </select>
+      </div>
       <div id="globalSearchResults" class="notes-list"></div>
     </div>`;
     document.body.appendChild(ov);
@@ -3406,35 +3461,48 @@ window.addEventListener("unhandledrejection", function(e){
       results.innerHTML = "";
       const q = input.value.trim().toLowerCase();
       if(q.length < 2) return;
+      const peso = ov.querySelector("#gsPeso").value;
+      const area = ov.querySelector("#gsArea").value;
+      const semFiltro = !peso && !area;
       const hits = [];
-      routines.forEach(r=>{ if((r.name||"").toLowerCase().includes(q))
-        hits.push({ icon:r.icon||svgIcon(ICON_D.play,16), title:r.name, sub:"Rotina", go:()=>{ goTo({tab:"home",screen:"routineDetail",id:r.id}); } }); });
-      tarefas.forEach(t=>{ if(((t.tipo||"")+" "+(t.conteudo||"")+" "+(t.area||"")).toLowerCase().includes(q))
-        hits.push({ icon:svgIcon(ICON_D.check,13), title:(t.tipo?t.tipo+": ":"")+(t.conteudo||""), sub:"Tarefa"+(t.area?" · "+t.area:""), go:()=>{ tarefaDraft = JSON.parse(JSON.stringify(t)); goTo({tab:"tarefas",screen:"tarefaEditor"}); } }); });
-      notes.forEach(n=>{ if(((n.title||"")+" "+(n.content||"")).toLowerCase().includes(q))
-        hits.push({ icon:svgIcon(ICON_D.notes,14), title:n.title||"Sem título", sub:"Nota", go:()=>openNoteEditor(n.id) }); });
-      templates.forEach(t=>{ if((t.title||"").toLowerCase().includes(q))
-        hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||svgIcon(ICON_D.templates,14), title:t.title, sub:"Modelo", go:()=>{ goTo({tab:"templates",screen:"templateDoc",id:t.id}); } }); });
-      // Histórico: só entra quando a rotina de origem já foi excluída — enquanto
-      // ela ainda existir, a busca por rotinas acima já encontra o mesmo nome.
-      const rotinasVistas = new Set();
-      history.forEach(h=>{
-        if(!h.routineName || rotinasVistas.has(h.routineId)) return;
-        if(!h.routineName.toLowerCase().includes(q)) return;
-        rotinasVistas.add(h.routineId);
-        if(routines.some(r=>r.id===h.routineId)) return;
-        hits.push({ icon:svgIcon(ICON_D.clock,14), title:h.routineName, sub:"Histórico (rotina excluída)", go:()=>{ goTo({tab:"stats",screen:"stats"}); } });
-      });
-      // Diário: um resultado por período com texto batendo, abre direto nele.
-      Object.keys(diario).forEach(k=>{
-        const texto = diario[k];
-        if(!texto || !texto.toLowerCase().includes(q)) return;
-        const escopo = escopoDoPer(k);
-        const iso = k.slice(k.indexOf(":")+1);
-        hits.push({ icon:svgIcon(ICON_D.calendar,14), title: diarioRotulo(escopo, iso), sub:"Diário", go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
-      });
+      routines.forEach(r=>{
+        if(peso && (r.tagValor||"medio") !== peso) return;
+        if(area && (r.eixo||"") !== area) return;
+        if((r.name||"").toLowerCase().includes(q))
+          hits.push({ icon:r.icon||svgIcon(ICON_D.play,16), title:r.name, sub:"Rotina", go:()=>{ goTo({tab:"home",screen:"routineDetail",id:r.id}); } }); });
+      tarefas.forEach(t=>{
+        if(peso && (t.tagValor||"medio") !== peso) return;
+        if(area && (t.eixo||"") !== area) return;
+        if(((t.tipo||"")+" "+(t.conteudo||"")+" "+(t.area||"")).toLowerCase().includes(q))
+          hits.push({ icon:svgIcon(ICON_D.check,13), title:(t.tipo?t.tipo+": ":"")+(t.conteudo||""), sub:"Tarefa"+(t.area?" · "+t.area:""), go:()=>{ tarefaDraft = JSON.parse(JSON.stringify(t)); goTo({tab:"tarefas",screen:"tarefaEditor"}); } }); });
+      if(semFiltro){
+        notes.forEach(n=>{ if(((n.title||"")+" "+(n.content||"")).toLowerCase().includes(q))
+          hits.push({ icon:svgIcon(ICON_D.notes,14), title:n.title||"Sem título", sub:"Nota", go:()=>openNoteEditor(n.id) }); });
+        templates.forEach(t=>{ if((t.title||"").toLowerCase().includes(q))
+          hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||svgIcon(ICON_D.templates,14), title:t.title, sub:"Modelo", go:()=>{ goTo({tab:"templates",screen:"templateDoc",id:t.id}); } }); });
+        // Histórico: só entra quando a rotina de origem já foi excluída — enquanto
+        // ela ainda existir, a busca por rotinas acima já encontra o mesmo nome.
+        const rotinasVistas = new Set();
+        history.forEach(h=>{
+          if(!h.routineName || rotinasVistas.has(h.routineId)) return;
+          if(!h.routineName.toLowerCase().includes(q)) return;
+          rotinasVistas.add(h.routineId);
+          if(routines.some(r=>r.id===h.routineId)) return;
+          hits.push({ icon:svgIcon(ICON_D.clock,14), title:h.routineName, sub:"Histórico (rotina excluída)", go:()=>{ goTo({tab:"stats",screen:"stats"}); } });
+        });
+        // Diário: um resultado por período com texto batendo, abre direto nele.
+        Object.keys(diario).forEach(k=>{
+          const texto = diario[k];
+          if(!texto || !texto.toLowerCase().includes(q)) return;
+          const escopo = escopoDoPer(k);
+          const iso = k.slice(k.indexOf(":")+1);
+          hits.push({ icon:svgIcon(ICON_D.calendar,14), title: diarioRotulo(escopo, iso), sub:"Diário", go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
+        });
+      }
       // Cartões do kanban do Diário, em qualquer escopo/período.
       diaKanban.forEach(c=>{
+        if(peso && (c.tagValor||"nenhum") !== peso) return;
+        if(area && (c.eixo||"") !== area) return;
         if(!c.text || !c.text.toLowerCase().includes(q)) return;
         const escopo = escopoDoPer(c.per);
         const iso = c.per.slice(c.per.indexOf(":")+1);
@@ -3461,6 +3529,8 @@ window.addEventListener("unhandledrejection", function(e){
       }
     }
     input.oninput = paint;
+    ov.querySelector("#gsPeso").onchange = paint;
+    ov.querySelector("#gsArea").onchange = paint;
     input.focus();
   }
 
@@ -3683,6 +3753,7 @@ window.addEventListener("unhandledrejection", function(e){
         <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">${svgIcon(ICON_D.calendar,14)} agenda</button>
         <button class="bell-btn" id="tarefasBtn" title="Tarefas de estudo" aria-label="Tarefas de estudo">${svgIcon(ICON_D.bars3,15)}</button>
         <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">${svgIcon(ICON_D.arrowUpTray,14)}</button>
+        <button class="bell-btn" id="tplLibraryBtn" title="Modelos prontos" aria-label="Modelos prontos">${svgIcon(ICON_D.templates,14)}</button>
         <button class="bell-btn" id="boletimBtn" title="Boletim da semana" aria-label="Boletim da semana">${svgIcon(ICON_D.trophy, 17)}</button>
         <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
       </div>
@@ -3708,6 +3779,15 @@ window.addEventListener("unhandledrejection", function(e){
       sk.style.borderColor = "var(--danger)";
       sk.innerHTML = `<span style="color:var(--danger);">${svgIcon(ICON_D.exclamationTriangle,14)} Sua sequência de ${streak} dia${streak>1?'s':''} quebra hoje se nenhuma rotina for concluída.</span>`;
       scroll.appendChild(sk);
+    }
+
+    const carga = previsaoCargaSemana();
+    if(carga.nivel === "alta"){
+      const cg = document.createElement("div");
+      cg.className = "notice-card";
+      const h = Math.floor(carga.minutosRotinas/60), m = carga.minutosRotinas%60;
+      cg.innerHTML = `<span>${svgIcon(ICON_D.exclamationTriangle,14)} Semana carregada: ${h>0?h+"h":""}${m>0?m+"min":""} de rotinas planejadas${carga.cartoesPendentes?` · ${carga.cartoesPendentes} pendência(s)`:""}${carga.metasVencendo?` · ${carga.metasVencendo} meta(s) vencendo`:""} nos próximos ${carga.diasRestantes} dia(s).</span>`;
+      scroll.appendChild(cg);
     }
 
     const semFechada = semanaFechadaPendente();
@@ -3769,9 +3849,11 @@ window.addEventListener("unhandledrejection", function(e){
     if(routines.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
-      empty.innerHTML = emptyStateActionHtml("Nenhuma rotina ainda", "Crie sua primeira sequência de etapas com tempo — igual um ritual de prática.", "emptyNewRoutine", "+ Nova rotina");
+      empty.innerHTML = emptyStateActionHtml("Nenhuma rotina ainda", "Crie sua primeira sequência de etapas com tempo — igual um ritual de prática.", "emptyNewRoutine", "+ Nova rotina")
+        + `<button class="link-btn" id="emptyTplLibrary" style="margin-top:8px;">ou escolher um modelo pronto</button>`;
       scroll.appendChild(empty);
       empty.querySelector("#emptyNewRoutine").onclick = () => openEditor(null);
+      empty.querySelector("#emptyTplLibrary").onclick = abrirBibliotecaModelos;
     } else if(visiveis.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
@@ -3846,6 +3928,7 @@ window.addEventListener("unhandledrejection", function(e){
     const impRoutineFile = document.getElementById("importRoutineFile");
     document.getElementById("importRoutineBtn").onclick = () => impRoutineFile.click();
     impRoutineFile.onchange = e => { if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]); };
+    document.getElementById("tplLibraryBtn").onclick = abrirBibliotecaModelos;
     checkStorageWarning();
     el.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>startPlayer(b.dataset.play));
     el.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>{ goTo({ tab:"home", screen:"routineDetail", id:b.dataset.detail }); });
@@ -3862,6 +3945,85 @@ window.addEventListener("unhandledrejection", function(e){
     save(K_ROUTINES, routines);
     render();
   }
+
+  /* ---------------- BIBLIOTECA DE MODELOS PRONTOS ---------------- */
+  // etapas de exercício levam _exNome/_exGrupo (não exercicioId — o exercício
+  // ainda não existe na biblioteca do usuário) e são resolvidas na importação
+  const ROTINAS_PRONTAS = [
+    { name:"Manhã produtiva", icon:"☀️", color:"grad", tagValor:"medio", sound:"suave",
+      steps:[
+        { name:"Água + alongar", seconds:180, type:"timer" },
+        { name:"Planejar o dia", seconds:300, type:"timer" },
+        { name:"Arrumar a cama", type:"checklist" },
+        { name:"Ler 10 páginas", seconds:600, type:"timer" }
+      ] },
+    { name:"Treino de força A", icon:"🏋️", color:"#6B8F71", tagValor:"alto", sound:"normal",
+      steps:[
+        { name:"Aquecimento", seconds:300, type:"timer" },
+        { type:"exercicio", _exNome:"Agachamento", _exGrupo:"Pernas", sets:4, reps:"8-10", restSeconds:90 },
+        { type:"exercicio", _exNome:"Supino reto", _exGrupo:"Peito", sets:4, reps:"8-10", restSeconds:90 },
+        { type:"exercicio", _exNome:"Remada curvada", _exGrupo:"Costas", sets:3, reps:"10-12", restSeconds:75 },
+        { name:"Alongamento final", seconds:180, type:"timer" }
+      ] },
+    { name:"Estudo com Pomodoro", icon:"📚", color:"#5B8DEF", tagValor:"medio", sound:"suave",
+      steps:[
+        { name:"Foco 1/4", seconds:1500, type:"timer" },
+        { name:"Pausa 1/4", seconds:300, type:"timer", isRest:true },
+        { name:"Foco 2/4", seconds:1500, type:"timer" },
+        { name:"Pausa 2/4", seconds:300, type:"timer", isRest:true },
+        { name:"Foco 3/4", seconds:1500, type:"timer" },
+        { name:"Pausa 3/4", seconds:300, type:"timer", isRest:true },
+        { name:"Foco 4/4", seconds:1500, type:"timer" }
+      ] }
+  ];
+  function importarRotinaPronta(tpl){
+    const r = JSON.parse(JSON.stringify(tpl));
+    r.id = uid();
+    let criouExercicio = false;
+    r.steps.forEach(s=>{
+      s.id = uid();
+      if(s.type === "exercicio" && s._exNome){
+        let ex = exercicios.find(x=>x.nome.toLowerCase() === s._exNome.toLowerCase());
+        if(!ex){ ex = novoExercicio(s._exNome, s._exGrupo||"", 0); criouExercicio = true; }
+        s.exercicioId = ex.id;
+        delete s._exNome; delete s._exGrupo;
+      }
+    });
+    if(criouExercicio) saveExercicios();
+    r.schedule = { enabled:false, anchor:"start", time:"07:00", days:[0,1,2,3,4,5,6] };
+    r.restSeconds = 0;
+    if(routines.some(x=>x.name===r.name)) r.name += " (importada)";
+    routines.push(r);
+    save(K_ROUTINES, routines);
+    showAlertBanner("Rotina \"" + r.name + "\" adicionada ✓");
+    render();
+  }
+  function abrirBibliotecaModelos(){
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    const linhas = ROTINAS_PRONTAS.map((tpl,i)=>`
+      <button class="qa-idea-row" data-usartpl="${i}" style="flex-direction:row; align-items:center; gap:10px;">
+        <span style="font-size:20px;">${tpl.icon||"⭐"}</span>
+        <span style="flex:1; text-align:left;">
+          <span class="qa-idea-nome">${escapeHtml(tpl.name)}</span>
+          <div class="dev-n">${tpl.steps.length} etapa${tpl.steps.length>1?'s':''}</div>
+        </span>
+      </button>`).join("");
+    ov.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <p style="margin:0;">Modelos prontos</p>
+        <button class="icon-btn" id="tplLibClose">${svgIcon(ICON_D.xmark,14)}</button>
+      </div>
+      <div class="qa-idea-list">${linhas}</div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    ov.querySelector("#tplLibClose").onclick = () => ov.remove();
+    ov.querySelectorAll("[data-usartpl]").forEach(b=>{
+      b.onclick = () => { importarRotinaPronta(ROTINAS_PRONTAS[+b.dataset.usartpl]); ov.remove(); };
+    });
+  }
+
   function deleteRoutineWithUndo(id){
     const idx = routines.findIndex(r=>r.id===id);
     if(idx===-1) return;
@@ -3990,8 +4152,9 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="type-toggle" id="seType">
           <span data-t="timer" class="${s.type==='timer'?'active':''}">tempo</span>
           <span data-t="checklist" class="${s.type==='checklist'?'active':''}">check</span>
+          <span data-t="exercicio" class="${s.type==='exercicio'?'active':''}">exercício</span>
         </div>
-        <div id="seNameWrap">
+        <div id="seNameWrap" style="${s.type==='exercicio'?'display:none;':''}">
           <div class="section-label" style="margin:12px 0 6px;">Nome</div>
           <input type="text" id="seName" class="mk-e-name" value="${escapeHtml(s.name||'')}" placeholder="Nome da etapa">
         </div>
@@ -4002,12 +4165,24 @@ window.addEventListener("unhandledrejection", function(e){
             <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" max="59" id="seSec" value="${(s.seconds||0)%60}"> seg
           </div>
         </div>
+        <div id="seExWrap" style="${s.type==='exercicio'?'':'display:none;'}">
+          <div class="section-label" style="margin:12px 0 6px;">Exercício</div>
+          <div id="seExPickWrap"></div>
+          <div class="section-label" style="margin:12px 0 6px;">Séries / repetições / descanso</div>
+          <div class="sched-time-row" style="margin-top:0; flex-wrap:wrap;">
+            <input class="dur-input" style="width:56px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="seSets" value="${s.sets||3}"> séries de
+            <input type="text" id="seReps" style="width:64px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" value="${escapeHtml(s.reps||'10')}"> reps
+          </div>
+          <div class="sched-time-row" style="margin-top:8px;">
+            <input class="dur-input" style="width:64px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="5" id="seRest" value="${s.restSeconds||60}"> seg de descanso entre séries
+          </div>
+        </div>
         <div id="seNoteWrap">
           <label class="switch-row" style="margin-top:12px;"><span>Inserir anotações durante esta tarefa</span><input type="checkbox" id="seJournal" ${s.journaling?'checked':''}></label>
         </div>
         <div class="section-label" style="margin:12px 0 6px;">Nota da etapa (opcional)</div>
         <div id="seNotaWrap"></div>
-        <div id="seTagWrap" style="${s.type==='timer'?'':'display:none;'}">
+        <div id="seTagWrap" style="${(s.type==='timer'||s.type==='exercicio')?'':'display:none;'}">
           <div class="section-label" style="margin:12px 0 6px;">Peso no boletim</div>
           ${tagValorPillsHtml(s.tagValor, true)}
           <div class="dev-n" style="margin-top:6px;">"Nenhum" faz a etapa rodar normalmente sem pontuar no boletim.</div>
@@ -4074,16 +4249,41 @@ window.addEventListener("unhandledrejection", function(e){
       };
     }
     pintarNotaEtapa();
+    /* mesma convenção do vínculo de nota: nada é escrito em `s` até "Salvar" */
+    let stepExercicioId = s.exercicioId || null;
+    function pintarExercicioEtapa(){
+      const wrap = ov.querySelector("#seExPickWrap");
+      const ex = stepExercicioId ? exercicios.find(x=>x.id===stepExercicioId) : null;
+      if(ex){
+        wrap.innerHTML = `<div class="qa-idea-row" style="flex-direction:row; align-items:center; justify-content:space-between;">
+          <span class="qa-idea-nome" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(ex.nome)}${ex.grupo?` <span style="color:var(--muted); font-size:12px;">· ${escapeHtml(ex.grupo)}</span>`:''}</span>
+          <button class="icon-btn" id="seExRemove" title="Trocar exercício" aria-label="Trocar exercício">${svgIcon(ICON_D.xmark,14)}</button>
+        </div>`;
+        wrap.querySelector("#seExRemove").onclick = () => { stepExercicioId = null; pintarExercicioEtapa(); };
+      } else {
+        wrap.innerHTML = `<button class="tmpl-new qa-idea-nova" id="seExPick" style="margin-top:0;">
+          <span class="tmpl-ic">${svgIcon(ICON_D.trophy)}</span><span>+ Escolher exercício</span>
+        </button>`;
+        wrap.querySelector("#seExPick").onclick = () => abrirEscolhaExercicioEtapa(ex=>{
+          stepExercicioId = ex.id;
+          pintarExercicioEtapa();
+          const nameInput = ov.querySelector("#seName");
+          if(nameInput && !nameInput.value.trim()) nameInput.value = ex.nome;
+        });
+      }
+    }
+    pintarExercicioEtapa();
     function syncType(){
+      ov.querySelector("#seNameWrap").style.display = type==='exercicio' ? 'none' : '';
       ov.querySelector("#seTimerWrap").style.display = type==='timer' ? '' : 'none';
-      ov.querySelector("#seTagWrap").style.display = type==='timer' ? '' : 'none';
+      ov.querySelector("#seExWrap").style.display = type==='exercicio' ? '' : 'none';
+      ov.querySelector("#seTagWrap").style.display = (type==='timer'||type==='exercicio') ? '' : 'none';
       ov.querySelectorAll("#seType [data-t]").forEach(x=>x.classList.toggle("active", x.dataset.t===type));
     }
     ov.querySelectorAll("#seType [data-t]").forEach(sp=> sp.onclick = () => { type = sp.dataset.t; syncType(); });
     ov.querySelector("#seCancel").onclick = () => ov.remove();
     ov.querySelector("#seSave").onclick = () => {
       s.type = type;
-      s.name = ov.querySelector("#seName").value.trim() || s.name || "";
       s.journaling = ov.querySelector("#seJournal").checked;
       if(type==='timer'){
         const mins = Math.max(0, +ov.querySelector("#seMin").value || 0);
@@ -4091,10 +4291,105 @@ window.addEventListener("unhandledrejection", function(e){
         s.seconds = Math.max(5, mins*60 + secs);
         s.tagValor = readTagValorPills(ov);
       }
+      if(type==='exercicio'){
+        if(!stepExercicioId){ showAlertBanner("Escolha um exercício"); return; }
+        s.exercicioId = stepExercicioId;
+        const ex = exercicios.find(x=>x.id===stepExercicioId);
+        s.name = ex ? ex.nome : (s.name||"");
+        s.sets = Math.max(1, +ov.querySelector("#seSets").value || 3);
+        s.reps = ov.querySelector("#seReps").value.trim() || "10";
+        s.restSeconds = Math.max(5, +ov.querySelector("#seRest").value || 60);
+        s.tagValor = readTagValorPills(ov);
+      } else {
+        s.name = ov.querySelector("#seName").value.trim() || s.name || "";
+      }
       s.noteId = stepNoteId || undefined;
       save(K_ROUTINES, routines);
       ov.remove();
       render();
+    };
+  }
+
+  /* ---------------- BIBLIOTECA DE EXERCÍCIOS ---------------- */
+  // reaproveitada pelas etapas de rotina do tipo "exercicio" (s.exercicioId)
+  function novoExercicio(nome, grupo, pesoAtual){
+    const ex = { id: uid(), nome: nome.trim(), grupo: grupo||"", pesoAtual: pesoAtual||0 };
+    exercicios.push(ex);
+    return ex;
+  }
+  function abrirEditorExercicio(ex, onSaved){
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    const editing = !!ex;
+    ov.innerHTML = `
+      <div class="confirm-box" style="text-align:left;">
+        <p style="margin-bottom:10px;">${editing?'Editar':'Novo'} exercício</p>
+        <div class="section-label" style="margin:6px 0 6px;">Nome</div>
+        <input type="text" id="exNome" class="mk-e-name" value="${escapeHtml((ex&&ex.nome)||'')}" placeholder="Ex.: Supino reto">
+        <div class="section-label" style="margin:12px 0 6px;">Grupo muscular (opcional)</div>
+        <input type="text" id="exGrupo" class="mk-e-name" value="${escapeHtml((ex&&ex.grupo)||'')}" placeholder="Ex.: Peito">
+        <div class="section-label" style="margin:12px 0 6px;">Carga atual (kg)</div>
+        <input class="dur-input" style="width:90px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="decimal" min="0" step="0.5" id="exPeso" value="${(ex&&ex.pesoAtual)||0}">
+        <div class="confirm-actions" style="margin-top:18px;">
+          ${editing?'<button class="btn-danger-outline" id="exDelete">Excluir</button>':''}
+          <button class="btn-cancel" id="exCancel">Cancelar</button>
+          <button class="btn-confirm" id="exSave" style="background:var(--grad);">Salvar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    ov.querySelector("#exCancel").onclick = () => ov.remove();
+    if(editing){
+      ov.querySelector("#exDelete").onclick = () => {
+        exercicios = exercicios.filter(x=>x.id!==ex.id);
+        saveExercicios();
+        ov.remove();
+        if(onSaved) onSaved(null);
+      };
+    }
+    ov.querySelector("#exSave").onclick = () => {
+      const nome = ov.querySelector("#exNome").value.trim();
+      if(!nome) return;
+      const grupo = ov.querySelector("#exGrupo").value.trim();
+      const pesoAtual = Math.max(0, +ov.querySelector("#exPeso").value || 0);
+      let saved;
+      if(editing){ ex.nome=nome; ex.grupo=grupo; ex.pesoAtual=pesoAtual; saved=ex; }
+      else saved = novoExercicio(nome, grupo, pesoAtual);
+      saveExercicios();
+      ov.remove();
+      if(onSaved) onSaved(saved);
+    };
+  }
+  function abrirEscolhaExercicioEtapa(onPick){
+    const pick = document.createElement("div");
+    pick.className = "confirm-overlay";
+    const lista = exercicios.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
+    const linhas = lista.map(ex=>`<div class="qa-idea-row" style="flex-direction:row; align-items:center; justify-content:space-between; gap:6px;">
+        <button data-pickex="${ex.id}" style="flex:1; text-align:left; background:none; border:none; color:inherit; font:inherit; padding:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          <span class="qa-idea-nome">${escapeHtml(ex.nome)}</span>${ex.grupo?`<span style="color:var(--muted); font-size:12px;"> · ${escapeHtml(ex.grupo)}</span>`:''}
+        </button>
+        <button class="icon-btn" data-editex="${ex.id}" title="Editar" aria-label="Editar" style="width:28px; height:28px; flex:0 0 auto;">${svgIcon(ICON_D.notes,12)}</button>
+      </div>`).join("");
+    pick.innerHTML = `<div class="confirm-box" style="text-align:left; max-height:80vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <p style="margin:0;">Escolher exercício</p>
+        <button class="icon-btn" id="pickExClose">${svgIcon(ICON_D.xmark,14)}</button>
+      </div>
+      ${lista.length ? `<div class="qa-idea-list">${linhas}</div>` : `<div class="dev-n" style="margin-bottom:10px;">Nenhum exercício cadastrado ainda.</div>`}
+      <button class="tmpl-new qa-idea-nova" id="pickExNova"><span class="tmpl-ic">${svgIcon(ICON_D.trophy)}</span><span>+ Novo exercício</span></button>
+    </div>`;
+    document.body.appendChild(pick);
+    pick.onclick = e => { if(e.target===pick) pick.remove(); };
+    pick.querySelector("#pickExClose").onclick = () => pick.remove();
+    pick.querySelectorAll("[data-pickex]").forEach(b=>{
+      b.onclick = () => { const ex=exercicios.find(x=>x.id===b.dataset.pickex); pick.remove(); if(ex) onPick(ex); };
+    });
+    pick.querySelectorAll("[data-editex]").forEach(b=>{
+      b.onclick = (e) => { e.stopPropagation(); const ex=exercicios.find(x=>x.id===b.dataset.editex); pick.remove(); abrirEditorExercicio(ex, saved=>{ if(saved) abrirEscolhaExercicioEtapa(onPick); }); };
+    });
+    pick.querySelector("#pickExNova").onclick = () => {
+      pick.remove();
+      abrirEditorExercicio(null, saved=>{ if(saved) onPick(saved); else abrirEscolhaExercicioEtapa(onPick); });
     };
   }
 
@@ -4278,12 +4573,18 @@ window.addEventListener("unhandledrejection", function(e){
               <div class="type-toggle">
                 <span data-type="timer" data-idx="${i}" class="${s.type==='timer'?'active':''}">tempo</span>
                 <span data-type="checklist" data-idx="${i}" class="${s.type==='checklist'?'active':''}">check</span>
+                <span data-type="exercicio" data-idx="${i}" class="${s.type==='exercicio'?'active':''}">exercício</span>
               </div>
             </div>
             ${s.type==='timer' ? `
             <div class="step-sub">
               <input class="dur-input" type="number" inputmode="numeric" min="0" value="${Math.floor(s.seconds/60)}" data-field="min" data-idx="${i}"> min
               <input class="dur-input" type="number" inputmode="numeric" min="0" max="59" value="${s.seconds%60}" data-field="sec" data-idx="${i}"> seg
+            </div>` : ""}
+            ${s.type==='exercicio' ? `
+            <div class="step-sub">
+              <span class="dev-n">${s.exercicioId ? (s.sets||1)+"x"+(s.reps||"?")+" · "+(s.restSeconds||60)+"s descanso" : "exercício não escolhido"}</span>
+              <button class="link-btn" style="padding:0;" data-stepeditinline="${i}">editar</button>
             </div>` : ""}
             <div class="step-sub">
               <label class="switch-row" style="margin-bottom:0; flex:1;">
@@ -4318,6 +4619,47 @@ window.addEventListener("unhandledrejection", function(e){
       addBtn.className = "add-step-btn"; addBtn.textContent = "+ adicionar etapa";
       addBtn.onclick = () => { editorDraft.steps.push({id:uid(), name:"", seconds:60, type:"timer"}); renderSteps(); };
       stepsList.appendChild(addBtn);
+      const pomoBtn = document.createElement("button");
+      pomoBtn.className = "add-step-btn"; pomoBtn.textContent = "+ Pomodoro";
+      pomoBtn.onclick = abrirConfigPomodoro;
+      stepsList.appendChild(pomoBtn);
+      /* Pomodoro não é um tipo de etapa novo: gera uma sequência real de etapas
+         "tempo" (foco, manual) + "tempo com isRest" (pausa, avança sozinha) —
+         reaproveita 100% do motor de timer/descanso que já existe, em vez de um
+         terceiro sub-loop no player (como o de exercício). */
+      function abrirConfigPomodoro(){
+        const ov = document.createElement("div");
+        ov.className = "confirm-overlay";
+        ov.innerHTML = `
+          <div class="confirm-box" style="text-align:left;">
+            <p style="margin-bottom:10px;">Pomodoro</p>
+            <div class="section-label" style="margin:6px 0 6px;">Foco (min)</div>
+            <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="pmFoco" value="25">
+            <div class="section-label" style="margin:12px 0 6px;">Pausa (min)</div>
+            <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="pmPausa" value="5">
+            <div class="section-label" style="margin:12px 0 6px;">Ciclos</div>
+            <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" max="12" id="pmCiclos" value="4">
+            <div class="confirm-actions" style="margin-top:18px;">
+              <button class="btn-cancel" id="pmCancel">Cancelar</button>
+              <button class="btn-confirm" id="pmSave" style="background:var(--grad);">Adicionar</button>
+            </div>
+          </div>`;
+        document.body.appendChild(ov);
+        ov.onclick = e => { if(e.target===ov) ov.remove(); };
+        ov.querySelector("#pmCancel").onclick = () => ov.remove();
+        ov.querySelector("#pmSave").onclick = () => {
+          const foco = Math.max(1, +ov.querySelector("#pmFoco").value || 25);
+          const pausa = Math.max(1, +ov.querySelector("#pmPausa").value || 5);
+          const ciclos = Math.max(1, Math.min(12, +ov.querySelector("#pmCiclos").value || 4));
+          for(let c=1;c<=ciclos;c++){
+            editorDraft.steps.push({ id:uid(), name:"Foco "+c+"/"+ciclos, seconds: foco*60, type:"timer" });
+            if(c<ciclos) editorDraft.steps.push({ id:uid(), name:"Pausa "+c+"/"+ciclos, seconds: pausa*60, type:"timer", isRest:true });
+          }
+          ov.remove();
+          renderSteps(); renderSchedComputed();
+          showAlertBanner(ciclos+" ciclo(s) de pomodoro adicionados ✓");
+        };
+      }
 
       stepsList.querySelectorAll("[data-field='name']").forEach(inp=> inp.oninput = e => editorDraft.steps[+e.target.dataset.idx].name = e.target.value);
       function updateDur(idx){
@@ -4334,7 +4676,12 @@ window.addEventListener("unhandledrejection", function(e){
         const t = e.target.dataset.type;
         editorDraft.steps[idx].type = t;
         renderSteps(); renderSchedComputed();
+        // séries/reps/descanso/exercício da biblioteca têm formulário próprio
+        // (mesmo overlay usado a partir do detalhe da rotina) — reaproveita em
+        // vez de duplicar o picker de exercício aqui na lista inline
+        if(t === "exercicio") openStepEditor(editorDraft, idx);
       });
+      stepsList.querySelectorAll("[data-stepeditinline]").forEach(b=> b.onclick = () => openStepEditor(editorDraft, +b.dataset.stepeditinline));
       stepsList.querySelectorAll("[data-journal]").forEach(cb=> cb.onchange = e => {
         editorDraft.steps[+e.target.dataset.journal].journaling = e.target.checked;
       });
@@ -6257,6 +6604,31 @@ window.addEventListener("unhandledrejection", function(e){
           ${dHtml}
           <div class="stat-foot">Positivo sobrou tempo, negativo estourou o planejado.</div>
         </div>`);
+    }
+
+    /* carga por exercício: maior peso e volume (reps×carga) por sessão, ao
+       longo do histórico desta rotina — mesma fonte (h.steps) do bloco acima,
+       só que agrupado por exercicioId em vez de nome da etapa. */
+    const exAgg = {};
+    entries.forEach(h=> (h.steps||[]).forEach(s=>{
+      if(!s.exercicioId || !s.series || !s.series.length) return;
+      const a = exAgg[s.exercicioId] = exAgg[s.exercicioId] || { nome:s.name, sessions:[] };
+      const maxPeso = Math.max(0, ...s.series.map(x=>x.peso||0));
+      a.sessions.push({ ts:h.ts, maxPeso });
+    }));
+    const exRows = Object.values(exAgg).filter(a=>a.sessions.length);
+    if(exRows.length){
+      const dmy = ts => { const d=new Date(ts); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0"); };
+      let exHtml = exRows.map(a=>{
+        const ord = a.sessions.slice().sort((x,y)=>x.ts-y.ts);
+        const ultima = ord[ord.length-1], primeira = ord[0];
+        const evolucao = ultima.maxPeso - primeira.maxPeso;
+        const evoTxt = ord.length>1 ? `<span class="dev-n">${evolucao>=0?'+':'&minus;'}${Math.abs(evolucao)}kg desde ${dmy(primeira.ts)}</span>` : "";
+        const serie = ord.slice(-8).map(s=>s.maxPeso+"kg").join(" &rarr; ");
+        return `<div class="dev-row"><span>${escapeHtml(a.nome)}</span><b class="ontime">${ultima.maxPeso}kg</b><span class="dev-n">${a.sessions.length}x</span></div>
+          <div class="suggest-row"><span class="dev-n">${serie}</span>${evoTxt}</div>`;
+      }).join("");
+      partes.push(`<div class="section-label">Carga por exercício</div><div class="stat-card">${exHtml}</div>`);
     }
 
     /* horário de início desta rotina */
@@ -8426,10 +8798,13 @@ window.addEventListener("unhandledrejection", function(e){
       const statusTxt = rec.negativa
         ? (excesso>0 ? `excedeu em ${excesso} · -${(excesso*-metaRecPenalidadeUnidade(rec)*fatorDaArea(rec.area||"")).toFixed(1)} pts · ` : "dentro do limite · ")
         : (completa?'concluída ✓ · ':'');
+      const idxFull = doc.recorrentes.indexOf(rec);
       return `
         <div class="stat-card" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--danger);':'border-color:var(--good);') : (completa?'border-color:var(--good);':'')}">
           <div class="dev-row" style="border:none; padding:0;">
             <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}${rec.negativa?' <span class="dev-n">(limite)</span>':''}</span>
+            <button class="kb-move-btn" data-mrup="${rec.id}" title="Mover para cima" aria-label="Mover para cima" ${idxFull<=0?'disabled':''}>${svgIcon(ICON_D.arrowUp,14)}</button>
+            <button class="kb-move-btn" data-mrdown="${rec.id}" title="Mover para baixo" aria-label="Mover para baixo" ${idxFull>=doc.recorrentes.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,14)}</button>
             <button class="icon-btn" data-mredit="${rec.id}" title="Editar" aria-label="Editar">${svgIcon(ICON_D.notes,14)}</button>
             <button class="del-exec" data-mrdel="${rec.id}" title="Remover" aria-label="Remover">${svgIcon(ICON_D.xmark,14)}</button>
           </div>
@@ -8529,6 +8904,14 @@ window.addEventListener("unhandledrejection", function(e){
         });
         body.querySelectorAll("[data-mrminus]").forEach(b=> b.onclick = () => {
           metaRecAjustar(doc, doc.recorrentes.find(r=>r.id===b.dataset.mrminus), -1); pintarTudo();
+        });
+        body.querySelectorAll("[data-mrup]").forEach(b=> b.onclick = () => {
+          const i = doc.recorrentes.findIndex(r=>r.id===b.dataset.mrup);
+          if(i>0){ const [r] = doc.recorrentes.splice(i,1); doc.recorrentes.splice(i-1,0,r); saveTemplates(doc); pintarTudo(); }
+        });
+        body.querySelectorAll("[data-mrdown]").forEach(b=> b.onclick = () => {
+          const i = doc.recorrentes.findIndex(r=>r.id===b.dataset.mrdown);
+          if(i>=0 && i<doc.recorrentes.length-1){ const [r] = doc.recorrentes.splice(i,1); doc.recorrentes.splice(i+1,0,r); saveTemplates(doc); pintarTudo(); }
         });
       }
     }
@@ -10520,8 +10903,8 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   function backupData(){
-    // v5 passou a levar o diário e o kanban do dia, que ficavam de fora
-    return { version: 5, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist, diario, diaKanban };
+    // v5 passou a levar o diário e o kanban do dia; v6 passou a levar a biblioteca de exercícios
+    return { version: 6, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist, diario, diaKanban, exercicios };
   }
   async function exportBackup(){
     const ok = await shareOrDownload("rotinas-backup-" + localKey() + ".json", JSON.stringify(backupData(), null, 2), "application/json", "Backups");
@@ -10703,7 +11086,7 @@ window.addEventListener("unhandledrejection", function(e){
      compartilhada entre o import manual (arquivo escolhido no <input>) e a
      sincronização automática (arquivo do handle de backup, lido sozinho). */
   function oferecerImportarBackup(data, onResolvido){
-    const COLLS = ["routines","notes","history","templates","snoozes","tarefas","tarefasHist"];
+    const COLLS = ["routines","notes","history","templates","snoozes","tarefas","tarefasHist","exercicios"];
     if(!data || typeof data !== "object" || !COLLS.some(k => Array.isArray(data[k]))){
       showAlertBanner("Arquivo não parece um backup do Rotinas");
       return;
@@ -10734,6 +11117,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(Array.isArray(data.tarefasHist)) { tarefasHist = data.tarefasHist; saveTarefasHist(); }
       if(data.diario && typeof data.diario === "object") { diario = data.diario; saveDiario(); }
       if(Array.isArray(data.diaKanban)) { diaKanban = data.diaKanban; saveDiaKanban(); }
+      if(Array.isArray(data.exercicios)) { exercicios = data.exercicios; saveExercicios(); }
       showAlertBanner("Backup importado (substituição) ✓");
       render();
       if(onResolvido) onResolvido(true);
@@ -10748,9 +11132,10 @@ window.addEventListener("unhandledrejection", function(e){
       (data.tarefas||[]).forEach(t=>{ if(!tarefas.some(x=>x.id===t.id)) tarefas.push(t); });
       (data.tarefasHist||[]).forEach(h=>{ if(!tarefasHist.some(x=>x.id===h.id)) tarefasHist.push(h); });
       (data.diaKanban||[]).forEach(c=>{ if(c && c.id && !diaKanban.some(x=>x.id===c.id)) diaKanban.push(c); });
+      (data.exercicios||[]).forEach(ex=>{ if(ex && ex.id && !exercicios.some(x=>x.id===ex.id)) exercicios.push(ex); });
       // no diário, período já escrito aqui ganha: mesclar textos criaria duplicata
       Object.keys(data.diario || {}).forEach(k=>{ if(!diario[k]) diario[k] = data.diario[k]; });
-      save(K_ROUTINES, routines); save(K_NOTES, notes); save(K_HISTORY, history); save(K_TEMPLATES, templates); saveTarefas(); saveTarefasHist(); saveDiario(); saveDiaKanban();
+      save(K_ROUTINES, routines); save(K_NOTES, notes); save(K_HISTORY, history); save(K_TEMPLATES, templates); saveTarefas(); saveTarefasHist(); saveDiario(); saveDiaKanban(); saveExercicios();
       showAlertBanner("Backup mesclado ✓");
       render();
       if(onResolvido) onResolvido(true);
@@ -10989,7 +11374,7 @@ window.addEventListener("unhandledrejection", function(e){
       paused:p.paused, pausedAt:p.pausedAt, pauseCount:p.pauseCount, pausedTotalMs:p.pausedTotalMs,
       startedAt:p.startedAt, schedStartMin:p.schedStartMin, actualStartMin:p.actualStartMin,
       stepActuals:p.stepActuals, overtimeCueFired:p.overtimeCueFired, journalTexts:p.journalTexts,
-      pontosGanhos:p.pontosGanhos || 0
+      pontosGanhos:p.pontosGanhos || 0, ex:p.ex || null
     });
   }
   function clearPlayerSnapshot(){ try{ removeKey(K_PLAYER); }catch(e){} }
@@ -11000,6 +11385,15 @@ window.addEventListener("unhandledrejection", function(e){
     if(step.type !== "timer" || !playerState.stepEndTs) return 0;
     const ref = (playerState.paused && playerState.pausedAt) ? playerState.pausedAt : Date.now();
     return Math.round((playerState.stepEndTs - ref)/1000);
+  }
+
+  /* ---- Etapa "exercicio": sub-loop de séries dentro de uma única etapa ---- */
+  function freshExState(){ return { setIdx:0, phase:"set", results:[], restEndTs:null }; }
+  function parseRepsRange(reps){
+    const m = String(reps||"").match(/(\d+)\s*-\s*(\d+)/);
+    if(m) return { min:+m[1], max:+m[2] };
+    const n = parseInt(reps, 10);
+    return { min: n||0, max: n||0 };
   }
 
   function startPlayer(id){
@@ -11026,6 +11420,7 @@ window.addEventListener("unhandledrejection", function(e){
       overtimeCueFired:false, zen:false,
       stepStart: Date.now(),
       stepEndTs: first.type==="timer" ? Date.now() + first.seconds*1000 : null,
+      ex: first.type==="exercicio" ? freshExState() : null,
       stepActuals: [], startedAt: Date.now(),
       schedStartMin, actualStartMin: now.getHours()*60 + now.getMinutes(),
       journalTexts: {}, pontosGanhos: 0
@@ -11054,10 +11449,62 @@ window.addEventListener("unhandledrejection", function(e){
     render();
     acquireWakeLock();
     if(currentStep().type==="timer" && !playerState.paused) startTicking();
+    if(currentStep().type==="exercicio" && playerState.ex && playerState.ex.phase==="rest" && !playerState.paused) startExRestTicking();
     sincronizarPlayerBackground();
   }
 
   function clearTicking(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=null; } }
+
+  /* Timer de descanso entre séries — independente do ticking genérico de etapa
+     (que só se aplica a step.type==="timer"), pois o "tempo" aqui é interno à
+     etapa de exercício e não avança o índice da etapa sozinho. */
+  let exRestHandle = null;
+  function clearExRestTicking(){ if(exRestHandle){ clearInterval(exRestHandle); exRestHandle=null; } }
+  function updateExRestDisplay(){
+    if(!playerState || !playerState.ex || playerState.ex.phase !== "rest") return;
+    const rem = Math.max(0, Math.round((playerState.ex.restEndTs - Date.now())/1000));
+    document.querySelectorAll(".ex-rest-time").forEach(t=> t.textContent = fmtTime(rem));
+  }
+  function startExRestTicking(){
+    clearExRestTicking();
+    exRestHandle = setInterval(()=>{
+      if(!playerState || playerState.paused) return;
+      if(!playerState.ex || playerState.ex.phase !== "rest"){ clearExRestTicking(); return; }
+      const rem = Math.round((playerState.ex.restEndTs - Date.now())/1000);
+      if(rem <= 0){
+        clearExRestTicking();
+        timeUpCue();
+        playerState.ex.phase = "set";
+        playerState.ex.restEndTs = null;
+        render();
+        savePlayerSnapshot(true);
+        return;
+      }
+      updateExRestDisplay();
+    }, 1000);
+  }
+  function concluirSerieExercicio(reps, peso){
+    const step = currentStep();
+    if(step.type !== "exercicio" || !playerState.ex || playerState.ex.phase !== "set") return;
+    playerState.ex.results.push({ reps: Math.max(0, Math.round(+reps||0)), peso: Math.max(0, +peso||0) });
+    const isLast = playerState.ex.setIdx >= (step.sets||1) - 1;
+    if(isLast){ advanceStep(false); return; }
+    playerState.ex.setIdx += 1;
+    playerState.ex.phase = "rest";
+    playerState.ex.restEndTs = Date.now() + (step.restSeconds||60)*1000;
+    stepTransitionCue();
+    render();
+    savePlayerSnapshot(true);
+    startExRestTicking();
+  }
+  function pularDescansoExercicio(){
+    if(!playerState || !playerState.ex || playerState.ex.phase !== "rest") return;
+    clearExRestTicking();
+    playerState.ex.phase = "set";
+    playerState.ex.restEndTs = null;
+    render();
+    savePlayerSnapshot(true);
+  }
 
   function startTicking(){
     clearTicking();
@@ -11098,6 +11545,7 @@ window.addEventListener("unhandledrejection", function(e){
       const ns = currentStep();
       playerState.stepStart = playerState.stepEndTs;
       playerState.stepEndTs = ns.type==="timer" ? playerState.stepStart + ns.seconds*1000 : null;
+      playerState.ex = ns.type==="exercicio" ? freshExState() : null;
       if(ns.type !== "timer"){ clearTicking(); savePlayerSnapshot(true); return; }
     }
   }
@@ -11111,6 +11559,7 @@ window.addEventListener("unhandledrejection", function(e){
       const delta = Date.now() - playerState.pausedAt;
       playerState.pausedTotalMs += delta;
       if(playerState.stepEndTs) playerState.stepEndTs += delta;
+      if(playerState.ex && playerState.ex.restEndTs) playerState.ex.restEndTs += delta;
       playerState.stepStart += delta;
       playerState.paused = false;
       playerState.pausedAt = null;
@@ -11146,26 +11595,81 @@ window.addEventListener("unhandledrejection", function(e){
     }
   }
 
+  /* Sugestão de progressão de carga: se a execução atual e a anterior (já no
+     histórico) bateram o topo da faixa de reps em TODAS as séries planejadas,
+     sugere subir 2,5kg no pesoAtual do exercício na biblioteca. Não aplica
+     nada sozinho — só um toast com um botão "Aplicar". */
+  function sugerirProgressaoExercicio(actual){
+    if(!actual || !actual.exercicioId || !actual.series || !actual.series.length) return;
+    const range = parseRepsRange(currentStep().reps);
+    const alvo = range.max || range.min || 0;
+    if(!alvo) return;
+    const bateuTopo = (series, setsPlanejados) => series.length >= (setsPlanejados||1) && series.every(s => s.reps >= alvo);
+    if(!bateuTopo(actual.series, actual.setsPlanejados)) return;
+    let anterior = null;
+    for(let i=history.length-1; i>=0 && !anterior; i--){
+      const s = (history[i].steps||[]).find(s=> s.exercicioId === actual.exercicioId);
+      if(s) anterior = s;
+    }
+    if(!anterior || !bateuTopo(anterior.series||[], anterior.setsPlanejados)) return;
+    const ex = exercicios.find(x=>x.id===actual.exercicioId);
+    if(!ex) return;
+    const sugestao = Math.round((ex.pesoAtual + 2.5)*2)/2;
+    mostrarSugestaoProgressao(ex, sugestao);
+  }
+  function mostrarSugestaoProgressao(ex, sugestao){
+    const banner = document.createElement("div");
+    banner.className = "alert-banner undo-banner";
+    banner.innerHTML = `<span>${escapeHtml(ex.nome)} bateu o topo da faixa de novo — subir para ${sugestao}kg?</span><button class="undo-btn" id="aplicarProgressao">Aplicar</button>`;
+    document.body.appendChild(banner);
+    banner.querySelector("#aplicarProgressao").onclick = () => {
+      ex.pesoAtual = sugestao;
+      saveExercicios();
+      banner.remove();
+      showAlertBanner("Carga de " + ex.nome + " atualizada para " + sugestao + "kg ✓");
+    };
+    attachSwipeDismiss(banner, ()=>{});
+  }
+
   function recordStepActual(skipped, naoFeita){
     const step = currentStep();
     const endRef = (playerState.paused && playerState.pausedAt) ? playerState.pausedAt : Date.now();
     const elapsed = Math.round((endRef - playerState.stepStart)/1000);
-    const actual = {
-      id: step.id, tag: stepTagEfetiva(step, playerState.routine),
-      name: step.name, isRest: !!step.isRest,
-      planned: step.type==="timer" ? step.seconds : null,
-      actual: skipped ? 0 : elapsed,
-      skipped: !!skipped, naoFeita: !!naoFeita
-    };
+    let actual;
+    if(step.type === "exercicio"){
+      /* Pontuação proporcional a séries COMPLETAS, não a tempo gasto: cada série
+         "vale" o descanso planejado, então planned/actual em segundos reaproveita
+         pesoBruto/pontuarEtapaConcluida sem nenhuma fórmula de pontuação nova. */
+      const results = (playerState.ex && playerState.ex.results) || [];
+      const rest = step.restSeconds || 60;
+      actual = {
+        id: step.id, tag: stepTagEfetiva(step, playerState.routine),
+        name: step.name, isRest: false,
+        planned: (step.sets||1) * rest,
+        actual: skipped ? 0 : results.length * rest,
+        skipped: !!skipped, naoFeita: !!naoFeita,
+        exercicioId: step.exercicioId, series: results, setsPlanejados: step.sets
+      };
+    } else {
+      actual = {
+        id: step.id, tag: stepTagEfetiva(step, playerState.routine),
+        name: step.name, isRest: !!step.isRest,
+        planned: step.type==="timer" ? step.seconds : null,
+        actual: skipped ? 0 : elapsed,
+        skipped: !!skipped, naoFeita: !!naoFeita
+      };
+    }
     playerState.stepActuals[playerState.idx] = actual;
     // concluir de verdade tira a etapa da repescagem do dia
     if(!skipped && !step.isRest) limparNaoFeita(playerState.routine.id, step.id);
     pontuarEtapaConcluida(actual);
+    if(step.type === "exercicio" && !skipped) sugerirProgressaoExercicio(actual);
   }
 
   function advanceStep(skipped, naoFeita){
     recordStepActual(skipped, naoFeita);
     endPauseIfAny();
+    clearExRestTicking();
     if(playerState.idx >= playerState.steps.length - 1){
       clearTicking(); finishCue(); finishRoutine(); return;
     }
@@ -11175,6 +11679,7 @@ window.addEventListener("unhandledrejection", function(e){
     playerState.stepStart = Date.now();
     const step = currentStep();
     playerState.stepEndTs = step.type==="timer" ? Date.now() + step.seconds*1000 : null;
+    playerState.ex = step.type==="exercicio" ? freshExState() : null;
     render();
     savePlayerSnapshot(true);
     if(step.type==="timer") startTicking(); else clearTicking();
@@ -11297,7 +11802,7 @@ window.addEventListener("unhandledrejection", function(e){
         const estado = i < idx ? "feita" : (i === idx ? "atual" : "futura");
         const podeSubir = i > idx + 1;                 // não passa por cima da etapa atual
         const podeDescer = i > idx && i < steps.length - 1;
-        const dur = s.type === "timer" ? fmtTime(s.seconds) : "livre";
+        const dur = s.type === "timer" ? fmtTime(s.seconds) : (s.type === "exercicio" ? (s.sets||1)+"x"+(s.reps||"") : "livre");
         return `<div class="pl-step ${estado}">
           <span class="pl-step-i">${estado==="feita" ? svgIcon(ICON_D.check,14) : i+1}</span>
           <span class="pl-step-nome">${escapeHtml(s.name)}${s.isRest?' <span class="dev-n">descanso</span>':''}</span>
@@ -11375,7 +11880,7 @@ window.addEventListener("unhandledrejection", function(e){
     const now = new Date();
     const stepsDone = playerState.stepActuals.filter(Boolean);
     const skippedPlanned = stepsDone.filter(a=>a.skipped && a.planned).reduce((s,a)=>s+a.planned,0);
-    const totalPlanned = playerState.steps.reduce((a,s)=> a + (s.type==="timer"?s.seconds:0), 0);
+    const totalPlanned = playerState.steps.reduce((a,s)=> a + (s.type==="timer"?s.seconds:(s.type==="exercicio"?(s.sets||1)*(s.restSeconds||60):0)), 0);
     const plannedSec = totalPlanned - skippedPlanned;
     const grossSec = Math.round((Date.now() - playerState.startedAt)/1000);
     const actualSec = Math.max(0, grossSec - Math.round(playerState.pausedTotalMs/1000));
@@ -11454,7 +11959,11 @@ window.addEventListener("unhandledrejection", function(e){
     const step = currentStep();
     let currentRemaining = step.type==="timer" ? Math.max(computeRemaining(),0) : 0;
     let future = 0;
-    for(let i=playerState.idx+1;i<playerState.steps.length;i++){ if(playerState.steps[i].type==="timer") future += playerState.steps[i].seconds; }
+    for(let i=playerState.idx+1;i<playerState.steps.length;i++){
+      const fs = playerState.steps[i];
+      if(fs.type==="timer") future += fs.seconds;
+      else if(fs.type==="exercicio") future += (fs.sets||1) * (fs.restSeconds||60);
+    }
     const finish = new Date(Date.now() + (currentRemaining+future)*1000);
     el.textContent = fmtClock(finish);
   }
@@ -11732,19 +12241,46 @@ window.addEventListener("unhandledrejection", function(e){
     if(playerState.zen){
       el.className = "screen zen-screen";
       const isTimer = step.type === "timer";
+      const isEx = step.type === "exercicio";
+      const ex = isEx ? (playerState.ex || freshExState()) : null;
+      const exLib = isEx ? exercicios.find(x=>x.id===step.exercicioId) : null;
+      let bodyHtml, mainCtrlHtml;
+      if(isTimer){
+        bodyHtml = `<div class="zen-time ${rem<0?'overtime':''}">${fmtTime(rem)}</div>`;
+        mainCtrlHtml = `<button class="ctrl-btn big" id="pauseBtn">${playerState.paused?svgIcon(ICON_D.play,22):svgIcon(ICON_D.pause,22)}</button>
+            <button class="ctrl-btn ok ${rem<0?'pulse':''}" id="nextStep" title="Concluir etapa" aria-label="Concluir etapa">${svgIcon(ICON_D.check,14)}</button>`;
+      } else if(isEx){
+        if(ex.phase === "rest"){
+          bodyHtml = `<div class="zen-time ex-rest-time">${fmtTime(Math.max(0,Math.round((ex.restEndTs-Date.now())/1000)))}</div>
+            <div class="dev-n">série ${ex.setIdx} de ${step.sets} concluída — descanso</div>`;
+          mainCtrlHtml = `<button class="ctrl-btn big ok" id="exSkipRest" title="Pular descanso">${svgIcon(ICON_D.play,22)}</button><div style="width:56px"></div>`;
+        } else {
+          const range = parseRepsRange(step.reps);
+          const defReps = range.max || range.min || 0;
+          const defPeso = exLib ? exLib.pesoAtual : 0;
+          bodyHtml = `<div class="dev-n">série ${ex.setIdx+1} de ${step.sets}</div>
+            <div class="ex-inputs" style="display:flex; gap:10px; justify-content:center; margin-top:6px;">
+              <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted);">reps
+                <input type="number" id="exReps" inputmode="numeric" min="0" value="${defReps}" style="width:64px; text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--text);">
+              </label>
+              <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted);">kg
+                <input type="number" id="exPesoInput" inputmode="decimal" min="0" step="0.5" value="${defPeso}" style="width:72px; text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--text);">
+              </label>
+            </div>`;
+          mainCtrlHtml = `<button class="ctrl-btn big ok" id="exSetDone" title="Concluir série">${svgIcon(ICON_D.check,14)}</button><div style="width:56px"></div>`;
+        }
+      } else {
+        bodyHtml = `<div class="check-circle" style="width:140px;height:140px;font-size:56px;">${svgIcon(ICON_D.check,14)}</div>`;
+        mainCtrlHtml = `<button class="ctrl-btn big ok" id="nextStep">${svgIcon(ICON_D.check,14)}</button><div style="width:56px"></div>`;
+      }
       el.innerHTML = `
         <div class="zen-wrap">
           <div class="zen-label">${escapeHtml(step.name)}</div>
-          ${isTimer
-            ? `<div class="zen-time ${rem<0?'overtime':''}">${fmtTime(rem)}</div>`
-            : `<div class="check-circle" style="width:140px;height:140px;font-size:56px;">${svgIcon(ICON_D.check,14)}</div>`}
+          ${bodyHtml}
           <div class="zen-sub">término ~ <b id="estimateTime">--:--</b> &nbsp;·&nbsp; ${playerState.idx+1}/${steps.length}</div>
           <div class="player-controls" style="margin-top:26px;">
             <button class="ctrl-btn" id="zenPrev">${svgIcon(ICON_D.arrowLeft,15)}</button>
-            ${isTimer
-              ? `<button class="ctrl-btn big" id="pauseBtn">${playerState.paused?svgIcon(ICON_D.play,22):svgIcon(ICON_D.pause,22)}</button>`
-              : `<button class="ctrl-btn big ok" id="nextStep">${svgIcon(ICON_D.check,14)}</button>`}
-            ${isTimer ? `<button class="ctrl-btn ok ${rem<0?'pulse':''}" id="nextStep" title="Concluir etapa" aria-label="Concluir etapa">${svgIcon(ICON_D.check,14)}</button>` : `<div style="width:56px"></div>`}
+            ${mainCtrlHtml}
           </div>
           <div class="skip-row" style="margin-top:14px;">
             ${skipRowHtml(step)}
@@ -11759,7 +12295,10 @@ window.addEventListener("unhandledrejection", function(e){
       document.getElementById("zenExit").onclick = () => { playerState.zen = false; render(); };
       document.getElementById("zenPrev").onclick = goPrevStep;
       const pb = document.getElementById("pauseBtn"); if(pb) pb.onclick = togglePause;
-      document.getElementById("nextStep").onclick = () => advanceStep(false);
+      const nb2 = document.getElementById("nextStep"); if(nb2) nb2.onclick = () => advanceStep(false);
+      const esd = document.getElementById("exSetDone");
+      if(esd) esd.onclick = () => concluirSerieExercicio(document.getElementById("exReps").value, document.getElementById("exPesoInput").value);
+      const esr = document.getElementById("exSkipRest"); if(esr) esr.onclick = pularDescansoExercicio;
       wireSkipRow(el);
       const nb = document.getElementById("viewStepNote"); if(nb) nb.onclick = () => openNoteOverlay(step.noteId);
       const ji = document.getElementById("journalInput");
@@ -11809,6 +12348,35 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       `;
       wrap.appendChild(dial);
+    } else if(step.type === "exercicio"){
+      const ex = playerState.ex || freshExState();
+      const exLib = exercicios.find(x=>x.id===step.exercicioId);
+      const body = document.createElement("div");
+      body.className = "checklist-body";
+      if(ex.phase === "rest"){
+        body.innerHTML = `
+          <div class="step-title">Descanso</div>
+          <div class="t ex-rest-time" style="font-family:'IBM Plex Mono', monospace; font-size:48px; font-weight:600; margin:6px 0;">${fmtTime(Math.max(0,Math.round((ex.restEndTs-Date.now())/1000)))}</div>
+          <h2>${escapeHtml(step.name)}</h2>
+          <div class="dev-n">série ${ex.setIdx} de ${step.sets} concluída</div>`;
+      } else {
+        const range = parseRepsRange(step.reps);
+        const defReps = range.max || range.min || 0;
+        const defPeso = exLib ? exLib.pesoAtual : 0;
+        body.innerHTML = `
+          <div class="step-title">Série ${ex.setIdx+1} de ${step.sets}</div>
+          <div class="check-circle" style="width:100px;height:100px;font-size:36px;">${svgIcon(ICON_D.trophy,32)}</div>
+          <h2>${escapeHtml(step.name)}</h2>
+          <div class="ex-inputs" style="display:flex; gap:10px; justify-content:center; margin-top:12px;">
+            <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted);">reps
+              <input type="number" id="exReps" inputmode="numeric" min="0" value="${defReps}" style="width:64px; text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--text);">
+            </label>
+            <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted);">kg
+              <input type="number" id="exPesoInput" inputmode="decimal" min="0" step="0.5" value="${defPeso}" style="width:72px; text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--text);">
+            </label>
+          </div>`;
+      }
+      wrap.appendChild(body);
     } else {
       const body = document.createElement("div");
       body.className = "checklist-body";
@@ -11856,6 +12424,14 @@ window.addEventListener("unhandledrejection", function(e){
         ${adiarBtn}
       `;
       wrap.appendChild(controls);
+    } else if(step.type === "exercicio"){
+      const ex = playerState.ex || freshExState();
+      const controls = document.createElement("div");
+      controls.className = "player-controls";
+      controls.innerHTML = ex.phase === "rest"
+        ? `<button class="ctrl-btn" id="prevStep" title="Etapa anterior" aria-label="Etapa anterior">${svgIcon(ICON_D.arrowLeft,15)}</button><button class="ctrl-btn big ok" id="exSkipRest" title="Pular descanso">${svgIcon(ICON_D.play,20)}</button>${adiarBtn}`
+        : `<button class="ctrl-btn" id="prevStep" title="Etapa anterior" aria-label="Etapa anterior">${svgIcon(ICON_D.arrowLeft,15)}</button><button class="ctrl-btn big ok" id="exSetDone" title="Concluir série">${svgIcon(ICON_D.check,14)}</button>${adiarBtn}`;
+      wrap.appendChild(controls);
     } else {
       const controls = document.createElement("div");
       controls.className = "player-controls";
@@ -11898,6 +12474,9 @@ window.addEventListener("unhandledrejection", function(e){
     const prevBtn = document.getElementById("prevStep"); if(prevBtn) prevBtn.onclick = goPrevStep;
     const pauseBtn = document.getElementById("pauseBtn"); if(pauseBtn) pauseBtn.onclick = togglePause;
     const nextBtn = document.getElementById("nextStep"); if(nextBtn) nextBtn.onclick = () => advanceStep(false);
+    const exSetDone = document.getElementById("exSetDone");
+    if(exSetDone) exSetDone.onclick = () => concluirSerieExercicio(document.getElementById("exReps").value, document.getElementById("exPesoInput").value);
+    const exSkipRest = document.getElementById("exSkipRest"); if(exSkipRest) exSkipRest.onclick = pularDescansoExercicio;
     wireSkipRow(el);
     const postponeBtn = document.getElementById("postponeStep"); if(postponeBtn) postponeBtn.onclick = adiarEtapa;
     const noteBtn = document.getElementById("viewStepNote"); if(noteBtn) noteBtn.onclick = () => openNoteOverlay(step.noteId);

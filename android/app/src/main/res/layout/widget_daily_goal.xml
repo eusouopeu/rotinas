@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Widget de metas recorrentes do dia: até 4 linhas título + progresso.
-     Sem configuração — mostra todas as metas "ao dia" de uma vez. -->
+<!-- Widget de metas: até 4 linhas título + progresso, recorrentes "ao dia"
+     primeiro e prazos mais próximos preenchendo o que sobrar.
+     Sem configuração. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widgetRoot"
     android:layout_width="match_parent"
@@ -16,7 +17,7 @@
         android:textColor="#8A8478"
         android:textSize="10sp"
         android:textAllCaps="true"
-        android:text="Metas de hoje" />
+        android:text="Metas" />
 
     <TextView
         android:id="@+id/goalEmpty"
@@ -25,7 +26,7 @@
         android:textColor="#8A8478"
         android:textSize="12sp"
         android:visibility="gone"
-        android:text="Nenhuma meta diária cadastrada" />
+        android:text="Nenhuma meta cadastrada" />
 
     <LinearLayout
         android:id="@+id/goalRow1"

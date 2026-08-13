@@ -47,6 +47,7 @@ const SYNCED_KEYS = [
   "rotinas_v2_tarefas_hist",
   "rotinas_v2_diario",
   "rotinas_v2_diakanban",
+  "rotinas_v2_exercicios",
   "rotinas_v2_theme",
   "rotinas_v2_densidade",
   "rotinas_v2_weekstart"

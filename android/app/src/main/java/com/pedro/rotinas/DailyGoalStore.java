@@ -13,14 +13,17 @@ import java.util.Calendar;
 import java.util.List;
 
 /**
- * Metas recorrentes DIÁRIAS (aba Metas → Recorrentes, tipo "ao dia") e o
- * progresso de hoje, lidos direto de Directory.Data/brita/rotinas_v2_templates.json
- * — mesmo padrão do RoutineStore/StreakStore.
+ * Metas recorrentes DIÁRIAS (aba Metas → Recorrentes, tipo "ao dia") e as
+ * metas de PRAZO mais próximas (aba Metas → Prazos), lidas direto de
+ * Directory.Data/brita/rotinas_v2_templates.json — mesmo padrão do
+ * RoutineStore/StreakStore. As duas listas dividem o mesmo widget (até 4
+ * linhas): recorrentes primeiro, prazos preenchendo o que sobrar.
  *
- * O progresso vive num único doc type:"countdown" (doc.recorrentes), o mesmo
- * container das Metas com prazo. "Lazy reset": se o período guardado no
- * progresso não é o de hoje, a meta ainda não foi tocada hoje — mesma leitura
- * que metaRecProgresso() faz no JS, sem precisar reescrever nada aqui.
+ * O progresso das recorrentes vive num único doc type:"countdown"
+ * (doc.recorrentes), o mesmo container das Metas com prazo (doc.targets).
+ * "Lazy reset": se o período guardado no progresso não é o de hoje, a meta
+ * ainda não foi tocada hoje — mesma leitura que metaRecProgresso() faz no JS,
+ * sem precisar reescrever nada aqui.
  */
 public final class DailyGoalStore {
 
@@ -29,17 +32,33 @@ public final class DailyGoalStore {
         public final int feitas;
         public final int vezes;
         public final boolean negativa;
+        public final boolean countdown;
+        public final int diasRestantes;
 
         Goal(String titulo, int feitas, int vezes, boolean negativa) {
             this.titulo = titulo; this.feitas = feitas; this.vezes = vezes; this.negativa = negativa;
+            this.countdown = false; this.diasRestantes = 0;
         }
 
-        /** "2/4" (positiva) ou "1 de no máx. 2" (negativa) */
+        Goal(String titulo, int diasRestantes) {
+            this.titulo = titulo; this.diasRestantes = diasRestantes;
+            this.countdown = true; this.feitas = 0; this.vezes = 0; this.negativa = false;
+        }
+
+        /** "2/4" (positiva), "1 de no máx. 2" (negativa) ou "faltam Xd" (prazo) */
         public String progresso() {
+            if (countdown) {
+                if (diasRestantes == 0) return "hoje";
+                if (diasRestantes < 0) return "atrasada";
+                return "faltam " + diasRestantes + "d";
+            }
             return negativa ? (feitas + " de no máx. " + vezes) : (feitas + "/" + vezes);
         }
 
-        public boolean completa() { return negativa ? feitas > vezes : feitas >= vezes; }
+        public boolean completa() {
+            if (countdown) return false;
+            return negativa ? feitas > vezes : feitas >= vezes;
+        }
     }
 
     private DailyGoalStore() {}
@@ -103,7 +122,44 @@ public final class DailyGoalStore {
                 }
                 out.add(new Goal(titulo, feitas, vezes, negativa));
             }
+            // metas de prazo mais próximas, preenchendo as linhas que sobrarem
+            // (o provider já corta em MAX_ROWS — inútil ordenar/limitar de mais aqui)
+            JSONArray targets = countdown.optJSONArray("targets");
+            if (targets != null) {
+                List<Goal> prazos = new ArrayList<>();
+                for (int i = 0; i < targets.length(); i++) {
+                    JSONObject t = targets.optJSONObject(i);
+                    if (t == null) continue;
+                    String titulo = t.optString("title", "");
+                    String date = t.optString("date", "");
+                    if (titulo.isEmpty() || date.isEmpty()) continue;
+                    Integer dias = daysUntil(date);
+                    if (dias == null || dias < 0) continue;
+                    prazos.add(new Goal(titulo, dias));
+                }
+                java.util.Collections.sort(prazos, new java.util.Comparator<Goal>() {
+                    public int compare(Goal a, Goal b) { return a.diasRestantes - b.diasRestantes; }
+                });
+                out.addAll(prazos);
+            }
         } catch (Exception ignored) {}
         return out;
+    }
+
+    /** Dias entre hoje e "YYYY-MM-DD" — mesma conta de daysUntil() no JS. */
+    private static Integer daysUntil(String dateStr) {
+        try {
+            String[] p = dateStr.split("-");
+            Calendar alvo = Calendar.getInstance();
+            alvo.set(Integer.parseInt(p[0]), Integer.parseInt(p[1]) - 1, Integer.parseInt(p[2]), 0, 0, 0);
+            alvo.set(Calendar.MILLISECOND, 0);
+            Calendar hoje = Calendar.getInstance();
+            hoje.set(Calendar.HOUR_OF_DAY, 0); hoje.set(Calendar.MINUTE, 0);
+            hoje.set(Calendar.SECOND, 0); hoje.set(Calendar.MILLISECOND, 0);
+            long diffMs = alvo.getTimeInMillis() - hoje.getTimeInMillis();
+            return (int) Math.round(diffMs / 86400000.0);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
