@@ -8,7 +8,7 @@
     "copy:www": "rm -rf www && mkdir www && cp index.html manifest.json sw.js icon-192.png icon-512.png icon-512-maskable.png www/ && cp -R fonts www/fonts",
     "sync": "npm run copy:www && cap sync",
     "apk": "npm run sync && cd android && ./gradlew assembleDebug && echo 'APK em android/app/build/outputs/apk/debug/app-debug.apk'",
-    "test": "node test/gamificacao.cjs && node test/metas.cjs && node test/kanban.cjs && node test/diario.cjs && node test/insights.cjs && node test/editor.cjs && node test/datafolder.cjs && node test/smoke.cjs",
+    "test": "node test/gamificacao.cjs && node test/metas.cjs && node test/kanban.cjs && node test/diario.cjs && node test/insights.cjs && node test/editor.cjs && node test/datafolder.cjs && node test/sync.cjs && node test/smoke.cjs",
     "desktop:start": "npm run copy:www && electron .",
     "desktop:build": "npm run copy:www && electron-builder"
   },

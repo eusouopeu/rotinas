@@ -27,10 +27,15 @@ import java.util.TimeZone;
  */
 final class SyncEngine {
 
+    // As 3 últimas chaves (tema, densidade, início da semana) são preferência
+    // de UI, não dado de backup — ver o mesmo desvio deliberado documentado em
+    // SYNCED_KEYS de sync/engine.js (desktop). Mantidas em paridade aqui pelo
+    // mesmo motivo: last-write-wins é sempre correto para um escalar pequeno.
     static final String[] SYNCED_KEYS = {
             "rotinas_v2_routines", "rotinas_v2_notes", "rotinas_v2_history",
             "rotinas_v2_templates", "rotinas_v2_snoozes", "rotinas_v2_tarefas",
-            "rotinas_v2_tarefas_hist", "rotinas_v2_diario", "rotinas_v2_diakanban"
+            "rotinas_v2_tarefas_hist", "rotinas_v2_diario", "rotinas_v2_diakanban",
+            "rotinas_v2_theme", "rotinas_v2_densidade", "rotinas_v2_weekstart"
     };
 
     private static final String SYNC_FOLDER_NAME = "brita-sync";

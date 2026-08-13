@@ -30,6 +30,7 @@
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --tabbar-h: 58px;
+    --font-scale: 1;
     /* raio e elevação como tokens: o "moderno" é a superfície flutuar com
        sombra em vez de depender só da borda de 1px */
     --radius: 18px;
@@ -87,8 +88,23 @@
     user-select: none;
   }
   #app{
-    height:100vh;
-    height:100dvh;
+    /* escala de acessibilidade (Configurações → Aparência): transform, não a
+       propriedade `zoom` — testado e revertido: `zoom` desalinha o hit-test de
+       clique/toque em relação à posição visual (bug real de Chromium com essa
+       propriedade não-padrão), o que quebraria toda a interação do app fora do
+       tamanho "M". transform é padrão e não tem esse problema. O truque é
+       encolher a CAIXA de #app na proporção inversa da escala antes de ampliar
+       visualmente — assim o box pós-transform volta a cobrir exatamente o
+       viewport, e os descendentes position:fixed (tabbar, FAB), que passam a
+       ser ancorados a esse box (transform cria um novo containing block pra
+       eles), ficam nas bordas reais da tela. Só não alcança overlays anexados
+       direto a document.body (confirm-overlay, busca, tela de PIN) — ficam de
+       fora da escala, mas continuam clicáveis normalmente. */
+    width: calc(100% / var(--font-scale));
+    height: calc(100vh / var(--font-scale));
+    height: calc(100dvh / var(--font-scale));
+    transform-origin: top left;
+    transform: scale(var(--font-scale));
     display:flex;
     flex-direction:column;
     padding-top: calc(var(--safe-top) + 18px);
@@ -1301,6 +1317,10 @@ window.addEventListener("unhandledrejection", function(e){
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
   const K_WEEKSTART = "rotinas_v2_weekstart"; // dia (0=domingo..6=sábado) em que a semana começa a contar
+  const K_FONTSCALE = "rotinas_v2_fontscale"; // escala de texto do app (acessibilidade)
+  const K_ORDEMMANUAL = "rotinas_v2_ordem_manual"; // ordenar rotinas na home manualmente em vez de por horário
+  const K_DIGESTSEMANAL = "rotinas_v2_digest_semanal"; // notificação de resumo ao fechar a semana
+  const K_PIN = "rotinas_v2_pin"; // hash SHA-256 (hex) do PIN de bloqueio, null = sem bloqueio
 
   const mqLight = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
   function resolvedTheme(){
@@ -1328,6 +1348,83 @@ window.addEventListener("unhandledrejection", function(e){
     render();
   }
   if(mqLight && mqLight.addEventListener) mqLight.addEventListener("change", ()=>{ if(load(K_THEME,"auto")==="auto") applyTheme(); });
+
+  function applyFontScale(){
+    document.documentElement.style.setProperty("--font-scale", load(K_FONTSCALE, 1));
+  }
+
+  /* ---- PIN de bloqueio (Configurações → Privacidade) ----
+     Guarda só o hash SHA-256 (hex) em K_PIN, nunca o PIN em texto puro. A tela
+     de bloqueio é montada direto no document.body — antes do primeiro render()
+     do app — e só resolve a Promise (deixando o boot continuar) com o hash
+     batendo. crypto.subtle exige contexto seguro; sem ele (raríssimo: WebView
+     muito antigo) o recurso fica indisponível em vez de travar o app. */
+  const CRYPTO_OK = typeof crypto !== "undefined" && !!crypto.subtle;
+  function sha256Hex(str){
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then(buf=>
+      [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join(""));
+  }
+  function showLockScreen(){
+    return new Promise(resolve=>{
+      const ov = document.createElement("div");
+      ov.id = "pinLockScreen";
+      ov.style.cssText = "position:fixed; inset:0; background:var(--bg,#1C1B1A); color:var(--text,#EDE7DD); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:99999; font-family:'Inter',-apple-system,sans-serif; padding:20px;";
+      ov.innerHTML = `
+        <div style="font-family:'Fraunces',serif; font-size:22px; font-weight:600;">Brita bloqueado</div>
+        <input type="password" inputmode="numeric" id="pinLockInput" autocomplete="off"
+          style="font-size:24px; letter-spacing:8px; text-align:center; width:180px; padding:10px; border-radius:12px; border:1px solid var(--line,#3A3632); background:var(--surface,#262422); color:inherit;" maxlength="12">
+        <div id="pinLockErro" style="color:var(--danger,#B25B4C); min-height:18px; font-size:13px;"></div>
+        <button id="pinLockBtn" style="padding:10px 24px; border-radius:12px; border:none; background:var(--grad, linear-gradient(135deg,#EC6AA8,#5B8DEF)); color:#fff; font-size:15px; font-weight:600;">Entrar</button>
+      `;
+      document.body.appendChild(ov);
+      const input = ov.querySelector("#pinLockInput");
+      const erro = ov.querySelector("#pinLockErro");
+      setTimeout(()=> input.focus(), 50);
+      async function tentar(){
+        const v = input.value;
+        if(!v) return;
+        const hash = await sha256Hex(v);
+        if(hash === load(K_PIN, null)){
+          ov.remove();
+          resolve();
+        } else {
+          erro.textContent = "PIN incorreto";
+          input.value = "";
+          input.focus();
+        }
+      }
+      ov.querySelector("#pinLockBtn").onclick = tentar;
+      input.onkeydown = e => { if(e.key==="Enter") tentar(); };
+    });
+  }
+  function pinDefinirModal(){
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
+      <p style="margin:0 0 10px;">Definir PIN de bloqueio</p>
+      <input type="password" inputmode="numeric" id="pinNovo" class="note-title-input" placeholder="Novo PIN (mín. 4 dígitos)" style="margin-bottom:8px; width:100%;">
+      <input type="password" inputmode="numeric" id="pinConfirma" class="note-title-input" placeholder="Confirme o PIN" style="width:100%;">
+      <div id="pinDefErro" style="color:var(--danger); font-size:13px; min-height:18px; margin-top:6px;"></div>
+      <div class="confirm-actions" style="margin-top:10px;">
+        <button class="btn-cancel" id="pinDefCancel">Cancelar</button>
+        <button class="btn-confirm" id="pinDefOk">Salvar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    ov.querySelector("#pinDefCancel").onclick = () => ov.remove();
+    ov.querySelector("#pinDefOk").onclick = async () => {
+      const a = ov.querySelector("#pinNovo").value;
+      const b = ov.querySelector("#pinConfirma").value;
+      const erro = ov.querySelector("#pinDefErro");
+      if(a.length < 4){ erro.textContent = "Use ao menos 4 dígitos"; return; }
+      if(a !== b){ erro.textContent = "Os PINs não coincidem"; return; }
+      save(K_PIN, await sha256Hex(a));
+      ov.remove();
+      showAlertBanner("PIN definido ✓");
+      render();
+    };
+  }
 
   /* ---- Persistência: espelho em memória + backend assíncrono ----
      Navegador: IndexedDB (cota em GB, sem o limite de ~5MB do localStorage).
@@ -1550,6 +1647,7 @@ window.addEventListener("unhandledrejection", function(e){
   let homeSoHoje = load(K_SOHOJE, false);
   let homeAreaFiltro = load(K_HOMEAREA, ""); // "" = todas as áreas; ver FILTRO_SEM_AREA
   let densidadeCompacta = load(K_DENSIDADE, false); // listas de Rotinas/Metas mais densas, pra quem tem muitos itens
+  let homeOrdemManual = load(K_ORDEMMANUAL, false); // ordenar a lista de rotinas na home à mão em vez de por horário
   function toggleDensidade(){
     densidadeCompacta = !densidadeCompacta;
     save(K_DENSIDADE, densidadeCompacta);
@@ -1658,7 +1756,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-11 (v12)";
+  const BUILD_STAMP = "2026-08-13 (v13)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2029,18 +2127,27 @@ window.addEventListener("unhandledrejection", function(e){
     const d = isoToDate(addDaysISO(inicioISO, 6));
     return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
   }
+  // pontos já ganhos na semana, somados por área — usado tanto pelo boletim da
+  // semana em curso (pontosPorAreaSemana) quanto para arquivar o retrato da
+  // semana no histórico ao fechar (ver fecharSemanaAtual)
+  function pontosGanhosPorArea(sem){
+    const out = {};
+    (sem.concluidos||[]).forEach(c=>{ const k = c.area || ""; out[k] = (out[k]||0) + c.pontos; });
+    return out;
+  }
   function fecharSemanaAtual(){
     const sem = gam.semanaAtual;
     const nota = sem.concluidos.reduce((s,c)=>s+c.pontos, 0);
     // semana dispensada (viagem/doença/prova): arquiva o número, mas sem badge
     // e sem entrar na média do mês — o denominador congelado não a representa
     const destaques = destaquesDaSemana(sem);
+    const porArea = pontosGanhosPorArea(sem);
     if(sem.dispensada){
-      gam.historico.semanas.push({ inicioISO: sem.inicioISO, nota, badge:null, dispensada:true, destaques });
+      gam.historico.semanas.push({ inicioISO: sem.inicioISO, nota, badge:null, dispensada:true, destaques, porArea });
       return;
     }
     const badge = badgeParaNota(nota);
-    gam.historico.semanas.push({ inicioISO: sem.inicioISO, nota, badge, destaques });
+    gam.historico.semanas.push({ inicioISO: sem.inicioISO, nota, badge, destaques, porArea });
     if(badge) gam.badges.push({ escopo:"semanal", tipo:badge, periodo:sem.inicioISO, nota, emitidaEm: Date.now() });
   }
   // o que mais somou na semana, para o ritual de fechamento
@@ -2150,11 +2257,15 @@ window.addEventListener("unhandledrejection", function(e){
     save(K_GAMIFICACAO, gam);
   })();
   const badgesAntesDoBoot = gam.badges.length;
+  const semanasAntesDoBoot = gam.historico.semanas.length;
   avancarGamificacaoAteAgora();
   // vira semana/mês pode render badges silenciosamente durante o boot (rollover
   // acontece antes de qualquer render) — guardadas aqui pra celebrar depois que
   // a tela já estiver de pé, em vez de perder o momento.
   let badgesGanhasNoBoot = gam.badges.slice(badgesAntesDoBoot);
+  // idem para o resumo semanal: notifica só a última semana fechada no boot
+  // (se o app ficou dias fechado e várias viraram de uma vez, uma só basta).
+  let semanasFechadasNoBoot = gam.historico.semanas.slice(semanasAntesDoBoot);
   repararFatorSemanaAtual();
   /* Metas ganharam peso (padrão "alto"), o que triplicou o total que cada uma
      vale. Sem reconciliar, uma meta antiga ficaria mostrando o crédito da
@@ -2456,8 +2567,7 @@ window.addEventListener("unhandledrejection", function(e){
      é a fatia congelada daquela área (só existe com a roda ativa). */
   function pontosPorAreaSemana(){
     const sem = gam.semanaAtual;
-    const ganhos = {}, previsto = {};
-    (sem.concluidos||[]).forEach(c=>{ const k = c.area || ""; ganhos[k] = (ganhos[k]||0) + c.pontos; });
+    const ganhos = pontosGanhosPorArea(sem), previsto = {};
     (sem.agendaCongelada||[]).forEach(a=>{ const k = a.area || ""; previsto[k] = (previsto[k]||0) + a.pontos; });
     const chaves = [...new Set([...Object.keys(ganhos), ...Object.keys(previsto)])]
       .filter(k => (ganhos[k] || 0) > 0 || (previsto[k] || 0) > 0);
@@ -2472,6 +2582,21 @@ window.addEventListener("unhandledrejection", function(e){
     }).sort((a,b)=> a._ordem - b._ordem || b.pontos - a.pontos);
     const max = Math.max(...linhas.map(l=>Math.max(l.pontos, l.previsto)), 0);
     return { linhas, max };
+  }
+
+  /* Tendência por área ao longo das últimas semanas fechadas — só semanas
+     arquivadas DEPOIS que fecharSemanaAtual passou a gravar `porArea` entram
+     aqui; semanas antigas ficam de fora (nunca tiveram esse retrato salvo). */
+  function tendenciaAreaSemanas(n){
+    const semanas = gam.historico.semanas.filter(s=>!s.dispensada && s.porArea).slice(-n);
+    if(semanas.length < 2) return [];
+    const chaves = new Set();
+    semanas.forEach(s=> Object.keys(s.porArea).forEach(k=>{ if(k) chaves.add(k); }));
+    const ordemArea = k => { const i = rodaAreas().findIndex(a=>a.id===k); return i>=0 ? i : 999; };
+    return [...chaves].map(k=>{
+      const info = areaInfoRoda(k);
+      return { label: info.label, color: info.color, valores: semanas.map(s=> Math.round((s.porArea[k]||0)*10)/10), _ordem: ordemArea(k) };
+    }).sort((a,b)=> a._ordem - b._ordem);
   }
 
   /* Resumo compacto da roda da vida (pontos da semana por área), reaproveitado
@@ -2885,6 +3010,23 @@ window.addEventListener("unhandledrejection", function(e){
     } else {
       try{ new Notification(title,{body,tag:routineId}); }catch(e){}
     }
+  }
+  /* Resumo da semana que acabou de fechar, disparado no boot (ver
+     avancarGamificacaoAteAgora + semanasFechadasNoBoot). Reaproveita os mesmos
+     três canais de showRichNotification, mas sem rotina associada — o toque
+     leva ao boletim em vez do player. */
+  function notifyDigestSemanal(sem){
+    if(!load(K_DIGESTSEMANAL, true)) return;
+    const title = sem.dispensada ? "Semana dispensada" : "Semana fechada: " + sem.nota.toFixed(1) + " pontos";
+    const body = sem.badge ? "Badge " + BADGE_NOME[sem.badge] + " conquistada — toque para ver o boletim." : "Toque para ver o boletim da semana.";
+    if(isNative){ notifyNative(title, body, { brita:"digest" }, notifIdFor("brita-digest-semanal", 0)); return; }
+    if(isDesktop){ notifyDesktop(title, body, () => { goTo({ tab:"home", screen:"boletim" }); render(); }); return; }
+    if(!("Notification" in window) || Notification.permission !== "granted") return;
+    if("serviceWorker" in navigator){
+      navigator.serviceWorker.ready.then(reg=>{
+        reg.showNotification(title, { body, tag:"digest-semanal" }).catch(()=>{ try{ new Notification(title,{body}); }catch(e){} });
+      });
+    } else { try{ new Notification(title,{body}); }catch(e){} }
   }
 
   /* ---- Notificações nativas (Capacitor LocalNotifications, só no APK) ----
@@ -3346,6 +3488,9 @@ window.addEventListener("unhandledrejection", function(e){
      agendamento não tem horário: vai depois das agendadas, mantendo a ordem de
      criação como critério de desempate (ordenação estável em qualquer motor). */
   function rotinasOrdenadas(){
+    // ordem manual (Configurações → toggle na home): ignora horário, usa a
+    // ordem do array — quem mexe são os botões ↑/↓ do card (ver renderHome).
+    if(homeOrdemManual) return routines.slice();
     return routines
       .map((r, i) => ({ r, i, min: (computeSchedule(r) || {}).startMin }))
       .sort((a, b) => {
@@ -3355,6 +3500,13 @@ window.addEventListener("unhandledrejection", function(e){
         return a.min - b.min || a.i - b.i;
       })
       .map(x => x.r);
+  }
+  function swapRoutinesById(idA, idB){
+    const ia = routines.findIndex(r=>r.id===idA);
+    const ib = routines.findIndex(r=>r.id===idB);
+    if(ia<0 || ib<0) return;
+    [routines[ia], routines[ib]] = [routines[ib], routines[ia]];
+    save(K_ROUTINES, routines);
   }
 
   function checkSchedules(){
@@ -3527,6 +3679,7 @@ window.addEventListener("unhandledrejection", function(e){
         ${streak>0?`<div class="streak"><span class="dot"></span>${streak} dia${streak>1?'s':''}</div>`:""}
         <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>
         <button class="bell-btn ${densidadeCompacta?'on':''}" id="densidadeBtn" title="Alternar densidade da lista" aria-label="Alternar densidade da lista" aria-pressed="${densidadeCompacta?'true':'false'}">${svgIcon(ICON_D.listBullet,14)}</button>
+        <button class="bell-btn ${homeOrdemManual?'on':''}" id="ordemManualBtn" title="Ordenar rotinas manualmente" aria-label="Ordenar rotinas manualmente" aria-pressed="${homeOrdemManual?'true':'false'}">${svgIcon(ICON_D.arrowsUpDown,14)}</button>
         <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">${svgIcon(ICON_D.calendar,14)} agenda</button>
         <button class="bell-btn" id="tarefasBtn" title="Tarefas de estudo" aria-label="Tarefas de estudo">${svgIcon(ICON_D.bars3,15)}</button>
         <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">${svgIcon(ICON_D.arrowUpTray,14)}</button>
@@ -3634,7 +3787,7 @@ window.addEventListener("unhandledrejection", function(e){
       list.className = "routine-list";
       list.style.flex = "0 0 auto";
       list.style.overflow = "visible";
-      visiveis.forEach(r=>{
+      visiveis.forEach((r,vi)=>{
         const dur = routineDuration(r);
         const sched = computeSchedule(r);
         const rStreak = computeStreakFor(r.id);
@@ -3651,6 +3804,10 @@ window.addEventListener("unhandledrejection", function(e){
             ${sched ? diasChipHtml(r) : ""}
           </div>
           <div class="routine-actions">
+            ${homeOrdemManual ? `
+              <button class="icon-btn" data-rtup="${r.id}" title="Mover para cima" aria-label="Mover para cima" ${vi===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,13)}</button>
+              <button class="icon-btn" data-rtdown="${r.id}" title="Mover para baixo" aria-label="Mover para baixo" ${vi===visiveis.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,13)}</button>
+            ` : ""}
             <button class="play-btn" data-play="${r.id}" title="Iniciar rotina" aria-label="Iniciar rotina">${svgIcon(ICON_D.play,16)}</button>
           </div>
         `;
@@ -3658,6 +3815,10 @@ window.addEventListener("unhandledrejection", function(e){
           onLeft: () => deleteRoutineWithUndo(r.id), leftLabel: "Excluir",
           onRight: () => duplicateRoutine(r.id), rightLabel: "Duplicar"
         }));
+        if(homeOrdemManual){
+          card.querySelectorAll("[data-rtup]").forEach(b=> b.onclick = e => { e.stopPropagation(); swapRoutinesById(r.id, visiveis[vi-1].id); render(); });
+          card.querySelectorAll("[data-rtdown]").forEach(b=> b.onclick = e => { e.stopPropagation(); swapRoutinesById(r.id, visiveis[vi+1].id); render(); });
+        }
       });
       scroll.appendChild(list);
     }
@@ -3674,6 +3835,7 @@ window.addEventListener("unhandledrejection", function(e){
       render();
     };
     document.getElementById("densidadeBtn").onclick = () => { toggleDensidade(); render(); };
+    document.getElementById("ordemManualBtn").onclick = () => { homeOrdemManual = !homeOrdemManual; save(K_ORDEMMANUAL, homeOrdemManual); render(); };
     document.getElementById("agendaBtn").onclick = () => { goTo({ tab:"home", screen:"agenda" }); };
     document.getElementById("boletimBtn").onclick = () => { goTo({ tab:"home", screen:"boletim" }); };
     // Tarefas perdeu a aba para Metas, mas continua acessível como destino de topo
@@ -5465,6 +5627,31 @@ window.addEventListener("unhandledrejection", function(e){
       else if(med <= -0.25) insights.push(`<b>${escapeHtml(nome)}</b> costuma terminar bem antes do planejado (${Math.round(-med*100)}% mais rápido) — talvez valha encurtar o tempo agendado.`);
     });
 
+    // rotina cujas execuções vêm com humor sistematicamente mais baixo que a média geral
+    const comMood = rich.filter(h=>h.mood != null);
+    if(comMood.length >= 6){
+      const medGeralMood = median(comMood.map(h=>h.mood));
+      const porRotinaMood = {};
+      comMood.forEach(h=>{ (porRotinaMood[h.routineName] = porRotinaMood[h.routineName] || []).push(h.mood); });
+      Object.entries(porRotinaMood).forEach(([nome, arr])=>{
+        if(arr.length < 3) return;
+        const med = median(arr);
+        if(medGeralMood - med >= 1) insights.push(`<b>${escapeHtml(nome)}</b> costuma vir com humor mais baixo (${med.toFixed(1)} contra ${medGeralMood.toFixed(1)} da média) — vale olhar se ela está pesando mais do que deveria.`);
+      });
+    }
+
+    // dias de humor baixo puxam mais etapas puladas do que dias de humor alto
+    const comMoodSkip = rich.filter(h=>h.mood != null && h.skippedCount != null);
+    if(comMoodSkip.length >= 6){
+      const baixos = comMoodSkip.filter(h=>h.mood<=2);
+      const altos = comMoodSkip.filter(h=>h.mood>=4);
+      if(baixos.length>=3 && altos.length>=3){
+        const medBaixo = median(baixos.map(h=>h.skippedCount));
+        const medAlto = median(altos.map(h=>h.skippedCount));
+        if(medBaixo - medAlto >= 1) insights.push(`Em dias de humor mais baixo você costuma pular ${Math.round(medBaixo-medAlto)} etapa(s) a mais do que em dias de humor alto.`);
+      }
+    }
+
     return insights.slice(0, 5); // no máximo 5, pra não afogar a tela
   }
 
@@ -6408,6 +6595,10 @@ window.addEventListener("unhandledrejection", function(e){
        altura útil (mesmo padrão de Dados e Diário) */
     el.innerHTML = `<div class="tab-scroll">
       <div class="home-header"><h1>Modelos</h1><div class="header-right">${cfgBtnHtml()}</div></div>
+      <div class="header-right" style="margin-bottom:14px;">
+        <button class="bell-btn" id="importTmplBtn" title="Importar modelo" aria-label="Importar modelo">${svgIcon(ICON_D.arrowUpTray,14)} importar</button>
+        <input type="file" id="importTmplFile" accept="application/json" style="display:none">
+      </div>
       <div class="tmpl-folders">
         ${secoes.map(s=>`<div class="tmpl-sep"><span>${escapeHtml(s.label)}</span></div>${grade(s.tiles)}`).join("")}
         <div class="tmpl-sep"><span>Anotações de Rotinas</span></div>
@@ -6421,6 +6612,9 @@ window.addEventListener("unhandledrejection", function(e){
     el.appendChild(fab);
     app.appendChild(el);
     wireCfgBtn(el);
+    const impTmplFile = document.getElementById("importTmplFile");
+    document.getElementById("importTmplBtn").onclick = () => impTmplFile.click();
+    impTmplFile.onchange = e => { if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]); };
 
     el.querySelectorAll("[data-folder]").forEach(b=>{
       b.onclick = () => {
@@ -6629,6 +6823,7 @@ window.addEventListener("unhandledrejection", function(e){
     top.innerHTML = `
       <button class="link-btn muted" id="backTmpl">&larr; Modelos</button>
       <div style="display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end;">${extraButtons||""}
+        <button class="icon-btn" id="shareTmpl" title="Compartilhar" aria-label="Compartilhar">${svgIcon(ICON_D.arrowUpTray,14)}</button>
         <button class="icon-btn" id="delTmpl">${svgIcon(ICON_D.xmark,14)}</button>
       </div>`;
     el.appendChild(top);
@@ -6642,6 +6837,11 @@ window.addEventListener("unhandledrejection", function(e){
     setTimeout(()=>{
       const back = document.getElementById("backTmpl");
       if(back) back.onclick = () => { view = tmplBackTarget(); render(); };
+      const share = document.getElementById("shareTmpl");
+      if(share) share.onclick = () => {
+        const data = { type:"modelo-share", version:1, doc: JSON.parse(JSON.stringify(doc)) };
+        shareOrDownload(slugify(doc.title||mdTypeLabel(doc.type)).slice(0,40)+".json", JSON.stringify(data, null, 2), "application/json", subpastaDoTipo(doc.type));
+      };
       const del = document.getElementById("delTmpl");
       if(del) del.onclick = () => {
         confirmModal("Excluir <b>"+escapeHtml(doc.title)+"</b>?", "Excluir", ()=>{
@@ -10280,6 +10480,45 @@ window.addEventListener("unhandledrejection", function(e){
     return true;
   }
 
+  /* Exporta rotinas com horário como eventos .ics recorrentes (RRULE semanal
+     pelos dias agendados). Horário "floating" (sem Z/TZID) — o mesmo horário
+     de parede em qualquer fuso, suficiente para um único usuário. */
+  function icsEscape(s){
+    return String(s||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n");
+  }
+  function exportAgendaIcs(){
+    const comHorario = routines.filter(r=>computeSchedule(r));
+    if(comHorario.length===0){ showAlertBanner("Nenhuma rotina com horário agendado para exportar"); return; }
+    const ICS_DOW = ["SU","MO","TU","WE","TH","FR","SA"];
+    const now = new Date();
+    const dtstamp = now.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
+    const fmtLocal = d => {
+      const p = n => String(n).padStart(2,"0");
+      return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"T"+p(d.getHours())+p(d.getMinutes())+"00";
+    };
+    const lines = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Brita//Rotinas//PT","CALSCALE:GREGORIAN"];
+    comHorario.forEach(r=>{
+      const sched = computeSchedule(r);
+      const dias = (r.schedule.days && r.schedule.days.length) ? r.schedule.days.slice().sort() : [0,1,2,3,4,5,6];
+      let delta = 0;
+      while(!dias.includes((now.getDay()+delta)%7)) delta++;
+      const dtStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()+delta);
+      dtStart.setHours(Math.floor(sched.startMin/60), sched.startMin%60, 0, 0);
+      const dtEnd = new Date(dtStart.getTime() + Math.max(sched.durMin,15)*60000);
+      lines.push("BEGIN:VEVENT");
+      lines.push("UID:"+r.id+"@brita");
+      lines.push("DTSTAMP:"+dtstamp);
+      lines.push("DTSTART:"+fmtLocal(dtStart));
+      lines.push("DTEND:"+fmtLocal(dtEnd));
+      lines.push("RRULE:FREQ=WEEKLY;BYDAY="+dias.map(d=>ICS_DOW[d]).join(","));
+      lines.push("SUMMARY:"+icsEscape(r.name));
+      lines.push("END:VEVENT");
+    });
+    lines.push("END:VCALENDAR");
+    downloadFile("rotinas-agenda.ics", lines.join("\r\n"), "text/calendar;charset=utf-8", "Dados");
+    showAlertBanner("Agenda exportada ✓");
+  }
+
   function backupData(){
     // v5 passou a levar o diário e o kanban do dia, que ficavam de fora
     return { version: 5, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist, diario, diaKanban };
@@ -10442,6 +10681,17 @@ window.addEventListener("unhandledrejection", function(e){
           save(K_ROUTINES, routines);
           showAlertBanner("Rotina \"" + r.name + "\" importada ✓");
           render();
+          return;
+        }
+        if(data.type === "modelo-share" && data.doc){
+          const doc = data.doc;
+          doc.id = uid();
+          doc._mdPath = undefined;
+          if(templates.some(t=>t.title===doc.title && t.type===doc.type)) doc.title = (doc.title||"") + " (importado)";
+          templates.push(doc);
+          save(K_TEMPLATES, templates);
+          showAlertBanner("Modelo \"" + (doc.title||mdTypeLabel(doc.type)) + "\" importado ✓");
+          goTo({ tab:"templates", screen:"templateDoc", id: doc.id });
           return;
         }
         oferecerImportarBackup(data);
@@ -12293,6 +12543,7 @@ window.addEventListener("unhandledrejection", function(e){
     const disp = !!gam.semanaAtual.dispensada;
     const tags = distribuicaoTags();
     const roda = pontosPorAreaSemana();
+    const tend = tendenciaAreaSemanas(8);
     const pctTag = t => tags.total ? Math.round(tags[t]/tags.total*100) : 0;
     const larguraTag = t => tags[t] === 0 ? 0 : Math.max(3, pctTag(t)); // 0 não desenha barra
     const tagAlerta = tags.total >= 5 && pctTag("alto") >= 70;
@@ -12337,6 +12588,11 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="stat-foot">${rodaAtiva()
             ? "Cada área tem uma fatia própria dos 100 pontos (proporcional ao peso dela), então rotinas de áreas diferentes não disputam entre si. O segundo número é a fatia da área."
             : "Só a soma por área — as rotinas ainda dividem o mesmo bolo. Ligue a repartição por área em Configurações para separá-las."}</div>
+        </div>` : ""}
+        ${tend.length ? `<div class="section-label">Roda da vida — últimas ${tend[0].valores.length} semanas</div>
+        <div class="stat-card">
+          ${tend.map(t=>`<div class="bar-row"><div class="bar-name" style="color:${t.color};">${escapeHtml(t.label)}</div><div class="bar-val" style="width:auto; flex:1; text-align:right; font-family:'IBM Plex Mono', monospace; font-size:12px;">${t.valores.join(' · ')}</div></div>`).join("")}
+          <div class="stat-foot">Pontos por semana, da mais antiga à mais recente (esquerda → direita).</div>
         </div>` : ""}
         <div class="section-label">Distribuição de pesos</div>
         <div class="stat-card">
@@ -12543,6 +12799,7 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     const temaAtual = load(K_THEME, "auto");
+    const fontScaleAtual = load(K_FONTSCALE, 1);
     const c = gam.config;
     const bakLigado = !!backupHandle();
     const ultBak = load(K_LASTBACKUP, null);
@@ -12562,11 +12819,32 @@ window.addEventListener("unhandledrejection", function(e){
               <span data-tema="dark" class="${temaAtual==='dark'?'active':''}">escuro</span>
             </div>
           </div>
+          <div class="bar-row" style="margin-top:10px;"><div class="bar-name" style="width:auto; flex:1;">Tamanho do texto</div>
+            <div class="type-toggle" id="cfgFontScale">
+              <span data-fontscale="0.9" class="${fontScaleAtual===0.9?'active':''}">P</span>
+              <span data-fontscale="1" class="${fontScaleAtual===1?'active':''}">M</span>
+              <span data-fontscale="1.15" class="${fontScaleAtual===1.15?'active':''}">G</span>
+              <span data-fontscale="1.3" class="${fontScaleAtual===1.3?'active':''}">GG</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label">Privacidade</div>
+        <div class="stat-card">
+          ${!CRYPTO_OK ? `<div class="routine-meta">Este navegador não suporta bloqueio por PIN.</div>` :
+            load(K_PIN, null) ? `
+            <div class="routine-meta" style="margin-bottom:10px;">O app pede um PIN toda vez que é aberto.</div>
+            <button class="btn-danger-outline" id="cfgPinRemove" style="width:100%;">Remover PIN</button>
+          ` : `
+            <div class="routine-meta" style="margin-bottom:10px;">Peça um PIN toda vez que o app for aberto — útil se o Diário guarda algo sensível.</div>
+            <button class="btn-primary" id="cfgPinSet" style="width:100%;">Definir PIN</button>
+          `}
         </div>
 
         <div class="section-label">Notificações</div>
         <div class="stat-card">
           <button class="btn-cancel" id="cfgNotif" style="width:100%;">Ativar notificações de rotina</button>
+          <label class="switch-row" style="margin-top:12px;"><span>Resumo ao fechar a semana</span><input type="checkbox" id="cfgDigest" ${load(K_DIGESTSEMANAL,true)?'checked':''}></label>
           <label class="switch-row" style="margin-top:12px;"><span>Aviso de ritmo</span><input type="checkbox" id="cfgNudge" ${load(K_NUDGE,true)?'checked':''}></label>
           <div class="stat-foot" style="margin-top:8px;">Lembra quantos pontos faltam para fechar a semana. Escolha em que dias ele pode chegar (a partir das 9h):</div>
           <div class="day-chips" id="cfgNudgeDias" style="margin-top:10px;">
@@ -12603,6 +12881,8 @@ window.addEventListener("unhandledrejection", function(e){
           </div>
           <input type="file" id="cfgImportFile" accept="application/json" style="display:none">
           <div class="stat-foot">${ultBak ? "Último backup: " + new Date(ultBak).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
+          <button class="btn-cancel" id="cfgExportIcs" style="width:100%; margin-top:10px;">Exportar agenda (.ics)</button>
+          <div class="stat-foot">Rotinas com horário viram eventos recorrentes — importe no Google Agenda, Apple Calendar etc.</div>
         </div>
 
         ${(isDesktop || isNative) ? `<div class="section-label">Sincronização com nuvem</div>
@@ -12678,7 +12958,17 @@ window.addEventListener("unhandledrejection", function(e){
     el.querySelectorAll("#cfgTema [data-tema]").forEach(sp=>{
       sp.onclick = () => { save(K_THEME, sp.dataset.tema); applyTheme(); render(); };
     });
+    el.querySelectorAll("#cfgFontScale [data-fontscale]").forEach(sp=>{
+      sp.onclick = () => { save(K_FONTSCALE, +sp.dataset.fontscale); applyFontScale(); render(); };
+    });
+    const pinSetBtn = document.getElementById("cfgPinSet");
+    if(pinSetBtn) pinSetBtn.onclick = pinDefinirModal;
+    const pinRmBtn = document.getElementById("cfgPinRemove");
+    if(pinRmBtn) pinRmBtn.onclick = () => {
+      confirmModal("Remover o PIN de bloqueio?", "Remover", ()=>{ removeKey(K_PIN); showAlertBanner("PIN removido"); render(); });
+    };
     document.getElementById("cfgNotif").onclick = requestNotifPermission;
+    document.getElementById("cfgDigest").onchange = e => { save(K_DIGESTSEMANAL, e.target.checked); };
     document.getElementById("cfgNudge").onchange = e => { save(K_NUDGE, e.target.checked); };
     el.querySelectorAll("[data-nudgeday]").forEach(chip=>{
       chip.onclick = () => {
@@ -12737,6 +13027,7 @@ window.addEventListener("unhandledrejection", function(e){
       };
     });
     document.getElementById("cfgExport").onclick = () => { exportBackup(); };
+    document.getElementById("cfgExportIcs").onclick = () => { exportAgendaIcs(); };
     const impF = document.getElementById("cfgImportFile");
     document.getElementById("cfgImport").onclick = () => impF.click();
     impF.onchange = e => { if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]); };
@@ -13053,7 +13344,9 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   /* ---------------- INIT ---------------- */
+  if(CRYPTO_OK && load(K_PIN, null)) await showLockScreen();
   applyTheme();
+  applyFontScale();
   document.body.classList.toggle("compacto", densidadeCompacta);
   render();
   window.__britaBooted = true; // boot ok: overlay de erro fatal não é mais necessário
@@ -13064,6 +13357,12 @@ window.addEventListener("unhandledrejection", function(e){
     const b = badgesGanhasNoBoot[badgesGanhasNoBoot.length - 1];
     const escLabel = { semanal:"da semana", mensal:"do mês", trimestral:"do trimestre", anual:"do ano" }[b.escopo] || "";
     setTimeout(()=> showCelebrationBanner(`Badge <b style="color:${BADGE_COR[b.tipo]};">${BADGE_NOME[b.tipo]}</b> ${escLabel} · nota ${b.nota.toFixed(1)}`), 500);
+  }
+  // resumo semanal: só se o app já tem permissão de notificação (pedir aqui
+  // interromperia o boot pra quem nunca ativou) — mesmo timing do badge acima.
+  if(semanasFechadasNoBoot.length){
+    const sem = semanasFechadasNoBoot[semanasFechadasNoBoot.length - 1];
+    setTimeout(()=> notifyDigestSemanal(sem), 800);
   }
 
   /* ---- Sync com Google Drive: aplica no app o que o motor de sync já baixou
@@ -13083,6 +13382,12 @@ window.addEventListener("unhandledrejection", function(e){
       case K_TAREFAS_HIST: tarefasHist = value; saveTarefasHist(); break;
       case K_DIARIO: diario = value; saveDiario(); break;
       case K_DIAKANBAN: diaKanban = value; saveDiaKanban(); break;
+      // preferências de UI (ver nota em sync/engine.js sobre por que elas
+      // entraram em SYNCED_KEYS mesmo fora de backupData()): aplicam o efeito
+      // ao vivo, não só gravam a chave.
+      case K_THEME: save(K_THEME, value); applyTheme(); break;
+      case K_DENSIDADE: densidadeCompacta = !!value; save(K_DENSIDADE, densidadeCompacta); document.body.classList.toggle("compacto", densidadeCompacta); break;
+      case K_WEEKSTART: save(K_WEEKSTART, value); reancorarSemanaAtual(inicioSemanaISO(new Date())); break;
       default: return;
     }
     render();
