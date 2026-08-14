@@ -183,6 +183,9 @@
   /* bloco que veio de um cartão do kanban, e não de uma linha da nota */
   .ag-bloco.ag-kb{ border-left-color:var(--accent-2); background:var(--surface); }
   .ag-bloco.ag-kb .ag-hh::after{ content:" · cartão"; }
+  /* bloco de compromisso avulso — mesma linguagem visual, cor própria */
+  .ag-bloco.ag-cp{ border-left-color:var(--good); background:var(--surface); }
+  .ag-bloco.ag-cp .ag-hh::after{ content:" · compromisso"; }
   .ag-bloco.feito{ border-left-color:var(--good); opacity:.6; }
   .ag-bloco.feito .ag-txt{ text-decoration:line-through; }
   .ag-bloco.adiado{
@@ -1042,6 +1045,9 @@
   .kb-peso.feito{ color:var(--good); border-color:var(--good); }
   .kb-add{ width:100%; background:transparent; border:none; border-top:1px dashed var(--line); color:var(--text); font-size:13.5px; padding:8px 2px 2px; }
   .kb-add:focus{ outline:none; }
+  .kb-add-horas{ display:flex; align-items:center; gap:6px; padding:4px 2px 2px; }
+  .kb-add-horas input[type=time]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); font-family:'Inter', sans-serif; font-size:12px; padding:4px 6px; }
 
   /* ---------- CONTAGEM / PESOS ---------- */
   .cd-big{ font-family:'Inter', sans-serif; font-size:40px; font-weight:500; }
@@ -1322,6 +1328,7 @@ window.addEventListener("unhandledrejection", function(e){
   const K_DIGESTSEMANAL = "rotinas_v2_digest_semanal"; // notificação de resumo ao fechar a semana
   const K_PIN = "rotinas_v2_pin"; // hash SHA-256 (hex) do PIN de bloqueio, null = sem bloqueio
   const K_EXERCICIOS = "rotinas_v2_exercicios"; // biblioteca de exercícios (séries/reps/carga) reaproveitada por etapas de rotina
+  const K_COMPROMISSOS = "rotinas_v2_compromissos"; // compromissos avulsos: dia+horário+notificação, independentes de rotina/kanban
 
   const mqLight = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
   function resolvedTheme(){
@@ -1534,7 +1541,7 @@ window.addEventListener("unhandledrejection", function(e){
   function save(key, val){
     mem.set(key, JSON.parse(JSON.stringify(val))); // snapshot, como o localStorage fazia
     persistQueue(() => storageBackend.set(key, mem.get(key)));
-    if(isNative && (key === K_ROUTINES || key === K_SNOOZES || key === K_TEMPLATES)) queueNativeSchedSync();
+    if(isNative && (key === K_ROUTINES || key === K_SNOOZES || key === K_TEMPLATES || key === K_COMPROMISSOS)) queueNativeSchedSync();
   }
   // grava sem o snapshot JSON — para valores que não sobrevivem a serialização
   // (ex.: FileSystemFileHandle do backup automático, que é structured-cloneable
@@ -1597,6 +1604,11 @@ window.addEventListener("unhandledrejection", function(e){
      dos outros dados, mesma razão do diaKanban acima (TDZ com backupData()). */
   let exercicios = load(K_EXERCICIOS, []);
   function saveExercicios(){ save(K_EXERCICIOS, exercicios); }
+  /* Compromissos avulsos: [{id,title,date,time,notify,createdAt}]. Independentes
+     de rotina/kanban — dia e horário próprios, notificação opcional (no dia,
+     no dia anterior). Declarado aqui pela mesma razão de TDZ do diaKanban. */
+  let compromissos = load(K_COMPROMISSOS, []);
+  function saveCompromissos(){ save(K_COMPROMISSOS, compromissos); }
   /* O kanban nasceu só no escopo "dia", com o campo `dia` guardando a data.
      Agora existe um kanban por escopo e a chave é `per`. Idempotente. */
   (function migrarKanbanParaPeriodo(){
@@ -1648,7 +1660,7 @@ window.addEventListener("unhandledrejection", function(e){
   let tarefasHist = load(K_TAREFAS_HIST, []);
   tarefas.forEach((m,i)=>{ if(m.ord===undefined) m.ord=i; if(m.tagValor===undefined) m.tagValor="medio"; });
 
-  let view = { tab: "home", screen: "home" };
+  let view = { tab: "metas", screen: "metas" };
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
   let homeAreaFiltro = load(K_HOMEAREA, ""); // "" = todas as áreas; ver FILTRO_SEM_AREA
@@ -1762,7 +1774,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-13 (v14)";
+  const BUILD_STAMP = "2026-08-14 (v15)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -1814,6 +1826,15 @@ window.addEventListener("unhandledrejection", function(e){
     if(!r.schedule) r.schedule = { enabled:false, anchor:"start", time:"07:00" };
     if(!r.schedule.days) r.schedule.days = [0,1,2,3,4,5,6];
     if(r.restSeconds === undefined) r.restSeconds = 0;
+    /* Descanso de exercício deixou de ser por etapa (s.restSeconds) e virou um
+       único valor por rotina (r.restSeconds, também usado entre etapas) — sem
+       essa migração, rotinas antigas perderiam o descanso configurado e
+       cairiam silenciosamente para o novo padrão (120s) na primeira execução. */
+    if(!r._restMigrado){
+      const exSteps = (r.steps||[]).filter(s=>s.type==="exercicio" && s.restSeconds!=null);
+      if(exSteps.length && !r.restSeconds) r.restSeconds = Math.max(...exSteps.map(s=>s.restSeconds));
+      r._restMigrado = true;
+    }
     if(r.color === undefined || r.color === "#C98A3E") r.color = "grad";
     if(r.icon === undefined) r.icon = "";
     if(r.weeklyGoalTimes === undefined) r.weeklyGoalTimes = 0;
@@ -2017,7 +2038,7 @@ window.addEventListener("unhandledrejection", function(e){
         const area = areaDaRotina(r);
         (r.steps||[]).forEach(s=>{
           if(s.isRest || (s.type !== "timer" && s.type !== "exercicio")) return;
-          const minutos = s.type==="exercicio" ? ((s.sets||1)*(s.restSeconds||60))/60 : (s.seconds||0)/60;
+          const minutos = s.type==="exercicio" ? ((s.sets||1)*(r.restSeconds||120))/60 : (s.seconds||0)/60;
           const tag = stepTagEfetiva(s, r);
           const pb = pesoBruto(tag, minutos) * fh;
           if(pb <= 0) return;
@@ -2484,7 +2505,7 @@ window.addEventListener("unhandledrejection", function(e){
         (r.steps||[]).forEach(s=>{
           if(s.isRest) return;
           if(s.type==="timer") minutosRotinas += (s.seconds||0)/60;
-          else if(s.type==="exercicio") minutosRotinas += ((s.sets||1)*(s.restSeconds||60))/60;
+          else if(s.type==="exercicio") minutosRotinas += ((s.sets||1)*(r.restSeconds||120))/60;
         });
       });
     }
@@ -2678,6 +2699,59 @@ window.addEventListener("unhandledrejection", function(e){
     ov.onclick = e => { if(e.target === ov) close(); };
     ov.querySelector(".btn-confirm").onclick = () => { close(); onYes(); };
     ov.querySelector(".btn-cancel").focus();
+  }
+
+  /* ---------------- COMPROMISSO AVULSO ----------------
+     Dia + horário (opcional) + notificação (no dia / no dia anterior),
+     independente de rotina/kanban. Único ponto de criação — chamado tanto do
+     cabeçalho do Diário quanto do lançamento rápido do player, por isso é uma
+     função de overlay autocontida (não depende de um `ov` alheio). */
+  function abrirNovoCompromisso(defaults){
+    defaults = defaults || {};
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <p style="margin:0;">Novo compromisso</p>
+        <button class="icon-btn" id="cpClose">${svgIcon(ICON_D.xmark,14)}</button>
+      </div>
+      <input type="text" class="mk-e-name" id="cpTitle" style="width:100%;" placeholder="O que é o compromisso?">
+      <div class="section-label" style="margin:12px 0 4px;">Dia</div>
+      <input type="date" id="cpDate" value="${escapeHtml(defaults.date || localKey())}">
+      <div class="section-label" style="margin:12px 0 4px;">Horário (opcional)</div>
+      <input type="time" id="cpTime" value="${escapeHtml(defaults.time || "")}">
+      <div class="section-label" style="margin:12px 0 4px;">Notificação</div>
+      <div class="type-toggle" id="cpNotify">
+        <span data-n="nenhuma" class="active">nenhuma</span>
+        <span data-n="nodia">no dia</span>
+        <span data-n="diaanterior">no dia anterior</span>
+      </div>
+      <div class="dev-n" style="margin-top:5px;">Sem horário, a notificação sai às 09:00.</div>
+      <div class="confirm-actions" style="margin-top:14px;">
+        <button class="btn-cancel" id="cpCancel">Cancelar</button>
+        <button class="btn-confirm" id="cpSave" style="background:var(--grad);">Criar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    ov.querySelector("#cpClose").onclick = () => ov.remove();
+    ov.querySelector("#cpCancel").onclick = () => ov.remove();
+    let notify = "nenhuma";
+    ov.querySelectorAll("#cpNotify [data-n]").forEach(sp=> sp.onclick = () => {
+      notify = sp.dataset.n;
+      ov.querySelectorAll("#cpNotify [data-n]").forEach(x=>x.classList.toggle("active", x===sp));
+    });
+    ov.querySelector("#cpSave").onclick = () => {
+      const title = ov.querySelector("#cpTitle").value.trim();
+      if(!title){ showAlertBanner("Escreva o que é o compromisso"); return; }
+      const date = ov.querySelector("#cpDate").value || localKey();
+      const time = ov.querySelector("#cpTime").value || "";
+      compromissos.push({ id: uid(), title, date, time, notify, createdAt: Date.now() });
+      saveCompromissos();
+      ov.remove();
+      showAlertBanner("Compromisso criado ✓");
+      if(repintarAgendaDoDiario) repintarAgendaDoDiario(); else render();
+    };
   }
 
   /* Acessibilidade: todo botão só-de-ícone com title ganha aria-label
@@ -2887,6 +2961,13 @@ window.addEventListener("unhandledrejection", function(e){
     return streak;
   }
 
+  // dia sem NENHUMA rotina agendada devida (todas as agendadas são de dias
+  // específicos que não incluem esse dow) não deveria contar contra a
+  // sequência global — mesmo critério que computeStreakFor já aplica por
+  // rotina, só que aqui olhando o conjunto de rotinas agendadas
+  function algumaRotinaDevidaEm(dow){
+    return routines.some(r => r.schedule && r.schedule.enabled && r.schedule.days && r.schedule.days.includes(dow));
+  }
   function computeStreak(){
     if(history.length===0) return 0;
     const days = new Set(history.map(h=>h.date));
@@ -2896,6 +2977,7 @@ window.addEventListener("unhandledrejection", function(e){
       const key = localKey(d);
       if(days.has(key)){ streak++; d.setDate(d.getDate()-1); }
       else if(key === todayKey){ d.setDate(d.getDate()-1); } // hoje em curso não quebra
+      else if(!algumaRotinaDevidaEm(d.getDay())){ d.setDate(d.getDate()-1); } // nada devido nesse dia — não quebra
       else break;
     }
     return streak;
@@ -3316,6 +3398,25 @@ window.addEventListener("unhandledrejection", function(e){
           });
         });
       });
+      // compromissos avulsos: notificação única, no horário do compromisso ou
+      // no mesmo horário um dia antes, conforme escolhido na criação
+      compromissos.forEach(c => {
+        if(!c.date || !c.notify || c.notify === "nenhuma") return;
+        const hhmm = c.time || "09:00";
+        const when = new Date(c.date + "T" + hhmm + ":00");
+        if(c.notify === "diaanterior") when.setDate(when.getDate() - 1);
+        if(isNaN(when.getTime()) || when.getTime() <= Date.now()) return;
+        let nid = notifIdFor("cp-" + c.id, 7);
+        while(usedIds.has(nid)) nid += 8;
+        usedIds.add(nid);
+        notifs.push({
+          id: nid,
+          title: (c.notify === "diaanterior" ? "Amanhã: " : "Hoje: ") + c.title,
+          body: c.time ? ("Horário: " + c.time) : "Compromisso do dia",
+          extra: { brita: "sched" },
+          schedule: { at: when }
+        });
+      });
       // metas recorrentes diárias com janela de notificação: um alarme
       // recorrente por horário (schedule.on sem weekday = repete todo dia)
       templates.filter(t => t.type === "countdown").forEach(t => {
@@ -3696,7 +3797,7 @@ window.addEventListener("unhandledrejection", function(e){
      notas é um contenteditable, então sem ela um "1" no meio de uma frase
      trocaria de aba. Também respeita modificadores, para não roubar Cmd+1 do
      navegador. */
-  const TECLA_ABA = { "1":"home", "2":"metas", "3":"diario", "4":"templates", "5":"stats" };
+  const TECLA_ABA = { "1":"metas", "2":"home", "3":"diario", "4":"templates", "5":"stats" };
   function digitandoAgora(){
     const a = document.activeElement;
     if(!a) return false;
@@ -3716,8 +3817,8 @@ window.addEventListener("unhandledrejection", function(e){
     const bar = document.createElement("div");
     bar.className = "tabbar";
     bar.innerHTML = `
-      <button data-tab="home" class="${activeTab==='home'?'active':''}"><span class="ic">${svgIcon(ICON_D.home)}</span>Rotinas</button>
       <button data-tab="metas" class="${activeTab==='metas'?'active':''}"><span class="ic">${svgIcon(ICON_D.countdown)}</span>Metas</button>
+      <button data-tab="home" class="${activeTab==='home'?'active':''}"><span class="ic">${svgIcon(ICON_D.home)}</span>Rotinas</button>
       <button data-tab="diario" class="${activeTab==='diario'?'active':''}"><span class="ic">${svgIcon(ICON_D.notes)}</span>Diário</button>
       <button data-tab="templates" class="${activeTab==='templates'||activeTab==='notes'?'active':''}"><span class="ic">${svgIcon(ICON_D.templates)}</span>Modelos</button>
       <button data-tab="stats" class="${activeTab==='stats'?'active':''}"><span class="ic">${svgIcon(ICON_D.stats)}</span>Dados</button>
@@ -3957,12 +4058,12 @@ window.addEventListener("unhandledrejection", function(e){
         { name:"Arrumar a cama", type:"checklist" },
         { name:"Ler 10 páginas", seconds:600, type:"timer" }
       ] },
-    { name:"Treino de força A", icon:"🏋️", color:"#6B8F71", tagValor:"alto", sound:"normal",
+    { name:"Treino de força A", icon:"🏋️", color:"#6B8F71", tagValor:"alto", sound:"normal", restSeconds:120,
       steps:[
         { name:"Aquecimento", seconds:300, type:"timer" },
-        { type:"exercicio", _exNome:"Agachamento", _exGrupo:"Pernas", sets:4, reps:"8-10", restSeconds:90 },
-        { type:"exercicio", _exNome:"Supino reto", _exGrupo:"Peito", sets:4, reps:"8-10", restSeconds:90 },
-        { type:"exercicio", _exNome:"Remada curvada", _exGrupo:"Costas", sets:3, reps:"10-12", restSeconds:75 },
+        { type:"exercicio", _exNome:"Agachamento", _exGrupo:"Pernas", sets:4, reps:"8-10" },
+        { type:"exercicio", _exNome:"Supino reto", _exGrupo:"Peito", sets:4, reps:"8-10" },
+        { type:"exercicio", _exNome:"Remada curvada", _exGrupo:"Costas", sets:3, reps:"10-12" },
         { name:"Alongamento final", seconds:180, type:"timer" }
       ] },
     { name:"Estudo com Pomodoro", icon:"📚", color:"#5B8DEF", tagValor:"medio", sound:"suave",
@@ -3986,12 +4087,13 @@ window.addEventListener("unhandledrejection", function(e){
         let ex = exercicios.find(x=>x.nome.toLowerCase() === s._exNome.toLowerCase());
         if(!ex){ ex = novoExercicio(s._exNome, s._exGrupo||"", 0); criouExercicio = true; }
         s.exercicioId = ex.id;
+        s.name = ex.nome;
         delete s._exNome; delete s._exGrupo;
       }
     });
     if(criouExercicio) saveExercicios();
     r.schedule = { enabled:false, anchor:"start", time:"07:00", days:[0,1,2,3,4,5,6] };
-    r.restSeconds = 0;
+    r.restSeconds = tpl.restSeconds != null ? tpl.restSeconds : 0;
     if(routines.some(x=>x.name===r.name)) r.name += " (importada)";
     routines.push(r);
     save(K_ROUTINES, routines);
@@ -4072,9 +4174,10 @@ window.addEventListener("unhandledrejection", function(e){
       const card = document.createElement("div");
       card.className = "routine-card";
       card.style.gap = "10px";
-      const icon = s.type==="timer" ? svgIcon(ICON_D.clock,13) : svgIcon(ICON_D.check,13);
+      const icon = s.type==="timer" ? svgIcon(ICON_D.clock,13) : (s.type==="exercicio" ? svgIcon(ICON_D.trophy,13) : svgIcon(ICON_D.check,13));
       let metaTxt = "";
       if(s.type==="timer") metaTxt = fmtTime(s.seconds).replace("+","");
+      else if(s.type==="exercicio") metaTxt = (s.sets||1)+"x"+(s.reps||"?")+" · "+(r.restSeconds||120)+"s descanso";
       else metaTxt = "checklist";
       if(s.journaling) metaTxt += ` · ${svgIcon(ICON_D.notes,13)} anotações`;
       card.innerHTML = `
@@ -4168,14 +4271,12 @@ window.addEventListener("unhandledrejection", function(e){
         <div id="seExWrap" style="${s.type==='exercicio'?'':'display:none;'}">
           <div class="section-label" style="margin:12px 0 6px;">Exercício</div>
           <div id="seExPickWrap"></div>
-          <div class="section-label" style="margin:12px 0 6px;">Séries / repetições / descanso</div>
+          <div class="section-label" style="margin:12px 0 6px;">Séries / repetições</div>
           <div class="sched-time-row" style="margin-top:0; flex-wrap:wrap;">
             <input class="dur-input" style="width:56px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="seSets" value="${s.sets||3}"> séries de
             <input type="text" id="seReps" style="width:64px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" value="${escapeHtml(s.reps||'10')}"> reps
           </div>
-          <div class="sched-time-row" style="margin-top:8px;">
-            <input class="dur-input" style="width:64px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="5" id="seRest" value="${s.restSeconds||60}"> seg de descanso entre séries
-          </div>
+          <div class="dev-n" style="margin-top:6px;">Descanso entre séries e entre exercícios: um único valor por rotina, na seção "Descanso entre etapas" do editor.</div>
         </div>
         <div id="seNoteWrap">
           <label class="switch-row" style="margin-top:12px;"><span>Inserir anotações durante esta tarefa</span><input type="checkbox" id="seJournal" ${s.journaling?'checked':''}></label>
@@ -4298,7 +4399,10 @@ window.addEventListener("unhandledrejection", function(e){
         s.name = ex ? ex.nome : (s.name||"");
         s.sets = Math.max(1, +ov.querySelector("#seSets").value || 3);
         s.reps = ov.querySelector("#seReps").value.trim() || "10";
-        s.restSeconds = Math.max(5, +ov.querySelector("#seRest").value || 60);
+        // descanso é único por rotina (r.restSeconds) — a primeira etapa de
+        // exercício de uma rotina ainda no padrão (0/sem descanso) puxa o
+        // universal para 120s, sem sobrescrever um valor já customizado
+        if(!r.restSeconds) r.restSeconds = 120;
         s.tagValor = readTagValorPills(ov);
       } else {
         s.name = ov.querySelector("#seName").value.trim() || s.name || "";
@@ -4583,7 +4687,7 @@ window.addEventListener("unhandledrejection", function(e){
             </div>` : ""}
             ${s.type==='exercicio' ? `
             <div class="step-sub">
-              <span class="dev-n">${s.exercicioId ? (s.sets||1)+"x"+(s.reps||"?")+" · "+(s.restSeconds||60)+"s descanso" : "exercício não escolhido"}</span>
+              <span class="dev-n">${s.exercicioId ? (s.sets||1)+"x"+(s.reps||"?") : "exercício não escolhido"}</span>
               <button class="link-btn" style="padding:0;" data-stepeditinline="${i}">editar</button>
             </div>` : ""}
             <div class="step-sub">
@@ -4738,7 +4842,8 @@ window.addEventListener("unhandledrejection", function(e){
     }
     renderSteps();
 
-    // descanso entre etapas
+    // descanso entre etapas — mesmo valor vale para o descanso entre séries
+    // dentro de uma etapa de exercício (não é mais configurado por exercício)
     const restLabel = document.createElement("div");
     restLabel.className = "section-label"; restLabel.textContent = "Descanso entre etapas";
     stepsWrap.appendChild(restLabel);
@@ -4749,6 +4854,7 @@ window.addEventListener("unhandledrejection", function(e){
         <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="restSec" value="${editorDraft.restSeconds||0}"> segundos
         <span style="color:var(--muted); font-size:12.5px;">(0 = sem descanso)</span>
       </div>
+      <div class="dev-n" style="margin-top:5px;">Vale também para o descanso entre séries em etapas de exercício.</div>
     `;
     stepsWrap.appendChild(restBox);
     restBox.querySelector("#restSec").oninput = e => { editorDraft.restSeconds = Math.max(0, +e.target.value || 0); renderSchedComputed(); };
@@ -6759,7 +6865,8 @@ window.addEventListener("unhandledrejection", function(e){
     computerDesktop: "M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25",
     diamond: "M12 3 21 12 12 21 3 12Z",
     listBullet: "M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z",
-    paperAirplane: "M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
+    paperAirplane: "M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5",
+    plus: "M12 4.5v15m7.5-7.5h-15"
   };
 
   const TMPL_TYPES = [
@@ -8052,7 +8159,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Coluna visível quando o tabuleiro está em modo de abas (kanban do Diário):
      mostrar as três empilhadas obrigava a rolar a aba inteira para ver "Feito".
      É índice de coluna e vive fora do pintarKanban porque o repaint é interno. */
-  let kbAbaAtiva = 0;
+  let kbAbaAtiva = 1;
   /* Horário do cartão: "HH:MM" ou vazio. hFim é opcional e só vale com hIni. */
   function cartaoHoraTxt(it){
     if(!it.hIni) return "";
@@ -8149,7 +8256,14 @@ window.addEventListener("unhandledrejection", function(e){
       }).join("");
       col.innerHTML = `<div class="kb-head">${escapeHtml(c.title)} <span class="dev-n">${c.items.length}</span></div>
         <div class="kb-cards">${cards}</div>
-        <form data-kbaddform="${ci}"><input type="text" class="kb-add" placeholder="+ item (Enter)" data-kbadd="${ci}" enterkeyhint="done"></form>`;
+        <form data-kbaddform="${ci}">
+          <input type="text" class="kb-add" placeholder="+ item (Enter)" data-kbadd="${ci}" enterkeyhint="done">
+          ${opts.horarios ? `<div class="kb-add-horas">
+            <input type="time" class="kb-add-ini" data-kbaddini="${ci}" aria-label="Hora de início">
+            <span class="dev-n">até</span>
+            <input type="time" class="kb-add-fim" data-kbaddfim="${ci}" aria-label="Hora de término">
+          </div>` : ""}
+        </form>`;
       body.appendChild(col);
     });
     body.querySelectorAll("[data-kbe]").forEach(sp=> sp.onclick = () => { const [ci,ii]=sp.dataset.kbe.split("-").map(Number); kbEdit={ci,ii}; repaint(); setTimeout(()=>{const i=body.querySelector(".kb-e-text"); if(i) i.focus();},30); });
@@ -8224,7 +8338,16 @@ window.addEventListener("unhandledrejection", function(e){
         // "nenhum" exigiria abrir o cartão e escolher um peso à toa toda vez.
         // Kanban de modelo (sem gamificação) não ganha o campo.
         const novo = { id:uid(), text:val };
-        if(opts.pesos) novo.tagValor = "baixo";
+        if(opts.pesos) novo.tagValor = "medio";
+        if(opts.horarios){
+          const iniInp = form.querySelector("[data-kbaddini]"), fimInp = form.querySelector("[data-kbaddfim]");
+          const ini = iniInp ? iniInp.value : "";
+          if(ini){
+            novo.hIni = ini;
+            const fim = fimInp ? fimInp.value : "";
+            novo.hFim = (fim && horaParaMin(fim) > horaParaMin(ini)) ? fim : "";
+          }
+        }
         cols[+form.dataset.kbaddform].items.push(novo);
         commit();
         const a=body.querySelector(`[data-kbadd="${form.dataset.kbaddform}"]`); if(a) a.focus();
@@ -10903,8 +11026,9 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   function backupData(){
-    // v5 passou a levar o diário e o kanban do dia; v6 passou a levar a biblioteca de exercícios
-    return { version: 6, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist, diario, diaKanban, exercicios };
+    // v5 passou a levar o diário e o kanban do dia; v6 passou a levar a biblioteca de
+    // exercícios; v7 passou a levar os compromissos avulsos
+    return { version: 7, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist, diario, diaKanban, exercicios, compromissos };
   }
   async function exportBackup(){
     const ok = await shareOrDownload("rotinas-backup-" + localKey() + ".json", JSON.stringify(backupData(), null, 2), "application/json", "Backups");
@@ -11118,6 +11242,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(data.diario && typeof data.diario === "object") { diario = data.diario; saveDiario(); }
       if(Array.isArray(data.diaKanban)) { diaKanban = data.diaKanban; saveDiaKanban(); }
       if(Array.isArray(data.exercicios)) { exercicios = data.exercicios; saveExercicios(); }
+      if(Array.isArray(data.compromissos)) { compromissos = data.compromissos; saveCompromissos(); }
       showAlertBanner("Backup importado (substituição) ✓");
       render();
       if(onResolvido) onResolvido(true);
@@ -11133,9 +11258,10 @@ window.addEventListener("unhandledrejection", function(e){
       (data.tarefasHist||[]).forEach(h=>{ if(!tarefasHist.some(x=>x.id===h.id)) tarefasHist.push(h); });
       (data.diaKanban||[]).forEach(c=>{ if(c && c.id && !diaKanban.some(x=>x.id===c.id)) diaKanban.push(c); });
       (data.exercicios||[]).forEach(ex=>{ if(ex && ex.id && !exercicios.some(x=>x.id===ex.id)) exercicios.push(ex); });
+      (data.compromissos||[]).forEach(c=>{ if(c && c.id && !compromissos.some(x=>x.id===c.id)) compromissos.push(c); });
       // no diário, período já escrito aqui ganha: mesclar textos criaria duplicata
       Object.keys(data.diario || {}).forEach(k=>{ if(!diario[k]) diario[k] = data.diario[k]; });
-      save(K_ROUTINES, routines); save(K_NOTES, notes); save(K_HISTORY, history); save(K_TEMPLATES, templates); saveTarefas(); saveTarefasHist(); saveDiario(); saveDiaKanban(); saveExercicios();
+      save(K_ROUTINES, routines); save(K_NOTES, notes); save(K_HISTORY, history); save(K_TEMPLATES, templates); saveTarefas(); saveTarefasHist(); saveDiario(); saveDiaKanban(); saveExercicios(); saveCompromissos();
       showAlertBanner("Backup mesclado ✓");
       render();
       if(onResolvido) onResolvido(true);
@@ -11486,12 +11612,21 @@ window.addEventListener("unhandledrejection", function(e){
   function concluirSerieExercicio(reps, peso){
     const step = currentStep();
     if(step.type !== "exercicio" || !playerState.ex || playerState.ex.phase !== "set") return;
-    playerState.ex.results.push({ reps: Math.max(0, Math.round(+reps||0)), peso: Math.max(0, +peso||0) });
+    const pesoUsado = Math.max(0, +peso||0);
+    playerState.ex.results.push({ reps: Math.max(0, Math.round(+reps||0)), peso: pesoUsado });
+    // a carga digitada vira a nova predefinição do exercício — sem isso o
+    // campo "kg" ficava travado no valor antigo e tinha que ser redigitado a
+    // cada série/execução; o "Aplicar" da sugestão de progressão continua
+    // existindo à parte para o salto de +2,5kg ao bater o topo da faixa
+    if(pesoUsado > 0 && step.exercicioId){
+      const ex = exercicios.find(x=>x.id===step.exercicioId);
+      if(ex && ex.pesoAtual !== pesoUsado){ ex.pesoAtual = pesoUsado; saveExercicios(); }
+    }
     const isLast = playerState.ex.setIdx >= (step.sets||1) - 1;
     if(isLast){ advanceStep(false); return; }
     playerState.ex.setIdx += 1;
     playerState.ex.phase = "rest";
-    playerState.ex.restEndTs = Date.now() + (step.restSeconds||60)*1000;
+    playerState.ex.restEndTs = Date.now() + (playerState.routine.restSeconds || 120)*1000;
     stepTransitionCue();
     render();
     savePlayerSnapshot(true);
@@ -11641,7 +11776,7 @@ window.addEventListener("unhandledrejection", function(e){
          "vale" o descanso planejado, então planned/actual em segundos reaproveita
          pesoBruto/pontuarEtapaConcluida sem nenhuma fórmula de pontuação nova. */
       const results = (playerState.ex && playerState.ex.results) || [];
-      const rest = step.restSeconds || 60;
+      const rest = playerState.routine.restSeconds || 120;
       actual = {
         id: step.id, tag: stepTagEfetiva(step, playerState.routine),
         name: step.name, isRest: false,
@@ -11781,9 +11916,7 @@ window.addEventListener("unhandledrejection", function(e){
     ov.onclick = e => { if(e.target===ov) fechar(); };
     function fechar(){ ov.remove(); }
 
-    function mover(de, para){
-      const [s] = playerState.steps.splice(de, 1);
-      playerState.steps.splice(para, 0, s);
+    function commitMover(){
       render();                 // o player fica atrás do overlay e precisa acompanhar
       savePlayerSnapshot(true);
       sincronizarPlayerBackground();     // a bolha nativa consome a fila das próximas etapas
@@ -11798,18 +11931,50 @@ window.addEventListener("unhandledrejection", function(e){
       const scrollAnterior = listaAntiga ? listaAntiga.scrollTop : 0;
       const steps = playerState.steps;
       const idx = playerState.idx;
-      const linhas = steps.map((s,i)=>{
-        const estado = i < idx ? "feita" : (i === idx ? "atual" : "futura");
-        const podeSubir = i > idx + 1;                 // não passa por cima da etapa atual
-        const podeDescer = i > idx && i < steps.length - 1;
+      /* Pausas e voltas repetidas de ciclo só atrapalham a decisão de ordem —
+         quem decide a ordem quer ver as tarefas base. Agrupa cada tarefa com a
+         pausa que vem logo depois dela (bloco contíguo, sempre movido junto —
+         é o que preserva o padrão tarefa→pausa ao reordenar) e esconde: (1)
+         pausas, que nunca aparecem como linha própria; (2) voltas de ciclo
+         além da primeira ocorrência de cada id-base (`-c<n>`). */
+      const grupos = [];
+      for(let i=0; i<steps.length; i++){
+        if(steps[i].isRest) continue; // absorvida pelo grupo anterior
+        const reais = [i];
+        if(steps[i+1] && steps[i+1].isRest) reais.push(i+1);
+        grupos.push({ reais, objs: reais.map(k=>steps[k]), s: steps[i] });
+      }
+      const vistos = new Set();
+      grupos.forEach(g=>{
+        const baseId = g.s.id.replace(/-c\d+$/, "");
+        g.visivel = !vistos.has(baseId);
+        vistos.add(baseId);
+        g.nome = g.s.name.replace(/\s*·\s*volta\s+\d+\/\d+$/, "");
+      });
+      const grupoAtual = grupos.findIndex(g => g.reais.includes(idx));
+
+      function mover(gi, alvoGi){
+        if(alvoGi < 0 || alvoGi >= grupos.length) return;
+        const tmp = grupos[gi]; grupos[gi] = grupos[alvoGi]; grupos[alvoGi] = tmp;
+        playerState.steps = grupos.reduce((acc,g)=>acc.concat(g.objs), []);
+        commitMover();
+      }
+
+      const linhas = grupos.map((g,gi)=>{
+        if(!g.visivel) return "";
+        const primeiraReal = g.reais[0];
+        const estado = gi < grupoAtual ? "feita" : (gi === grupoAtual ? "atual" : "futura");
+        const podeSubir = gi > grupoAtual + 1;           // não passa por cima da etapa atual
+        const podeDescer = gi > grupoAtual && gi < grupos.length - 1;
+        const s = g.s;
         const dur = s.type === "timer" ? fmtTime(s.seconds) : (s.type === "exercicio" ? (s.sets||1)+"x"+(s.reps||"") : "livre");
         return `<div class="pl-step ${estado}">
-          <span class="pl-step-i">${estado==="feita" ? svgIcon(ICON_D.check,14) : i+1}</span>
-          <span class="pl-step-nome">${escapeHtml(s.name)}${s.isRest?' <span class="dev-n">descanso</span>':''}</span>
+          <span class="pl-step-i">${estado==="feita" ? svgIcon(ICON_D.check,14) : primeiraReal+1}</span>
+          <span class="pl-step-nome">${escapeHtml(g.nome)}</span>
           <span class="pl-step-dur">${dur}</span>
           <span class="pl-step-moves">
-            <button class="kb-move-btn" data-plup="${i}" title="Subir etapa" aria-label="Subir etapa" ${podeSubir?'':'disabled'}>${svgIcon(ICON_D.arrowUp,14)}</button>
-            <button class="kb-move-btn" data-pldown="${i}" title="Descer etapa" aria-label="Descer etapa" ${podeDescer?'':'disabled'}>${svgIcon(ICON_D.arrowDown,14)}</button>
+            <button class="kb-move-btn" data-plup="${gi}" title="Subir etapa" aria-label="Subir etapa" ${podeSubir?'':'disabled'}>${svgIcon(ICON_D.arrowUp,14)}</button>
+            <button class="kb-move-btn" data-pldown="${gi}" title="Descer etapa" aria-label="Descer etapa" ${podeDescer?'':'disabled'}>${svgIcon(ICON_D.arrowDown,14)}</button>
           </span>
         </div>`;
       }).join("");
@@ -11823,8 +11988,8 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="pl-steps notes-list">${linhas}</div>
       </div>`;
       ov.querySelector("#plClose").onclick = fechar;
-      ov.querySelectorAll("[data-plup]").forEach(b=> b.onclick = () => { const i = +b.dataset.plup; mover(i, i-1); });
-      ov.querySelectorAll("[data-pldown]").forEach(b=> b.onclick = () => { const i = +b.dataset.pldown; mover(i, i+1); });
+      ov.querySelectorAll("[data-plup]").forEach(b=> b.onclick = () => { const gi = +b.dataset.plup; mover(gi, gi-1); });
+      ov.querySelectorAll("[data-pldown]").forEach(b=> b.onclick = () => { const gi = +b.dataset.pldown; mover(gi, gi+1); });
       const listaNova = ov.querySelector(".pl-steps");
       if(listaNova) listaNova.scrollTop = scrollAnterior;
     }
@@ -11880,7 +12045,8 @@ window.addEventListener("unhandledrejection", function(e){
     const now = new Date();
     const stepsDone = playerState.stepActuals.filter(Boolean);
     const skippedPlanned = stepsDone.filter(a=>a.skipped && a.planned).reduce((s,a)=>s+a.planned,0);
-    const totalPlanned = playerState.steps.reduce((a,s)=> a + (s.type==="timer"?s.seconds:(s.type==="exercicio"?(s.sets||1)*(s.restSeconds||60):0)), 0);
+    const restRotina = playerState.routine.restSeconds || 120;
+    const totalPlanned = playerState.steps.reduce((a,s)=> a + (s.type==="timer"?s.seconds:(s.type==="exercicio"?(s.sets||1)*restRotina:0)), 0);
     const plannedSec = totalPlanned - skippedPlanned;
     const grossSec = Math.round((Date.now() - playerState.startedAt)/1000);
     const actualSec = Math.max(0, grossSec - Math.round(playerState.pausedTotalMs/1000));
@@ -11962,7 +12128,7 @@ window.addEventListener("unhandledrejection", function(e){
     for(let i=playerState.idx+1;i<playerState.steps.length;i++){
       const fs = playerState.steps[i];
       if(fs.type==="timer") future += fs.seconds;
-      else if(fs.type==="exercicio") future += (fs.sets||1) * (fs.restSeconds||60);
+      else if(fs.type==="exercicio") future += (fs.sets||1) * (playerState.routine.restSeconds || 120);
     }
     const finish = new Date(Date.now() + (currentRemaining+future)*1000);
     el.textContent = fmtClock(finish);
@@ -12025,6 +12191,7 @@ window.addEventListener("unhandledrejection", function(e){
           <button class="tmpl-new" id="qaExpense"><span class="tmpl-ic">${svgIcon(ICON_D.expense)}</span><span>Nova despesa</span></button>
           <button class="tmpl-new" id="qaDiario"><span class="tmpl-ic">${svgIcon(ICON_D.notes)}</span><span>Nota do dia</span></button>
           <button class="tmpl-new" id="qaKanban"><span class="tmpl-ic">${svgIcon(ICON_D.kanban)}</span><span>Cartão a fazer</span></button>
+          <button class="tmpl-new" id="qaCompromisso"><span class="tmpl-ic">${svgIcon(ICON_D.calendar)}</span><span>Compromisso</span></button>
         </div>
         <div class="confirm-actions" style="margin-top:14px;"><button class="btn-cancel" id="qaCancel">Cancelar</button></div>
       </div>`;
@@ -12033,6 +12200,7 @@ window.addEventListener("unhandledrejection", function(e){
       ov.querySelector("#qaExpense").onclick = paintExpenseForm;
       ov.querySelector("#qaDiario").onclick = paintDiarioForm;
       ov.querySelector("#qaKanban").onclick = paintKanbanForm;
+      ov.querySelector("#qaCompromisso").onclick = () => { ov.remove(); abrirNovoCompromisso(); };
     }
 
     /* Anexa ao fim da nota do dia (aba Diário), sem abrir a tela nem tirar o
@@ -12076,8 +12244,14 @@ window.addEventListener("unhandledrejection", function(e){
           <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
         <input type="text" class="mk-e-name" id="qaKbText" style="width:100%;" placeholder="O que precisa ser feito?">
+        <div class="section-label" style="margin:12px 0 4px;">Horário (opcional)</div>
+        <div class="kb-e-horas">
+          <input type="time" id="qaKbIni" aria-label="Hora de início">
+          <span class="dev-n">até</span>
+          <input type="time" id="qaKbFim" aria-label="Hora de término">
+        </div>
         <div class="section-label" style="margin:12px 0 4px;">Peso no boletim</div>
-        ${tagValorPillsHtml("baixo", false)}
+        ${tagValorPillsHtml("medio", false)}
         <div class="dev-n" style="margin-top:5px;">Pontua na semana quando você mover o cartão para "Feito".</div>
         ${rodaAtiva() ? `<div class="section-label" style="margin:12px 0 4px;">Área</div><div id="qaKbAreaWrap"></div>` : ""}
         <div class="confirm-actions" style="margin-top:14px;">
@@ -12096,7 +12270,10 @@ window.addEventListener("unhandledrejection", function(e){
         if(!texto){ showAlertBanner("Escreva o que precisa ser feito"); return; }
         const per = perAtual("dia");
         const ord = diaKanban.filter(c=>c.per===per && c.col==="todo").length;
-        diaKanban.push({ id: uid(), text: texto, col:"todo", per, ord, tagValor: readTagValorPills(ov) || "baixo", eixo: qaKbArea });
+        const hIniV = ov.querySelector("#qaKbIni").value || "";
+        const hFimV = ov.querySelector("#qaKbFim").value || "";
+        const hFim = (hIniV && hFimV && horaParaMin(hFimV) > horaParaMin(hIniV)) ? hFimV : "";
+        diaKanban.push({ id: uid(), text: texto, col:"todo", per, ord, tagValor: readTagValorPills(ov) || "medio", eixo: qaKbArea, hIni: hIniV, hFim });
         saveDiaKanban();
         ov.remove();
         showAlertBanner("Cartão criado em \"A fazer\" ✓");
@@ -12584,6 +12761,10 @@ window.addEventListener("unhandledrejection", function(e){
   /* Escopo mais longo vale mais: um marco do mês não pode pesar igual a um
      recado do dia. Multiplica o peso do cartão. */
   const KB_ESCOPO_MULT = { dia:1, semana:2, mes:3, ano:4 };
+  /* Tarefa pontual do kanban custa mais energia mental que uma etapa de rotina
+     ou uma meta do mesmo peso nominal (que são recorrentes/planejadas com
+     antecedência) — por isso pontua um pouco acima do multiplicador padrão. */
+  const KB_PESO_BONUS = 1.15;
   function escopoDoPer(per){ return String(per||"").split(":")[0] || "dia"; }
   function perAtual(escopo){ return diarioChave(escopo, localKey()); }
   // só faz sentido "amanhã" no escopo dia — semana/mês/ano não têm granularidade de dia
@@ -12614,7 +12795,7 @@ window.addEventListener("unhandledrejection", function(e){
     // dia/semana entram na semana e respeitam a fatia da área (roda da vida);
     // mês/ano viram bônus fora da semana, sem repartição por área
     const fator = cartaoVaiParaSemana(per) ? fatorDaArea(area) : gam.semanaAtual.fatorNormalizacao;
-    return pesoBruto(tag || "nenhum", gam.config.divisorDuracao) * fator * mult;
+    return pesoBruto(tag || "nenhum", gam.config.divisorDuracao) * fator * mult * KB_PESO_BONUS;
   }
   /* Onde o cartão pontua depende do escopo: dia e semana entram na nota da
      SEMANA (é o que a semana mede); mês e ano entram no bônus do período
@@ -12747,9 +12928,19 @@ window.addEventListener("unhandledrejection", function(e){
       return { cardId: c.id, ini, fim, feito: c.col === "done", adiado: false, texto: c.text, kb: true };
     });
   }
+  /* Compromissos avulsos com horário entram na mesma agenda do dia, igual aos
+     cartões do kanban com hora — não vêm da nota (sem `linha`), então levam
+     `compromissoId` e são identificados por data-agcompromisso. Sem duração
+     própria (só um horário-alvo), então valem um bloco de 30min na grade. */
+  function blocosDoCompromisso(iso){
+    return compromissos.filter(c => c.date === iso && horaParaMin(c.time) != null).map(c=>{
+      const ini = horaParaMin(c.time);
+      return { compromissoId: c.id, ini, fim: ini + 30, feito:false, adiado:false, texto: c.title, cp:true };
+    });
+  }
   const AG_PX_MIN = 1.15; // pixels por minuto de altura
   function agendaHtml(texto, iso){
-    const blocos = parseTimeBlocks(texto).concat(blocosDoKanban(iso));
+    const blocos = parseTimeBlocks(texto).concat(blocosDoKanban(iso)).concat(blocosDoCompromisso(iso));
     if(!blocos.length){
       return `<div class="empty-state" style="min-height:30vh;"><h2>Sem blocos de horário</h2>
         <p>Na nota do dia, escreva linhas como<br><b>- [ ] 08:00 - 09:30 Estudar</b><br>e elas viram blocos aqui.<br>Cartões do kanban com horário também aparecem.</p></div>`;
@@ -12769,8 +12960,8 @@ window.addEventListener("unhandledrejection", function(e){
     }
     const blocosHtml = blocos.map(b=>{
       const larg = 100 / b.cols;
-      const ref = b.kb ? `data-agcard="${escapeHtml(b.cardId)}"` : `data-agline="${b.linha}"`;
-      return `<div class="ag-bloco ${b.kb?'ag-kb':''} ${b.feito?'feito':''} ${b.adiado?'adiado':''}" ${ref}
+      const ref = b.kb ? `data-agcard="${escapeHtml(b.cardId)}"` : (b.cp ? `data-agcompromisso="${escapeHtml(b.compromissoId)}"` : `data-agline="${b.linha}"`);
+      return `<div class="ag-bloco ${b.kb?'ag-kb':''} ${b.cp?'ag-cp':''} ${b.feito?'feito':''} ${b.adiado?'adiado':''}" ${ref}
         style="top:${topo(b.ini)}px; height:${Math.max(24,(b.fim-b.ini)*AG_PX_MIN - 3)}px; left:calc(${b.col*larg}% + 2px); width:calc(${larg}% - 4px);">
         <span class="ag-hh">${hhmm(b.ini)}&ndash;${hhmm(b.fim)}${b.adiado?' · adiado':''}</span>
         <span class="ag-txt">${escapeHtml(b.texto)}</span>
@@ -12927,6 +13118,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="home-header" style="margin-bottom:10px;">
           <h1>Diário</h1>
           <div class="header-right">
+            <button class="icon-btn" id="diNovoCompromisso" title="Novo compromisso" aria-label="Novo compromisso">${svgIcon(ICON_D.plus,16)}</button>
             <button class="bell-btn di-hoje" id="diHoje" title="Ir para hoje">hoje</button>
             ${cfgBtnHtml()}
           </div>
@@ -12980,6 +13172,19 @@ window.addEventListener("unhandledrejection", function(e){
           alternarCartaoFeitoNaAgenda(bl.dataset.agcard, chave());
           paint();
           showAlertBanner(feito ? "Cartão reaberto" : "Cartão concluído ✓");
+        };
+      });
+      // bloco de compromisso avulso: o clique oferece excluir (não tem
+      // conclusão — é só um lembrete de horário)
+      body.querySelectorAll("[data-agcompromisso]").forEach(bl=>{
+        bl.onclick = () => {
+          const c = compromissos.find(x=>x.id===bl.dataset.agcompromisso);
+          confirmModal("Excluir o compromisso <b>"+escapeHtml((c&&c.title)||"")+"</b>?", "Excluir", ()=>{
+            compromissos = compromissos.filter(x=>x.id!==bl.dataset.agcompromisso);
+            saveCompromissos();
+            paint();
+            showAlertBanner("Compromisso excluído");
+          });
         };
       });
     }
@@ -13077,6 +13282,7 @@ window.addEventListener("unhandledrejection", function(e){
       trocarPeriodo(() => { diarioData = e.target.value || localKey(); });
     };
     el.querySelector("#diHoje").onclick = () => trocarPeriodo(() => { diarioData = localKey(); });
+    el.querySelector("#diNovoCompromisso").onclick = () => abrirNovoCompromisso({ date: diarioData });
 
     /* arrastar a página para a direita abre a agenda do período; para a esquerda, volta */
     let tx0 = null, ty0 = null;
@@ -13961,6 +14167,8 @@ window.addEventListener("unhandledrejection", function(e){
       case K_TAREFAS_HIST: tarefasHist = value; saveTarefasHist(); break;
       case K_DIARIO: diario = value; saveDiario(); break;
       case K_DIAKANBAN: diaKanban = value; saveDiaKanban(); break;
+      case K_EXERCICIOS: exercicios = value; saveExercicios(); break;
+      case K_COMPROMISSOS: compromissos = value; saveCompromissos(); break;
       // preferências de UI (ver nota em sync/engine.js sobre por que elas
       // entraram em SYNCED_KEYS mesmo fora de backupData()): aplicam o efeito
       // ao vivo, não só gravam a chave.

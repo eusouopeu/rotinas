@@ -48,7 +48,7 @@ const NAMES = [
   "tagMultiplicador", "pesoBruto", "fatorDaArea",
   "escopoDoPer", "cartaoVaiParaSemana", "periodoBonusDoCartao", "pontosCartao"
 ];
-const CONSTS = ["KB_ESCOPO_MULT"];
+const CONSTS = ["KB_ESCOPO_MULT", "KB_PESO_BONUS"];
 
 const sandbox = {
   gam: {
@@ -94,14 +94,20 @@ eq("tag vazia/undefined também não pontua", F.pontosCartao(undefined, "dia:202
   const comArea = F.pontosCartao("medio", "dia:2026-08-07", "idiomas");
   const semArea = F.pontosCartao("medio", "dia:2026-08-07", "outra-area-sem-fatia");
   near("área com fatia própria usa o fator da área (5), não o único (2)",
-    comArea, F.pesoBruto("medio", 30) * 5 * F.KB_ESCOPO_MULT.dia);
+    comArea, F.pesoBruto("medio", 30) * 5 * F.KB_ESCOPO_MULT.dia * F.KB_PESO_BONUS);
   near("área sem fatia cai no fator único da semana",
-    semArea, F.pesoBruto("medio", 30) * 2 * F.KB_ESCOPO_MULT.dia);
+    semArea, F.pesoBruto("medio", 30) * 2 * F.KB_ESCOPO_MULT.dia * F.KB_PESO_BONUS);
 
   const mesComArea = F.pontosCartao("medio", "mes:2026-08", "idiomas");
   near("mês IGNORA a fatia da área — usa sempre o fator único",
-    mesComArea, F.pesoBruto("medio", 30) * 2 * F.KB_ESCOPO_MULT.mes);
+    mesComArea, F.pesoBruto("medio", 30) * 2 * F.KB_ESCOPO_MULT.mes * F.KB_PESO_BONUS);
 }
+
+/* ---------------- cartão pontua um pouco acima do peso nominal (KB_PESO_BONUS) ---------------- */
+near("cartão vale mais que uma etapa/meta do mesmo peso nominal",
+  F.pontosCartao("alto", "dia:2026-08-07", null),
+  F.pesoBruto("alto", 30) * F.gam.semanaAtual.fatorNormalizacao * F.KB_ESCOPO_MULT.dia * F.KB_PESO_BONUS);
+check("KB_PESO_BONUS é maior que 1 (kanban pesa mais)", F.KB_PESO_BONUS > 1);
 
 /* ---------------- cartão não tem duração: vale um bloco da referência ---------------- */
 near("peso bruto do cartão = multiplicador puro (sqrt(1))",
