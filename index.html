@@ -147,6 +147,9 @@
   /* ---------- DIÁRIO ---------- */
   .di-badge{ align-self:center; margin-bottom:10px; font-size:12px; }
   .di-badge span{ padding:6px 12px; }
+  /* botão de agenda na mesma linha da pill tab de escopo, do mesmo tamanho */
+  .di-escopo-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px; }
+  .di-agenda-inline{ height:auto; padding:6px 11px; align-self:stretch; }
   .di-daterow{ display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
   .di-daterow-label{ text-align:center; margin-bottom:12px; }
   .di-daterow input[type=date]{
@@ -768,8 +771,8 @@
 
   /* ---------- NAVEGAÇÃO E CALENDÁRIO MENSAL ---------- */
   .stats-nav{ margin-bottom:12px; display:flex; }
-  .view-toggle, .period-toggle{ width:100%; }
-  .view-toggle span, .period-toggle span{ flex:1; text-align:center; }
+  .view-toggle{ width:100%; }
+  .view-toggle span{ flex:1; text-align:center; }
   .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
   .cal-title{ font-family:'Fraunces', serif; font-size:20px; font-weight:600; }
   .mcal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
@@ -1009,8 +1012,8 @@
   .qa-idea-nome{ font-size:14px; }
   .qa-idea-meta{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
-  .kb-e-horas{ display:flex; align-items:center; gap:8px; }
-  .kb-e-horas input[type=time]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
+  .kb-e-horas{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .kb-e-horas input[type=time], .kb-e-horas input[type=date]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
     color:var(--text); font-family:'Inter', sans-serif; font-size:13px; padding:6px 8px; }
   /* segmentado de coluna do kanban do Diário (uma coluna por vez) */
   .kb-abas{ margin-bottom:8px; }
@@ -1041,8 +1044,8 @@
   .kb-peso.feito{ color:var(--good); border-color:var(--good); }
   .kb-add{ width:100%; background:transparent; border:none; border-top:1px dashed var(--line); color:var(--text); font-size:13.5px; padding:8px 2px 2px; }
   .kb-add:focus{ outline:none; }
-  .kb-add-horas{ display:flex; align-items:center; gap:6px; padding:4px 2px 2px; }
-  .kb-add-horas input[type=time]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
+  .kb-add-horas{ display:flex; align-items:center; gap:6px; padding:4px 2px 2px; flex-wrap:wrap; }
+  .kb-add-horas input[type=time], .kb-add-horas input[type=date]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
     color:var(--text); font-family:'Inter', sans-serif; font-size:12px; padding:4px 6px; }
 
   /* ---------- CONTAGEM / PESOS ---------- */
@@ -1762,7 +1765,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-15 (v17)";
+  const BUILD_STAMP = "2026-08-15 (v18)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -5878,26 +5881,36 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   /* ================= STATS ================= */
-  let statsPeriod = "30d";       // 7d | 30d | 90d | ano | tudo
-  let statsView = "resumo";      // resumo | mensal | anual
+  let statsView = "semanal";     // semanal | mensal | anual
   let statsRoutineFilter = null; // id de rotina, ou null = todas
+  let calWeek = new Date();      // semana exibida na visão semanal (qualquer dia dela)
   let calMonth = new Date();     // mês exibido na visão mensal
   let calYear = new Date().getFullYear();
   let selectedDay = null;        // "YYYY-MM-DD" tocado
 
-  function periodStartTs(){
-    const now = Date.now();
-    if(statsPeriod === "7d") return now - 7*86400000;
-    if(statsPeriod === "30d") return now - 30*86400000;
-    if(statsPeriod === "90d") return now - 90*86400000;
-    if(statsPeriod === "ano") return now - 365*86400000;
-    return 0;
+  /* filtro de rotina do dropdown: só entra nas seções que vêm DEPOIS dele
+     (calendário/heatmap continuam agregados, com um ponto por rotina). */
+  function statsRoutineFiltered(arr){
+    return statsRoutineFilter ? arr.filter(h=>h.routineId===statsRoutineFilter) : arr;
   }
-  function richInPeriod(){
-    const startTs = periodStartTs();
-    let arr = history.filter(h=>h.ts && h.ts >= startTs);
-    if(statsRoutineFilter) arr = arr.filter(h=>h.routineId === statsRoutineFilter);
-    return arr;
+  /* "mensal" e "anual" incorporam o que a antiga sub-aba de período (30d/ano)
+     mostrava dentro de "resumo" — cada uma com uma janela fixa própria, sem
+     nenhum seletor de período à vista. */
+  function richParaPeriodo(period){
+    const startTs = period === "30d" ? Date.now() - 30*86400000 : Date.now() - 365*86400000;
+    return statsRoutineFiltered(history.filter(h=>h.ts && h.ts >= startTs));
+  }
+  function routineFilterSelectHtml(){
+    return `<div class="stats-nav">
+      <select id="statsRoutineFilter" class="routine-select">
+        <option value="">Todas as rotinas</option>
+        ${routines.map(r=>`<option value="${r.id}" ${statsRoutineFilter===r.id?'selected':''}>${escapeHtml(r.name)}</option>`).join("")}
+      </select>
+    </div>`;
+  }
+  function wireRoutineFilterSelect(body){
+    const sel = body.querySelector("#statsRoutineFilter");
+    if(sel) sel.onchange = e => { statsRoutineFilter = e.target.value || null; render(); };
   }
   function median(arr){
     if(!arr.length) return 0;
@@ -5986,10 +5999,10 @@ window.addEventListener("unhandledrejection", function(e){
     return insights.slice(0, 5); // no máximo 5, pra não afogar a tela
   }
 
-  /* Cache pelo tamanho de `entries`: renderResumo/renderMonthView/renderYearView
+  /* Cache pelo tamanho de `entries`: renderWeekView/renderMonthView/renderYearView
      chamam isto com o `history` inteiro a cada visita à aba Dados, e ele só
      cresce por push() (mesma referência) — recontar do zero a cada troca de
-     sub-view (resumo/mensal/anual) era um scan O(history.length) redundante e
+     sub-view (semanal/mensal/anual) era um scan O(history.length) redundante e
      repetido sem necessidade. Não cachear por referência: push() não troca a
      referência do array, e é justamente o caso mais comum a invalidar. */
   let _minutesByDateCache = { len: -1, map: null };
@@ -6120,23 +6133,11 @@ window.addEventListener("unhandledrejection", function(e){
         ${rodaVidaResumoHtml()}
         <div class="stats-nav">
           <div class="type-toggle view-toggle">
-            <span data-sview="resumo" class="${statsView==='resumo'?'active':''}">resumo</span>
+            <span data-sview="semanal" class="${statsView==='semanal'?'active':''}">semanal</span>
             <span data-sview="mensal" class="${statsView==='mensal'?'active':''}">mensal</span>
             <span data-sview="anual" class="${statsView==='anual'?'active':''}">anual</span>
           </div>
         </div>
-        ${statsView==='resumo' ? `
-        <div class="stats-nav">
-          <div class="type-toggle period-toggle">
-            ${["7d","30d","90d","ano","tudo"].map(p=>`<span data-period="${p}" class="${statsPeriod===p?'active':''}">${p}</span>`).join("")}
-          </div>
-        </div>
-        <div class="stats-nav">
-          <select id="statsRoutineFilter" class="routine-select">
-            <option value="">Todas as rotinas</option>
-            ${routines.map(r=>`<option value="${r.id}" ${statsRoutineFilter===r.id?'selected':''}>${escapeHtml(r.name)}</option>`).join("")}
-          </select>
-        </div>` : ""}
       </div>
       <div id="statsBody"></div>
     `;
@@ -6152,9 +6153,6 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("statsImportBtn").onclick = () => statsImpFile.click();
     statsImpFile.onchange = e => { if(e.target.files && e.target.files[0]){ importBackup(e.target.files[0]); e.target.value=""; } };
     el.querySelectorAll("[data-sview]").forEach(sp=> sp.onclick = () => { statsView = sp.dataset.sview; selectedDay = null; render(); });
-    el.querySelectorAll("[data-period]").forEach(sp=> sp.onclick = () => { statsPeriod = sp.dataset.period; render(); });
-    const routineFilterSel = document.getElementById("statsRoutineFilter");
-    if(routineFilterSel) routineFilterSel.onchange = e => { statsRoutineFilter = e.target.value || null; render(); };
 
     if(history.length === 0 && tarefasHist.length === 0){
       body.innerHTML = `<div class="empty-state" style="min-height:50vh;"><h2>Sem dados ainda</h2><p>Conclua rotinas para ver seu histórico, desvios de tempo e pontualidade aqui.</p></div>`;
@@ -6164,7 +6162,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(statsView === "mensal"){ renderMonthView(body); return; }
     if(statsView === "anual"){ renderYearView(body); return; }
     renderTarefasResumo(body);
-    if(history.length) renderResumo(body);
+    if(history.length) renderWeekView(body);
   }
 
   /* ============ RESUMO DAS TAREFAS (fila 🍱) ============ */
@@ -6189,33 +6187,24 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   /* ============ VISÃO RESUMO ============ */
-  function renderResumo(body){
-    // As ~10 seções abaixo antes usavam body.innerHTML += cada uma — cada +=
-    // reserializa e reparseia TODO o HTML já acumulado, custo O(n²) no número
-    // de seções. Agora só um innerHTML no fim, com o array já pronto.
+  /* ============ SEÇÕES DE PERÍODO (mensal = 30d, anual = ano) ============
+     Era o conteúdo da antiga aba "resumo" quando o period-toggle estava em
+     30d/ano — cada aba embute agora a sua janela fixa, sem seletor visível.
+     Tudo aqui respeita statsRoutineFilter (dropdown logo acima, abaixo do
+     calendário/heatmap daquela aba). */
+  function renderPeriodExtras(period){
+    // As ~9 seções abaixo eram concatenadas com body.innerHTML += cada uma —
+    // cada += reserializa e reparseia TODO o HTML já acumulado, custo O(n²)
+    // no número de seções. Um array + 1 innerHTML no final evita isso.
     const partes = [];
-    const rich = richInPeriod();
-    const allRich = history.filter(h=>h.ts);
-    const byDate = minutesByDate(history);
-
-    /* --- heatmap, alinhado por dia da semana --- para 7d/30d/90d o heatmap fica
-       restrito ao próprio período selecionado (não faz sentido mostrar 17
-       semanas atrás de uma pergunta sobre a última semana); ano e tudo mantêm
-       o heatmap genérico de sempre. */
-    const to = new Date(); to.setHours(12,0,0,0);
-    let from, hmLabel;
-    if(statsPeriod === "7d"){ from = new Date(to); from.setDate(from.getDate()-6); hmLabel = "Últimos 7 dias"; }
-    else if(statsPeriod === "30d"){ from = new Date(to); from.setDate(from.getDate()-29); hmLabel = "Últimos 30 dias"; }
-    else if(statsPeriod === "90d"){ from = new Date(to); from.setDate(from.getDate()-89); hmLabel = "Últimos 90 dias"; }
-    else { from = new Date(to); from.setDate(from.getDate() - 7*17 + 1); hmLabel = "Últimas 17 semanas"; }
-    partes.push(`<div class="section-label">${hmLabel} · toque num dia</div><div class="stat-card" id="hmCard">${heatmapHtml(from, to, byDate)}
-      <div class="stat-foot">${computeStreak()} dia(s) seguidos · ${Object.keys(byDate).length} dias ativos no total</div></div>`);
-    if(selectedDay) partes.push(dayDetailHtml(selectedDay));
+    const rich = richParaPeriodo(period);
+    const allRich = statsRoutineFiltered(history.filter(h=>h.ts));
+    const periodLbl = period === "30d" ? "30d" : "ano";
 
     /* --- insights: cruza pontualidade × dia da semana × desvio de duração --- */
     const insights = gerarInsights(rich);
     if(insights.length){
-      partes.push(`<div class="section-label">Insights (${statsPeriod})</div><div class="stat-card">
+      partes.push(`<div class="section-label">Insights (${periodLbl})</div><div class="stat-card">
         ${insights.map((txt,i)=>`<div style="display:flex; align-items:flex-start; gap:8px; ${i?'margin-top:10px; padding-top:10px; border-top:1px solid var(--line);':''}"><span style="flex:0 0 auto; color:var(--accent); margin-top:1px;">${svgIcon(ICON_D.exclamationTriangle,14)}</span><span class="routine-meta" style="font-size:13.5px; color:var(--text);">${txt}</span></div>`).join("")}
       </div>`);
     }
@@ -6223,8 +6212,8 @@ window.addEventListener("unhandledrejection", function(e){
     /* --- metas: semana-calendário (janela configurada) com pró-rata --- */
     const weekStart = isoToDate(inicioSemanaISO(new Date()));
     const elapsedDays = Math.min(7, Math.floor((Date.now() - weekStart.getTime())/86400000) + 1);
-    const weekEntries = allRich.filter(h=>h.ts >= weekStart.getTime());
-    const goalRoutines = routines.filter(r=>r.weeklyGoalTimes > 0);
+    const weekEntries = statsRoutineFiltered(history.filter(h=>h.ts && h.ts >= weekStart.getTime()));
+    const goalRoutines = routines.filter(r=>r.weeklyGoalTimes > 0 && (!statsRoutineFilter || r.id===statsRoutineFilter));
     if(goalRoutines.length){
       let goalsHtml = goalRoutines.map(r=>{
         const doneCount = weekEntries.filter(h=>h.routineId===r.id).length;
@@ -6262,7 +6251,7 @@ window.addEventListener("unhandledrejection", function(e){
         }).join("");
         return `<div class="stack-col"><span class="trend-val">${dowTotals[dow]?Math.round(dowTotals[dow]/60)+"m":""}</span><div class="stack-bars">${segs}</div><span class="trend-lbl">${DOWL[dow]}</span></div>`;
       }).join("") + `</div>`;
-      partes.push(`<div class="section-label">Por dia da semana (${statsPeriod})</div><div class="stat-card">${stackHtml}</div>`);
+      partes.push(`<div class="section-label">Por dia da semana (${periodLbl})</div><div class="stat-card">${stackHtml}</div>`);
     }
 
     /* --- histograma de horário de início --- */
@@ -6274,12 +6263,12 @@ window.addEventListener("unhandledrejection", function(e){
         const bh = c ? Math.max(3, c/maxHour*54) : 0;
         return `<div class="hour-col">${hh%3===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}<div class="hour-bar-area"><div class="hour-bar" style="height:${bh}px"></div></div></div>`;
       }).join("") + `</div>`;
-      partes.push(`<div class="section-label">Horário real de início (${statsPeriod})</div><div class="stat-card">${hHtml}</div>`);
+      partes.push(`<div class="section-label">Horário real de início (${periodLbl})</div><div class="stat-card">${hHtml}</div>`);
     }
 
     /* --- taxa de cumprimento do agendado --- */
-    const startPer = periodStartTs() || (allRich.length ? allRich[0].ts : Date.now());
-    const schedRoutines = routines.filter(r=>r.schedule && r.schedule.enabled);
+    const startPer = period === "30d" ? Date.now() - 30*86400000 : Date.now() - 365*86400000;
+    const schedRoutines = routines.filter(r=>r.schedule && r.schedule.enabled && (!statsRoutineFilter || r.id===statsRoutineFilter));
     if(schedRoutines.length){
       let compHtml = schedRoutines.map(r=>{
         let plannedDays = 0, doneDays = 0;
@@ -6300,11 +6289,12 @@ window.addEventListener("unhandledrejection", function(e){
         const cls = pct >= 80 ? "early" : (pct >= 50 ? "ontime" : "late");
         return `<div class="dev-row tappable" data-rstats="${r.id}"><span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</span><b class="${cls}">${pct}%</b><span class="dev-n">${doneDays}/${plannedDays} dias</span></div>`;
       }).join("");
-      if(compHtml) partes.push(`<div class="section-label">Cumprimento do agendado (${statsPeriod})</div><div class="stat-card">${compHtml}</div>`);
+      if(compHtml) partes.push(`<div class="section-label">Cumprimento do agendado (${periodLbl})</div><div class="stat-card">${compHtml}</div>`);
     }
 
     /* --- sequências por rotina --- */
-    const streakRows = routines.map(r=>({id:r.id, name:r.name, icon:r.icon, s:computeStreakFor(r.id)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
+    const streakRoutines = statsRoutineFilter ? routines.filter(r=>r.id===statsRoutineFilter) : routines;
+    const streakRows = streakRoutines.map(r=>({id:r.id, name:r.name, icon:r.icon, s:computeStreakFor(r.id)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
     if(streakRows.length){
       let sHtml = streakRows.map(x=>`<div class="dev-row tappable" data-rstats="${x.id}"><span>${x.icon?escapeHtml(x.icon)+" ":""}${escapeHtml(x.name)}</span><b class="ontime">${x.s} dia${x.s>1?'s':''}</b></div>`).join("");
       partes.push(`<div class="section-label">Sequências por rotina</div><div class="stat-card">${sHtml}</div>`);
@@ -6321,7 +6311,7 @@ window.addEventListener("unhandledrejection", function(e){
         const label = fmtMinLabel(med);
         return `<div class="dev-row"><span>${escapeHtml(name)}</span><b class="${cls}">${label}</b><span class="dev-n">${arr.length}x</span></div>`;
       }).join("");
-      partes.push(`<div class="section-label">Pontualidade mediana (${statsPeriod})</div><div class="stat-card">${puncHtml}</div>`);
+      partes.push(`<div class="section-label">Pontualidade mediana (${periodLbl})</div><div class="stat-card">${puncHtml}</div>`);
     }
 
     /* --- tendência 8 semanas com n --- */
@@ -6369,16 +6359,79 @@ window.addEventListener("unhandledrejection", function(e){
         // costuma ser longo e brigava por espaço com os números na mesma linha
         return `<div class="dev-row exec-row"><span class="exec-name">${escapeHtml(h.routineName)}</span><span class="dev-n">${dateStr} · ${timeStr} | <b>${plannedStr}</b> &rarr; <b class="${cls}">${actualStr}</b></span></div>`;
       }).join("");
-      partes.push(`<div class="section-label">Execuções recentes (${statsPeriod})</div><div class="stat-card">${recHtml}</div>`);
+      partes.push(`<div class="section-label">Execuções recentes (${periodLbl})</div><div class="stat-card">${recHtml}</div>`);
     }
 
+    return partes;
+  }
+  function wirePeriodExtras(body){
+    body.querySelectorAll("[data-rstats]").forEach(row=>{
+      row.onclick = () => { goTo({ tab:"stats", screen:"routineStats", id: row.dataset.rstats }); };
+    });
+  }
+
+  /* ============ VISÃO SEMANAL ============ */
+  function renderWeekView(body){
+    const weekStart = isoToDate(inicioSemanaISO(calWeek));
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+6);
+    const todayK = dateKey(new Date());
+    const DOWL = ["D","S","T","Q","Q","S","S"];
+    const fmtDM = d => String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0");
+
+    let nav = `
+      <div class="cal-nav">
+        <button class="bell-btn" id="prevWeek">&lsaquo;</button>
+        <span class="cal-title">${fmtDM(weekStart)} &ndash; ${fmtDM(weekEnd)}</span>
+        <button class="bell-btn" id="nextWeek">&rsaquo;</button>
+      </div>`;
+
+    // colunas na ordem do dia de início configurado, mesmo padrão do mensal
+    let grid = `<div class="mcal-grid">` + ordemDiasSemana().map(dow=>`<span class="mcal-dowlbl">${DOWL[dow]}</span>`).join("");
+    let plannedTotal = 0, doneTotal = 0, missedTotal = 0;
+    for(let i=0; i<7; i++){
+      const d = new Date(weekStart); d.setDate(d.getDate()+i); d.setHours(12,0,0,0);
+      const key = dateKey(d);
+      const dow = d.getDay();
+      const executed = history.filter(h=>h.date === key);
+      const execIds = new Set(executed.map(h=>h.routineId));
+      const planned = routines.filter(r=>{
+        if(!(r.schedule && r.schedule.enabled && r.schedule.days.includes(dow))) return false;
+        if(r.createdAt && d.getTime() < new Date(new Date(r.createdAt).setHours(0,0,0,0)).getTime()) return false;
+        if(snoozedOn(d)) return false;
+        return true;
+      });
+      const isPast = key < todayK;
+      const missed = isPast ? planned.filter(r=>!execIds.has(r.id)).length : 0;
+      if(isPast || key === todayK){ plannedTotal += planned.length; doneTotal += planned.filter(r=>execIds.has(r.id)).length; missedTotal += missed; }
+
+      let dots = [...execIds].slice(0,3).map(id=>{
+        const r = routines.find(x=>x.id===id);
+        return `<span class="mcal-dot" style="background:${solidColor(corDaRotina(r))}"></span>`;
+      }).join("");
+      if(executed.length > 0 && execIds.size === 0) dots = `<span class="mcal-dot" style="background:var(--muted)"></span>`;
+
+      grid += `<span class="mcal-cell ${key===todayK?'mcal-today':''} ${key===selectedDay?'mcal-sel':''}" data-day="${key}">
+        <span class="mcal-num">${d.getDate()}</span>
+        <span class="mcal-dots">${dots}</span>
+        ${missed>0?`<span class="mcal-missed">${missed}</span>`:""}
+      </span>`;
+    }
+    grid += `</div>`;
+
+    const rate = plannedTotal > 0 ? Math.round(doneTotal/plannedTotal*100) : null;
+    const partes = [nav, `<div class="stat-card">${grid}
+      <div class="stat-foot">&#9679; executada &nbsp; <span class="late" style="font-weight:600;">n</span> agendadas não feitas${rate!==null?` &nbsp;·&nbsp; cumprimento da semana: ${rate}% (${doneTotal}/${plannedTotal})`:""}</div></div>`];
+    partes.push(routineFilterSelectHtml());
+    if(selectedDay) partes.push(dayDetailHtml(selectedDay));
     partes.push(`<div style="height:20px"></div>`);
     // += (não =): renderTarefasResumo já pode ter escrito na mesma `body` antes.
     body.innerHTML += partes.join("");
 
-    wireHeatmapTaps(body, render);
-    body.querySelectorAll("[data-rstats]").forEach(row=>{
-      row.onclick = () => { goTo({ tab:"stats", screen:"routineStats", id: row.dataset.rstats }); };
+    document.getElementById("prevWeek").onclick = () => { calWeek = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()-7); selectedDay = null; render(); };
+    document.getElementById("nextWeek").onclick = () => { calWeek = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()+7); selectedDay = null; render(); };
+    wireRoutineFilterSelect(body);
+    body.querySelectorAll("[data-day]").forEach(cell=>{
+      cell.onclick = () => { selectedDay = selectedDay === cell.dataset.day ? null : cell.dataset.day; render(); };
     });
   }
 
@@ -6438,12 +6491,16 @@ window.addEventListener("unhandledrejection", function(e){
     const rate = plannedTotal > 0 ? Math.round(doneTotal/plannedTotal*100) : null;
     const partes = [nav, `<div class="stat-card">${grid}
       <div class="stat-foot">&#9679; executada &nbsp; <span class="late" style="font-weight:600;">n</span> agendadas não feitas${rate!==null?` &nbsp;·&nbsp; cumprimento do mês: ${rate}% (${doneTotal}/${plannedTotal})`:""}</div></div>`];
+    partes.push(routineFilterSelectHtml());
     if(selectedDay) partes.push(dayDetailHtml(selectedDay));
+    partes.push(...renderPeriodExtras("30d"));
     partes.push(`<div style="height:20px"></div>`);
     body.innerHTML = partes.join("");
 
     document.getElementById("prevMonth").onclick = () => { calMonth = new Date(y, mo-1, 1); selectedDay = null; render(); };
     document.getElementById("nextMonth").onclick = () => { calMonth = new Date(y, mo+1, 1); selectedDay = null; render(); };
+    wireRoutineFilterSelect(body);
+    wirePeriodExtras(body);
     body.querySelectorAll("[data-day]").forEach(cell=>{
       cell.onclick = () => { selectedDay = selectedDay === cell.dataset.day ? null : cell.dataset.day; render(); };
     });
@@ -6464,12 +6521,13 @@ window.addEventListener("unhandledrejection", function(e){
     to.setHours(12,0,0,0);
 
     const partes = [nav, `<div class="stat-card" id="yearHm">${heatmapHtml(from, to, byDateAll)}</div>`];
+    partes.push(routineFilterSelectHtml());
     if(selectedDay) partes.push(dayDetailHtml(selectedDay));
 
-    /* horas por mês */
+    /* horas por mês — abaixo do dropdown, então já respeita statsRoutineFilter */
     const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
     const monthMin = new Array(12).fill(0);
-    history.forEach(h=>{
+    statsRoutineFiltered(history).forEach(h=>{
       if(!h.date.startsWith(String(calYear))) return;
       monthMin[+h.date.slice(5,7)-1] += Math.round((h.actualSec||0)/60);
     });
@@ -6486,12 +6544,15 @@ window.addEventListener("unhandledrejection", function(e){
     } else {
       partes.push(`<div class="stat-card"><div class="dev-n">Sem execuções em ${calYear}.</div></div>`);
     }
+    partes.push(...renderPeriodExtras("ano"));
     partes.push(`<div style="height:20px"></div>`);
     body.innerHTML = partes.join("");
 
     document.getElementById("prevYear").onclick = () => { calYear--; selectedDay = null; render(); };
     document.getElementById("nextYear").onclick = () => { calYear++; selectedDay = null; render(); };
     wireHeatmapTaps(body, render);
+    wireRoutineFilterSelect(body);
+    wirePeriodExtras(body);
   }
 
   /* ============ DETALHE POR ROTINA ============ */
@@ -8030,10 +8091,15 @@ window.addEventListener("unhandledrejection", function(e){
      mostrar as três empilhadas obrigava a rolar a aba inteira para ver "Feito".
      É índice de coluna e vive fora do pintarKanban porque o repaint é interno. */
   let kbAbaAtiva = 1;
-  /* Horário do cartão: "HH:MM" ou vazio. hFim é opcional e só vale com hIni. */
+  /* Horário do cartão: "HH:MM" ou vazio. hFim é opcional e só vale com hIni.
+     Fora do escopo "dia" o cartão também pode levar `hDia` (data ISO) — o
+     período (semana/mês/ano) sozinho não diz QUAL dia, então a data entra
+     antes do horário na exibição. */
   function cartaoHoraTxt(it){
-    if(!it.hIni) return "";
-    return it.hIni + (it.hFim ? "–" + it.hFim : "");
+    const dia = it.hDia ? it.hDia.slice(8,10) + "/" + it.hDia.slice(5,7) : "";
+    const hora = it.hIni ? it.hIni + (it.hFim ? "–" + it.hFim : "") : "";
+    if(dia && hora) return dia + " " + hora;
+    return dia || hora;
   }
   function horaParaMin(h){
     const m = /^(\d{1,2}):(\d{2})$/.exec(String(h||""));
@@ -8054,6 +8120,10 @@ window.addEventListener("unhandledrejection", function(e){
     opts = opts || {};
     const repaint = () => pintarKanban(body, cols, gravar, opts);
     const commit = () => { gravar(); repaint(); };
+    // fora do escopo "dia" o período (semana/mês/ano) não diz por si só QUAL
+    // dia — o cartão ganha um campo de data (hDia) além do horário.
+    const kbEscopo = opts.per ? escopoDoPer(opts.per) : null;
+    const kbPrecisaDia = !!(opts.horarios && kbEscopo && kbEscopo !== "dia");
     body.innerHTML = "";
     /* Modo abas: uma coluna por vez, escolhida por um segmentado no topo. Só o
        kanban do Diário usa (opts.abas) — no modelo "kanban" ver as três de uma
@@ -8081,13 +8151,14 @@ window.addEventListener("unhandledrejection", function(e){
         if(kbEdit && kbEdit.ci===ci && kbEdit.ii===ii){
           return `<div class="kb-card kb-editing">
             <input type="text" class="kb-e-text" value="${escapeHtml(it.text)}">
-            ${opts.horarios ? `<div class="section-label" style="margin:10px 0 4px;">Horário (opcional)</div>
+            ${opts.horarios ? `<div class="section-label" style="margin:10px 0 4px;">${kbPrecisaDia ? "Dia e horário (opcional)" : "Horário (opcional)"}</div>
               <div class="kb-e-horas">
+                ${kbPrecisaDia ? `<input type="date" class="kb-e-dia" value="${escapeHtml(it.hDia||"")}" aria-label="Dia">` : ""}
                 <input type="time" class="kb-e-ini" value="${escapeHtml(it.hIni||"")}" aria-label="Hora de início">
                 <span class="dev-n">até</span>
                 <input type="time" class="kb-e-fim" value="${escapeHtml(it.hFim||"")}" aria-label="Hora de término">
               </div>
-              <div class="dev-n" style="margin-top:5px;">Com hora de início o cartão vira um bloco na agenda. Sem hora de término, vale 1h.</div>` : ""}
+              <div class="dev-n" style="margin-top:5px;">${kbEscopo === "dia" ? "Com hora de início o cartão vira um bloco na agenda. Sem hora de término, vale 1h." : "Sem hora de término, vale 1h."}</div>` : ""}
             ${opts.pesos ? `<div class="section-label" style="margin:10px 0 4px;">Peso no boletim</div>
               ${tagValorPillsHtml(it.tagValor || "nenhum", false)}
               <div class="dev-n" style="margin-top:5px;">Vale um bloco de ${gam.config.divisorDuracao} min${(KB_ESCOPO_MULT[escopoDoPer(opts.per)]||1) > 1 ? " &times;" + KB_ESCOPO_MULT[escopoDoPer(opts.per)] + " (escopo " + KB_ESCOPO_LABEL[escopoDoPer(opts.per)] + ")" : ""}. Pontua ao cair em "Feito".</div>` : ""}
@@ -8114,7 +8185,7 @@ window.addEventListener("unhandledrejection", function(e){
             <span class="kb-text" data-kbe="${ci}-${ii}">${escapeHtml(it.text)}</span>
           </div>
           <div class="kb-card-bot">
-            ${hora ? `<span class="kb-hora" title="Aparece como bloco na agenda">${svgIcon(ICON_D.clock,13)} ${escapeHtml(hora)}</span>` : ""}
+            ${hora ? `<span class="kb-hora" title="${kbEscopo === "dia" ? "Aparece como bloco na agenda" : "Dia/horário do cartão"}">${svgIcon(ICON_D.clock,13)} ${escapeHtml(hora)}</span>` : ""}
             ${pesoHtml}
             <div class="kb-moves">
               ${podeAdiar ? `<button class="kb-move-btn" data-kbadiar="${ci}-${ii}" title="Adiar para amanhã" aria-label="Adiar para amanhã">${svgIcon(ICON_D.arrowUturnRight,14)}</button>` : ""}
@@ -8129,6 +8200,7 @@ window.addEventListener("unhandledrejection", function(e){
         <form data-kbaddform="${ci}">
           <input type="text" class="kb-add" placeholder="+ item (Enter)" data-kbadd="${ci}" enterkeyhint="done">
           ${opts.horarios ? `<div class="kb-add-horas">
+            ${kbPrecisaDia ? `<input type="date" class="kb-add-dia" data-kbadddia="${ci}" aria-label="Dia">` : ""}
             <input type="time" class="kb-add-ini" data-kbaddini="${ci}" aria-label="Hora de início">
             <span class="dev-n">até</span>
             <input type="time" class="kb-add-fim" data-kbaddfim="${ci}" aria-label="Hora de término">
@@ -8210,7 +8282,9 @@ window.addEventListener("unhandledrejection", function(e){
         const novo = { id:uid(), text:val };
         if(opts.pesos) novo.tagValor = "medio";
         if(opts.horarios){
+          const diaInp = form.querySelector("[data-kbadddia]");
           const iniInp = form.querySelector("[data-kbaddini]"), fimInp = form.querySelector("[data-kbaddfim]");
+          if(diaInp && diaInp.value) novo.hDia = diaInp.value;
           const ini = iniInp ? iniInp.value : "";
           if(ini){
             novo.hIni = ini;
@@ -8239,6 +8313,8 @@ window.addEventListener("unhandledrejection", function(e){
         it.text = eb.querySelector(".kb-e-text").value.trim() || it.text;
         if(opts.pesos) it.tagValor = readTagValorPills(eb) || "nenhum";
         if(areaWrap) it.eixo = kbEArea;
+        const dia = eb.querySelector(".kb-e-dia");
+        if(dia) it.hDia = dia.value || "";
         const ini = eb.querySelector(".kb-e-ini"), fim = eb.querySelector(".kb-e-fim");
         if(ini){
           it.hIni = ini.value || "";
@@ -12934,12 +13010,14 @@ window.addEventListener("unhandledrejection", function(e){
           <h1>Diário</h1>
           <div class="header-right">
             <button class="icon-btn" id="diNovoCompromisso" title="Novo compromisso" aria-label="Novo compromisso">${svgIcon(ICON_D.plus,16)}</button>
-            ${!ehDesktop() ? `<button class="bell-btn di-hoje" id="diAgendaToggle" title="${diarioAgenda?'Voltar para a nota':'Ver a agenda'}">${diarioAgenda?svgIcon(ICON_D.arrowLeft,15)+' nota':svgIcon(ICON_D.calendar,14)+' agenda'}</button>` : ""}
             ${cfgBtnHtml()}
           </div>
         </div>
-        <div class="type-toggle di-badge" id="diEscopos">
-          ${DIARIO_ESCOPOS.map(([v,l])=>`<span data-diesc="${v}" class="${diarioEscopo===v?'active':''}">${l}</span>`).join("")}
+        <div class="di-escopo-row">
+          <div class="type-toggle di-badge" id="diEscopos" style="margin-bottom:0;">
+            ${DIARIO_ESCOPOS.map(([v,l])=>`<span data-diesc="${v}" class="${diarioEscopo===v?'active':''}">${l}</span>`).join("")}
+          </div>
+          ${!ehDesktop() ? `<button class="bell-btn di-hoje di-agenda-inline" id="diAgendaToggle" title="${diarioAgenda?'Voltar para a nota':'Ver a agenda'}">${diarioAgenda?svgIcon(ICON_D.arrowLeft,15)+' nota':svgIcon(ICON_D.calendar,14)+' agenda'}</button>` : ""}
         </div>
         <div class="di-daterow">
           <input type="date" id="diData" value="${diarioData}">
@@ -13009,7 +13087,7 @@ window.addEventListener("unhandledrejection", function(e){
       const cols = colunasKanban(per);
       // horários só no escopo "dia": semana/mês/ano não têm granularidade de hora na agenda
       pintarKanban(body.querySelector("#diKanban"), cols, () => gravarKanban(cols, per),
-        { pesos:true, per, abas:true, horarios: escopoDoPer(per) === "dia" });
+        { pesos:true, per, abas:true, horarios: true });
     }
 
     function paint(){
