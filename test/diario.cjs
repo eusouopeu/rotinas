@@ -123,7 +123,7 @@ eq("chave da semana usa o início configurado", F.diarioChave("semana", "2026-08
 eq("escopo a partir da chave", F.escopoDoPer("mes:2026-08"), "mes");
 eq("escopo cai em 'dia' por padrão", F.escopoDoPer(""), "dia");
 
-eq("rótulo do dia inclui dia da semana", F.diarioRotulo("dia", "2026-08-07"), "sexta-feira, 07/08/2026");
+eq("rótulo do dia é só o dia da semana (data já aparece no seletor)", F.diarioRotulo("dia", "2026-08-07"), "sexta-feira");
 eq("rótulo do mês", F.diarioRotulo("mes", "2026-08-07"), "agosto de 2026");
 eq("rótulo do ano", F.diarioRotulo("ano", "2026-08-07"), "ano de 2026");
 

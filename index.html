@@ -145,9 +145,10 @@
   .tabbar button.active .ic{ background:var(--accent-soft); }
 
   /* ---------- DIÁRIO ---------- */
-  .di-badge{ align-self:flex-start; margin-bottom:10px; font-size:12px; }
+  .di-badge{ align-self:center; margin-bottom:10px; font-size:12px; }
   .di-badge span{ padding:6px 12px; }
-  .di-daterow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .di-daterow{ display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+  .di-daterow-label{ text-align:center; margin-bottom:12px; }
   .di-daterow input[type=date]{
     background:var(--surface); border:1px solid var(--line); border-radius:9px;
     color:var(--text); font-family:'Inter', sans-serif; font-size:13px; padding:8px 10px;
@@ -220,8 +221,6 @@
   .home-header{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; gap:10px; }
   .home-header h1{ font-size:32px; }
   .header-right{ display:flex; align-items:center; gap:10px; }
-  .streak{ font-family:'Inter', sans-serif; font-size:13px; color: var(--accent); display:flex; align-items:center; gap:6px; }
-  .streak .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); }
   .bell-btn{
     width:34px; height:34px; border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--line);
     color:var(--muted); font-size:15px; box-shadow: var(--shadow-1); transition: transform .12s ease, background .12s ease;
@@ -246,13 +245,6 @@
   .routine-info, .note-info{ min-width:0; flex:1; }
   .routine-info h3, .note-info h3{ font-size:19px; margin-bottom:6px; }
   .routine-meta{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
-  /* densidade compacta (Rotinas/Metas): menos respiro por card pra caber mais
-     itens na tela sem rolar tanto — toggle em Configurações → Aparência. */
-  body.compacto .routine-card, body.compacto .note-card{ padding:10px 14px; }
-  body.compacto .routine-info h3, body.compacto .note-info h3{ font-size:15px; margin-bottom:2px; }
-  body.compacto .routine-meta{ font-size:11px; }
-  body.compacto #metasBody .stat-card{ padding:10px 12px; margin-bottom:6px; }
-  body.compacto #metasBody .cd-big{ font-size:20px; }
 
   /* ---------- SWIPE (revelar excluir / dispensar) ---------- */
   .swipe-item{ position:relative; overflow:hidden; border-radius:var(--radius); flex:0 0 auto; }
@@ -365,9 +357,13 @@
   .dur-input{ background:none; border:none; color:var(--muted); font-family:'Inter', sans-serif; font-size:13px; width:52px; }
   .dur-input:focus{ outline:none; color:var(--accent); }
   .remove-step{ color:var(--danger); background:none; border:none; font-size:18px; padding:4px 6px; flex-shrink:0; }
-  .step-side{ display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
   .order-btn{ background:none; border:none; color:var(--muted); font-size:13px; padding:4px 8px; }
   .order-btn:disabled{ opacity:.25; }
+  /* alça de arrastar: única coisa na coluna direita agora (sem os botões
+     ↑/↓), centralizada na altura do card em vez de presa no topo junto do
+     número da etapa — align-self próprio, sem mexer no alinhamento das
+     outras colunas do .step-row. */
+  .step-side{ display:flex; align-items:center; flex-shrink:0; align-self:center; }
 
   .add-step-btn{ border:1px dashed var(--line); border-radius:14px; padding:16px; color:var(--muted); background:none; font-size:14px; text-align:center; margin-top:4px; }
 
@@ -381,6 +377,14 @@
   }
   .sched-computed{ margin-top:12px; font-size:13px; color:var(--muted); font-family:'Inter', sans-serif; }
   .sched-computed b{ color:var(--accent); font-weight:600; }
+  /* swatch de cor da área (Configurações → roda da vida) — reset do chrome
+     nativo do input[type=color] pra virar um quadradinho simples */
+  .area-color-swatch{
+    width:26px; height:26px; padding:0; border:1px solid var(--line); border-radius:8px;
+    background:none; flex:0 0 auto; cursor:pointer;
+  }
+  .area-color-swatch::-webkit-color-swatch-wrapper{ padding:2px; }
+  .area-color-swatch::-webkit-color-swatch{ border:none; border-radius:5px; }
 
   .bottom-actions{
     position:fixed; left:0; right:0; bottom:0; padding:16px 20px calc(16px + var(--safe-bottom));
@@ -675,14 +679,6 @@
 
   /* ---------- IDENTIDADE VISUAL DA ROTINA ---------- */
   .ident-row{ display:flex; align-items:center; gap:14px; margin:-6px 0 18px; }
-  .icon-input{
-    width:52px; height:44px; text-align:center; font-size:22px; background:var(--surface);
-    border:1px solid var(--line); border-radius:12px; color:var(--text);
-  }
-  .icon-input:focus{ outline:none; border-color:var(--accent); }
-  .color-chips{ display:flex; gap:9px; }
-  .color-chip{ width:28px; height:28px; border-radius:50%; border:2px solid transparent; }
-  .color-chip.sel{ border-color:var(--text); }
   .r-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; vertical-align:1px; }
 
   /* ---------- PLAYER EXTRAS ---------- */
@@ -1318,13 +1314,11 @@ window.addEventListener("unhandledrejection", function(e){
   const K_NAOFEITAS = "rotinas_v2_naofeitas"; // etapas marcadas como não feitas hoje
   const K_DIAKANBAN = "rotinas_v2_diakanban"; // kanban do diário, por dia
   const K_SOHOJE   = "rotinas_v2_so_hoje";    // filtro "só as rotinas de hoje" na aba Rotinas
-  const K_DENSIDADE = "rotinas_v2_densidade"; // densidade compacta nas listas de Rotinas/Metas
   const K_HOMEAREA = "rotinas_v2_home_area";  // filtro de área da roda da vida nas abas Rotinas/Metas
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
   const K_WEEKSTART = "rotinas_v2_weekstart"; // dia (0=domingo..6=sábado) em que a semana começa a contar
   const K_FONTSCALE = "rotinas_v2_fontscale"; // escala de texto do app (acessibilidade)
-  const K_ORDEMMANUAL = "rotinas_v2_ordem_manual"; // ordenar rotinas na home manualmente em vez de por horário
   const K_DIGESTSEMANAL = "rotinas_v2_digest_semanal"; // notificação de resumo ao fechar a semana
   const K_PIN = "rotinas_v2_pin"; // hash SHA-256 (hex) do PIN de bloqueio, null = sem bloqueio
   const K_EXERCICIOS = "rotinas_v2_exercicios"; // biblioteca de exercícios (séries/reps/carga) reaproveitada por etapas de rotina
@@ -1663,14 +1657,9 @@ window.addEventListener("unhandledrejection", function(e){
   let view = { tab: "metas", screen: "metas" };
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
-  let homeAreaFiltro = load(K_HOMEAREA, ""); // "" = todas as áreas; ver FILTRO_SEM_AREA
-  let densidadeCompacta = load(K_DENSIDADE, false); // listas de Rotinas/Metas mais densas, pra quem tem muitos itens
-  let homeOrdemManual = load(K_ORDEMMANUAL, false); // ordenar a lista de rotinas na home à mão em vez de por horário
-  function toggleDensidade(){
-    densidadeCompacta = !densidadeCompacta;
-    save(K_DENSIDADE, densidadeCompacta);
-    document.body.classList.toggle("compacto", densidadeCompacta);
-  }
+  // era single-select (string); migra pra multi-select (array) na leitura
+  let homeAreaFiltro = load(K_HOMEAREA, []); // string[] de ids de área (ou FILTRO_SEM_AREA); [] = todas
+  if(!Array.isArray(homeAreaFiltro)) homeAreaFiltro = homeAreaFiltro ? [homeAreaFiltro] : [];
   const K_METASSUBVIEW = "rotinas_v2_metas_subview";       // legado, só para migração
   const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
   // multiselect: array com "prazos" e/ou "recorrentes" — permite ver os dois
@@ -1695,10 +1684,11 @@ window.addEventListener("unhandledrejection", function(e){
      de areaDaRotina: "" para sem área. */
   function areaFiltroChipsHtml(){
     if(!rodaAtiva() || !rodaAreas().length) return "";
+    // sem chip "todas": nenhuma tag marcada já É "todas". Um toque marca,
+    // outro toque desmarca (mesmo padrão multiselect do filtro de Metas).
     return `<div class="area-chips area-filter-row" id="areaFiltroRow">`
-      + `<span class="area-chip ${homeAreaFiltro===''?'sel':''}" data-areaf="" style="--chip:var(--muted);">todas</span>`
-      + `<span class="area-chip ${homeAreaFiltro===FILTRO_SEM_AREA?'sel':''}" data-areaf="${FILTRO_SEM_AREA}" style="--chip:var(--muted);">sem área</span>`
-      + rodaAreas().map(a=>`<span class="area-chip ${homeAreaFiltro===a.id?'sel':''}" data-areaf="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
+      + `<span class="area-chip ${homeAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-areaf="${FILTRO_SEM_AREA}" style="--chip:var(--muted);">sem área</span>`
+      + rodaAreas().map(a=>`<span class="area-chip ${homeAreaFiltro.includes(a.id)?'sel':''}" data-areaf="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
       + `</div>`;
   }
   function wireAreaFiltroChips(el){
@@ -1706,26 +1696,27 @@ window.addEventListener("unhandledrejection", function(e){
     if(!row) return;
     row.querySelectorAll("[data-areaf]").forEach(ch=>{
       ch.onclick = () => {
-        homeAreaFiltro = ch.dataset.areaf;
+        const v = ch.dataset.areaf;
+        const pos = homeAreaFiltro.indexOf(v);
+        if(pos >= 0) homeAreaFiltro.splice(pos, 1); else homeAreaFiltro.push(v);
         save(K_HOMEAREA, homeAreaFiltro);
         render();
       };
     });
   }
   function passaFiltroArea(area){
-    if(!homeAreaFiltro) return true;
-    const alvo = homeAreaFiltro === FILTRO_SEM_AREA ? "" : homeAreaFiltro;
-    return area === alvo;
+    if(homeAreaFiltro.length === 0) return true;
+    if(homeAreaFiltro.includes(FILTRO_SEM_AREA) && !area) return true;
+    return homeAreaFiltro.some(id => id !== FILTRO_SEM_AREA && id === area);
   }
   /* Filtro de área MULTISELECT específico da aba Metas — pedido para poder ver
-     metas de mais de uma área ao mesmo tempo, sem alterar o filtro de área
-     (single-select) compartilhado da aba Rotinas acima. Array vazio = todas. */
+     metas de mais de uma área ao mesmo tempo. Array vazio = todas (sem chip
+     "todas" explícito — nenhuma tag marcada já é "todas"). */
   const K_METASAREAFILTRO = "rotinas_v2_metas_area_filtro";
   let metasAreaFiltro = load(K_METASAREAFILTRO, []); // string[] de ids de área (ou FILTRO_SEM_AREA)
   function metasAreaFiltroChipsHtml(){
     if(!rodaAtiva() || !rodaAreas().length) return "";
     return `<div class="area-chips area-filter-row" id="metasAreaFiltroRow">`
-      + `<span class="area-chip ${metasAreaFiltro.length===0?'sel':''}" data-mareaf="" style="--chip:var(--muted);">todas</span>`
       + `<span class="area-chip ${metasAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-mareaf="${FILTRO_SEM_AREA}" style="--chip:var(--muted);">sem área</span>`
       + rodaAreas().map(a=>`<span class="area-chip ${metasAreaFiltro.includes(a.id)?'sel':''}" data-mareaf="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
       + `</div>`;
@@ -1736,11 +1727,8 @@ window.addEventListener("unhandledrejection", function(e){
     row.querySelectorAll("[data-mareaf]").forEach(ch=>{
       ch.onclick = () => {
         const v = ch.dataset.mareaf;
-        if(v === "") { metasAreaFiltro = []; } // "todas" limpa a seleção
-        else {
-          const pos = metasAreaFiltro.indexOf(v);
-          if(pos >= 0) metasAreaFiltro.splice(pos, 1); else metasAreaFiltro.push(v);
-        }
+        const pos = metasAreaFiltro.indexOf(v);
+        if(pos >= 0) metasAreaFiltro.splice(pos, 1); else metasAreaFiltro.push(v);
         save(K_METASAREAFILTRO, metasAreaFiltro);
         render();
       };
@@ -1774,7 +1762,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-14 (v15)";
+  const BUILD_STAMP = "2026-08-15 (v16)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2941,6 +2929,13 @@ window.addEventListener("unhandledrejection", function(e){
   const GRAD_CSS = "linear-gradient(135deg,#EC6AA8,#5B8DEF)";
   function fillStyle(c){ return (!c || c === "grad" || c === "#C98A3E") ? GRAD_CSS : c; }
   function solidColor(c){ return (!c || c === "grad" || c === "#C98A3E") ? "#B96BC4" : c; }
+  /* A rotina não escolhe mais cor própria (editor perdeu o picker): a cor vem
+     da área a que ela foi designada (configurável em Configurações → roda da
+     vida), com o degradê padrão como fallback pra quem não tem área. */
+  function corDaRotina(r){
+    const area = r && areaDaRotina(r);
+    return area ? areaInfoRoda(area).color : "grad";
+  }
 
   function computeStreakFor(routineId){
     const r = routines.find(x=>x.id===routineId);
@@ -2982,15 +2977,6 @@ window.addEventListener("unhandledrejection", function(e){
     }
     return streak;
   }
-  /* streak em risco: já existe uma sequência de dias e hoje ainda não foi
-     concluído nada — some sozinho assim que alguma rotina fechar hoje, sem
-     precisar dispensar nada (mesmo espírito do aviso de backup). */
-  function streakEmRisco(){
-    const s = computeStreak();
-    if(s <= 0) return false;
-    return !history.some(h=>h.date===localKey());
-  }
-
   /* ---------------- SOUND / HAPTICS ---------------- */
   let audioCtx = null;
   function beep(freq, dur){
@@ -3006,10 +2992,8 @@ window.addEventListener("unhandledrejection", function(e){
     }catch(e){}
   }
   function vibrate(pattern){ if(navigator.vibrate) navigator.vibrate(pattern); }
-  function soundMode(routine){
-    const r = routine || (typeof playerState !== "undefined" && playerState ? playerState.routine : null);
-    return (r && r.sound) || "normal";
-  }
+  // opção de som foi removida do editor: sempre vibração, nunca beep
+  function soundMode(){ return "mudo"; }
   function cueBeep(freq, dur, mode){
     if(mode === "mudo") return;
     if(mode === "suave") beep(freq*0.75, dur*0.8);
@@ -3659,9 +3643,6 @@ window.addEventListener("unhandledrejection", function(e){
      agendamento não tem horário: vai depois das agendadas, mantendo a ordem de
      criação como critério de desempate (ordenação estável em qualquer motor). */
   function rotinasOrdenadas(){
-    // ordem manual (Configurações → toggle na home): ignora horário, usa a
-    // ordem do array — quem mexe são os botões ↑/↓ do card (ver renderHome).
-    if(homeOrdemManual) return routines.slice();
     return routines
       .map((r, i) => ({ r, i, min: (computeSchedule(r) || {}).startMin }))
       .sort((a, b) => {
@@ -3671,13 +3652,6 @@ window.addEventListener("unhandledrejection", function(e){
         return a.min - b.min || a.i - b.i;
       })
       .map(x => x.r);
-  }
-  function swapRoutinesById(idA, idB){
-    const ia = routines.findIndex(r=>r.id===idA);
-    const ib = routines.findIndex(r=>r.id===idB);
-    if(ia<0 || ib<0) return;
-    [routines[ia], routines[ib]] = [routines[ib], routines[ia]];
-    save(K_ROUTINES, routines);
   }
 
   function checkSchedules(){
@@ -3833,7 +3807,6 @@ window.addEventListener("unhandledrejection", function(e){
   function renderHome(){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
-    const streak = computeStreak();
     // Cabeçalho + cards fixados + lista moram todos DENTRO de .tab-scroll (mesmo
     // padrão de Metas/Modelos), para que o título e os cards fixados rolem junto
     // com a lista em vez de comer espaço fixo da tela — só o FAB e a tabbar
@@ -3847,12 +3820,8 @@ window.addEventListener("unhandledrejection", function(e){
       </div>
       ${rodaVidaResumoHtml()}
       <div class="header-right" style="margin-bottom:18px; flex-wrap:wrap;">
-        ${streak>0?`<div class="streak"><span class="dot"></span>${streak} dia${streak>1?'s':''}</div>`:""}
-        <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>
-        <button class="bell-btn ${densidadeCompacta?'on':''}" id="densidadeBtn" title="Alternar densidade da lista" aria-label="Alternar densidade da lista" aria-pressed="${densidadeCompacta?'true':'false'}">${svgIcon(ICON_D.listBullet,14)}</button>
-        <button class="bell-btn ${homeOrdemManual?'on':''}" id="ordemManualBtn" title="Ordenar rotinas manualmente" aria-label="Ordenar rotinas manualmente" aria-pressed="${homeOrdemManual?'true':'false'}">${svgIcon(ICON_D.arrowsUpDown,14)}</button>
+        <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">hoje</button>
         <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">${svgIcon(ICON_D.calendar,14)} agenda</button>
-        <button class="bell-btn" id="tarefasBtn" title="Tarefas de estudo" aria-label="Tarefas de estudo">${svgIcon(ICON_D.bars3,15)}</button>
         <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">${svgIcon(ICON_D.arrowUpTray,14)}</button>
         <button class="bell-btn" id="tplLibraryBtn" title="Modelos prontos" aria-label="Modelos prontos">${svgIcon(ICON_D.templates,14)}</button>
         <button class="bell-btn" id="boletimBtn" title="Boletim da semana" aria-label="Boletim da semana">${svgIcon(ICON_D.trophy, 17)}</button>
@@ -3872,14 +3841,6 @@ window.addEventListener("unhandledrejection", function(e){
       scroll.appendChild(bk);
       bk.querySelector("#doBackupNow").onclick = () => { exportBackup(); render(); };
       bk.querySelector("#dismissBackup").onclick = () => { dismissedBackupNotice = true; render(); };
-    }
-    // some sozinho ao concluir qualquer rotina hoje — não precisa de dispensa
-    if(streakEmRisco()){
-      const sk = document.createElement("div");
-      sk.className = "notice-card";
-      sk.style.borderColor = "var(--danger)";
-      sk.innerHTML = `<span style="color:var(--danger);">${svgIcon(ICON_D.exclamationTriangle,14)} Sua sequência de ${streak} dia${streak>1?'s':''} quebra hoje se nenhuma rotina for concluída.</span>`;
-      scroll.appendChild(sk);
     }
 
     const carga = previsaoCargaSemana();
@@ -3958,9 +3919,9 @@ window.addEventListener("unhandledrejection", function(e){
     } else if(visiveis.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
-      empty.innerHTML = homeAreaFiltro
+      empty.innerHTML = homeAreaFiltro.length
         ? `<h2>Nenhuma rotina nessa área</h2><p>Troque o filtro de área para ver outras rotinas.</p>`
-        : `<h2>Nada agendado para hoje</h2><p>Desligue o "só hoje" para ver todas as rotinas.</p>`;
+        : `<h2>Nada agendado para hoje</h2><p>Desligue o "hoje" para ver todas as rotinas.</p>`;
       scroll.appendChild(empty);
     } else {
       const list = document.createElement("div");
@@ -3979,7 +3940,7 @@ window.addEventListener("unhandledrejection", function(e){
         card.className = "routine-card";
         card.innerHTML = `
           <div class="routine-info" data-detail="${r.id}" style="cursor:pointer;">
-            <h3><span class="r-dot" style="background:${fillStyle(r.color)}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h3>
+            <h3><span class="r-dot" style="background:${fillStyle(corDaRotina(r))}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h3>
             <div class="routine-meta">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}${rStreak>0?` · &#9679; ${rStreak}d`:""}${rotinaEhHabito(r)?`<span class="habito-chip" title="Hábito consolidado: vale ${Math.round((gam.config.habito.fator||0.6)*100)}% do peso, para abrir espaço ao que ainda não pegou">hábito</span>`:""}</div>
             ${rodaAtiva() && areaDaRotina(r) ? `<div class="sched-chip chip-block" style="color:${areaInfoRoda(areaDaRotina(r)).color};">${escapeHtml(areaInfoRoda(areaDaRotina(r)).label)}</div>` : ""}
             ${rPend ? `<div class="sched-chip chip-block" style="color:var(--danger);">${svgIcon(ICON_D.arrowPath,15)} ${rPend} etapa${rPend>1?'s':''} não feita${rPend>1?'s':''} hoje</div>` : ""}
@@ -3987,10 +3948,6 @@ window.addEventListener("unhandledrejection", function(e){
             ${sched ? diasChipHtml(r) : ""}
           </div>
           <div class="routine-actions">
-            ${homeOrdemManual ? `
-              <button class="icon-btn" data-rtup="${r.id}" title="Mover para cima" aria-label="Mover para cima" ${vi===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,13)}</button>
-              <button class="icon-btn" data-rtdown="${r.id}" title="Mover para baixo" aria-label="Mover para baixo" ${vi===visiveis.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,13)}</button>
-            ` : ""}
             <button class="play-btn" data-play="${r.id}" title="Iniciar rotina" aria-label="Iniciar rotina">${svgIcon(ICON_D.play,16)}</button>
           </div>
         `;
@@ -3998,10 +3955,6 @@ window.addEventListener("unhandledrejection", function(e){
           onLeft: () => deleteRoutineWithUndo(r.id), leftLabel: "Excluir",
           onRight: () => duplicateRoutine(r.id), rightLabel: "Duplicar"
         }));
-        if(homeOrdemManual){
-          card.querySelectorAll("[data-rtup]").forEach(b=> b.onclick = e => { e.stopPropagation(); swapRoutinesById(r.id, visiveis[vi-1].id); render(); });
-          card.querySelectorAll("[data-rtdown]").forEach(b=> b.onclick = e => { e.stopPropagation(); swapRoutinesById(r.id, visiveis[vi+1].id); render(); });
-        }
       });
       scroll.appendChild(list);
     }
@@ -4017,12 +3970,8 @@ window.addEventListener("unhandledrejection", function(e){
       save(K_SOHOJE, homeSoHoje);
       render();
     };
-    document.getElementById("densidadeBtn").onclick = () => { toggleDensidade(); render(); };
-    document.getElementById("ordemManualBtn").onclick = () => { homeOrdemManual = !homeOrdemManual; save(K_ORDEMMANUAL, homeOrdemManual); render(); };
     document.getElementById("agendaBtn").onclick = () => { goTo({ tab:"home", screen:"agenda" }); };
     document.getElementById("boletimBtn").onclick = () => { goTo({ tab:"home", screen:"boletim" }); };
-    // Tarefas perdeu a aba para Metas, mas continua acessível como destino de topo
-    document.getElementById("tarefasBtn").onclick = () => { goTo({ tab:"tarefas", screen:"tarefas" }); };
     wireCfgBtn(el);
     // importa o .json gerado pelo "Exportar" do editor de rotina (e também aceita
     // um backup completo — importBackup distingue os dois formatos)
@@ -4156,7 +4105,7 @@ window.addEventListener("unhandledrejection", function(e){
       </div>
       <div class="routine-list" id="rdSteps" style="flex:1; overflow-y:auto; padding-bottom:110px;">
         <div class="home-header" style="margin-bottom:14px;">
-          <h1 style="font-size:26px;"><span class="r-dot" style="background:${fillStyle(r.color)}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h1>
+          <h1 style="font-size:26px;"><span class="r-dot" style="background:${fillStyle(corDaRotina(r))}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h1>
         </div>
         <div class="routine-meta" style="margin-bottom:4px;">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}</div>
         ${sched ? `<div class="sched-chip">${svgIcon(ICON_D.clock,13)} ${sched.startStr} &rarr; ${sched.endStr}</div>${diasChipHtml(r)}<div style="height:10px;"></div>` : ""}
@@ -4279,7 +4228,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="dev-n" style="margin-top:6px;">Descanso entre séries e entre exercícios: um único valor por rotina, na seção "Descanso entre etapas" do editor.</div>
         </div>
         <div id="seNoteWrap">
-          <label class="switch-row" style="margin-top:12px;"><span>Inserir anotações durante esta tarefa</span><input type="checkbox" id="seJournal" ${s.journaling?'checked':''}></label>
+          <label class="switch-row" style="margin-top:12px;"><input type="checkbox" id="seJournal" ${s.journaling?'checked':''}><span>Anotações</span></label>
         </div>
         <div class="section-label" style="margin:12px 0 6px;">Nota da etapa (opcional)</div>
         <div id="seNotaWrap"></div>
@@ -4519,7 +4468,7 @@ window.addEventListener("unhandledrejection", function(e){
 
     const top = document.createElement("div");
     top.className = "topbar";
-    top.innerHTML = `<button class="link-btn muted" id="cancelEdit">Cancelar</button><button class="link-btn" id="saveEdit">Salvar</button>`;
+    top.innerHTML = `<button class="link-btn muted" id="cancelEdit">Cancelar</button><button class="link-btn" id="shareRoutineTop">Exportar</button>`;
     el.appendChild(top);
 
     const nameInput = document.createElement("input");
@@ -4527,47 +4476,7 @@ window.addEventListener("unhandledrejection", function(e){
     nameInput.value = editorDraft.name;
     nameInput.oninput = e => editorDraft.name = e.target.value;
 
-    // identidade visual: emoji + cor
-    const PALETTE = ["grad","#EC6AA8","#5B8DEF","#6B8F71","#B25B4C","#9C7BB8"];
-    if(editorDraft.color === undefined || editorDraft.color === "#C98A3E") editorDraft.color = "grad";
-    if(editorDraft.icon === undefined) editorDraft.icon = "";
     if(editorDraft.weeklyGoalTimes === undefined) editorDraft.weeklyGoalTimes = 0;
-    const identRow = document.createElement("div");
-    identRow.className = "ident-row";
-    identRow.innerHTML = `
-      <input type="text" id="iconInput" class="icon-input" maxlength="2" placeholder="&#9733;" value="${escapeHtml(editorDraft.icon)}">
-      <div class="color-chips">
-        ${PALETTE.map(c=>`<span class="color-chip ${editorDraft.color===c?'sel':''}" data-color="${c}" style="background:${c==='grad'?'linear-gradient(135deg,#EC6AA8,#5B8DEF)':c}"></span>`).join("")}
-      </div>
-    `;
-    identRow.querySelector("#iconInput").oninput = e => editorDraft.icon = e.target.value;
-    identRow.querySelectorAll("[data-color]").forEach(ch=>{
-      ch.onclick = () => {
-        editorDraft.color = ch.dataset.color;
-        identRow.querySelectorAll("[data-color]").forEach(x=>x.classList.remove("sel"));
-        ch.classList.add("sel");
-      };
-    });
-
-    if(editorDraft.sound === undefined) editorDraft.sound = "normal";
-    const soundRow = document.createElement("div");
-    soundRow.className = "ident-row";
-    soundRow.style.marginTop = "-8px";
-    soundRow.innerHTML = `
-      <span style="color:var(--muted); font-size:13px;">som:</span>
-      <div class="type-toggle">
-        <span data-sound="normal" class="${editorDraft.sound==='normal'?'active':''}">normal</span>
-        <span data-sound="suave" class="${editorDraft.sound==='suave'?'active':''}">suave</span>
-        <span data-sound="mudo" class="${editorDraft.sound==='mudo'?'active':''}">só vibrar</span>
-      </div>
-    `;
-    soundRow.querySelectorAll("[data-sound]").forEach(sp=>{
-      sp.onclick = () => {
-        editorDraft.sound = sp.dataset.sound;
-        soundRow.querySelectorAll("[data-sound]").forEach(x=>x.classList.remove("active"));
-        sp.classList.add("active");
-      };
-    });
 
     const tagRow = document.createElement("div");
     tagRow.className = "ident-row";
@@ -4646,8 +4555,6 @@ window.addEventListener("unhandledrejection", function(e){
     stepsWrap.style.paddingBottom = "230px";
     el.appendChild(stepsWrap);
 
-    stepsWrap.appendChild(identRow);
-    stepsWrap.appendChild(soundRow);
     stepsWrap.appendChild(tagRow);
     stepsWrap.appendChild(vagaRow);
     stepsWrap.appendChild(areaRow);
@@ -4692,15 +4599,13 @@ window.addEventListener("unhandledrejection", function(e){
             </div>` : ""}
             <div class="step-sub">
               <label class="switch-row" style="margin-bottom:0; flex:1;">
-                <span>Inserir anotações durante esta tarefa</span>
                 <input type="checkbox" data-journal="${i}" ${s.journaling?'checked':''}>
+                <span>Anotações</span>
               </label>
             </div>
           </div>
           <div class="step-side">
             <span class="drag-handle" data-drag="${i}">${svgIcon(ICON_D.bars3,15)}</span>
-            <button class="order-btn" data-up="${i}" title="Mover para cima" aria-label="Mover para cima" ${i===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,14)}</button>
-            <button class="order-btn" data-down="${i}" title="Mover para baixo" aria-label="Mover para baixo" ${i===editorDraft.steps.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,14)}</button>
           </div>
         `;
         stepsList.appendChild(wrapSwipeActions(row, {
@@ -4831,14 +4736,6 @@ window.addEventListener("unhandledrejection", function(e){
           handle.onpointercancel = up;
         };
       });
-      stepsList.querySelectorAll("[data-up]").forEach(b=> b.onclick = e => {
-        const i = +e.currentTarget.dataset.up;
-        if(i>0){ [editorDraft.steps[i-1], editorDraft.steps[i]] = [editorDraft.steps[i], editorDraft.steps[i-1]]; renderSteps(); }
-      });
-      stepsList.querySelectorAll("[data-down]").forEach(b=> b.onclick = e => {
-        const i = +e.currentTarget.dataset.down;
-        if(i<editorDraft.steps.length-1){ [editorDraft.steps[i+1], editorDraft.steps[i]] = [editorDraft.steps[i], editorDraft.steps[i+1]]; renderSteps(); }
-      });
     }
     renderSteps();
 
@@ -4905,7 +4802,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(!editorDraft.schedule.enabled){ c.textContent=""; return; }
       const sched = computeSchedule(editorDraft);
       if(!sched){ c.textContent = "Defina um horário."; return; }
-      c.innerHTML = `Início <b>${sched.startStr}</b> &rarr; término <b>${sched.endStr}</b> (${sched.durMin} min de etapas com tempo)`;
+      c.innerHTML = `${sched.startStr} &rarr; ${sched.endStr}`;
     }
     renderSchedComputed();
 
@@ -4924,6 +4821,20 @@ window.addEventListener("unhandledrejection", function(e){
       };
     });
     schedBox.querySelector("#schedTime").onchange = e => { editorDraft.schedule.time = e.target.value; renderSchedComputed(); };
+
+    // meta semanal
+    const goalLabel = document.createElement("div");
+    goalLabel.className = "section-label"; goalLabel.textContent = "Meta semanal";
+    stepsWrap.appendChild(goalLabel);
+    const goalBox = document.createElement("div");
+    goalBox.className = "schedule-box";
+    goalBox.innerHTML = `
+      <div class="sched-time-row" style="margin-top:0;">
+        <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="weeklyGoal" value="${editorDraft.weeklyGoalTimes||0}"> vezes/semana
+      </div>
+    `;
+    stepsWrap.appendChild(goalBox);
+    goalBox.querySelector("#weeklyGoal").oninput = e => { editorDraft.weeklyGoalTimes = Math.max(0, +e.target.value || 0); };
 
     // ciclo de repetição
     if(!editorDraft.cycle) editorDraft.cycle = { enabled:false, from:1, to:1, times:2 };
@@ -4958,29 +4869,12 @@ window.addEventListener("unhandledrejection", function(e){
       };
     });
 
-    // meta semanal
-    const goalLabel = document.createElement("div");
-    goalLabel.className = "section-label"; goalLabel.textContent = "Meta semanal";
-    stepsWrap.appendChild(goalLabel);
-    const goalBox = document.createElement("div");
-    goalBox.className = "schedule-box";
-    goalBox.innerHTML = `
-      <div class="sched-time-row" style="margin-top:0;">
-        <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="weeklyGoal" value="${editorDraft.weeklyGoalTimes||0}"> vezes/semana
-        <span style="color:var(--muted); font-size:12.5px;">(0 = sem meta)</span>
-      </div>
-    `;
-    stepsWrap.appendChild(goalBox);
-    goalBox.querySelector("#weeklyGoal").oninput = e => { editorDraft.weeklyGoalTimes = Math.max(0, +e.target.value || 0); };
-
     const bottom = document.createElement("div");
     bottom.className = "bottom-actions";
-    bottom.style.flexWrap = "wrap";
-    bottom.innerHTML = `
-      <button class="btn-primary" id="saveEditBottom" style="flex-basis:100%;">Salvar</button>
-      ${!isNew ? `
-      <button class="btn-danger-outline" id="shareRoutine" style="border-color:var(--line); color:var(--muted);">Exportar</button>
-      <button class="btn-danger-outline" id="deleteRoutine">Excluir rotina</button>` : ""}`;
+    bottom.innerHTML = isNew
+      ? `<button class="btn-primary" id="saveEditBottom" style="flex-basis:100%;">Salvar</button>`
+      : `<button class="btn-danger-outline" id="deleteRoutine" style="flex:0 0 37%;">Excluir</button>
+         <button class="btn-primary" id="saveEditBottom" style="flex:1;">Salvar</button>`;
     el.appendChild(bottom);
 
     app.appendChild(el);
@@ -5000,15 +4894,14 @@ window.addEventListener("unhandledrejection", function(e){
         goTo({ tab:"home", screen:"home" });
       });
     }
-    document.getElementById("saveEdit").onclick = doSaveEdit;
     document.getElementById("saveEditBottom").onclick = doSaveEdit;
-    const shareBtn = document.getElementById("shareRoutine");
-    if(shareBtn) shareBtn.onclick = () => {
+    function shareRoutineExport(){
       const data = { type:"rotina-share", version:1, routine: JSON.parse(JSON.stringify(editorDraft)) };
       if(data.routine.schedule) data.routine.schedule.enabled = false;
       downloadFile("rotina-" + slugify(editorDraft.name||"rotina") + ".json", JSON.stringify(data, null, 2), "application/json", "Rotinas");
       showAlertBanner("Rotina exportada para Downloads ✓");
-    };
+    }
+    document.getElementById("shareRoutineTop").onclick = shareRoutineExport;
     const delBtn = document.getElementById("deleteRoutine");
     if(delBtn) delBtn.onclick = () => {
       confirmModal("Excluir a rotina <b>"+escapeHtml(editorDraft.name||"sem nome")+"</b>?", "Excluir", ()=>{
@@ -5950,7 +5843,7 @@ window.addEventListener("unhandledrejection", function(e){
         let rows = dayRoutines.map(({r,sched})=>`
           <div class="dev-row agenda-row" data-open="${r.id}">
             <span class="agenda-time">${sched.startStr}&ndash;${sched.endStr}</span>
-            <span style="flex:1;"><span class="r-dot" style="background:${fillStyle(r.color)}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</span>
+            <span style="flex:1;"><span class="r-dot" style="background:${fillStyle(corDaRotina(r))}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</span>
           </div>`).join("");
         body.innerHTML += `
           <div class="section-label">${DAY_NAMES[dow]}${isToday?' · hoje':''}</div>
@@ -6357,7 +6250,7 @@ window.addEventListener("unhandledrejection", function(e){
         return `
         <div class="bar-row tappable" data-rstats="${r.id}">
           <div class="bar-name">${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</div>
-          <div class="bar-track goal-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${fillStyle(r.color)}"></div><span class="goal-marker" style="left:${expPct}%"></span></div>
+          <div class="bar-track goal-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${fillStyle(corDaRotina(r))}"></div><span class="goal-marker" style="left:${expPct}%"></span></div>
           <div class="bar-val ${onPace?'early':'late'}" style="color:${onPace?'var(--good)':'var(--danger)'}">${doneCount}/${r.weeklyGoalTimes}x</div>
         </div>`;
       }).join("");
@@ -6380,7 +6273,7 @@ window.addEventListener("unhandledrejection", function(e){
         const segs = Object.entries(o).map(([rid,sec])=>{
           const r = routines.find(x=>x.id===rid);
           const h = Math.max(2, sec/maxDow*80);
-          return `<div class="stack-seg" style="height:${h}px; background:${solidColor(r&&r.color)}" title="${r?escapeHtml(r.name):''}: ${Math.round(sec/60)}min"></div>`;
+          return `<div class="stack-seg" style="height:${h}px; background:${solidColor(corDaRotina(r))}" title="${r?escapeHtml(r.name):''}: ${Math.round(sec/60)}min"></div>`;
         }).join("");
         return `<div class="stack-col"><span class="trend-val">${dowTotals[dow]?Math.round(dowTotals[dow]/60)+"m":""}</span><div class="stack-bars">${segs}</div><span class="trend-lbl">${DOWL[dow]}</span></div>`;
       }).join("") + `</div>`;
@@ -6545,7 +6438,7 @@ window.addEventListener("unhandledrejection", function(e){
 
       let dots = [...execIds].slice(0,3).map(id=>{
         const r = routines.find(x=>x.id===id);
-        return `<span class="mcal-dot" style="background:${solidColor(r&&r.color)}"></span>`;
+        return `<span class="mcal-dot" style="background:${solidColor(corDaRotina(r))}"></span>`;
       }).join("");
       if(executed.length > 0 && execIds.size === 0) dots = `<span class="mcal-dot" style="background:var(--muted)"></span>`;
 
@@ -6744,7 +6637,7 @@ window.addEventListener("unhandledrejection", function(e){
       const maxHour = Math.max(...hourCounts, 1);
       let hHtml = `<div class="hour-chart">` + hourCounts.map((c,hh)=>{
         const bh = c ? Math.max(3, c/maxHour*54) : 0;
-        return `<div class="hour-col">${hh%3===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}<div class="hour-bar-area"><div class="hour-bar" style="height:${bh}px; ${c?`background:${fillStyle(r.color)};`:""}"></div></div></div>`;
+        return `<div class="hour-col">${hh%3===0?`<span class="trend-lbl">${hh}h</span>`:'<span class="trend-lbl"></span>'}<div class="hour-bar-area"><div class="hour-bar" style="height:${bh}px; ${c?`background:${fillStyle(corDaRotina(r))};`:""}"></div></div></div>`;
       }).join("") + `</div>`;
       partes.push(`<div class="section-label">Horário real de início</div><div class="stat-card">${hHtml}</div>`);
     }
@@ -7073,11 +6966,11 @@ window.addEventListener("unhandledrejection", function(e){
     /* cabeçalho DENTRO da área que rola: numa tela de celular fixá-lo comia a
        altura útil (mesmo padrão de Dados e Diário) */
     el.innerHTML = `<div class="tab-scroll">
-      <div class="home-header"><h1>Modelos</h1><div class="header-right">${cfgBtnHtml()}</div></div>
-      <div class="header-right" style="margin-bottom:14px;">
-        <button class="bell-btn" id="importTmplBtn" title="Importar modelo" aria-label="Importar modelo">${svgIcon(ICON_D.arrowUpTray,14)} importar</button>
+      <div class="home-header"><h1>Modelos</h1><div class="header-right">
+        <button class="bell-btn" id="importTmplBtn" title="Importar modelo" aria-label="Importar modelo">${svgIcon(ICON_D.arrowUpTray,14)}</button>
+        ${cfgBtnHtml()}
         <input type="file" id="importTmplFile" accept="application/json" style="display:none">
-      </div>
+      </div></div>
       <div class="tmpl-folders">
         ${secoes.map(s=>`<div class="tmpl-sep"><span>${escapeHtml(s.label)}</span></div>${grade(s.tiles)}`).join("")}
         <div class="tmpl-sep"><span>Anotações de Rotinas</span></div>
@@ -8714,7 +8607,7 @@ window.addEventListener("unhandledrejection", function(e){
           <span data-mrtipo="diaria" class="${(!rec||rec.tipo==='diaria')?'active':''}">ao dia</span>
           <span data-mrtipo="semanal" class="${rec&&rec.tipo==='semanal'?'active':''}">na semana</span>
         </div>
-        <label class="switch-row" style="margin-top:12px;"><span>Meta negativa (limitar algo, ex.: pedir delivery)</span><input type="checkbox" id="mrNegativa" ${rec&&rec.negativa?'checked':''}></label>
+        <label class="switch-row" style="margin-top:12px;"><span>Meta negativa</span><input type="checkbox" id="mrNegativa" ${rec&&rec.negativa?'checked':''}></label>
         <div class="section-label" style="margin:12px 0 6px;" id="mrVezesLabel">Quantas vezes</div>
         <input type="number" id="mrVezes" inputmode="numeric" min="1" max="20" style="width:110px;" value="${rec?rec.vezes:4}">
         <div class="dev-n" id="mrNegativaHint" style="margin-top:6px;"></div>
@@ -8837,14 +8730,13 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       </div>
       ${rodaVidaResumoHtml()}
-      <div class="type-toggle" id="metasSubviewToggle" style="margin-bottom:14px;">
-        <span data-metasview="recorrentes" class="${mostraRecorrentes?'active':''}">Recorrentes</span>
-        <span data-metasview="prazos" class="${mostraPrazos?'active':''}">Prazos</span>
+      <div class="area-chips area-filter-row" id="metasSubviewToggle" style="margin-bottom:14px;">
+        <span class="area-chip ${mostraRecorrentes?'sel':''}" data-metasview="recorrentes" style="--chip:var(--accent);">Recorrentes</span>
+        <span class="area-chip ${mostraPrazos?'sel':''}" data-metasview="prazos" style="--chip:var(--accent);">Prazos</span>
       </div>
-      <div class="header-right" style="margin-bottom:14px; flex-wrap:wrap;">
-        ${mostraPrazos ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>` : ""}
-        <button class="bell-btn ${densidadeCompacta?'on':''}" id="metasDensidadeBtn" title="Alternar densidade da lista" aria-label="Alternar densidade da lista" aria-pressed="${densidadeCompacta?'true':'false'}">${svgIcon(ICON_D.listBullet,14)}</button>
-      </div>
+      ${mostraPrazos ? `<div class="header-right" style="margin-bottom:14px; flex-wrap:wrap;">
+        <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>
+      </div>` : ""}
       ${metasAreaFiltroChipsHtml()}
       <div id="metasBody" style="padding-bottom:20px;"></div>
     </div>`;
@@ -8869,7 +8761,6 @@ window.addEventListener("unhandledrejection", function(e){
       save(K_SOHOJE, homeSoHoje);
       render();
     };
-    el.querySelector("#metasDensidadeBtn").onclick = () => { toggleDensidade(); render(); };
     const body = el.querySelector("#metasBody");
     const fabMeta = document.createElement("button");
     fabMeta.className = "fab"; fabMeta.textContent = "+";
@@ -12412,7 +12303,7 @@ window.addEventListener("unhandledrejection", function(e){
     const steps = playerState.steps;
     const step = currentStep();
     const rem = computeRemaining();
-    const rColor = playerState.routine.color;
+    const rColor = corDaRotina(playerState.routine);
 
     /* ---- MODO ZEN ---- */
     if(playerState.zen){
@@ -12743,7 +12634,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
     if(escopo === "mes") return MESES_PT[d.getMonth()] + " de " + d.getFullYear();
     if(escopo === "ano") return "ano de " + d.getFullYear();
-    return DIAS_PT[d.getDay()] + ", " + dm(d) + "/" + d.getFullYear();
+    return DIAS_PT[d.getDay()];
   }
 
   /* ---- Kanban por escopo do Diário (dia / semana / mês / ano) ----
@@ -13119,7 +13010,7 @@ window.addEventListener("unhandledrejection", function(e){
           <h1>Diário</h1>
           <div class="header-right">
             <button class="icon-btn" id="diNovoCompromisso" title="Novo compromisso" aria-label="Novo compromisso">${svgIcon(ICON_D.plus,16)}</button>
-            <button class="bell-btn di-hoje" id="diHoje" title="Ir para hoje">hoje</button>
+            ${!ehDesktop() ? `<button class="bell-btn di-hoje" id="diAgendaToggle" title="${diarioAgenda?'Voltar para a nota':'Ver a agenda'}">${diarioAgenda?svgIcon(ICON_D.arrowLeft,15)+' nota':svgIcon(ICON_D.calendar,14)+' agenda'}</button>` : ""}
             ${cfgBtnHtml()}
           </div>
         </div>
@@ -13128,8 +13019,8 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
         <div class="di-daterow">
           <input type="date" id="diData" value="${diarioData}">
-          <span class="dev-n">${diarioRotulo(diarioEscopo, diarioData)}</span>
         </div>
+        <div class="dev-n di-daterow-label">${diarioRotulo(diarioEscopo, diarioData)}</div>
         ${rodaVidaResumoHtml()}
         <div id="diContent"></div>
       </div>
@@ -13238,32 +13129,18 @@ window.addEventListener("unhandledrejection", function(e){
       }
       repintarAgendaDoDiario = null;
       if(diarioAgenda){
-        // o caminho de volta mora na mesma linha do botão que abriu a agenda
-        body.innerHTML = `<div class="di-tools">
-            <button class="bell-btn di-hoje" id="diAgenda" title="Voltar para a nota do dia">${svgIcon(ICON_D.arrowLeft,15)} nota</button>
-          </div>` + agendaHtmlPara(esc, texto(), diarioData);
+        body.innerHTML = agendaHtmlPara(esc, texto(), diarioData);
         wireAgendaBlocos();
-        wireAgendaToggle();
         return;
       }
       // fora da agenda, a nota do período é o editor contínuo — sempre editável
       body.innerHTML = `
-        <div class="di-tools">
-          <button class="bell-btn di-hoje" id="diAgenda" title="Ver a agenda">${svgIcon(ICON_D.calendar,14)} agenda</button>
-        </div>
-        <div class="section-label">Kanban ${KB_ESCOPO_LABEL[esc]}</div>
         <div class="kb-board kb-inline" id="diKanban"></div>
         <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]} <span class="live-saved-badge dev-n"></span></div>
         <div class="live-editor di-live" id="liveEditor"></div>`;
       liveCtx = diarioLiveCtx();
       renderLiveEditor();
       pintarKanbanDoPeriodo();
-      wireAgendaToggle();
-    }
-    /* o botão vive dentro de #diContent, que paint() reescreve: religar sempre */
-    function wireAgendaToggle(){
-      const bt = body.querySelector("#diAgenda");
-      if(bt) bt.onclick = () => { liveFocado = false; diarioAgenda = !diarioAgenda; render(); };
     }
     paint();
 
@@ -13281,8 +13158,9 @@ window.addEventListener("unhandledrejection", function(e){
     el.querySelector("#diData").onchange = e => {
       trocarPeriodo(() => { diarioData = e.target.value || localKey(); });
     };
-    el.querySelector("#diHoje").onclick = () => trocarPeriodo(() => { diarioData = localKey(); });
     el.querySelector("#diNovoCompromisso").onclick = () => abrirNovoCompromisso({ date: diarioData });
+    const agendaToggleBtn = el.querySelector("#diAgendaToggle");
+    if(agendaToggleBtn) agendaToggleBtn.onclick = () => { liveFocado = false; diarioAgenda = !diarioAgenda; render(); };
 
     /* arrastar a página para a direita abre a agenda do período; para a esquerda, volta */
     let tx0 = null, ty0 = null;
@@ -13849,6 +13727,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="sched-time-row" style="margin-top:0;">
           <button class="icon-btn" data-rodaup="${a.id}" title="Mover para cima" aria-label="Mover para cima" ${i===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,13)}</button>
           <button class="icon-btn" data-rodadown="${a.id}" title="Mover para baixo" aria-label="Mover para baixo" ${i===areas.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,13)}</button>
+          <input type="color" class="area-color-swatch" data-rodacolor="${a.id}" value="${a.color}" title="Cor da área" aria-label="Cor da área — usada também nas rotinas dessa área">
           <span style="flex:1; color:${a.color};">${escapeHtml(a.label)}</span>
           <input class="dur-input" type="number" min="1" max="10" data-rodapeso="${a.id}" value="${a.peso}">
           <button class="icon-btn" data-rodadel="${a.id}" title="Remover área" aria-label="Remover área">${svgIcon(ICON_D.xmark,14)}</button>
@@ -13856,6 +13735,12 @@ window.addEventListener("unhandledrejection", function(e){
       lista.querySelectorAll("[data-rodapeso]").forEach(inp=> inp.onchange = () => {
         const a = rodaAreas().find(x=>x.id===inp.dataset.rodapeso);
         if(a){ a.peso = Math.max(1, Math.min(10, +inp.value || 5)); save(K_GAMIFICACAO, gam); }
+      });
+      // cor da área: usada também como cor das rotinas designadas a ela (o
+      // editor de rotina não escolhe mais cor própria)
+      lista.querySelectorAll("[data-rodacolor]").forEach(inp=> inp.onchange = () => {
+        const a = rodaAreas().find(x=>x.id===inp.dataset.rodacolor);
+        if(a){ a.color = inp.value; save(K_GAMIFICACAO, gam); pintarRodaLista(); render(); }
       });
       function moverArea(id, delta){
         const arr = gam.config.roda.areas;
@@ -14132,7 +14017,6 @@ window.addEventListener("unhandledrejection", function(e){
   if(CRYPTO_OK && load(K_PIN, null)) await showLockScreen();
   applyTheme();
   applyFontScale();
-  document.body.classList.toggle("compacto", densidadeCompacta);
   render();
   window.__britaBooted = true; // boot ok: overlay de erro fatal não é mais necessário
   startScheduler();
@@ -14173,7 +14057,6 @@ window.addEventListener("unhandledrejection", function(e){
       // entraram em SYNCED_KEYS mesmo fora de backupData()): aplicam o efeito
       // ao vivo, não só gravam a chave.
       case K_THEME: save(K_THEME, value); applyTheme(); break;
-      case K_DENSIDADE: densidadeCompacta = !!value; save(K_DENSIDADE, densidadeCompacta); document.body.classList.toggle("compacto", densidadeCompacta); break;
       case K_WEEKSTART: save(K_WEEKSTART, value); reancorarSemanaAtual(inicioSemanaISO(new Date())); break;
       default: return;
     }

@@ -29,8 +29,8 @@ const PLACEHOLDER_CLIENT_ID = "SUBSTITUA_AQUI.apps.googleusercontent.com";
    backup/restore. Coleção nova entrando em backupData() e nos dois handlers de
    import (CLAUDE.md) também precisa entrar aqui, senão sai do sync.
 
-   Desvio deliberado: as 3 chaves de preferência de UI abaixo (tema, densidade,
-   início da semana) NÃO estão em backupData() — não fazem sentido num backup
+   Desvio deliberado: as 2 chaves de preferência de UI abaixo (tema, início
+   da semana) NÃO estão em backupData() — não fazem sentido num backup
    de dados, e um restore não deveria mudar a aparência do app — mas ainda
    valem a pena sincronizar entre desktop e celular, porque são escalares
    pequenos sem necessidade de merge (last-write-wins é sempre correto aqui,
@@ -50,7 +50,6 @@ const SYNCED_KEYS = [
   "rotinas_v2_exercicios",
   "rotinas_v2_compromissos",
   "rotinas_v2_theme",
-  "rotinas_v2_densidade",
   "rotinas_v2_weekstart"
 ];
 
