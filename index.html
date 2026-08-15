@@ -374,6 +374,11 @@
   .switch-row{ display:flex; align-items:center; justify-content:space-between; font-size:15px; }
   .switch-row input[type=checkbox]{ width:44px; height:26px; accent-color: var(--accent); }
   .sched-time-row{ margin-top:14px; display:flex; align-items:center; gap:12px; }
+  /* "a cada N dias" + "a partir de <data>": duas .sched-time-row empilhadas —
+     a coluna vem daqui, e não de inline style, porque o JS do toggle de modo
+     só liga/desliga o display (none/flex); sem a classe, ligar de volta caía
+     no flex-direction:row padrão e as duas linhas voltavam a disputar espaço. */
+  .sched-intervalo-wrap{ display:flex; flex-direction:column; gap:8px; }
   .sched-time-row input[type=time]{
     background:var(--surface-2); border:1px solid var(--line); border-radius:10px; color:var(--text);
     font-family:'Inter', sans-serif; font-size:16px; padding:8px 10px;
@@ -550,6 +555,13 @@
 
   /* ---------- STATS ---------- */
   .stat-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:6px; box-shadow: var(--shadow-1); }
+  /* card de meta recorrente: alça de arrastar à esquerda, editar/excluir
+     empilhados à direita, os dois centralizados na altura do card inteiro */
+  .rec-card{ display:flex; align-items:center; gap:10px; }
+  .rec-card.dragging{ opacity:.45; }
+  .rec-drag{ flex-shrink:0; align-self:center; color:var(--muted); font-size:15px; cursor:grab; touch-action:none; padding:2px 4px; }
+  .rec-card-body{ flex:1; min-width:0; }
+  .rec-actions{ display:flex; flex-direction:column; gap:6px; flex-shrink:0; align-self:center; }
   .cal-grid{ display:grid; grid-template-columns: repeat(14, 1fr); gap:5px; }
   .cal-dot{ aspect-ratio:1; border-radius:4px; background:var(--surface-2); }
   .cal-dot.on{ background:var(--grad); }
@@ -1012,9 +1024,13 @@
   .qa-idea-nome{ font-size:14px; }
   .qa-idea-meta{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
-  .kb-e-horas{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  /* data numa linha, início/"até"/fim noutra — duas linhas fixas, não um
+     flex-wrap solto (que quebrava de um jeito diferente a cada largura de tela) */
+  .kb-e-horas{ display:flex; flex-direction:column; gap:8px; }
+  .kb-e-horas .kb-horas-row{ display:flex; align-items:center; gap:8px; }
   .kb-e-horas input[type=time], .kb-e-horas input[type=date]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
     color:var(--text); font-family:'Inter', sans-serif; font-size:13px; padding:6px 8px; }
+  .kb-e-horas input[type=date]{ flex:1; }
   /* segmentado de coluna do kanban do Diário (uma coluna por vez) */
   .kb-abas{ margin-bottom:8px; }
   .kb-abas span{ flex:1; text-align:center; white-space:nowrap; }
@@ -1044,9 +1060,11 @@
   .kb-peso.feito{ color:var(--good); border-color:var(--good); }
   .kb-add{ width:100%; background:transparent; border:none; border-top:1px dashed var(--line); color:var(--text); font-size:13.5px; padding:8px 2px 2px; }
   .kb-add:focus{ outline:none; }
-  .kb-add-horas{ display:flex; align-items:center; gap:6px; padding:4px 2px 2px; flex-wrap:wrap; }
+  .kb-add-horas{ display:flex; flex-direction:column; gap:6px; padding:4px 2px 2px; }
+  .kb-add-horas .kb-horas-row{ display:flex; align-items:center; gap:6px; }
   .kb-add-horas input[type=time], .kb-add-horas input[type=date]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
     color:var(--text); font-family:'Inter', sans-serif; font-size:12px; padding:4px 6px; }
+  .kb-add-horas input[type=date]{ flex:1; }
 
   /* ---------- CONTAGEM / PESOS ---------- */
   .cd-big{ font-family:'Inter', sans-serif; font-size:40px; font-weight:500; }
@@ -1596,11 +1614,26 @@ window.addEventListener("unhandledrejection", function(e){
      cairia em TDZ. */
   let diaKanban = load(K_DIAKANBAN, []);
   function saveDiaKanban(){ save(K_DIAKANBAN, diaKanban); }
-  /* Biblioteca de exercícios: [{id,nome,grupo,pesoAtual}], referenciada por
+  /* Biblioteca de exercícios: [{id,nome,grupos,pesoAtual}], referenciada por
      etapas de rotina do tipo "exercicio" (s.exercicioId). Declarada aqui junto
      dos outros dados, mesma razão do diaKanban acima (TDZ com backupData()). */
   let exercicios = load(K_EXERCICIOS, []);
   function saveExercicios(){ save(K_EXERCICIOS, exercicios); }
+  // grupos musculares são sempre os mesmos — por isso o editor de exercício
+  // usa seleção múltipla de chips em vez de texto livre
+  const GRUPOS_MUSCULARES = ["Peito","Costas","Ombros","Bíceps","Tríceps","Antebraço","Abdômen","Pernas","Glúteos","Panturrilha"];
+  // migração: ex.grupo (string livre) → ex.grupos (array, restrito à lista acima)
+  (function migrarGruposExercicio(){
+    let mudou = false;
+    exercicios.forEach(ex=>{
+      if(ex.grupos !== undefined) return;
+      mudou = true;
+      const bruto = ex.grupo ? String(ex.grupo).split(/[,;/]/).map(s=>s.trim()).filter(Boolean) : [];
+      ex.grupos = bruto.map(g => GRUPOS_MUSCULARES.find(gm => gm.toLowerCase() === g.toLowerCase()) || g).filter((g,i,arr)=>arr.indexOf(g)===i);
+      delete ex.grupo;
+    });
+    if(mudou) saveExercicios();
+  })();
   /* Compromissos avulsos: [{id,title,date,time,notify,createdAt}]. Independentes
      de rotina/kanban — dia e horário próprios, notificação opcional (no dia,
      no dia anterior). Declarado aqui pela mesma razão de TDZ do diaKanban. */
@@ -1765,7 +1798,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-15 (v18)";
+  const BUILD_STAMP = "2026-08-15 (v19)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -1810,7 +1843,22 @@ window.addEventListener("unhandledrejection", function(e){
          + "-" + p(d.getHours()) + p(d.getMinutes());
   }
 
-  function routineDuration(r){ return playbackSteps(r).reduce((acc,s)=> acc + (s.type==="timer" ? (s.seconds||0) : 0), 0); }
+  // estimativa de execução de UMA série de exercício (não é configurável —
+  // é só o "peso" de tempo usado pra render a duração/horário da rotina,
+  // já que a etapa "exercicio" não tem s.seconds próprio)
+  const EXERCICIO_SET_SEG = 60;
+  function routineDuration(r){
+    return playbackSteps(r).reduce((acc,s)=>{
+      if(s.type === "timer") return acc + (s.seconds||0);
+      if(s.type === "exercicio"){
+        const sets = s.sets || 1;
+        // séries + descanso ENTRE elas (mesma referência que concluirSerieExercicio
+        // usa pra cronometrar o descanso de verdade no player: r.restSeconds||120)
+        return acc + sets*EXERCICIO_SET_SEG + Math.max(0, sets-1)*(r.restSeconds||120);
+      }
+      return acc;
+    }, 0);
+  }
 
   // normalizar dados de versões anteriores
   routines.forEach(r=>{
@@ -2016,15 +2064,18 @@ window.addEventListener("unhandledrejection", function(e){
   // só para a UI: a rotina está descontada na semana em curso?
   function rotinaEhHabito(r){ return !!((gam.semanaAtual && gam.semanaAtual.habitos) || {})[r.id]; }
 
-  function construirAgendaSemana(mapaHab){
+  // inicioISO ancora a semana numa data REAL (não só um dow abstrato) — é o
+  // que permite uma rotina de intervalo (a cada N dias) entrar na conta,
+  // já que ela não repete pelo dia da semana
+  function construirAgendaSemana(mapaHab, inicioISO){
     const itens = [];
     let totalBruto = 0;
     const porArea = {};
-    const inicio = weekStartDow();
+    const base = isoToDate(inicioISO || inicioSemanaISO(new Date()));
     for(let dia=0; dia<7; dia++){
-      const dow = (inicio + dia) % 7; // dia = offset dentro da semana configurada; dow = dia real (getDay())
+      const dataDia = new Date(base); dataDia.setDate(dataDia.getDate() + dia);
       routines.forEach(r=>{
-        if(!r.schedule || !r.schedule.enabled || !r.schedule.days.includes(dow)) return;
+        if(!rotinaAgendadaEm(r, dataDia)) return;
         const fh = fatorHabito(r.id, mapaHab);
         const area = areaDaRotina(r);
         (r.steps||[]).forEach(s=>{
@@ -2080,7 +2131,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function congelarSemana(inicioISO){
     const habitos = mapaHabitos();
-    const { itens, totalBruto, porArea } = construirAgendaSemana(habitos);
+    const { itens, totalBruto, porArea } = construirAgendaSemana(habitos, inicioISO);
     const fator = fatorNormalizacaoPara(totalBruto);
     const fatoresArea = fatoresPorArea(porArea);
     gam.semanaAtual = {
@@ -2102,7 +2153,7 @@ window.addEventListener("unhandledrejection", function(e){
     // reparo usa o mapa de hábitos JÁ congelado: recalcular o streak agora
     // mudaria o peso das etapas no meio da semana
     const habitos = sem.habitos || {};
-    const { itens, totalBruto, porArea } = construirAgendaSemana(habitos);
+    const { itens, totalBruto, porArea } = construirAgendaSemana(habitos, sem.inicioISO);
     const fator = fatorNormalizacaoPara(totalBruto);
     if(fator <= 0) return;
     const fatoresArea = fatoresPorArea(porArea);
@@ -2490,9 +2541,9 @@ window.addEventListener("unhandledrejection", function(e){
     const diasRestantes = 7 - diaIdxHoje; // inclui hoje
     let minutosRotinas = 0;
     for(let off=0; off<diasRestantes; off++){
-      const dow = (diaSemanaHoje() + off) % 7;
+      const dataDia = new Date(); dataDia.setDate(dataDia.getDate() + off);
       routines.forEach(r=>{
-        if(!r.schedule || !r.schedule.enabled || !r.schedule.days.includes(dow)) return;
+        if(!rotinaAgendadaEm(r, dataDia)) return;
         (r.steps||[]).forEach(s=>{
           if(s.isRest) return;
           if(s.type==="timer") minutosRotinas += (s.seconds||0)/60;
@@ -2944,14 +2995,14 @@ window.addEventListener("unhandledrejection", function(e){
     const r = routines.find(x=>x.id===routineId);
     const days = new Set(history.filter(h=>h.routineId===routineId).map(h=>h.date));
     if(days.size===0) return 0;
-    // rotina agendada em dias específicos: dias fora da agenda não contam nem quebram
-    const schedDays = (r && r.schedule && r.schedule.enabled && r.schedule.days && r.schedule.days.length < 7) ? r.schedule.days : null;
+    // rotina agendada em dias específicos (ou por intervalo): dias fora da
+    // agenda não contam nem quebram
+    const restrito = !!(r && r.schedule && r.schedule.enabled && (r.schedule.mode === "intervalo" || (r.schedule.days && r.schedule.days.length < 7)));
     const todayKey = localKey();
     let streak = 0, d = new Date(), guard = 0;
     while(guard++ < 3700){
       const key = localKey(d);
-      const dow = d.getDay();
-      if(schedDays && !schedDays.includes(dow)){ d.setDate(d.getDate()-1); continue; }
+      if(restrito && !rotinaAgendadaEm(r, d)){ d.setDate(d.getDate()-1); continue; }
       if(days.has(key)){ streak++; d.setDate(d.getDate()-1); }
       else if(key === todayKey){ d.setDate(d.getDate()-1); } // hoje ainda em curso não quebra
       else break;
@@ -2960,11 +3011,11 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   // dia sem NENHUMA rotina agendada devida (todas as agendadas são de dias
-  // específicos que não incluem esse dow) não deveria contar contra a
-  // sequência global — mesmo critério que computeStreakFor já aplica por
-  // rotina, só que aqui olhando o conjunto de rotinas agendadas
-  function algumaRotinaDevidaEm(dow){
-    return routines.some(r => r.schedule && r.schedule.enabled && r.schedule.days && r.schedule.days.includes(dow));
+  // específicos, ou de intervalo, que não caem nessa data) não deveria contar
+  // contra a sequência global — mesmo critério que computeStreakFor já aplica
+  // por rotina, só que aqui olhando o conjunto de rotinas agendadas
+  function algumaRotinaDevidaEm(date){
+    return routines.some(r => rotinaAgendadaEm(r, date));
   }
   function computeStreak(){
     if(history.length===0) return 0;
@@ -2975,7 +3026,7 @@ window.addEventListener("unhandledrejection", function(e){
       const key = localKey(d);
       if(days.has(key)){ streak++; d.setDate(d.getDate()-1); }
       else if(key === todayKey){ d.setDate(d.getDate()-1); } // hoje em curso não quebra
-      else if(!algumaRotinaDevidaEm(d.getDay())){ d.setDate(d.getDate()-1); } // nada devido nesse dia — não quebra
+      else if(!algumaRotinaDevidaEm(d)){ d.setDate(d.getDate()-1); } // nada devido nesse dia — não quebra
       else break;
     }
     return streak;
@@ -3180,9 +3231,10 @@ window.addEventListener("unhandledrejection", function(e){
     const p = overlayPlugin();
     if(!p) return;
     if(!overlayAtivo() || !playerState){ pararOverlay(); return; }
-    const step = currentStep();
-    if(!step || step.type !== "timer"){ pararOverlay(); return; }
-    const remMs = computeRemaining() * 1000;
+    const cd = activeCountdown();
+    if(!cd){ pararOverlay(); return; }
+    const ref = (playerState.paused && playerState.pausedAt) ? playerState.pausedAt : Date.now();
+    const remMs = cd.endTs - ref;
     try{
       const r = p.show({
         endTs: playerState.paused ? 0 : Date.now() + remMs,
@@ -3190,9 +3242,9 @@ window.addEventListener("unhandledrejection", function(e){
         // "+MM:SS", e não 00:00 como antes
         remainingMs: remMs,
         paused: !!playerState.paused,
-        auto: !!step.isRest,
+        auto: cd.auto,
         visible: appEmSegundoPlano,
-        label: step.name || playerState.routine.name || "",
+        label: cd.label || playerState.routine.name || "",
         queue: JSON.stringify(filaOverlay())
       });
       if(r && r.catch) r.catch(e => console.error("overlay:", e));
@@ -3245,36 +3297,42 @@ window.addEventListener("unhandledrejection", function(e){
   async function sincronizarAlertaFundo(){
     await cancelarAlertaFundo();
     if(!isNative || !appEmSegundoPlano || !playerState || playerState.paused) return;
-    const step = currentStep();
-    if(!step || step.type !== "timer" || !playerState.stepEndTs) return;
+    const cd = activeCountdown();
+    if(!cd) return;
     try{
       const LN = nativeLN();
       const perm = await LN.checkPermissions();
       if(perm.display !== "granted") return;
       const channelId = soundMode(playerState.routine) === "mudo" ? "brita_timer_mudo" : "brita_timer";
       const notifs = [];
-      let quando = playerState.stepEndTs;
+      let quando = cd.endTs;
       let n = 0;
       notifs.push({
         id: STEPALERT_ID_BASE + n, channelId,
-        title: step.isRest ? "Descanso acabou" : "Tempo esgotado",
-        body: playerState.routine.name + (step.name ? " — " + step.name : ""),
+        title: cd.isRest ? "Descanso acabou" : "Tempo esgotado",
+        body: playerState.routine.name + (cd.label ? " — " + cd.label : ""),
         extra: { brita:"stepAlert" },
         schedule: { at: new Date(quando), allowWhileIdle: true }
       });
       n++;
-      for(let i = playerState.idx+1; i < playerState.steps.length && n < 10; i++){
-        const s = playerState.steps[i];
-        if(s.type !== "timer" || !s.isRest) break;
-        quando += s.seconds*1000;
-        notifs.push({
-          id: STEPALERT_ID_BASE + n, channelId,
-          title: "Descanso acabou",
-          body: playerState.routine.name + (s.name ? " — " + s.name : ""),
-          extra: { brita:"stepAlert" },
-          schedule: { at: new Date(quando), allowWhileIdle: true }
-        });
-        n++;
+      // encadeamento dos próximos descansos automáticos: só se aplica à
+      // sequência de etapas "timer" — o descanso entre séries de exercício
+      // não tem próxima etapa conhecida (depende da série ser concluída
+      // manualmente), então fica só o alarme desta pausa
+      if(cd.endTs === playerState.stepEndTs){
+        for(let i = playerState.idx+1; i < playerState.steps.length && n < 10; i++){
+          const s = playerState.steps[i];
+          if(s.type !== "timer" || !s.isRest) break;
+          quando += s.seconds*1000;
+          notifs.push({
+            id: STEPALERT_ID_BASE + n, channelId,
+            title: "Descanso acabou",
+            body: playerState.routine.name + (s.name ? " — " + s.name : ""),
+            extra: { brita:"stepAlert" },
+            schedule: { at: new Date(quando), allowWhileIdle: true }
+          });
+          n++;
+        }
       }
       await LN.schedule({ notifications: notifs });
     }catch(e){ console.error("sincronizarAlertaFundo:", e); }
@@ -3353,6 +3411,27 @@ window.addEventListener("unhandledrejection", function(e){
       routines.forEach(r => {
         const sched = computeSchedule(r);
         if(!sched) return;
+        // rotina de intervalo não repete num dia da semana fixo — não dá pra
+        // usar "on:{weekday}" recorrente do plugin, então agenda as próximas
+        // ocorrências como notificações avulsas (mesmo padrão dos compromissos)
+        if(r.schedule.mode === "intervalo"){
+          proximasOcorrenciasIntervalo(r, 10).forEach((data, i) => {
+            const quando = new Date(data);
+            quando.setHours(Math.floor(sched.startMin/60), sched.startMin % 60, 0, 0);
+            if(quando.getTime() <= Date.now()) return;
+            let nid = notifIdFor(r.id, i);
+            while(usedIds.has(nid)) nid += 8;
+            usedIds.add(nid);
+            notifs.push({
+              id: nid,
+              title: "Hora de começar: " + r.name,
+              body: "Início previsto às " + sched.startStr,
+              extra: { routineId: r.id, brita: "sched" },
+              schedule: { at: quando, allowWhileIdle: true }
+            });
+          });
+          return;
+        }
         const days = (r.schedule.days && r.schedule.days.length) ? r.schedule.days : [0,1,2,3,4,5,6];
         days.forEach(d => {
           let nid = notifIdFor(r.id, d);
@@ -3630,16 +3709,51 @@ window.addEventListener("unhandledrejection", function(e){
     const d = r && r.schedule && r.schedule.days;
     return (d && d.length) ? d : [0,1,2,3,4,5,6];
   }
+  /* Ponto único de verdade de "essa rotina roda NESSA DATA": dia-da-semana
+     (padrão) ou intervalo fixo de N dias (r.schedule.mode==="intervalo"),
+     contado a partir de r.schedule.intervaloInicio. Todo lugar que decidia
+     isso direto por schedule.days.includes(dow) passa por aqui — é o que
+     permite um modo novo sem duplicar a regra em cada tela/relatório/notificação. */
+  function rotinaAgendadaEm(r, date){
+    if(!r || !r.schedule || !r.schedule.enabled) return false;
+    if(r.schedule.mode === "intervalo"){
+      const n = Math.max(1, r.schedule.intervaloDias || 1);
+      const ref = isoToDate(r.schedule.intervaloInicio || localKey(date));
+      const alvo = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const diffDias = Math.round((alvo - ref) / 86400000);
+      return diffDias >= 0 && diffDias % n === 0;
+    }
+    return diasDaRotina(r).includes(date.getDay());
+  }
+  // menor data >= aPartirDe em que a rotina de intervalo volta a ocorrer
+  function proximaOcorrenciaIntervalo(r, aPartirDe){
+    const n = Math.max(1, r.schedule.intervaloDias || 1);
+    const ref = isoToDate(r.schedule.intervaloInicio || localKey(aPartirDe));
+    const base = new Date(aPartirDe.getFullYear(), aPartirDe.getMonth(), aPartirDe.getDate());
+    const diff = Math.round((base - ref) / 86400000);
+    const offset = diff < 0 ? -diff : ((n - (diff % n)) % n);
+    const d = new Date(base); d.setDate(d.getDate() + offset);
+    return d;
+  }
+  function proximasOcorrenciasIntervalo(r, count){
+    const n = Math.max(1, r.schedule.intervaloDias || 1);
+    const out = [];
+    let d = proximaOcorrenciaIntervalo(r, new Date());
+    for(let i=0; i<count; i++){ out.push(new Date(d)); d.setDate(d.getDate() + n); }
+    return out;
+  }
   function diasChipHtml(r){
+    if(r && r.schedule && r.schedule.mode === "intervalo"){
+      return `<div class="sched-chip chip-block" style="color:var(--muted);">a cada ${r.schedule.intervaloDias||1}d</div>`;
+    }
     const dias = diasDaRotina(r);
     if(dias.length >= 7) return "";
     return `<div class="sched-chip chip-block" style="color:var(--muted);">${dias.slice().sort((a,b)=>a-b).map(d=>DIAS_ABREV[d]).join("/")}</div>`;
   }
-  /* "Deve ser feita hoje" = tem agendamento ativo e hoje está entre os dias.
+  /* "Deve ser feita hoje" = tem agendamento ativo e hoje é uma ocorrência.
      Rotina sem agendamento não tem dia devido, então fica fora do filtro. */
   function rotinaOcorreHoje(r){
-    if(!r.schedule || !r.schedule.enabled) return false;
-    return diasDaRotina(r).includes(new Date().getDay());
+    return rotinaAgendadaEm(r, new Date());
   }
 
   /* A lista de rotinas fica sempre em ordem de horário de início. Rotina sem
@@ -3670,7 +3784,7 @@ window.addEventListener("unhandledrejection", function(e){
     routines.forEach(r=>{
       const sched = computeSchedule(r);
       if(!sched) return;
-      if(r.schedule.days && !r.schedule.days.includes(now.getDay())) return;
+      if(!rotinaAgendadaEm(r, now)) return;
       if(alerted[r.id] === todayStr) return;
       const GRACE_MIN = 60;
       const diff = nowMin - sched.startMin;
@@ -3819,14 +3933,16 @@ window.addEventListener("unhandledrejection", function(e){
     scroll.innerHTML = `
       <div class="home-header" style="margin-bottom:10px;">
         <h1>Rotinas</h1>
-        <div class="header-right">${cfgBtnHtml()}</div>
+        <div class="header-right">
+          <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">${svgIcon(ICON_D.arrowUpTray,14)}</button>
+          <button class="bell-btn" id="tplLibraryBtn" title="Modelos prontos" aria-label="Modelos prontos">${svgIcon(ICON_D.templates,14)}</button>
+          ${cfgBtnHtml()}
+        </div>
       </div>
       ${rodaVidaResumoHtml()}
       <div class="header-right" style="margin-bottom:18px; flex-wrap:wrap;">
         <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">hoje</button>
         <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">${svgIcon(ICON_D.calendar,14)} agenda</button>
-        <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">${svgIcon(ICON_D.arrowUpTray,14)}</button>
-        <button class="bell-btn" id="tplLibraryBtn" title="Modelos prontos" aria-label="Modelos prontos">${svgIcon(ICON_D.templates,14)}</button>
         <button class="bell-btn" id="boletimBtn" title="Boletim da semana" aria-label="Boletim da semana">${svgIcon(ICON_D.trophy, 17)}</button>
         <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
       </div>
@@ -4037,7 +4153,7 @@ window.addEventListener("unhandledrejection", function(e){
       s.id = uid();
       if(s.type === "exercicio" && s._exNome){
         let ex = exercicios.find(x=>x.nome.toLowerCase() === s._exNome.toLowerCase());
-        if(!ex){ ex = novoExercicio(s._exNome, s._exGrupo||"", 0); criouExercicio = true; }
+        if(!ex){ ex = novoExercicio(s._exNome, s._exGrupo?[s._exGrupo]:[], 0); criouExercicio = true; }
         s.exercicioId = ex.id;
         s.name = ex.nome;
         delete s._exNome; delete s._exGrupo;
@@ -4309,7 +4425,7 @@ window.addEventListener("unhandledrejection", function(e){
       const ex = stepExercicioId ? exercicios.find(x=>x.id===stepExercicioId) : null;
       if(ex){
         wrap.innerHTML = `<div class="qa-idea-row" style="flex-direction:row; align-items:center; justify-content:space-between;">
-          <span class="qa-idea-nome" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(ex.nome)}${ex.grupo?` <span style="color:var(--muted); font-size:12px;">· ${escapeHtml(ex.grupo)}</span>`:''}</span>
+          <span class="qa-idea-nome" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(ex.nome)}${(ex.grupos&&ex.grupos.length)?` <span style="color:var(--muted); font-size:12px;">· ${escapeHtml(ex.grupos.join(", "))}</span>`:''}</span>
           <button class="icon-btn" id="seExRemove" title="Trocar exercício" aria-label="Trocar exercício">${svgIcon(ICON_D.xmark,14)}</button>
         </div>`;
         wrap.querySelector("#seExRemove").onclick = () => { stepExercicioId = null; pintarExercicioEtapa(); };
@@ -4368,8 +4484,8 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* ---------------- BIBLIOTECA DE EXERCÍCIOS ---------------- */
   // reaproveitada pelas etapas de rotina do tipo "exercicio" (s.exercicioId)
-  function novoExercicio(nome, grupo, pesoAtual){
-    const ex = { id: uid(), nome: nome.trim(), grupo: grupo||"", pesoAtual: pesoAtual||0 };
+  function novoExercicio(nome, grupos, pesoAtual){
+    const ex = { id: uid(), nome: nome.trim(), grupos: grupos||[], pesoAtual: pesoAtual||0 };
     exercicios.push(ex);
     return ex;
   }
@@ -4377,13 +4493,14 @@ window.addEventListener("unhandledrejection", function(e){
     const ov = document.createElement("div");
     ov.className = "confirm-overlay";
     const editing = !!ex;
+    const gruposSel = new Set((ex && ex.grupos) || []);
     ov.innerHTML = `
       <div class="confirm-box" style="text-align:left;">
         <p style="margin-bottom:10px;">${editing?'Editar':'Novo'} exercício</p>
         <div class="section-label" style="margin:6px 0 6px;">Nome</div>
         <input type="text" id="exNome" class="mk-e-name" value="${escapeHtml((ex&&ex.nome)||'')}" placeholder="Ex.: Supino reto">
-        <div class="section-label" style="margin:12px 0 6px;">Grupo muscular (opcional)</div>
-        <input type="text" id="exGrupo" class="mk-e-name" value="${escapeHtml((ex&&ex.grupo)||'')}" placeholder="Ex.: Peito">
+        <div class="section-label" style="margin:12px 0 6px;">Grupos musculares (opcional)</div>
+        <div class="meta-areas" id="exGrupos">${GRUPOS_MUSCULARES.map(g=>`<span class="area-chip${gruposSel.has(g)?' sel':''}" data-grupo="${escapeHtml(g)}">${escapeHtml(g)}</span>`).join("")}</div>
         <div class="section-label" style="margin:12px 0 6px;">Carga atual (kg)</div>
         <input class="dur-input" style="width:90px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="decimal" min="0" step="0.5" id="exPeso" value="${(ex&&ex.pesoAtual)||0}">
         <div class="confirm-actions" style="margin-top:18px;">
@@ -4395,6 +4512,13 @@ window.addEventListener("unhandledrejection", function(e){
     document.body.appendChild(ov);
     ov.onclick = e => { if(e.target===ov) ov.remove(); };
     ov.querySelector("#exCancel").onclick = () => ov.remove();
+    ov.querySelectorAll("#exGrupos .area-chip").forEach(chip=>{
+      chip.onclick = () => {
+        const g = chip.dataset.grupo;
+        if(gruposSel.has(g)){ gruposSel.delete(g); chip.classList.remove("sel"); }
+        else { gruposSel.add(g); chip.classList.add("sel"); }
+      };
+    });
     if(editing){
       ov.querySelector("#exDelete").onclick = () => {
         exercicios = exercicios.filter(x=>x.id!==ex.id);
@@ -4406,11 +4530,11 @@ window.addEventListener("unhandledrejection", function(e){
     ov.querySelector("#exSave").onclick = () => {
       const nome = ov.querySelector("#exNome").value.trim();
       if(!nome) return;
-      const grupo = ov.querySelector("#exGrupo").value.trim();
+      const grupos = Array.from(gruposSel);
       const pesoAtual = Math.max(0, +ov.querySelector("#exPeso").value || 0);
       let saved;
-      if(editing){ ex.nome=nome; ex.grupo=grupo; ex.pesoAtual=pesoAtual; saved=ex; }
-      else saved = novoExercicio(nome, grupo, pesoAtual);
+      if(editing){ ex.nome=nome; ex.grupos=grupos; ex.pesoAtual=pesoAtual; saved=ex; }
+      else saved = novoExercicio(nome, grupos, pesoAtual);
       saveExercicios();
       ov.remove();
       if(onSaved) onSaved(saved);
@@ -4422,7 +4546,7 @@ window.addEventListener("unhandledrejection", function(e){
     const lista = exercicios.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
     const linhas = lista.map(ex=>`<div class="qa-idea-row" style="flex-direction:row; align-items:center; justify-content:space-between; gap:6px;">
         <button data-pickex="${ex.id}" style="flex:1; text-align:left; background:none; border:none; color:inherit; font:inherit; padding:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-          <span class="qa-idea-nome">${escapeHtml(ex.nome)}</span>${ex.grupo?`<span style="color:var(--muted); font-size:12px;"> · ${escapeHtml(ex.grupo)}</span>`:''}
+          <span class="qa-idea-nome">${escapeHtml(ex.nome)}</span>${(ex.grupos&&ex.grupos.length)?`<span style="color:var(--muted); font-size:12px;"> · ${escapeHtml(ex.grupos.join(", "))}</span>`:''}
         </button>
         <button class="icon-btn" data-editex="${ex.id}" title="Editar" aria-label="Editar" style="width:28px; height:28px; flex:0 0 auto;">${svgIcon(ICON_D.notes,12)}</button>
       </div>`).join("");
@@ -4780,8 +4904,23 @@ window.addEventListener("unhandledrejection", function(e){
           </div>
           <input type="time" id="schedTime" value="${editorDraft.schedule.time}">
         </div>
-        <div class="day-chips">
+        <div class="type-toggle" id="schedModeToggle" style="margin-top:10px;">
+          <span data-mode="dias" class="${editorDraft.schedule.mode!=='intervalo'?'active':''}">dias da semana</span>
+          <span data-mode="intervalo" class="${editorDraft.schedule.mode==='intervalo'?'active':''}">a cada N dias</span>
+        </div>
+        <div class="day-chips" id="schedDiasWrap" style="${editorDraft.schedule.mode==='intervalo'?'display:none;':''}">
           ${DAY_LETTERS.map((l,d)=>`<span class="day-chip ${editorDraft.schedule.days.includes(d)?'active':''}" data-day="${d}">${l}</span>`).join("")}
+        </div>
+        <div class="sched-intervalo-wrap" id="schedIntervaloWrap" style="${editorDraft.schedule.mode==='intervalo'?'':'display:none;'}">
+          <div class="sched-time-row" style="margin-top:0;">
+            <span>a cada</span>
+            <input class="dur-input" style="width:56px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="schedIntervaloN" value="${editorDraft.schedule.intervaloDias||2}">
+            <span>dias</span>
+          </div>
+          <div class="sched-time-row" style="margin-top:0;">
+            <span>a partir de</span>
+            <input type="date" id="schedIntervaloInicio" value="${editorDraft.schedule.intervaloInicio||localKey()}">
+          </div>
         </div>
         <div class="sched-computed" id="schedComputed"></div>
       </div>
@@ -4798,6 +4937,22 @@ window.addEventListener("unhandledrejection", function(e){
         chip.classList.toggle("active", editorDraft.schedule.days.includes(d));
       };
     });
+    schedBox.querySelectorAll("[data-mode]").forEach(sp=>{
+      sp.onclick = () => {
+        editorDraft.schedule.mode = sp.dataset.mode;
+        if(sp.dataset.mode === "intervalo"){
+          if(!editorDraft.schedule.intervaloDias) editorDraft.schedule.intervaloDias = 2;
+          if(!editorDraft.schedule.intervaloInicio) editorDraft.schedule.intervaloInicio = localKey();
+        }
+        schedBox.querySelectorAll("[data-mode]").forEach(x=>x.classList.remove("active"));
+        sp.classList.add("active");
+        schedBox.querySelector("#schedDiasWrap").style.display = sp.dataset.mode==="intervalo" ? "none" : "";
+        schedBox.querySelector("#schedIntervaloWrap").style.display = sp.dataset.mode==="intervalo" ? "" : "none";
+        renderSchedComputed();
+      };
+    });
+    schedBox.querySelector("#schedIntervaloN").oninput = e => { editorDraft.schedule.intervaloDias = Math.max(1, +e.target.value || 1); renderSchedComputed(); };
+    schedBox.querySelector("#schedIntervaloInicio").onchange = e => { editorDraft.schedule.intervaloInicio = e.target.value || localKey(); renderSchedComputed(); };
 
     function renderSchedComputed(){
       const c = document.getElementById("schedComputed");
@@ -5813,16 +5968,16 @@ window.addEventListener("unhandledrejection", function(e){
     el.appendChild(body);
 
     const DAY_NAMES = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
-    const todayDow = new Date().getDay();
     const scheduled = routines.filter(r=>r.schedule && r.schedule.enabled && r.schedule.time);
 
     if(scheduled.length === 0){
       body.innerHTML = `<div class="empty-state" style="min-height:50vh;"><h2>Nada agendado</h2><p>Ative um horário em alguma rotina para vê-la aqui.</p></div>`;
     } else {
       for(let d=0; d<7; d++){
-        const dow = (todayDow + d) % 7;
+        const dataDia = new Date(); dataDia.setDate(dataDia.getDate() + d);
+        const dow = dataDia.getDay();
         const dayRoutines = scheduled
-          .filter(r=>r.schedule.days.includes(dow))
+          .filter(r=>rotinaAgendadaEm(r, dataDia))
           .map(r=>({ r, sched: computeSchedule(r) }))
           .filter(x=>x.sched)
           .sort((a,b)=>a.sched.startMin - b.sched.startMin);
@@ -6047,10 +6202,9 @@ window.addEventListener("unhandledrejection", function(e){
   /* ---- painel de detalhe do dia tocado ---- */
   function dayDetailHtml(key){
     const d = new Date(key + "T12:00:00");
-    const dow = d.getDay();
     const executed = history.filter(h=>h.date === key);
     const isPastOrToday = key <= dateKey(new Date());
-    const planned = routines.filter(r=>r.schedule && r.schedule.enabled && r.schedule.days.includes(dow));
+    const planned = routines.filter(r=>rotinaAgendadaEm(r, d));
     let out = `<div class="section-label">${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}</div><div class="stat-card">`;
     if(executed.length === 0 && planned.length === 0){
       out += `<div class="dev-row"><span class="dev-n">Nada executado nem agendado.</span></div>`;
@@ -6278,7 +6432,7 @@ window.addEventListener("unhandledrejection", function(e){
         const doneSet = new Set(history.filter(h=>h.routineId===r.id).map(h=>h.date));
         let guard = 0;
         while(d <= today && guard++ < 400){
-          if(r.schedule.days.includes(d.getDay()) && !snoozedOn(d)){
+          if(rotinaAgendadaEm(r, d) && !snoozedOn(d)){
             plannedDays++;
             if(doneSet.has(dateKey(d))) doneDays++;
           }
@@ -6391,11 +6545,10 @@ window.addEventListener("unhandledrejection", function(e){
     for(let i=0; i<7; i++){
       const d = new Date(weekStart); d.setDate(d.getDate()+i); d.setHours(12,0,0,0);
       const key = dateKey(d);
-      const dow = d.getDay();
       const executed = history.filter(h=>h.date === key);
       const execIds = new Set(executed.map(h=>h.routineId));
       const planned = routines.filter(r=>{
-        if(!(r.schedule && r.schedule.enabled && r.schedule.days.includes(dow))) return false;
+        if(!rotinaAgendadaEm(r, d)) return false;
         if(r.createdAt && d.getTime() < new Date(new Date(r.createdAt).setHours(0,0,0,0)).getTime()) return false;
         if(snoozedOn(d)) return false;
         return true;
@@ -6461,11 +6614,10 @@ window.addEventListener("unhandledrejection", function(e){
     for(let day=1; day<=daysInMonth; day++){
       const d = new Date(y, mo, day, 12);
       const key = dateKey(d);
-      const dow = d.getDay();
       const executed = history.filter(h=>h.date === key);
       const execIds = new Set(executed.map(h=>h.routineId));
       const planned = routines.filter(r=>{
-        if(!(r.schedule && r.schedule.enabled && r.schedule.days.includes(dow))) return false;
+        if(!rotinaAgendadaEm(r, d)) return false;
         if(r.createdAt && d.getTime() < new Date(new Date(r.createdAt).setHours(0,0,0,0)).getTime()) return false;
         if(snoozedOn(d)) return false;
         return true;
@@ -8087,6 +8239,10 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* ============ KANBAN ============ */
   let kbEdit = null;
+  // clique fora do cartão em edição cancela (sem salvar nem excluir) — o
+  // listener é recriado a cada repaint, então mora fora da função pra poder
+  // ser removido no início da próxima chamada
+  let kbOutsideHandler = null;
   /* Coluna visível quando o tabuleiro está em modo de abas (kanban do Diário):
      mostrar as três empilhadas obrigava a rolar a aba inteira para ver "Feito".
      É índice de coluna e vive fora do pintarKanban porque o repaint é interno. */
@@ -8124,6 +8280,9 @@ window.addEventListener("unhandledrejection", function(e){
     // dia — o cartão ganha um campo de data (hDia) além do horário.
     const kbEscopo = opts.per ? escopoDoPer(opts.per) : null;
     const kbPrecisaDia = !!(opts.horarios && kbEscopo && kbEscopo !== "dia");
+    // desliga o listener da edição anterior antes de (re)desenhar — se a edição
+    // continuar aberta, um novo é religado mais abaixo, no card certo
+    if(kbOutsideHandler){ document.removeEventListener("click", kbOutsideHandler); kbOutsideHandler = null; }
     body.innerHTML = "";
     /* Modo abas: uma coluna por vez, escolhida por um segmentado no topo. Só o
        kanban do Diário usa (opts.abas) — no modelo "kanban" ver as três de uma
@@ -8153,20 +8312,21 @@ window.addEventListener("unhandledrejection", function(e){
             <input type="text" class="kb-e-text" value="${escapeHtml(it.text)}">
             ${opts.horarios ? `<div class="section-label" style="margin:10px 0 4px;">${kbPrecisaDia ? "Dia e horário (opcional)" : "Horário (opcional)"}</div>
               <div class="kb-e-horas">
-                ${kbPrecisaDia ? `<input type="date" class="kb-e-dia" value="${escapeHtml(it.hDia||"")}" aria-label="Dia">` : ""}
-                <input type="time" class="kb-e-ini" value="${escapeHtml(it.hIni||"")}" aria-label="Hora de início">
-                <span class="dev-n">até</span>
-                <input type="time" class="kb-e-fim" value="${escapeHtml(it.hFim||"")}" aria-label="Hora de término">
+                ${kbPrecisaDia ? `<div class="kb-horas-row"><input type="date" class="kb-e-dia" value="${escapeHtml(it.hDia||"")}" aria-label="Dia"></div>` : ""}
+                <div class="kb-horas-row">
+                  <input type="time" class="kb-e-ini" value="${escapeHtml(it.hIni||"")}" aria-label="Hora de início">
+                  <span class="dev-n">até</span>
+                  <input type="time" class="kb-e-fim" value="${escapeHtml(it.hFim||"")}" aria-label="Hora de término">
+                </div>
               </div>
               <div class="dev-n" style="margin-top:5px;">${kbEscopo === "dia" ? "Com hora de início o cartão vira um bloco na agenda. Sem hora de término, vale 1h." : "Sem hora de término, vale 1h."}</div>` : ""}
             ${opts.pesos ? `<div class="section-label" style="margin:10px 0 4px;">Peso no boletim</div>
               ${tagValorPillsHtml(it.tagValor || "nenhum", false)}
               <div class="dev-n" style="margin-top:5px;">Vale um bloco de ${gam.config.divisorDuracao} min${(KB_ESCOPO_MULT[escopoDoPer(opts.per)]||1) > 1 ? " &times;" + KB_ESCOPO_MULT[escopoDoPer(opts.per)] + " (escopo " + KB_ESCOPO_LABEL[escopoDoPer(opts.per)] + ")" : ""}. Pontua ao cair em "Feito".</div>` : ""}
             ${opts.pesos && rodaAtiva() ? `<div class="section-label" style="margin:10px 0 4px;">Área</div><div class="kb-e-area"></div>` : ""}
-            <div class="notice-actions kb-e-acoes" style="margin-top:10px;">
-              <button data-kbok="1">ok</button>
-              <button class="ghost" data-kbcancel="1">${svgIcon(ICON_D.xmark,14)}</button>
+            <div class="notice-actions kb-e-acoes" style="margin-top:10px; justify-content:space-between;">
               <button class="ghost" data-kbdel="1" style="color:var(--danger);" title="Excluir cartão" aria-label="Excluir cartão">${svgIcon(ICON_D.trash,15)}</button>
+              <button data-kbok="1">Salvar</button>
             </div></div>`;
         }
         const tag = it.tagValor || "nenhum";
@@ -8200,10 +8360,12 @@ window.addEventListener("unhandledrejection", function(e){
         <form data-kbaddform="${ci}">
           <input type="text" class="kb-add" placeholder="+ item (Enter)" data-kbadd="${ci}" enterkeyhint="done">
           ${opts.horarios ? `<div class="kb-add-horas">
-            ${kbPrecisaDia ? `<input type="date" class="kb-add-dia" data-kbadddia="${ci}" aria-label="Dia">` : ""}
-            <input type="time" class="kb-add-ini" data-kbaddini="${ci}" aria-label="Hora de início">
-            <span class="dev-n">até</span>
-            <input type="time" class="kb-add-fim" data-kbaddfim="${ci}" aria-label="Hora de término">
+            ${kbPrecisaDia ? `<div class="kb-horas-row"><input type="date" class="kb-add-dia" data-kbadddia="${ci}" aria-label="Dia"></div>` : ""}
+            <div class="kb-horas-row">
+              <input type="time" class="kb-add-ini" data-kbaddini="${ci}" aria-label="Hora de início">
+              <span class="dev-n">até</span>
+              <input type="time" class="kb-add-fim" data-kbaddfim="${ci}" aria-label="Hora de término">
+            </div>
           </div>` : ""}
         </form>`;
       body.appendChild(col);
@@ -8323,7 +8485,6 @@ window.addEventListener("unhandledrejection", function(e){
         }
         kbEdit=null; commit();
       };
-      eb.querySelector("[data-kbcancel]").onclick = () => { kbEdit=null; repaint(); };
       eb.querySelector("[data-kbdel]").onclick = () => {
         const removed = cols[ci].items[ii];
         cols[ci].items.splice(ii,1); kbEdit=null; commit();
@@ -8332,6 +8493,16 @@ window.addEventListener("unhandledrejection", function(e){
         });
       };
       eb.querySelector(".kb-e-text").onkeydown = e => { if(e.key==="Enter") eb.querySelector("[data-kbok]").click(); };
+      // clique fora do cartão em edição cancela, sem salvar nem excluir — só
+      // religado no próximo tick pra não fechar na hora por causa do MESMO
+      // clique que abriu a edição (ainda bolhando até o document)
+      kbOutsideHandler = ev => {
+        if(eb.contains(ev.target)) return;
+        // se kbEdit já mudou (outro cartão foi aberto por esse mesmo clique),
+        // quem decide o que fica em edição agora é aquele handler, não este
+        if(kbEdit && kbEdit.ci===ci && kbEdit.ii===ii){ kbEdit=null; repaint(); }
+      };
+      setTimeout(()=>{ if(kbOutsideHandler) document.addEventListener("click", kbOutsideHandler); }, 0);
     }
   }
   function renderKanbanDoc(doc){
@@ -8485,9 +8656,6 @@ window.addEventListener("unhandledrejection", function(e){
     p.feitas = Math.max(0, rec.negativa ? (p.feitas + delta) : Math.min(rec.vezes, p.feitas + delta));
     if(rec.negativa) sincronizarPenalidadeMetaRec(rec, excessoAntes, metaRecExcesso(rec));
     saveTemplates(doc);
-  }
-  function metaRecReiniciaEmTxt(rec){
-    return rec.tipo === "semanal" ? "reinicia " + DIAS_ABREV[weekStartDow()] : "reinicia à meia-noite";
   }
   /* horários igualmente espaçados dentro da janela de notificação — dividir
      um intervalo de 10h em 5 partes = um alarme a cada 2h, como pedido. */
@@ -8856,28 +9024,30 @@ window.addEventListener("unhandledrejection", function(e){
       const feitas = metaRecFeitas(rec);
       const completa = rec.negativa ? !metaRecExcedida(rec) : metaRecCompleta(rec);
       const excesso = rec.negativa ? metaRecExcesso(rec) : 0;
-      const areaChip = rec.area ? `<div class="sched-chip chip-block" style="color:${areaInfoRoda(rec.area).color};">${escapeHtml(areaInfoRoda(rec.area).label)}</div>` : "";
+      const freqTxt = `${rec.negativa?'até ':''}${rec.vezes}&times; ${rec.tipo==='semanal'?'na semana':'ao dia'}${rec.notif?' · lembretes '+rec.notif.inicio+'–'+rec.notif.fim:''}`;
+      const linhaMeta = rec.area ? `${escapeHtml(areaInfoRoda(rec.area).label)} | ${freqTxt}` : freqTxt;
       const statusTxt = rec.negativa
-        ? (excesso>0 ? `excedeu em ${excesso} · -${(excesso*-metaRecPenalidadeUnidade(rec)*fatorDaArea(rec.area||"")).toFixed(1)} pts · ` : "dentro do limite · ")
-        : (completa?'concluída ✓ · ':'');
-      const idxFull = doc.recorrentes.indexOf(rec);
+        ? (excesso>0 ? `excedeu em ${excesso} · -${(excesso*-metaRecPenalidadeUnidade(rec)*fatorDaArea(rec.area||"")).toFixed(1)} pts` : "dentro do limite")
+        : (completa?'concluída ✓':'');
       return `
-        <div class="stat-card" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--danger);':'border-color:var(--good);') : (completa?'border-color:var(--good);':'')}">
-          <div class="dev-row" style="border:none; padding:0;">
-            <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}${rec.negativa?' <span class="dev-n">(limite)</span>':''}</span>
-            <button class="kb-move-btn" data-mrup="${rec.id}" title="Mover para cima" aria-label="Mover para cima" ${idxFull<=0?'disabled':''}>${svgIcon(ICON_D.arrowUp,14)}</button>
-            <button class="kb-move-btn" data-mrdown="${rec.id}" title="Mover para baixo" aria-label="Mover para baixo" ${idxFull>=doc.recorrentes.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,14)}</button>
+        <div class="stat-card rec-card" data-mrid="${rec.id}" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--danger);':'border-color:var(--good);') : (completa?'border-color:var(--good);':'')}">
+          <span class="rec-drag" data-mrdrag="${rec.id}" title="Arrastar para reordenar" aria-label="Arrastar para reordenar">${svgIcon(ICON_D.bars3,15)}</span>
+          <div class="rec-card-body">
+            <div class="dev-row" style="border:none; padding:0;">
+              <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}${rec.negativa?' <span class="dev-n">(limite)</span>':''}</span>
+            </div>
+            <div class="dev-n" style="margin-top:2px;">${linhaMeta}</div>
+            <div class="cd-topics">
+              <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-mrminus="${rec.id}" title="Menos um" aria-label="Menos um">&minus;</button>
+              <span>${feitas} / ${rec.vezes}</span>
+              <button class="ctrl-btn ${rec.negativa ? (excesso>0?'':'ok') : (completa?'ok':'')}" style="width:36px;height:36px;font-size:15px;" data-mrplus="${rec.id}" title="Mais um" aria-label="Mais um">+</button>
+            </div>
+            ${statusTxt ? `<div class="dev-n" style="margin-top:4px; color:${rec.negativa ? (excesso>0?'var(--danger)':'var(--good)') : 'var(--good)'};">${statusTxt}</div>` : ""}
+          </div>
+          <div class="rec-actions">
             <button class="icon-btn" data-mredit="${rec.id}" title="Editar" aria-label="Editar">${svgIcon(ICON_D.notes,14)}</button>
-            <button class="del-exec" data-mrdel="${rec.id}" title="Remover" aria-label="Remover">${svgIcon(ICON_D.xmark,14)}</button>
+            <button class="icon-btn" data-mrdel="${rec.id}" title="Remover" aria-label="Remover" style="color:var(--danger);">${svgIcon(ICON_D.trash,14)}</button>
           </div>
-          ${areaChip}
-          <div class="dev-n" style="margin-top:2px;">${rec.negativa?'até ':''}${rec.vezes}&times; ${rec.tipo==='semanal'?'na semana':'ao dia'}${rec.notif?' · lembretes '+rec.notif.inicio+'–'+rec.notif.fim:''}</div>
-          <div class="cd-topics">
-            <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-mrminus="${rec.id}" title="Menos um" aria-label="Menos um">&minus;</button>
-            <span>${feitas} / ${rec.vezes}</span>
-            <button class="ctrl-btn ${rec.negativa ? (excesso>0?'':'ok') : (completa?'ok':'')}" style="width:36px;height:36px;font-size:15px;" data-mrplus="${rec.id}" title="Mais um" aria-label="Mais um">+</button>
-          </div>
-          <div class="dev-n" style="margin-top:4px; color:${rec.negativa ? (excesso>0?'var(--danger)':'var(--good)') : (completa?'var(--good)':'var(--muted)')};">${statusTxt}${metaRecReiniciaEmTxt(rec)}</div>
         </div>`;
     }
 
@@ -8893,9 +9063,7 @@ window.addEventListener("unhandledrejection", function(e){
           .sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
         if(ambos) partes.push(`<div class="section-label">Prazos</div>`);
         partes.push(sorted.map(metaCardHtml).join(""));
-        if(doc.targets.length === 0){
-          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta ainda</h2><p>Crie uma meta com prazo — os dias restantes, o ritmo e a pontuação se atualizam sozinhos.</p></div>`);
-        } else if(sorted.length === 0){
+        if(doc.targets.length > 0 && sorted.length === 0){
           partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta com esse filtro</h2><p>Desligue o "só hoje" ou troque a área para ver outras metas.</p></div>`);
         }
       }
@@ -8903,9 +9071,7 @@ window.addEventListener("unhandledrejection", function(e){
         const lista = [...doc.recorrentes].filter(passaFiltroAreaRecMulti);
         if(ambos) partes.push(`<div class="section-label">Recorrentes</div>`);
         partes.push(lista.map(recCardHtml).join(""));
-        if(doc.recorrentes.length === 0){
-          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente</h2><p>Crie um hábito que repete algumas vezes por dia ou por semana — "beber água" 4x ao dia, "lavar o cabelo" 2x na semana.</p></div>`);
-        } else if(lista.length === 0){
+        if(doc.recorrentes.length > 0 && lista.length === 0){
           partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente nessa área</h2><p>Troque o filtro de área para ver as outras.</p></div>`);
         }
       }
@@ -8963,13 +9129,40 @@ window.addEventListener("unhandledrejection", function(e){
         body.querySelectorAll("[data-mrminus]").forEach(b=> b.onclick = () => {
           metaRecAjustar(doc, doc.recorrentes.find(r=>r.id===b.dataset.mrminus), -1); pintarTudo();
         });
-        body.querySelectorAll("[data-mrup]").forEach(b=> b.onclick = () => {
-          const i = doc.recorrentes.findIndex(r=>r.id===b.dataset.mrup);
-          if(i>0){ const [r] = doc.recorrentes.splice(i,1); doc.recorrentes.splice(i-1,0,r); saveTemplates(doc); pintarTudo(); }
-        });
-        body.querySelectorAll("[data-mrdown]").forEach(b=> b.onclick = () => {
-          const i = doc.recorrentes.findIndex(r=>r.id===b.dataset.mrdown);
-          if(i>=0 && i<doc.recorrentes.length-1){ const [r] = doc.recorrentes.splice(i,1); doc.recorrentes.splice(i+1,0,r); saveTemplates(doc); pintarTudo(); }
+        // arrastar reordena só ENTRE os cartões visíveis (o filtro de área pode
+        // esconder parte da lista) — os que ficaram de fora mantêm a posição
+        // relativa que já tinham no array cheio.
+        const listaVisivel = [...doc.recorrentes].filter(passaFiltroAreaRecMulti);
+        const idsVisiveis = listaVisivel.map(r=>r.id);
+        body.querySelectorAll("[data-mrdrag]").forEach(h=>{
+          h.onpointerdown = ev => {
+            ev.preventDefault();
+            const fromId = h.dataset.mrdrag;
+            const cardEl = h.closest(".rec-card");
+            const siblings = [...body.querySelectorAll(".rec-card")];
+            cardEl.classList.add("dragging");
+            try{ h.setPointerCapture(ev.pointerId); }catch(e){}
+            let tIdx = siblings.indexOf(cardEl);
+            const move = e2 => {
+              const y = e2.clientY;
+              const others = siblings.filter(el=>el!==cardEl);
+              tIdx = others.length;
+              for(let j=0; j<others.length; j++){
+                if(y < others[j].getBoundingClientRect().top + others[j].offsetHeight/2){ tIdx = j; break; }
+              }
+            };
+            const up = () => {
+              h.onpointermove = null; h.onpointerup = null; h.onpointercancel = null;
+              cardEl.classList.remove("dragging");
+              const idsNovo = idsVisiveis.filter(id=>id!==fromId);
+              idsNovo.splice(tIdx, 0, fromId);
+              const porId = new Map(doc.recorrentes.map(r=>[r.id,r]));
+              const fila = idsNovo.slice();
+              doc.recorrentes = doc.recorrentes.map(r=> idsVisiveis.includes(r.id) ? porId.get(fila.shift()) : r);
+              saveTemplates(doc); pintarTudo();
+            };
+            h.onpointermove = move; h.onpointerup = up; h.onpointercancel = up;
+          };
         });
       }
     }
@@ -10896,18 +11089,26 @@ window.addEventListener("unhandledrejection", function(e){
     const lines = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Brita//Rotinas//PT","CALSCALE:GREGORIAN"];
     comHorario.forEach(r=>{
       const sched = computeSchedule(r);
-      const dias = (r.schedule.days && r.schedule.days.length) ? r.schedule.days.slice().sort() : [0,1,2,3,4,5,6];
-      let delta = 0;
-      while(!dias.includes((now.getDay()+delta)%7)) delta++;
-      const dtStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()+delta);
-      dtStart.setHours(Math.floor(sched.startMin/60), sched.startMin%60, 0, 0);
+      let dtStart, rrule;
+      if(r.schedule.mode === "intervalo"){
+        dtStart = proximaOcorrenciaIntervalo(r, now);
+        dtStart.setHours(Math.floor(sched.startMin/60), sched.startMin%60, 0, 0);
+        rrule = "RRULE:FREQ=DAILY;INTERVAL="+Math.max(1, r.schedule.intervaloDias||1);
+      } else {
+        const dias = (r.schedule.days && r.schedule.days.length) ? r.schedule.days.slice().sort() : [0,1,2,3,4,5,6];
+        let delta = 0;
+        while(!dias.includes((now.getDay()+delta)%7)) delta++;
+        dtStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()+delta);
+        dtStart.setHours(Math.floor(sched.startMin/60), sched.startMin%60, 0, 0);
+        rrule = "RRULE:FREQ=WEEKLY;BYDAY="+dias.map(d=>ICS_DOW[d]).join(",");
+      }
       const dtEnd = new Date(dtStart.getTime() + Math.max(sched.durMin,15)*60000);
       lines.push("BEGIN:VEVENT");
       lines.push("UID:"+r.id+"@brita");
       lines.push("DTSTAMP:"+dtstamp);
       lines.push("DTSTART:"+fmtLocal(dtStart));
       lines.push("DTEND:"+fmtLocal(dtEnd));
-      lines.push("RRULE:FREQ=WEEKLY;BYDAY="+dias.map(d=>ICS_DOW[d]).join(","));
+      lines.push(rrule);
       lines.push("SUMMARY:"+icsEscape(r.name));
       lines.push("END:VEVENT");
     });
@@ -11403,6 +11604,17 @@ window.addEventListener("unhandledrejection", function(e){
     const ref = (playerState.paused && playerState.pausedAt) ? playerState.pausedAt : Date.now();
     return Math.round((playerState.stepEndTs - ref)/1000);
   }
+  /* Countdown ativo no momento, seja etapa "timer" ou o descanso ENTRE SÉRIES
+     de uma etapa "exercicio" (playerState.ex.phase==="rest") — usado pela
+     bolha/overlay e pelo alerta de fundo, que antes só conheciam "timer" e
+     por isso não avisavam as pausas entre séries de exercício. */
+  function activeCountdown(){
+    const step = currentStep();
+    if(!step) return null;
+    if(step.type === "timer" && playerState.stepEndTs) return { endTs: playerState.stepEndTs, auto: !!step.isRest, isRest: !!step.isRest, label: step.name || "" };
+    if(step.type === "exercicio" && playerState.ex && playerState.ex.phase === "rest" && playerState.ex.restEndTs) return { endTs: playerState.ex.restEndTs, auto: true, isRest: true, label: "Descanso" + (step.name ? " — " + step.name : "") };
+    return null;
+  }
 
   /* ---- Etapa "exercicio": sub-loop de séries dentro de uma única etapa ---- */
   function freshExState(){ return { setIdx:0, phase:"set", results:[], restEndTs:null }; }
@@ -11429,7 +11641,7 @@ window.addEventListener("unhandledrejection", function(e){
     const now = new Date();
     let schedStartMin = null;
     const sched = computeSchedule(r);
-    if(sched && (!r.schedule.days || r.schedule.days.includes(now.getDay()))) schedStartMin = sched.startMin;
+    if(sched && rotinaAgendadaEm(r, now)) schedStartMin = sched.startMin;
     const first = steps[0];
     playerState = {
       routine: r, steps, idx: 0,
@@ -11495,6 +11707,7 @@ window.addEventListener("unhandledrejection", function(e){
         playerState.ex.restEndTs = null;
         render();
         savePlayerSnapshot(true);
+        sincronizarPlayerBackground();
         return;
       }
       updateExRestDisplay();
@@ -11522,6 +11735,7 @@ window.addEventListener("unhandledrejection", function(e){
     render();
     savePlayerSnapshot(true);
     startExRestTicking();
+    sincronizarPlayerBackground();
   }
   function pularDescansoExercicio(){
     if(!playerState || !playerState.ex || playerState.ex.phase !== "rest") return;
@@ -11530,6 +11744,7 @@ window.addEventListener("unhandledrejection", function(e){
     playerState.ex.restEndTs = null;
     render();
     savePlayerSnapshot(true);
+    sincronizarPlayerBackground();
   }
 
   function startTicking(){
@@ -12137,9 +12352,11 @@ window.addEventListener("unhandledrejection", function(e){
         <input type="text" class="mk-e-name" id="qaKbText" style="width:100%;" placeholder="O que precisa ser feito?">
         <div class="section-label" style="margin:12px 0 4px;">Horário (opcional)</div>
         <div class="kb-e-horas">
-          <input type="time" id="qaKbIni" aria-label="Hora de início">
-          <span class="dev-n">até</span>
-          <input type="time" id="qaKbFim" aria-label="Hora de término">
+          <div class="kb-horas-row">
+            <input type="time" id="qaKbIni" aria-label="Hora de início">
+            <span class="dev-n">até</span>
+            <input type="time" id="qaKbFim" aria-label="Hora de término">
+          </div>
         </div>
         <div class="section-label" style="margin:12px 0 4px;">Peso no boletim</div>
         ${tagValorPillsHtml("medio", false)}
@@ -12933,7 +13150,37 @@ window.addEventListener("unhandledrejection", function(e){
     })).filter(g=>g.itens.length);
     return agendaGrupoHtml(grupos, "Na nota da semana, escreva linhas como<br><b>- [ ] seg 08:00 Reunião</b> ou <b>- [ ] qui Levar carro à revisão</b><br>e elas viram a agenda da semana aqui.");
   }
-  function agendaMesHtml(texto){
+  /* Grade do mês inteiro (reaproveita .mcal-* da visão mensal de Dados):
+     um ponto por rotina agendada naquele dia + contagem de cartões do kanban
+     concluídos naquele dia — visão "de longe" antes da lista de blocos linha
+     a linha. Tocar um dia abre o escopo "dia" do Diário nele (wireAgendaBlocos
+     religa [data-mcaldia], já que esta função só devolve HTML). */
+  function calendarioMesHtml(iso){
+    const d0 = isoToDate(iso);
+    const y = d0.getFullYear(), mo = d0.getMonth();
+    const daysInMonth = new Date(y, mo+1, 0).getDate();
+    const first = new Date(y, mo, 1, 12);
+    const todayK = localKey();
+    const DOWL = ["D","S","T","Q","Q","S","S"];
+    let grid = `<div class="mcal-grid">` + ordemDiasSemana().map(dow=>`<span class="mcal-dowlbl">${DOWL[dow]}</span>`).join("");
+    for(let b=0; b<offsetSemana(first.getDay()); b++) grid += `<span class="mcal-cell mcal-void"></span>`;
+    for(let day=1; day<=daysInMonth; day++){
+      const d = new Date(y, mo, day, 12);
+      const key = localKey(d);
+      const rotinasDia = routines.filter(r=>rotinaAgendadaEm(r, d));
+      const doneCartoes = diaKanban.filter(c=>c.col==="done" && c.per==="dia:"+key).length;
+      const dots = rotinasDia.slice(0,4).map(r=>`<span class="mcal-dot" style="background:${solidColor(corDaRotina(r))}"></span>`).join("");
+      grid += `<span class="mcal-cell ${key===todayK?'mcal-today':''}" data-mcaldia="${key}">
+        <span class="mcal-num">${day}</span>
+        <span class="mcal-dots">${dots}</span>
+        ${doneCartoes>0?`<span class="mcal-missed" style="color:var(--good);">${doneCartoes}</span>`:""}
+      </span>`;
+    }
+    grid += `</div>`;
+    return `<div class="stat-card" style="margin-bottom:14px;">${grid}
+      <div class="stat-foot">&#9679; rotina agendada &nbsp;&middot;&nbsp; número: cartões concluídos no dia &nbsp;&middot;&nbsp; toque um dia para abri-lo</div></div>`;
+  }
+  function agendaMesHtml(texto, iso){
     const itens = parseMonthBlocks(texto);
     const porDia = {};
     itens.forEach(b=>{ (porDia[b.grupo] = porDia[b.grupo]||[]).push(b); });
@@ -12941,7 +13188,8 @@ window.addEventListener("unhandledrejection", function(e){
       label: "dia " + String(dia).padStart(2,"0"),
       itens: porDia[dia].sort((a,b)=>a.linha-b.linha)
     }));
-    return agendaGrupoHtml(grupos, "Na nota do mês, escreva linhas como<br><b>- [ ] 05 Consulta médica</b><br>e elas viram a agenda do mês aqui.");
+    const calendario = iso ? calendarioMesHtml(iso) : "";
+    return calendario + agendaGrupoHtml(grupos, "Na nota do mês, escreva linhas como<br><b>- [ ] 05 Consulta médica</b><br>e elas viram a agenda do mês aqui.");
   }
   function agendaAnoHtml(texto){
     const itens = parseYearBlocks(texto);
@@ -12955,7 +13203,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function agendaHtmlPara(escopo, texto, iso){
     if(escopo === "semana") return agendaSemanaHtml(texto);
-    if(escopo === "mes") return agendaMesHtml(texto);
+    if(escopo === "mes") return agendaMesHtml(texto, iso);
     if(escopo === "ano") return agendaAnoHtml(texto);
     return agendaHtml(texto, iso);
   }
@@ -13079,6 +13327,10 @@ window.addEventListener("unhandledrejection", function(e){
             showAlertBanner("Compromisso excluído");
           });
         };
+      });
+      // grade do mês (calendarioMesHtml): tocar um dia abre o escopo "dia" nele
+      body.querySelectorAll("[data-mcaldia]").forEach(cel=>{
+        cel.onclick = () => trocarPeriodo(() => { diarioEscopo = "dia"; diarioData = cel.dataset.mcaldia; diarioAgenda = true; });
       });
     }
     function pintarKanbanDoPeriodo(){

@@ -33,7 +33,7 @@ function extractFn(name) {
   throw new Error("chaves desbalanceadas em " + name);
 }
 
-const NAMES = ["localKey", "algumaRotinaDevidaEm", "computeStreak", "computeStreakFor"];
+const NAMES = ["localKey", "isoToDate", "diasDaRotina", "rotinaAgendadaEm", "algumaRotinaDevidaEm", "computeStreak", "computeStreakFor"];
 
 // dow local, sem depender do fuso do runner: 0=domingo..6=sábado
 function dowOf(y, m, d) { return new Date(y, m, d).getDay(); }
@@ -102,7 +102,7 @@ function run(fixedNow) {
   vm.createContext(sandbox);
   vm.runInContext(NAMES.map(extractFn).join("\n") + "\n" +
     NAMES.map(n => "globalThis." + n + " = " + n + ";").join("\n"), sandbox);
-  check("sem rotinas agendadas, algumaRotinaDevidaEm nunca é true", !sandbox.algumaRotinaDevidaEm(1));
+  check("sem rotinas agendadas, algumaRotinaDevidaEm nunca é true", !sandbox.algumaRotinaDevidaEm(new Date(Y, M, tue)));
 }
 
 console.log(failures === 0 ? "\nSTREAK OK" : "\n" + failures + " FALHA(S) EM STREAK");
