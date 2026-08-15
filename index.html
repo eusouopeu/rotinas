@@ -1762,7 +1762,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-15 (v16)";
+  const BUILD_STAMP = "2026-08-15 (v17)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -5698,9 +5698,8 @@ window.addEventListener("unhandledrejection", function(e){
     el.innerHTML = `
       <div class="tab-scroll">
         <div class="home-header">
-          <h1><span id="notesBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> Notas simples</h1>
+          <h1><span id="notesBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> Notas</h1>
           <div class="header-right">
-            <button class="bell-btn" id="exportAllMd" title="Exportar todas em .md" aria-label="Exportar todas em .md">${svgIcon(ICON_D.notes,14)}${svgIcon(ICON_D.arrowDownTray,14)}</button>
             <button class="bell-btn" id="backupBtn" title="Exportar backup" aria-label="Exportar backup">${svgIcon(ICON_D.arrowDownTray,14)}</button>
             <button class="bell-btn" id="importBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
             <input type="file" id="importFile" accept="application/json" style="display:none">
@@ -5789,20 +5788,6 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("noteSearch").oninput = e => { notesQuery = e.target.value; updateList(); };
 
     document.getElementById("backupBtn").onclick = exportBackup;
-    document.getElementById("exportAllMd").onclick = () => {
-      if(notes.length === 0){ showAlertBanner("Nenhuma nota para exportar"); return; }
-      const usedNames = {};
-      notes.forEach((n, i)=>{
-        setTimeout(()=>{
-          const title = (n.title||"nota").trim() || "nota";
-          let base = slugify(title);
-          usedNames[base] = (usedNames[base]||0) + 1;
-          const fname = usedNames[base] > 1 ? base + "-" + usedNames[base] : base;
-          downloadFile(fname + ".md", "# " + title + "\n\n" + n.content + "\n", "text/markdown;charset=utf-8", "Notas simples");
-        }, i*350);
-      });
-      showAlertBanner(notes.length + " nota(s) exportadas para Downloads ✓");
-    };
     const importFile = document.getElementById("importFile");
     document.getElementById("importBtn").onclick = () => importFile.click();
     importFile.onchange = e => { if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]); };
@@ -6764,9 +6749,9 @@ window.addEventListener("unhandledrejection", function(e){
 
   const TMPL_TYPES = [
     { type:"market",    icon:svgIcon(ICON_D.market), label:"Listas de mercado" },
-    { type:"matrix",    icon:svgIcon(ICON_D.matrix),   label:"Matrizes 2&times;2" },
+    { type:"matrix",    icon:svgIcon(ICON_D.matrix),   label:"Matrizes" },
     { type:"kanban",    icon:svgIcon(ICON_D.kanban), label:"Kanbans" },
-    { type:"expense",   icon:svgIcon(ICON_D.expense), label:"Registro de Despesas" },
+    { type:"expense",   icon:svgIcon(ICON_D.expense), label:"Registros de gastos" },
     { type:"travel",    icon:svgIcon(ICON_D.paperAirplane), label:"Listas de viagem" },
     { type:"thoughtrecord", icon:svgIcon(ICON_D.diamond), label:"RPD" },
     { type:"scoreboard", icon:svgIcon(ICON_D.stats), label:"Registros de pontos" }
@@ -6775,9 +6760,9 @@ window.addEventListener("unhandledrejection", function(e){
      é um TMPL_TYPES — é a única pasta que não vem de newTemplateDoc — por isso
      entra à mão em GERAL. */
   const TMPL_SECOES = [
-    { key:"geral",     label:"Geral",     tipos:["notes","diarioDias","thoughtrecord","matrix"] },
+    { key:"geral",     label:"Geral",     tipos:["notes","thoughtrecord","matrix"] },
     { key:"listas",    label:"Listas",    tipos:["market","travel","kanban"] },
-    { key:"registros", label:"Registros", tipos:["expense","scoreboard"] }
+    { key:"registros", label:"Registros", tipos:["expense","diarioDias","scoreboard"] }
   ];
 
   /* ---- helpers de exportação ---- */
@@ -6942,8 +6927,8 @@ window.addEventListener("unhandledrejection", function(e){
   function templateFolderTiles(){
     const journalRoutineIds = [...new Set(templates.filter(t=>t.type==="journal").map(t=>t.routineId))];
     const todas = [
-      { key:"notes", icon:svgIcon(ICON_D.notes), label:"Notas simples" },
-      { key:"diarioDias", icon:svgIcon(ICON_D.countdown), label:"Notas do Diário" },
+      { key:"notes", icon:svgIcon(ICON_D.notes), label:"Notas" },
+      { key:"diarioDias", icon:svgIcon(ICON_D.countdown), label:"Registros da agenda" },
       ...TMPL_TYPES.map(t=>({ key:t.type, icon:t.icon, label:t.label }))
     ];
     const porKey = key => todas.find(f=>f.key===key);
@@ -7053,17 +7038,15 @@ window.addEventListener("unhandledrejection", function(e){
   /* tela de uma pasta: lista os documentos daquele tipo (ou, para pasta-rotina, as notas de journaling daquela rotina) */
   function renderTmplFolder(){
     const kind = view.folderKind, key = view.folderKey;
-    let icon, docs;
+    let docs;
     let titleHtml;
     if(kind === "routine"){
       const r = routines.find(x=>x.id===key);
       titleHtml = escapeHtml(r ? r.name : "Rotina excluída");
-      icon = svgIcon(ICON_D.notes,14);
       docs = templates.filter(t=>t.type==="journal" && t.routineId===key);
     } else {
       const typeInfo = TMPL_TYPES.find(t=>t.type===key) || { label:key, icon:"" };
       titleHtml = typeInfo.label;
-      icon = typeInfo.icon;
       docs = templates.filter(t=>t.type===key);
     }
     const el = document.createElement("div");
@@ -7071,7 +7054,7 @@ window.addEventListener("unhandledrejection", function(e){
     const scroll = document.createElement("div");
     scroll.className = "tab-scroll";
     scroll.innerHTML = `<div class="home-header">
-      <h1><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${icon} ${titleHtml}</h1>
+      <h1 style="font-size:22px;"><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${titleHtml}</h1>
     </div>`;
     el.appendChild(scroll);
 
@@ -7104,7 +7087,7 @@ window.addEventListener("unhandledrejection", function(e){
       empty.className = "empty-state";
       empty.innerHTML = kind==="routine"
         ? `<h2>Nenhuma nota ainda</h2><p>Rotinas com tarefas de anotação geram uma nota aqui a cada execução.</p>`
-        : emptyStateActionHtml("Pasta vazia", "Crie o primeiro documento aqui.", "emptyNewDoc", "+ Novo");
+        : `<h2>Pasta vazia</h2><p>Crie o primeiro documento aqui.</p>`;
       scroll.appendChild(empty);
     }
     // botão flutuante de criar, igual ao da aba Rotinas (pastas-rotina de
@@ -7126,8 +7109,6 @@ window.addEventListener("unhandledrejection", function(e){
     }
     const addBtn = document.getElementById("folderAddBtn");
     if(addBtn) addBtn.onclick = criarNovoDoc;
-    const emptyAddBtn = document.getElementById("emptyNewDoc");
-    if(emptyAddBtn) emptyAddBtn.onclick = criarNovoDoc;
   }
 
   /* pasta virtual: um cartão por dia com algo escrito na anotação do Diário
@@ -7140,7 +7121,7 @@ window.addEventListener("unhandledrejection", function(e){
     const scroll = document.createElement("div");
     scroll.className = "tab-scroll";
     scroll.innerHTML = `<div class="home-header">
-      <h1><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${svgIcon(ICON_D.countdown)} Notas do Diário</h1>
+      <h1 style="font-size:22px;"><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> Registros da agenda</h1>
     </div>`;
     el.appendChild(scroll);
 
@@ -7321,7 +7302,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(doc.higherWins === undefined) doc.higherWins = true;
     const el = document.createElement("div");
     el.className = "screen";
-    tmplHeader(el, doc, `<button class="icon-btn" id="sbMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>`);
+    tmplHeader(el, doc, "");
     const body = document.createElement("div");
     body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
     el.appendChild(body);
@@ -7444,8 +7425,6 @@ window.addEventListener("unhandledrejection", function(e){
       if(res) res.innerHTML = resumoHtml();
     }
     paint();
-    const md = document.getElementById("sbMd");
-    if(md) md.onclick = () => copyMarkdown(scoreboardMd(doc));
   }
 
   /* ============ REGISTRO DE PENSAMENTOS (registro cognitivo-comportamental) ============ */
@@ -7885,7 +7864,6 @@ window.addEventListener("unhandledrejection", function(e){
     el.className = "screen";
     tmplHeader(el, doc, `
       <button class="icon-btn" id="mxAxes" title="Rótulos dos eixos" aria-label="Rótulos dos eixos">${svgIcon(ICON_D.tag,15)}</button>
-      <button class="icon-btn" id="mxMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
       <button class="icon-btn" id="mxPdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>
     `);
 
@@ -8043,7 +8021,6 @@ window.addEventListener("unhandledrejection", function(e){
     paint();
 
     document.getElementById("mxAxes").onclick = () => { mxShowAxes = !mxShowAxes; paint(); };
-    document.getElementById("mxMd").onclick = () => copyMarkdown(matrixMd(doc));
     document.getElementById("mxPdf").onclick = () => exportPdfView(doc.title, matrixPdfHtml(doc), "Matrizes 2x2");
   }
 
@@ -8285,7 +8262,6 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     tmplHeader(el, doc, `
-      <button class="icon-btn" id="kbMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
       <button class="icon-btn" id="kbPdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>`);
     const body = document.createElement("div");
     body.className = "kb-board";
@@ -8293,7 +8269,6 @@ window.addEventListener("unhandledrejection", function(e){
     app.appendChild(el);
 
     pintarKanban(body, doc.cols, () => saveTemplates(doc));
-    document.getElementById("kbMd").onclick = () => copyMarkdown(kanbanMd(doc));
     document.getElementById("kbPdf").onclick = () => {
       let inner = "<h1>" + escapeHtml(doc.title) + "</h1>";
       doc.cols.forEach(c=>{ inner += "<h2>" + escapeHtml(c.title) + " (" + c.items.length + ")</h2><ul>" + c.items.map(i=>"<li>"+escapeHtml(i.text)+"</li>").join("") + "</ul>"; });
@@ -8724,8 +8699,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="home-header">
         <h1>Metas</h1>
         <div class="header-right">
-          ${mostraPrazos ? `<button class="bell-btn" id="cdMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
-          <button class="bell-btn" id="cdPdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>` : ""}
+          ${mostraPrazos ? `<button class="bell-btn" id="cdPdf" title="Exportar PDF" aria-label="Exportar PDF" style="width:auto; padding:0 12px;">PDF</button>` : ""}
           ${cfgBtnHtml()}
         </div>
       </div>
@@ -8733,10 +8707,8 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="area-chips area-filter-row" id="metasSubviewToggle" style="margin-bottom:14px;">
         <span class="area-chip ${mostraRecorrentes?'sel':''}" data-metasview="recorrentes" style="--chip:var(--accent);">Recorrentes</span>
         <span class="area-chip ${mostraPrazos?'sel':''}" data-metasview="prazos" style="--chip:var(--accent);">Prazos</span>
+        ${mostraPrazos ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}" style="flex:0 0 auto;">hoje</button>` : ""}
       </div>
-      ${mostraPrazos ? `<div class="header-right" style="margin-bottom:14px; flex-wrap:wrap;">
-        <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">só hoje</button>
-      </div>` : ""}
       ${metasAreaFiltroChipsHtml()}
       <div id="metasBody" style="padding-bottom:20px;"></div>
     </div>`;
@@ -8846,7 +8818,7 @@ window.addEventListener("unhandledrejection", function(e){
         if(ambos) partes.push(`<div class="section-label">Prazos</div>`);
         partes.push(sorted.map(metaCardHtml).join(""));
         if(doc.targets.length === 0){
-          partes.push(`<div class="empty-state" style="min-height:25vh;">${emptyStateActionHtml("Nenhuma meta ainda", "Crie uma meta com prazo — os dias restantes, o ritmo e a pontuação se atualizam sozinhos.", "emptyNewMetaPrazo", "+ Nova meta")}</div>`);
+          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta ainda</h2><p>Crie uma meta com prazo — os dias restantes, o ritmo e a pontuação se atualizam sozinhos.</p></div>`);
         } else if(sorted.length === 0){
           partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta com esse filtro</h2><p>Desligue o "só hoje" ou troque a área para ver outras metas.</p></div>`);
         }
@@ -8856,7 +8828,7 @@ window.addEventListener("unhandledrejection", function(e){
         if(ambos) partes.push(`<div class="section-label">Recorrentes</div>`);
         partes.push(lista.map(recCardHtml).join(""));
         if(doc.recorrentes.length === 0){
-          partes.push(`<div class="empty-state" style="min-height:25vh;">${emptyStateActionHtml("Nenhuma meta recorrente", `Crie um hábito que repete algumas vezes por dia ou por semana — "beber água" 4x ao dia, "lavar o cabelo" 2x na semana.`, "emptyNewMetaRec", "+ Nova meta recorrente")}</div>`);
+          partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente</h2><p>Crie um hábito que repete algumas vezes por dia ou por semana — "beber água" 4x ao dia, "lavar o cabelo" 2x na semana.</p></div>`);
         } else if(lista.length === 0){
           partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta recorrente nessa área</h2><p>Troque o filtro de área para ver as outras.</p></div>`);
         }
@@ -8866,10 +8838,6 @@ window.addEventListener("unhandledrejection", function(e){
     }
 
     function wireCards(){
-      const emptyPrazo = body.querySelector("#emptyNewMetaPrazo");
-      if(emptyPrazo) emptyPrazo.onclick = () => abrirFormMeta(doc, null);
-      const emptyRec = body.querySelector("#emptyNewMetaRec");
-      if(emptyRec) emptyRec.onclick = () => abrirFormMetaRec(doc, null);
       if(mostraPrazos){
         body.querySelectorAll("[data-cdedit]").forEach(b=> b.onclick = () => {
           abrirFormMeta(doc, doc.targets.find(t=>t.id===b.dataset.cdedit));
@@ -8936,7 +8904,6 @@ window.addEventListener("unhandledrejection", function(e){
       else abrirFormMetaRec(doc, null);
     };
     if(mostraPrazos){
-      document.getElementById("cdMd").onclick = () => copyMarkdown(countdownMd(doc));
       document.getElementById("cdPdf").onclick = () => {
         let inner = "<h1>Metas</h1><ul>";
         [...doc.targets].sort((a,b)=>daysUntil(a.date)-daysUntil(b.date)).forEach(t=>{
@@ -9048,23 +9015,6 @@ window.addEventListener("unhandledrejection", function(e){
     return { header, dataRows, ncol, dateCol, valCol, descCol };
   }
 
-  function expensesMd(doc){
-    let md = "# " + doc.title + "\n";
-    const byMonth = {};
-    doc.entries.forEach(e=>{ (byMonth[e.date.slice(0,7)] = byMonth[e.date.slice(0,7)]||[]).push(e); });
-    Object.keys(byMonth).sort().reverse().forEach(mk=>{
-      const list = byMonth[mk];
-      const tot = list.reduce((a,e)=>a+e.value,0);
-      md += "\n## " + mk.slice(5,7) + "/" + mk.slice(0,4) + " — total " + brl(tot) + "\n";
-      list.sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
-        md += "- " + e.date.slice(8,10) + "/" + e.date.slice(5,7) + " — " + e.desc + " — " + brl(e.value) + " (" + e.cat + ")\n";
-      });
-      const byCat = {};
-      list.forEach(e=>{ byCat[e.cat] = (byCat[e.cat]||0) + e.value; });
-      md += "  - por categoria: " + Object.entries(byCat).map(([c,v])=>c+" "+brl(v)).join(" · ") + "\n";
-    });
-    return md;
-  }
   const CAT_COLORS = ["#EC6AA8","#5B8DEF","#6B8F71","#C9B23E","#B25B4C","#9C7BB8","#8A8478"];
   function catColor(cat){ const i = EXP_CATS.indexOf(cat); return CAT_COLORS[i>=0 ? i % CAT_COLORS.length : CAT_COLORS.length-1]; }
   function donutSvg(segments, total){
@@ -9097,24 +9047,6 @@ window.addEventListener("unhandledrejection", function(e){
     return key;
   }
   function chartsPeriodUnit(p){ return {semana:"semana", mes:"mês", trimestre:"trimestre", ano:"ano"}[p]; }
-  function expensesMdFromDocs(docs){
-    let md = "# Despesas\n";
-    const byMonth = {};
-    docs.forEach(e=>{ (byMonth[e.date.slice(0,7)] = byMonth[e.date.slice(0,7)]||[]).push(e); });
-    Object.keys(byMonth).sort().reverse().forEach(mk=>{
-      const list = byMonth[mk];
-      const tot = list.reduce((a,e)=>a+e.value,0);
-      md += "\n## " + mk.slice(5,7) + "/" + mk.slice(0,4) + " — total " + brl(tot) + "\n";
-      list.sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
-        md += "- " + e.date.slice(8,10) + "/" + e.date.slice(5,7) + (e.time?" "+e.time:"") + " — " + e.desc + " — " + brl(e.value) + " (" + e.cat + ")\n";
-      });
-      const byCat = {};
-      list.forEach(e=>{ byCat[e.cat] = (byCat[e.cat]||0) + e.value; });
-      md += "  - por categoria: " + Object.entries(byCat).map(([c,v])=>c+" "+brl(v)).join(" · ") + "\n";
-    });
-    return md;
-  }
-
   function renderExpenseFolder(){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
@@ -9122,7 +9054,6 @@ window.addEventListener("unhandledrejection", function(e){
       <h1><span id="expBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${svgIcon(ICON_D.expense)} Despesas</h1>
       <div class="header-right">
         <button class="bell-btn" id="exImportBtn" title="Importar extrato CSV" aria-label="Importar extrato CSV">${svgIcon(ICON_D.arrowUpTray,14)}</button>
-        <button class="bell-btn" id="exMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
         <button class="bell-btn" id="exCsv" title="Exportar CSV" aria-label="Exportar CSV">CSV</button>
         <input type="file" id="exCsvFile" accept=".csv,text/csv,text/plain" style="display:none">
       </div>
@@ -9434,7 +9365,6 @@ window.addEventListener("unhandledrejection", function(e){
       };
       reader.readAsText(file, "utf-8");
     };
-    document.getElementById("exMd").onclick = () => copyMarkdown(expensesMdFromDocs(expenseDocs()));
     document.getElementById("exCsv").onclick = () => {
       const rows = [["data","hora","descricao","valor","categoria"]];
       [...expenseDocs()].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
@@ -9451,7 +9381,6 @@ window.addEventListener("unhandledrejection", function(e){
     el.className = "screen";
     tmplHeader(el, doc, `
       <button class="icon-btn" id="exImportBtn" title="Importar extrato CSV" aria-label="Importar extrato CSV">${svgIcon(ICON_D.arrowUpTray,14)}CSV</button>
-      <button class="icon-btn" id="exMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
       <button class="icon-btn" id="exCsv" title="Exportar CSV" aria-label="Exportar CSV">CSV</button>
       <input type="file" id="exCsvFile" accept=".csv,text/csv,text/plain" style="display:none">`);
     const body = document.createElement("div");
@@ -9677,7 +9606,6 @@ window.addEventListener("unhandledrejection", function(e){
       };
       reader.readAsText(file, "utf-8");
     };
-    document.getElementById("exMd").onclick = () => copyMarkdown(expensesMd(doc));
     document.getElementById("exCsv").onclick = () => {
       const rows = [["data","descricao","valor","categoria"]];
       [...doc.entries].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
@@ -9703,7 +9631,6 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     tmplHeader(el, doc, `
-      <button class="icon-btn" id="pcMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
       <button class="icon-btn" id="pcPdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>`);
     const body = document.createElement("div");
     body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
@@ -9751,7 +9678,6 @@ window.addEventListener("unhandledrejection", function(e){
       autoGrowAll(body);
     }
     paint();
-    document.getElementById("pcMd").onclick = () => copyMarkdown(prosconsMd(doc));
     document.getElementById("pcPdf").onclick = () => {
       const ps = doc.pros.reduce((a,i)=>a+i.w,0), cs = doc.cons.reduce((a,i)=>a+i.w,0);
       let inner = "<h1>" + escapeHtml(doc.title) + "</h1>";
@@ -9811,7 +9737,6 @@ window.addEventListener("unhandledrejection", function(e){
     el.className = "screen";
     tmplHeader(el, doc, `
       <button class="icon-btn" id="tvReset" title="Desmarcar tudo (reusar)" aria-label="Desmarcar tudo (reusar)">${svgIcon(ICON_D.arrowPath,15)}</button>
-      <button class="icon-btn" id="tvMd" title="Copiar markdown" aria-label="Copiar markdown">MD</button>
       <button class="icon-btn" id="tvPdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>`);
     const form = document.createElement("div");
     form.className = "market-form";
@@ -9912,7 +9837,6 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("tvReset").onclick = () => {
       confirmModal("Desmarcar todos os itens para reusar a lista?", "Desmarcar", ()=>{ doc.items.forEach(i=>i.checked=false); saveTemplates(doc); paint(); });
     };
-    document.getElementById("tvMd").onclick = () => copyMarkdown(travelMd(doc));
     document.getElementById("tvPdf").onclick = () => {
       let inner = "<h1>" + escapeHtml(doc.title) + "</h1>";
       const byCat = {};
@@ -13468,7 +13392,7 @@ window.addEventListener("unhandledrejection", function(e){
     const ultBak = load(K_LASTBACKUP, null);
     el.innerHTML = `
       <div class="topbar">
-        <button class="link-btn muted" id="cfgBack">&larr; Rotinas</button>
+        <button class="link-btn muted" id="cfgBack">&larr; Voltar</button>
       </div>
       <div style="overflow-y:auto; flex:1; padding-bottom:24px;">
         <div class="home-header" style="margin-bottom:6px;"><h1>Configurações</h1></div>
@@ -13617,7 +13541,7 @@ window.addEventListener("unhandledrejection", function(e){
     `;
     app.appendChild(el);
 
-    document.getElementById("cfgBack").onclick = () => { goTo({tab:"home", screen:"home"}); };
+    document.getElementById("cfgBack").onclick = goBack;
     el.querySelectorAll("#cfgTema [data-tema]").forEach(sp=>{
       sp.onclick = () => { save(K_THEME, sp.dataset.tema); applyTheme(); render(); };
     });
