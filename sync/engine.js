@@ -150,6 +150,73 @@ function applyToRenderer(key, content, onApplied) {
   try { onApplied(key, JSON.parse(content)); } catch (e) { /* conteúdo remoto inválido: fica só em disco, não aplica */ }
 }
 
+/* ---- Fase 2: merge granular item-a-item ----
+   Só entra em jogo quando os dois lados mudaram desde o último sync (a
+   condição que antes virava sempre um conflito manual). Compara contra a
+   última versão sincronizada com sucesso (`baseContent`, guardada em
+   state.keys[key] a cada upload/download/merge) — um merge de 3 vias
+   clássico: item que só mudou de UM lado (relativo à base) aplica aquele
+   lado; item que mudou dos DOIS lados para coisas DIFERENTES continua
+   indo pro fluxo manual de hoje (grava .conflict-*.json, pede escolha).
+   Cobre os dois formatos usados pelas coleções sincronizadas — array de
+   objetos com `id` estável, e o mapa período→texto do diário — genérico,
+   sem registrar "esta chave é array/mapa" em lugar nenhum: se o JSON não
+   bater em nenhum dos dois formatos (ex.: os escalares tema/weekstart),
+   simplesmente não mescla, e cai no comportamento de sempre. */
+function isPlainObject(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
+
+function merge3WayArray(base, local, remote) {
+  const hasStableId = (arr) => arr.every((x) => x && (typeof x.id === "string" || typeof x.id === "number"));
+  if (!hasStableId(base) || !hasStableId(local) || !hasStableId(remote)) return { ok: false };
+
+  const byId = (arr) => new Map(arr.map((x) => [x.id, x]));
+  const baseById = byId(base), localById = byId(local), remoteById = byId(remote);
+  const allIds = new Set([...baseById.keys(), ...localById.keys(), ...remoteById.keys()]);
+
+  const resolved = new Map(); // id -> item mesclado; ausente = removido nos dois lados (ou por um, sem o outro ter mudado)
+  for (const id of allIds) {
+    const b = baseById.get(id), l = localById.get(id), r = remoteById.get(id);
+    const bJson = b !== undefined ? JSON.stringify(b) : undefined;
+    const lJson = l !== undefined ? JSON.stringify(l) : undefined;
+    const rJson = r !== undefined ? JSON.stringify(r) : undefined;
+
+    if (lJson === rJson) { if (l !== undefined) resolved.set(id, l); continue; } // iguais (ou os dois removeram)
+    if (bJson === lJson) { if (r !== undefined) resolved.set(id, r); continue; } // só o remoto mudou (ou removeu) esse item
+    if (bJson === rJson) { if (l !== undefined) resolved.set(id, l); continue; } // só o local mudou (ou removeu) esse item
+    return { ok: false }; // o MESMO item mudou dos dois lados, para coisas diferentes — conflito de verdade
+  }
+
+  // ordem: segue o local (preserva reordenação manual feita por lá), completando
+  // com o que só existe no remoto, na ordem em que ele os tem
+  const out = [];
+  const used = new Set();
+  local.forEach((x) => { if (resolved.has(x.id) && !used.has(x.id)) { out.push(resolved.get(x.id)); used.add(x.id); } });
+  remote.forEach((x) => { if (resolved.has(x.id) && !used.has(x.id)) { out.push(resolved.get(x.id)); used.add(x.id); } });
+  return { ok: true, merged: out };
+}
+
+function merge3WayMap(base, local, remote) {
+  const allKeys = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
+  const out = {};
+  for (const k of allKeys) {
+    const b = base[k], l = local[k], r = remote[k];
+    if (l === r) { if (l !== undefined) out[k] = l; continue; }
+    if (b === l) { if (r !== undefined) out[k] = r; continue; }
+    if (b === r) { if (l !== undefined) out[k] = l; continue; }
+    return { ok: false }; // a MESMA chave (período) foi editada dos dois lados, para textos diferentes
+  }
+  return { ok: true, merged: out };
+}
+
+function merge3Way(baseRaw, localRaw, remoteRaw) {
+  let base, local, remote;
+  try { base = JSON.parse(baseRaw); local = JSON.parse(localRaw); remote = JSON.parse(remoteRaw); }
+  catch (e) { return { ok: false }; }
+  if (Array.isArray(base) && Array.isArray(local) && Array.isArray(remote)) return merge3WayArray(base, local, remote);
+  if (isPlainObject(base) && isPlainObject(local) && isPlainObject(remote)) return merge3WayMap(base, local, remote);
+  return { ok: false }; // formato escalar (tema/weekstart) ou inesperado: sem merge granular
+}
+
 /* Um ciclo completo: para cada chave, decide upload / download / conflito /
    nada a fazer, comparando contra o `sync-state.json` do último ciclo bem-sucedido. */
 async function syncOnce({ onApplied, onConflict, log } = {}) {
@@ -162,7 +229,7 @@ async function syncOnce({ onApplied, onConflict, log } = {}) {
 
   const remoteFiles = await drive.listSyncFiles(accessToken, state.folderId);
   const remoteByName = new Map(remoteFiles.map((f) => [f.name, f]));
-  const results = { uploaded: [], downloaded: [], conflicts: [], skipped: [], errors: [] };
+  const results = { uploaded: [], downloaded: [], merged: [], conflicts: [], skipped: [], errors: [] };
 
   for (const key of SYNCED_KEYS) {
     try {
@@ -175,7 +242,7 @@ async function syncOnce({ onApplied, onConflict, log } = {}) {
 
       if (local.exists && !remote) {
         const up = await drive.createFile(accessToken, state.folderId, key + ".json", local.content);
-        state.keys[key] = { localMtime: local.mtime, remoteModifiedTime: Date.parse(up.modifiedTime), syncedAt: Date.now() };
+        state.keys[key] = { localMtime: local.mtime, remoteModifiedTime: Date.parse(up.modifiedTime), syncedAt: Date.now(), baseContent: local.content };
         delete state.conflicts[key];
         results.uploaded.push(key);
         continue;
@@ -183,7 +250,7 @@ async function syncOnce({ onApplied, onConflict, log } = {}) {
       if (!local.exists && remote) {
         const content = await drive.downloadFileContent(accessToken, remote.id);
         const mtime = writeLocal(key, content);
-        state.keys[key] = { localMtime: mtime, remoteModifiedTime: remoteModMs, syncedAt: Date.now() };
+        state.keys[key] = { localMtime: mtime, remoteModifiedTime: remoteModMs, syncedAt: Date.now(), baseContent: content };
         delete state.conflicts[key];
         applyToRenderer(key, content, onApplied);
         results.downloaded.push(key);
@@ -203,8 +270,23 @@ async function syncOnce({ onApplied, onConflict, log } = {}) {
         const remoteContent = await drive.downloadFileContent(accessToken, remote.id);
         if (!prev && local.content.trim() === remoteContent.trim()) {
           // primeiro sync e os dois lados já são idênticos — não é conflito de verdade
-          state.keys[key] = { localMtime: local.mtime, remoteModifiedTime: remoteModMs, syncedAt: Date.now() };
+          state.keys[key] = { localMtime: local.mtime, remoteModifiedTime: remoteModMs, syncedAt: Date.now(), baseContent: local.content };
           results.skipped.push(key);
+          continue;
+        }
+        // Fase 2: os dois lados mudaram, mas nem sempre é um conflito de verdade —
+        // só é se o MESMO item foi editado dos dois lados para coisas diferentes.
+        // Com uma base conhecida (último sync bem-sucedido), tenta mesclar por
+        // item antes de exigir escolha manual.
+        const mergeAttempt = prev && prev.baseContent ? merge3Way(prev.baseContent, local.content, remoteContent) : { ok: false };
+        if (mergeAttempt.ok) {
+          const mergedContent = JSON.stringify(mergeAttempt.merged, null, 2);
+          const mtime = writeLocal(key, mergedContent);
+          const up = await drive.updateFileContent(accessToken, remote.id, mergedContent);
+          state.keys[key] = { localMtime: mtime, remoteModifiedTime: Date.parse(up.modifiedTime), syncedAt: Date.now(), baseContent: mergedContent };
+          delete state.conflicts[key];
+          applyToRenderer(key, mergedContent, onApplied);
+          results.merged.push(key);
           continue;
         }
         writeConflictFile(key, remoteContent);
@@ -215,7 +297,7 @@ async function syncOnce({ onApplied, onConflict, log } = {}) {
       }
       if (localChanged) {
         const up = await drive.updateFileContent(accessToken, remote.id, local.content);
-        state.keys[key] = { localMtime: local.mtime, remoteModifiedTime: Date.parse(up.modifiedTime), syncedAt: Date.now() };
+        state.keys[key] = { localMtime: local.mtime, remoteModifiedTime: Date.parse(up.modifiedTime), syncedAt: Date.now(), baseContent: local.content };
         delete state.conflicts[key];
         results.uploaded.push(key);
         continue;
@@ -223,12 +305,16 @@ async function syncOnce({ onApplied, onConflict, log } = {}) {
       if (remoteChanged) {
         const content = await drive.downloadFileContent(accessToken, remote.id);
         const mtime = writeLocal(key, content);
-        state.keys[key] = { localMtime: mtime, remoteModifiedTime: remoteModMs, syncedAt: Date.now() };
+        state.keys[key] = { localMtime: mtime, remoteModifiedTime: remoteModMs, syncedAt: Date.now(), baseContent: content };
         delete state.conflicts[key];
         applyToRenderer(key, content, onApplied);
         results.downloaded.push(key);
         continue;
       }
+      // nada mudou nos dois lados — instalação antiga (de antes da Fase 2)
+      // pode não ter baseContent salvo ainda; completa agora, sem custo extra
+      // (local e remoto já são o mesmo conteúdo, por definição deste branch)
+      if (prev && !prev.baseContent) state.keys[key] = { ...prev, baseContent: local.content };
       results.skipped.push(key);
     } catch (e) {
       results.errors.push({ key, message: e.message });
@@ -258,14 +344,14 @@ async function resolveConflict(key, choice, { onApplied } = {}) {
     if (!remote) throw new Error("arquivo remoto não encontrado");
     const content = await drive.downloadFileContent(accessToken, remote.id);
     const mtime = writeLocal(key, content);
-    state.keys[key] = { localMtime: mtime, remoteModifiedTime: Date.parse(remote.modifiedTime), syncedAt: Date.now() };
+    state.keys[key] = { localMtime: mtime, remoteModifiedTime: Date.parse(remote.modifiedTime), syncedAt: Date.now(), baseContent: content };
     applyToRenderer(key, content, onApplied);
   } else if (choice === "local") {
     if (!local.exists) throw new Error("arquivo local não encontrado");
     const up = remote
       ? await drive.updateFileContent(accessToken, remote.id, local.content)
       : await drive.createFile(accessToken, state.folderId, key + ".json", local.content);
-    state.keys[key] = { localMtime: local.mtime, remoteModifiedTime: Date.parse(up.modifiedTime), syncedAt: Date.now() };
+    state.keys[key] = { localMtime: local.mtime, remoteModifiedTime: Date.parse(up.modifiedTime), syncedAt: Date.now(), baseContent: local.content };
   } else {
     throw new Error("escolha inválida: use \"local\" ou \"remote\"");
   }
@@ -285,6 +371,7 @@ function getStatus() {
 
 module.exports = {
   SYNCED_KEYS,
+  merge3Way, // exportado só para test/sync-merge.cjs exercitar o algoritmo puro
   saveClientCreds,
   loadClientCreds,
   hasClientCreds,

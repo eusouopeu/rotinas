@@ -57,7 +57,9 @@ const NAMES = [
   "rodaAtiva", "rodaAreas", "areaInfoRoda", "pesoDaArea", "areaDaRotina",
   "fatoresPorArea", "fatorHabito", "rotinaTagEfetiva", "vagasDoNivel", "ocupantesDoNivel",
   // dia de início da semana configurável
-  "weekStartDow", "offsetSemana", "ordemDiasSemana"
+  "weekStartDow", "offsetSemana", "ordemDiasSemana",
+  // correlação entre áreas (rudimentar) do boletim
+  "correlacaoPearson"
 ];
 
 const sandbox = {
@@ -330,6 +332,13 @@ deepEq("ordemDiasSemana começa no dia configurado", F.ordemDiasSemana(), [1,2,3
 sandbox._store[sandbox.K_WEEKSTART] = 0; // volta ao padrão para não vazar estado entre specs futuros
 eq("de volta ao padrão, offset é literal (domingo=0)", F.offsetSemana(3), 3);
 deepEq("ordemDiasSemana no padrão é a ordem natural", F.ordemDiasSemana(), [0,1,2,3,4,5,6]);
+
+/* ---------------- correlação entre áreas (boletim) ---------------- */
+near("séries idênticas correlacionam +1", F.correlacaoPearson([1,2,3,4,5], [2,4,6,8,10]), 1, 1e-9);
+near("séries inversas correlacionam -1", F.correlacaoPearson([1,2,3,4,5], [5,4,3,2,1]), -1, 1e-9);
+check("série constante não correlaciona (variância zero)", F.correlacaoPearson([3,3,3,3], [1,2,3,4]) === null);
+check("menos de 3 pontos não correlaciona", F.correlacaoPearson([1,2], [1,2]) === null);
+near("correlação fraca calcula certo (Pearson padrão)", F.correlacaoPearson([1,2,3,4,5], [3,1,4,1,5]), 0.3536, 1e-3);
 
 console.log(failures === 0 ? "\nGAMIFICACAO OK" : "\n" + failures + " FALHA(S)");
 process.exit(failures === 0 ? 0 : 1);

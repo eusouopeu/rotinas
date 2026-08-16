@@ -3,7 +3,9 @@ package com.pedro.rotinas;
 import android.content.Context;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,8 +14,14 @@ import java.io.ByteArrayOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 
 /**
@@ -35,7 +43,8 @@ final class SyncEngine {
             "rotinas_v2_routines", "rotinas_v2_notes", "rotinas_v2_history",
             "rotinas_v2_templates", "rotinas_v2_snoozes", "rotinas_v2_tarefas",
             "rotinas_v2_tarefas_hist", "rotinas_v2_diario", "rotinas_v2_diakanban",
-            "rotinas_v2_theme", "rotinas_v2_densidade", "rotinas_v2_weekstart"
+            "rotinas_v2_exercicios", "rotinas_v2_compromissos",
+            "rotinas_v2_theme", "rotinas_v2_weekstart"
     };
 
     private static final String SYNC_FOLDER_NAME = "brita-sync";
@@ -137,7 +146,7 @@ final class SyncEngine {
         JSONObject state = SyncTokenStore.loadState(ctx);
         JSONObject conflicts = SyncTokenStore.loadConflicts(ctx);
 
-        List<String> uploaded = new ArrayList<>(), downloaded = new ArrayList<>(),
+        List<String> uploaded = new ArrayList<>(), downloaded = new ArrayList<>(), merged = new ArrayList<>(),
                 conflictList = new ArrayList<>(), skipped = new ArrayList<>();
         JSONArray errors = new JSONArray();
 
@@ -154,7 +163,7 @@ final class SyncEngine {
                 if (localExists && remote == null) {
                     String content = readTextFile(local);
                     JSONObject up = GoogleDriveApi.createFile(accessToken, folderId, key + ".json", content);
-                    state.put(key, keyState(local.lastModified(), parseIso(up.getString("modifiedTime"))));
+                    state.put(key, keyState(local.lastModified(), parseIso(up.getString("modifiedTime")), content));
                     conflicts.remove(key);
                     uploaded.add(key);
                     continue;
@@ -162,7 +171,7 @@ final class SyncEngine {
                 if (!localExists) {
                     String content = GoogleDriveApi.downloadFileContent(accessToken, remote.getString("id"));
                     long mtime = writeTextFile(local, content);
-                    state.put(key, keyState(mtime, remoteModMs));
+                    state.put(key, keyState(mtime, remoteModMs, content));
                     conflicts.remove(key);
                     downloaded.add(key);
                     continue;
@@ -183,8 +192,22 @@ final class SyncEngine {
                     String remoteContent = GoogleDriveApi.downloadFileContent(accessToken, remote.getString("id"));
                     String localContent = readTextFile(local);
                     if (prev == null && localContent.trim().equals(remoteContent.trim())) {
-                        state.put(key, keyState(localMtime, remoteModMs));
+                        state.put(key, keyState(localMtime, remoteModMs, localContent));
                         skipped.add(key);
+                        continue;
+                    }
+                    // Fase 2: os dois lados mudaram, mas só é conflito de verdade se o
+                    // MESMO item foi editado dos dois lados pra coisas diferentes — com
+                    // uma base conhecida, tenta mesclar por item antes de exigir escolha manual.
+                    String baseContent = prev != null ? prev.optString("baseContent", null) : null;
+                    Object mergedObj = baseContent != null ? merge3Way(baseContent, localContent, remoteContent) : null;
+                    if (mergedObj != null) {
+                        String mergedContent = mergedObj.toString();
+                        long mtime = writeTextFile(local, mergedContent);
+                        JSONObject up = GoogleDriveApi.updateFileContent(accessToken, remote.getString("id"), mergedContent);
+                        state.put(key, keyState(mtime, parseIso(up.getString("modifiedTime")), mergedContent));
+                        conflicts.remove(key);
+                        merged.add(key);
                         continue;
                     }
                     writeConflictFile(ctx, key, remoteContent);
@@ -199,7 +222,7 @@ final class SyncEngine {
                 if (localChanged) {
                     String content = readTextFile(local);
                     JSONObject up = GoogleDriveApi.updateFileContent(accessToken, remote.getString("id"), content);
-                    state.put(key, keyState(localMtime, parseIso(up.getString("modifiedTime"))));
+                    state.put(key, keyState(localMtime, parseIso(up.getString("modifiedTime")), content));
                     conflicts.remove(key);
                     uploaded.add(key);
                     continue;
@@ -207,10 +230,16 @@ final class SyncEngine {
                 if (remoteChanged) {
                     String content = GoogleDriveApi.downloadFileContent(accessToken, remote.getString("id"));
                     long mtime = writeTextFile(local, content);
-                    state.put(key, keyState(mtime, remoteModMs));
+                    state.put(key, keyState(mtime, remoteModMs, content));
                     conflicts.remove(key);
                     downloaded.add(key);
                     continue;
+                }
+                // nada mudou nos dois lados — instalação de antes da Fase 2 pode não
+                // ter baseContent salvo ainda; completa agora, sem custo extra (local
+                // e remoto já são o mesmo conteúdo, por definição deste branch)
+                if (prev != null && !prev.has("baseContent")) {
+                    state.put(key, keyState(localMtime, remoteModMs, readTextFile(local)));
                 }
                 skipped.add(key);
             } catch (Exception e) {
@@ -228,6 +257,7 @@ final class SyncEngine {
         JSONObject result = new JSONObject();
         result.put("uploaded", new JSONArray(uploaded));
         result.put("downloaded", new JSONArray(downloaded));
+        result.put("merged", new JSONArray(merged));
         result.put("conflicts", new JSONArray(conflictList));
         result.put("skipped", new JSONArray(skipped));
         result.put("errors", errors);
@@ -256,14 +286,14 @@ final class SyncEngine {
             if (remote == null) throw new Exception("arquivo remoto não encontrado");
             String content = GoogleDriveApi.downloadFileContent(accessToken, remote.getString("id"));
             long mtime = writeTextFile(local, content);
-            state.put(key, keyState(mtime, parseIso(remote.getString("modifiedTime"))));
+            state.put(key, keyState(mtime, parseIso(remote.getString("modifiedTime")), content));
         } else if ("local".equals(choice)) {
             if (!local.exists()) throw new Exception("arquivo local não encontrado");
             String content = readTextFile(local);
             JSONObject up = remote != null
                     ? GoogleDriveApi.updateFileContent(accessToken, remote.getString("id"), content)
                     : GoogleDriveApi.createFile(accessToken, folderId, key + ".json", content);
-            state.put(key, keyState(local.lastModified(), parseIso(up.getString("modifiedTime"))));
+            state.put(key, keyState(local.lastModified(), parseIso(up.getString("modifiedTime")), content));
         } else {
             throw new Exception("escolha inválida: use \"local\" ou \"remote\"");
         }
@@ -286,12 +316,120 @@ final class SyncEngine {
         return status;
     }
 
-    private static JSONObject keyState(long localMtime, Long remoteModifiedTime) throws Exception {
+    private static JSONObject keyState(long localMtime, Long remoteModifiedTime, String baseContent) throws Exception {
         JSONObject o = new JSONObject();
         o.put("localMtime", localMtime);
         o.put("remoteModifiedTime", remoteModifiedTime == null ? 0 : remoteModifiedTime);
         o.put("syncedAt", System.currentTimeMillis());
+        if (baseContent != null) o.put("baseContent", baseContent);
         return o;
+    }
+
+    /* ---- Fase 2: merge granular item-a-item — tradução direta de merge3Way
+       (sync/engine.js, desktop). Ver o comentário lá para a explicação
+       completa do algoritmo; aqui só a forma dos dados muda (org.json em vez
+       de objetos/arrays nativos do JS). Devolve o JSONArray/JSONObject
+       mesclado, ou null se não deu pra mesclar sozinho (formato incompatível,
+       ou o MESMO item/chave mudou dos dois lados para coisas diferentes —
+       aí cai no fluxo manual de sempre). */
+    private static boolean strEq(String a, String b) { return a == null ? b == null : a.equals(b); }
+
+    private static String idOf(JSONObject o) {
+        if (!o.has("id")) return null;
+        Object v = o.opt("id");
+        return v == null ? null : String.valueOf(v);
+    }
+
+    private static Map<String, JSONObject> indexById(JSONArray arr) throws JSONException {
+        Map<String, JSONObject> m = new LinkedHashMap<>();
+        for (int i = 0; i < arr.length(); i++) {
+            Object item = arr.get(i);
+            if (!(item instanceof JSONObject)) return null;
+            String id = idOf((JSONObject) item);
+            if (id == null) return null; // item sem id estável: não dá pra rastrear identidade
+            m.put(id, (JSONObject) item);
+        }
+        return m;
+    }
+
+    private static JSONArray merge3WayArray(JSONArray base, JSONArray local, JSONArray remote) {
+        try {
+            Map<String, JSONObject> baseById = indexById(base), localById = indexById(local), remoteById = indexById(remote);
+            if (baseById == null || localById == null || remoteById == null) return null;
+
+            Set<String> allIds = new LinkedHashSet<>();
+            allIds.addAll(baseById.keySet()); allIds.addAll(localById.keySet()); allIds.addAll(remoteById.keySet());
+
+            Map<String, JSONObject> resolved = new LinkedHashMap<>();
+            for (String id : allIds) {
+                JSONObject b = baseById.get(id), l = localById.get(id), r = remoteById.get(id);
+                String bJson = b != null ? b.toString() : null;
+                String lJson = l != null ? l.toString() : null;
+                String rJson = r != null ? r.toString() : null;
+
+                if (strEq(lJson, rJson)) { if (l != null) resolved.put(id, l); continue; } // iguais (ou os dois removeram)
+                if (strEq(bJson, lJson)) { if (r != null) resolved.put(id, r); continue; } // só o remoto mudou (ou removeu)
+                if (strEq(bJson, rJson)) { if (l != null) resolved.put(id, l); continue; } // só o local mudou (ou removeu)
+                return null; // o MESMO item mudou dos dois lados, pra coisas diferentes
+            }
+
+            // ordem: segue o local, completando com o que só existe no remoto
+            JSONArray out = new JSONArray();
+            Set<String> used = new HashSet<>();
+            for (int i = 0; i < local.length(); i++) {
+                String id = idOf(local.getJSONObject(i));
+                if (id != null && resolved.containsKey(id) && !used.contains(id)) { out.put(resolved.get(id)); used.add(id); }
+            }
+            for (int i = 0; i < remote.length(); i++) {
+                String id = idOf(remote.getJSONObject(i));
+                if (id != null && resolved.containsKey(id) && !used.contains(id)) { out.put(resolved.get(id)); used.add(id); }
+            }
+            return out;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static JSONObject merge3WayMap(JSONObject base, JSONObject local, JSONObject remote) {
+        try {
+            Set<String> allKeys = new LinkedHashSet<>();
+            for (Iterator<String> it = base.keys(); it.hasNext();) allKeys.add(it.next());
+            for (Iterator<String> it = local.keys(); it.hasNext();) allKeys.add(it.next());
+            for (Iterator<String> it = remote.keys(); it.hasNext();) allKeys.add(it.next());
+
+            JSONObject out = new JSONObject();
+            for (String k : allKeys) {
+                String b = base.has(k) ? base.getString(k) : null;
+                String l = local.has(k) ? local.getString(k) : null;
+                String r = remote.has(k) ? remote.getString(k) : null;
+                if (strEq(l, r)) { if (l != null) out.put(k, l); continue; }
+                if (strEq(b, l)) { if (r != null) out.put(k, r); continue; }
+                if (strEq(b, r)) { if (l != null) out.put(k, l); continue; }
+                return null; // a MESMA chave (período) foi editada dos dois lados, pra textos diferentes
+            }
+            return out;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** null = não deu pra mesclar sozinho; senão devolve o JSONArray/JSONObject mesclado (nunca outro tipo). */
+    private static Object merge3Way(String baseRaw, String localRaw, String remoteRaw) {
+        Object base, local, remote;
+        try {
+            base = new JSONTokener(baseRaw).nextValue();
+            local = new JSONTokener(localRaw).nextValue();
+            remote = new JSONTokener(remoteRaw).nextValue();
+        } catch (Exception e) {
+            return null;
+        }
+        if (base instanceof JSONArray && local instanceof JSONArray && remote instanceof JSONArray) {
+            return merge3WayArray((JSONArray) base, (JSONArray) local, (JSONArray) remote);
+        }
+        if (base instanceof JSONObject && local instanceof JSONObject && remote instanceof JSONObject) {
+            return merge3WayMap((JSONObject) base, (JSONObject) local, (JSONObject) remote);
+        }
+        return null; // escalar (tema/weekstart) ou formato inesperado: sem merge granular
     }
 
     /** RFC3339 (o modifiedTime que a Drive API devolve) -> epoch ms. */

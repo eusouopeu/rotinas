@@ -107,19 +107,38 @@ const localPath = path.join(tmpDir, "brita", KEY + ".json");
   assert(res.uploaded.includes(KEY), "só local mudou deveria subir");
   assert(JSON.parse(driveFiles.get(KEY + ".json").content).length === 3, "conteúdo remoto deveria refletir a mudança local");
 
-  // 5) conflito de verdade: os dois lados mudam desde o último sync
+  // 5) Fase 2 — merge automático: os dois lados mudam desde o último sync, mas
+  // cada um mexe num item DIFERENTE (um adiciona "local-only", o outro
+  // "remote-only") — não é um conflito de verdade, e agora resolve sozinho
+  // em vez de exigir escolha manual (o comportamento antigo desta mesma
+  // massa de dados, antes da Fase 2, era virar conflito — ver git blame).
   fs.writeFileSync(localPath, JSON.stringify([{ id: "local-only" }]));
   const futuro2 = new Date(Date.now() + 10000);
   fs.utimesSync(localPath, futuro2, futuro2);
   const rf = driveFiles.get(KEY + ".json");
   rf.content = JSON.stringify([{ id: "remote-only" }]);
   rf.modifiedTime = Date.now() + 10000;
+  res = await engine.syncOnce();
+  assert(res.merged.includes(KEY), "itens diferentes mudando dos dois lados deveria mesclar sozinho, sem pedir escolha");
+  assert(!res.conflicts.includes(KEY), "merge automático não deveria aparecer como conflito pendente");
+  let mergedIds = JSON.parse(fs.readFileSync(localPath, "utf8")).map(x => x.id).sort();
+  assert(mergedIds.length === 2 && mergedIds[0] === "local-only" && mergedIds[1] === "remote-only",
+    "arquivo local deveria conter os dois itens depois do merge automático");
+  assert(JSON.parse(driveFiles.get(KEY + ".json").content).length === 2, "o merge automático também deveria subir pro Drive");
+
+  // 5b) conflito de verdade: o MESMO item muda dos dois lados, para coisas
+  // diferentes — aí sim precisa de escolha manual, exatamente como antes.
+  fs.writeFileSync(localPath, JSON.stringify([{ id: "local-only", nome: "Editado no celular" }, { id: "remote-only" }]));
+  const futuro3 = new Date(Date.now() + 15000);
+  fs.utimesSync(localPath, futuro3, futuro3);
+  rf.content = JSON.stringify([{ id: "local-only", nome: "Editado no desktop" }, { id: "remote-only" }]);
+  rf.modifiedTime = Date.now() + 15000;
   let conflictKey = null, conflictContent = null;
   res = await engine.syncOnce({ onConflict: (k, c) => { conflictKey = k; conflictContent = c; } });
-  assert(res.conflicts.includes(KEY), "os dois lados mudando deveria virar conflito, não last-write-wins silencioso");
+  assert(res.conflicts.includes(KEY), "o mesmo item editado diferente nos dois lados deveria virar conflito de verdade");
   assert(conflictKey === KEY, "onConflict deveria disparar para a chave em conflito");
-  assert(JSON.parse(conflictContent)[0].id === "remote-only", "onConflict deveria trazer o conteúdo remoto");
-  assert(JSON.parse(fs.readFileSync(localPath, "utf8"))[0].id === "local-only", "conflito não deve sobrescrever o arquivo local sozinho");
+  assert(JSON.parse(conflictContent).find(x => x.id === "local-only").nome === "Editado no desktop", "onConflict deveria trazer o conteúdo remoto");
+  assert(JSON.parse(fs.readFileSync(localPath, "utf8")).find(x => x.id === "local-only").nome === "Editado no celular", "conflito não deve sobrescrever o arquivo local sozinho");
   let conflictFiles = fs.readdirSync(path.join(tmpDir, "brita")).filter(f => f.includes(".conflict-"));
   assert(conflictFiles.length === 1, "deveria ter gravado um .conflict-<timestamp>.json ao lado do arquivo real");
 
@@ -133,7 +152,22 @@ const localPath = path.join(tmpDir, "brita", KEY + ".json");
   await engine.resolveConflict(KEY, "local");
   const status = engine.getStatus();
   assert(!status.pendingConflicts.includes(KEY), "resolver o conflito deveria tirá-lo de pendingConflicts");
-  assert(JSON.parse(driveFiles.get(KEY + ".json").content)[0].id === "local-only", 'escolher "local" deveria sobrescrever o remoto com o conteúdo local');
+  assert(JSON.parse(driveFiles.get(KEY + ".json").content).find(x => x.id === "local-only").nome === "Editado no celular", 'escolher "local" deveria sobrescrever o remoto com o conteúdo local');
+
+  // 8) depois de resolver, a base fica fresca de novo: uma exclusão de um lado
+  // + edição de OUTRO item do outro lado volta a mesclar sozinho
+  const pos7 = JSON.parse(driveFiles.get(KEY + ".json").content); // [local-only, remote-only]
+  fs.writeFileSync(localPath, JSON.stringify(pos7.filter(x => x.id !== "remote-only"))); // local remove "remote-only"
+  const futuro4 = new Date(Date.now() + 20000);
+  fs.utimesSync(localPath, futuro4, futuro4);
+  const rf4 = driveFiles.get(KEY + ".json");
+  rf4.content = JSON.stringify(pos7.map(x => x.id === "local-only" ? { ...x, nome: "Editado no desktop de novo" } : x)); // remoto só edita o OUTRO item
+  rf4.modifiedTime = Date.now() + 20000;
+  res = await engine.syncOnce();
+  assert(res.merged.includes(KEY), "exclusão de um lado + edição de outro item no outro lado deveria mesclar sozinho depois que a base ficou fresca");
+  const finalArr = JSON.parse(fs.readFileSync(localPath, "utf8"));
+  assert(!finalArr.some(x => x.id === "remote-only"), "item removido localmente não deveria voltar depois do merge");
+  assert(finalArr.find(x => x.id === "local-only").nome === "Editado no desktop de novo", "edição feita só no remoto deveria sobreviver ao merge mesmo com exclusão do outro lado");
 
   if (failures) {
     console.error(failures + " teste(s) falharam em test/sync.cjs");

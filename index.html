@@ -1798,7 +1798,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-15 (v19)";
+  const BUILD_STAMP = "2026-08-16 (v20)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2693,6 +2693,45 @@ window.addEventListener("unhandledrejection", function(e){
       const info = areaInfoRoda(k);
       return { label: info.label, color: info.color, valores: semanas.map(s=> Math.round((s.porArea[k]||0)*10)/10), _ordem: ordemArea(k) };
     }).sort((a,b)=> a._ordem - b._ordem);
+  }
+
+  /* Nota (0-100) das últimas N semanas fechadas + a semana em curso (ainda
+     parcial) no fim — para o gráfico de evolução do boletim. Semana
+     dispensada entra (sem virar buraco na linha do tempo), só marcada. */
+  function notaEvolucaoSemanas(n){
+    const fechadas = gam.historico.semanas.slice(-n).map(s => ({ inicioISO: s.inicioISO, nota: s.nota, dispensada: !!s.dispensada, emCurso:false }));
+    const atual = ritmoInfo();
+    fechadas.push({ inicioISO: gam.semanaAtual.inicioISO, nota: atual.nota, dispensada: !!gam.semanaAtual.dispensada, emCurso:true });
+    return fechadas;
+  }
+  /* Correlação de Pearson simples entre duas séries do mesmo tamanho — usada
+     só para a correlação entre áreas da roda da vida (rudimentar de propósito:
+     é um alerta de "essas áreas andam junto", não uma inferência causal). */
+  function correlacaoPearson(xs, ys){
+    const n = Math.min(xs.length, ys.length);
+    if(n < 3) return null;
+    let sx=0, sy=0, sxx=0, syy=0, sxy=0;
+    for(let i=0; i<n; i++){ sx+=xs[i]; sy+=ys[i]; sxx+=xs[i]*xs[i]; syy+=ys[i]*ys[i]; sxy+=xs[i]*ys[i]; }
+    const mx = sx/n, my = sy/n;
+    const cov = sxy/n - mx*my;
+    const vx = sxx/n - mx*mx, vy = syy/n - my*my;
+    if(vx <= 0 || vy <= 0) return null; // série constante não tem variância pra correlacionar
+    return cov / Math.sqrt(vx*vy);
+  }
+  /* Correlação par a par entre as áreas com histórico de tendência — devolve
+     ordenado do par mais correlacionado (positivo ou negativo) pro menos. */
+  function correlacaoAreas(n){
+    const tend = tendenciaAreaSemanas(n);
+    if(tend.length < 2) return [];
+    const pares = [];
+    for(let i=0; i<tend.length; i++){
+      for(let j=i+1; j<tend.length; j++){
+        const r = correlacaoPearson(tend[i].valores, tend[j].valores);
+        if(r == null) continue;
+        pares.push({ a: tend[i], b: tend[j], r });
+      }
+    }
+    return pares.sort((x,y) => Math.abs(y.r) - Math.abs(x.r));
   }
 
   /* Resumo compacto da roda da vida (pontos da semana por área), reaproveitado
@@ -13461,6 +13500,8 @@ window.addEventListener("unhandledrejection", function(e){
     const tags = distribuicaoTags();
     const roda = pontosPorAreaSemana();
     const tend = tendenciaAreaSemanas(8);
+    const evolucao = notaEvolucaoSemanas(11); // 11 fechadas + a em curso = 12 barras
+    const correlacoes = correlacaoAreas(8).filter(p => Math.abs(p.r) >= 0.5).slice(0, 5);
     const pctTag = t => tags.total ? Math.round(tags[t]/tags.total*100) : 0;
     const larguraTag = t => tags[t] === 0 ? 0 : Math.max(3, pctTag(t)); // 0 não desenha barra
     const tagAlerta = tags.total >= 5 && pctTag("alto") >= 70;
@@ -13486,6 +13527,23 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="routine-meta">${r.porDia100.toFixed(1)} pontos/dia até sábado para chegar a 100</div>
           ${r.nota < gam.config.notaMinima ? `<div class="routine-meta">${r.porDia60.toFixed(1)} pontos/dia para ao menos aprovar (${gam.config.notaMinima})</div>` : ""}
         </div>` : `<div class="stat-card"><div class="routine-meta" style="color:var(--good);">Meta da semana batida — o que vier agora é estouro &#9733;</div></div>`)}
+        ${evolucao.length >= 2 ? `<div class="section-label">Evolução do boletim</div>
+        <div class="stat-card">
+          <div class="hour-chart">
+            ${evolucao.map((s,i)=>{
+              const h = Math.max(2, Math.round(Math.min(100, Math.max(0, s.nota))/100*70));
+              const cor = s.dispensada ? "var(--muted)" : "var(--grad)";
+              const opacidade = s.emCurso ? "0.55" : "1";
+              const mostraLabel = i===0 || i===evolucao.length-1 || s.emCurso;
+              const dm = isoToDate(s.inicioISO);
+              return `<div class="hour-col" title="${escapeHtml(diarioRotulo("semana", s.inicioISO))}: ${s.nota.toFixed(1)} pts${s.emCurso?' (em curso)':''}${s.dispensada?' · dispensada':''}">
+                ${mostraLabel ? `<span class="trend-lbl">${String(dm.getDate()).padStart(2,"0")}/${String(dm.getMonth()+1).padStart(2,"0")}</span>` : `<span class="trend-lbl"></span>`}
+                <div class="hour-bar-area"><div class="hour-bar" style="height:${h}px; background:${cor}; opacity:${opacidade};"></div></div>
+              </div>`;
+            }).join("")}
+          </div>
+          <div class="stat-foot">Nota de 0 a 100 por semana (da mais antiga à mais recente) — a última barra é a semana em curso, ainda parcial.</div>
+        </div>` : ""}
         <div style="margin:10px 0 4px;">
           <button class="${disp?'btn-cancel':'btn-danger-outline'}" id="blDispensar" style="width:100%;">${disp?'Reativar esta semana':'Dispensar esta semana (viagem, doença...)'}</button>
         </div>
@@ -13510,6 +13568,19 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="stat-card">
           ${tend.map(t=>`<div class="bar-row"><div class="bar-name" style="color:${t.color};">${escapeHtml(t.label)}</div><div class="bar-val" style="width:auto; flex:1; text-align:right; font-family:'IBM Plex Mono', monospace; font-size:12px;">${t.valores.join(' · ')}</div></div>`).join("")}
           <div class="stat-foot">Pontos por semana, da mais antiga à mais recente (esquerda → direita).</div>
+        </div>` : ""}
+        ${correlacoes.length ? `<div class="section-label">Correlação entre áreas — últimas ${tend[0].valores.length} semanas</div>
+        <div class="stat-card">
+          ${correlacoes.map(p=>{
+            const intensidade = Math.abs(p.r) >= 0.8 ? "forte" : "moderada";
+            const sentido = p.r >= 0 ? "junto" : "em direções opostas";
+            return `<div class="bar-row">
+              <div class="bar-name" style="width:auto; flex:1;"><span style="color:${p.a.color};">${escapeHtml(p.a.label)}</span> &harr; <span style="color:${p.b.color};">${escapeHtml(p.b.label)}</span></div>
+              <div class="bar-val" style="width:auto; color:${Math.abs(p.r)>=0.8?'var(--accent)':'var(--muted)'};">${p.r>=0?'+':''}${p.r.toFixed(2)}</div>
+            </div>
+            <div class="dev-n" style="margin:-2px 0 6px;">correlação ${intensidade}, andam ${sentido}</div>`;
+          }).join("")}
+          <div class="stat-foot">Rudimentar: só mostra que duas áreas sobem/descem juntas nas últimas semanas — não prova que uma causa a outra.</div>
         </div>` : ""}
         <div class="section-label">Distribuição de pesos</div>
         <div class="stat-card">
@@ -14130,7 +14201,7 @@ window.addEventListener("unhandledrejection", function(e){
     wireMcpCard(card);
   }
 
-  /* ---- Configurações → Backup → Sincronização com nuvem (Google Drive), só no desktop ----
+  /* ---- Configurações → Backup → Sincronização com nuvem (Google Drive), desktop e Android ----
      Mesmo padrão de auto-refresh do card do MCP, sem passar por render(). A resolução de
      conflito é uma UI própria (manter local / usar remoto) em vez do modal de import de
      backup: aquele modal foi desenhado para "mesclar ou substituir tudo" de um arquivo
@@ -14231,7 +14302,7 @@ window.addEventListener("unhandledrejection", function(e){
       try{
         const r = await bridge.syncNow();
         if(isNative) await aplicarChavesSincronizadasNative(r.downloaded);
-        showAlertBanner(`Sync: ${r.uploaded.length} enviado(s), ${r.downloaded.length} recebido(s)` + (r.conflicts.length ? `, ${r.conflicts.length} conflito(s)` : ""));
+        showAlertBanner(`Sync: ${r.uploaded.length} enviado(s), ${r.downloaded.length} recebido(s)` + (r.merged && r.merged.length ? `, ${r.merged.length} mesclado(s)` : "") + (r.conflicts.length ? `, ${r.conflicts.length} conflito(s)` : ""));
       }catch(e){ showAlertBanner("Falha no sync: " + e.message); }
       refreshSyncCard();
     };
