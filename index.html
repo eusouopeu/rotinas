@@ -190,6 +190,12 @@
   /* bloco de compromisso avulso — mesma linguagem visual, cor própria */
   .ag-bloco.ag-cp{ border-left-color:var(--good); background:var(--surface); }
   .ag-bloco.ag-cp .ag-hh::after{ content:" · compromisso"; }
+  /* evento do calendário externo (URL iCal) — só leitura, cor própria pra não
+     confundir com nota/cartão/compromisso, que aceitam toque */
+  .ag-bloco.ag-ical{ border-left-color:var(--muted); background:var(--surface); cursor:default; }
+  .ag-bloco.ag-ical .ag-hh::after{ content:" · calendário"; }
+  .ag-allday-row{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
+  .ag-allday-chip{ font-size:11.5px; padding:3px 9px; border-radius:20px; background:var(--surface-2); border:1px solid var(--line); color:var(--muted); }
   .ag-bloco.feito{ border-left-color:var(--good); opacity:.6; }
   .ag-bloco.feito .ag-txt{ text-decoration:line-through; }
   .ag-bloco.adiado{
@@ -235,6 +241,16 @@
      é estendida por um pseudo-elemento, preservando o layout já ajustado */
   .bell-btn, .icon-btn{ position:relative; }
   .bell-btn::after, .icon-btn::after{ content:""; position:absolute; inset:-5px; border-radius:14px; }
+  /* conflito de sync pendente: ponto vermelho no ícone de Configurações, visível
+     em qualquer aba — sem isso um conflito fica escondido até abrir Configurações */
+  .sync-conflict-dot{ position:absolute; top:3px; right:3px; width:8px; height:8px; border-radius:50%; background:var(--danger); border:1.5px solid var(--surface); }
+  /* ditado por voz no lançamento rápido: botão flutuante no canto do campo, sem
+     empurrar o layout — mesmos campos existentes, só ganham o ícone por cima */
+  .qa-mic-wrap{ position:relative; }
+  .qa-mic-wrap textarea, .qa-mic-wrap input{ padding-right:40px; }
+  .qa-mic-btn{ position:absolute; top:6px; right:6px; width:28px; height:28px; }
+  .qa-mic-btn.ouvindo{ background:var(--danger); border-color:transparent; color:#fff; animation:qaMicPulse 1.2s ease-in-out infinite; }
+  @keyframes qaMicPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.55; } }
 
   .routine-list, .notes-list{ display:flex; flex-direction:column; gap:12px; flex:1; overflow-y:auto; }
   .routine-card, .note-card{
@@ -1339,6 +1355,8 @@ window.addEventListener("unhandledrejection", function(e){
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
   const K_WEEKSTART = "rotinas_v2_weekstart"; // dia (0=domingo..6=sábado) em que a semana começa a contar
+  const K_ICALURL = "rotinas_v2_icalurl"; // URL secreta iCal do calendário externo (Configurações), read-only
+  const K_ICALCACHE = "rotinas_v2_icalcache"; // { fetchedAt, eventos:[{uid,title,startMs,endMs,allDay,rrule,exdatesMs}] } — último fetch bem-sucedido
   const K_FONTSCALE = "rotinas_v2_fontscale"; // escala de texto do app (acessibilidade)
   const K_DIGESTSEMANAL = "rotinas_v2_digest_semanal"; // notificação de resumo ao fechar a semana
   const K_PIN = "rotinas_v2_pin"; // hash SHA-256 (hex) do PIN de bloqueio, null = sem bloqueio
@@ -1614,6 +1632,152 @@ window.addEventListener("unhandledrejection", function(e){
      cairia em TDZ. */
   let diaKanban = load(K_DIAKANBAN, []);
   function saveDiaKanban(){ save(K_DIAKANBAN, diaKanban); }
+  /* Calendário externo (URL secreta iCal, Configurações) — só leitura, nunca
+     synced/backup (é uma cópia derivada de um serviço de fora, refazer o fetch
+     já resolve; não faz sentido herdar `backupData()`/SYNCED_KEYS). */
+  let icalUrl = load(K_ICALURL, "");
+  let icalCache = load(K_ICALCACHE, null); // { fetchedAt, eventos:[...] } | null
+  function saveIcalUrl(u){ icalUrl = u; save(K_ICALURL, icalUrl); }
+  function saveIcalCache(c){ icalCache = c; save(K_ICALCACHE, icalCache); }
+
+  /* ---- Calendário externo: busca + parser ICS mínimo + expansão de recorrência ----
+     Só o necessário pra mostrar eventos no Diário: SUMMARY/DTSTART/DTEND/RRULE/
+     EXDATE. Horário com TZID é tratado como hora de parede local (sem conversão
+     de fuso de verdade — evita puxar uma lib de timezone só pra isso; razoável
+     pra um único usuário vendo o próprio calendário). RRULE expande só
+     FREQ=DAILY|WEEKLY (o comum em agenda pessoal — reunião semanal, hábito
+     diário); outras frequências mostram só a ocorrência do DTSTART original. */
+  async function fetchIcalText(url){
+    // fetch do renderer bateria em CORS na maioria dos provedores (endpoint ICS
+    // é pensado pra cliente de calendário, não pra JS de página) — no desktop o
+    // main process busca sem essa restrição; no Android o CapacitorHttp (ver
+    // capacitor.config.json) intercepta o fetch e evita o mesmo problema.
+    if(isDesktop && window.electronBridge && window.electronBridge.ical) return window.electronBridge.ical.fetch(url);
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 15000);
+    try{
+      const res = await fetch(url, { signal: ctrl.signal });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      return await res.text();
+    } finally { clearTimeout(timer); }
+  }
+  function icsUnfold(text){
+    // linha de continuação (começa com espaço/tab) volta a fazer parte da linha anterior
+    return text.replace(/\r\n/g,"\n").split("\n").reduce((lines, line)=>{
+      if(/^[ \t]/.test(line) && lines.length) lines[lines.length-1] += line.slice(1);
+      else lines.push(line);
+      return lines;
+    }, []);
+  }
+  function icsParseDate(val){
+    // "20260827" (dia inteiro) | "20260827T140000Z" (UTC) | "20260827T140000" (local/TZID)
+    const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?$/.exec((val||"").trim());
+    if(!m) return null;
+    const [, y, mo, d, h, mi, s, z] = m;
+    if(h === undefined) return { ms: new Date(+y, +mo-1, +d).getTime(), allDay: true };
+    if(z) return { ms: Date.UTC(+y, +mo-1, +d, +h, +mi, +s), allDay: false };
+    return { ms: new Date(+y, +mo-1, +d, +h, +mi, +s).getTime(), allDay: false };
+  }
+  function parseIcs(text){
+    const eventos = [];
+    let cur = null;
+    icsUnfold(text).forEach(raw=>{
+      const line = raw.trim();
+      if(line === "BEGIN:VEVENT"){ cur = { uid:"", title:"", startMs:null, endMs:null, allDay:false, rrule:null, exdatesMs:[] }; return; }
+      if(line === "END:VEVENT"){ if(cur && cur.startMs != null) eventos.push(cur); cur = null; return; }
+      if(!cur) return;
+      const ci = line.indexOf(":");
+      if(ci < 0) return;
+      const prop = line.slice(0, ci).split(";")[0].toUpperCase();
+      const val = line.slice(ci+1);
+      if(prop === "UID") cur.uid = val;
+      else if(prop === "SUMMARY") cur.title = val.replace(/\\n/gi,"\n").replace(/\\,/g,",").replace(/\\;/g,";").replace(/\\\\/g,"\\");
+      else if(prop === "DTSTART"){ const d = icsParseDate(val); if(d){ cur.startMs = d.ms; cur.allDay = d.allDay; } }
+      else if(prop === "DTEND"){ const d = icsParseDate(val); if(d) cur.endMs = d.ms; }
+      else if(prop === "RRULE") cur.rrule = val;
+      else if(prop === "EXDATE") val.split(",").forEach(v=>{ const d = icsParseDate(v); if(d) cur.exdatesMs.push(d.ms); });
+    });
+    return eventos;
+  }
+  function parseRrule(rr){
+    const out = {};
+    rr.split(";").forEach(p=>{ const [k,v] = p.split("="); if(k) out[k] = v; });
+    return out;
+  }
+  const ICAL_EXPAND_MAX = 400; // teto de ocorrências expandidas por evento — trava RRULE patológica
+  const ICAL_DOW = { SU:0, MO:1, TU:2, WE:3, TH:4, FR:5, SA:6 };
+  /* Ocorrências (em ms) de `ev` que caem dentro de [janelaIni, janelaFim]
+     (inclusive). Sem RRULE: só a ocorrência original, se estiver na janela. */
+  function expandirOcorrencias(ev, janelaIni, janelaFim){
+    const dur = (ev.endMs != null && ev.endMs > ev.startMs) ? (ev.endMs - ev.startMs) : (ev.allDay ? 86400000 : 3600000);
+    const naJanela = ms => ms <= janelaFim && ms + dur >= janelaIni;
+    if(!ev.rrule){
+      return naJanela(ev.startMs) ? [{ startMs: ev.startMs, endMs: ev.startMs + dur }] : [];
+    }
+    const r = parseRrule(ev.rrule);
+    if(r.FREQ !== "DAILY" && r.FREQ !== "WEEKLY"){
+      return naJanela(ev.startMs) ? [{ startMs: ev.startMs, endMs: ev.startMs + dur }] : [];
+    }
+    const interval = Math.max(1, +r.INTERVAL || 1);
+    const count = r.COUNT ? +r.COUNT : null;
+    const until = r.UNTIL ? (icsParseDate(r.UNTIL)||{}).ms : null;
+    const out = [];
+    if(r.FREQ === "DAILY"){
+      for(let n=0; n<ICAL_EXPAND_MAX; n++){
+        const ms = ev.startMs + n*interval*86400000;
+        if(until != null && ms > until) break;
+        if(count != null && n >= count) break;
+        if(ms > janelaFim) break; // monótono crescente: dali em diante só piora
+        if(naJanela(ms) && !ev.exdatesMs.includes(ms)) out.push({ startMs: ms, endMs: ms + dur });
+      }
+    } else { // WEEKLY
+      const base = new Date(ev.startMs);
+      const byday = r.BYDAY ? [...new Set(r.BYDAY.split(",").map(d=>ICAL_DOW[d]).filter(d=>d!=null))].sort((a,b)=>a-b) : [base.getDay()];
+      const semana0 = new Date(base); semana0.setHours(0,0,0,0); semana0.setDate(semana0.getDate() - base.getDay());
+      let occCount = 0, pare = false;
+      for(let w=0; w<Math.ceil(ICAL_EXPAND_MAX/byday.length)+2 && !pare; w++){
+        const semanaIni = new Date(semana0); semanaIni.setDate(semana0.getDate() + w*interval*7);
+        if(semanaIni.getTime() > janelaFim) break;
+        for(const dow of byday){
+          const occ = new Date(semanaIni); occ.setDate(semanaIni.getDate()+dow);
+          occ.setHours(base.getHours(), base.getMinutes(), base.getSeconds(), base.getMilliseconds());
+          const ms = occ.getTime();
+          if(ms < ev.startMs) continue; // RRULE nunca gera antes do DTSTART
+          if(until != null && ms > until){ pare = true; break; }
+          occCount++;
+          if(count != null && occCount > count){ pare = true; break; }
+          if(naJanela(ms) && !ev.exdatesMs.includes(ms)) out.push({ startMs: ms, endMs: ms + dur });
+        }
+      }
+    }
+    return out.slice(0, ICAL_EXPAND_MAX);
+  }
+  /* Eventos importados que caem no dia `iso` (qualquer ocorrência, expandida). */
+  function icalEventosDoDia(iso){
+    if(!icalCache || !icalCache.eventos || !icalCache.eventos.length) return [];
+    const ini = isoToDate(iso).getTime();
+    const fim = ini + 86400000 - 1;
+    const out = [];
+    icalCache.eventos.forEach(ev=>{
+      expandirOcorrencias(ev, ini, fim).forEach(occ=>{
+        out.push({ title: ev.title || "(sem título)", startMs: occ.startMs, endMs: occ.endMs, allDay: ev.allDay });
+      });
+    });
+    out.sort((a,b)=> a.startMs - b.startMs);
+    return out;
+  }
+  function icalStale(){ return !!icalUrl && (!icalCache || Date.now() - (icalCache.fetchedAt||0) > 30*60000); }
+  async function atualizarIcal(silencioso){
+    if(!icalUrl) return;
+    try{
+      const text = await fetchIcalText(icalUrl);
+      saveIcalCache({ fetchedAt: Date.now(), eventos: parseIcs(text) });
+      if(!silencioso) showAlertBanner(`Calendário atualizado — ${icalCache.eventos.length} evento(s) ✓`);
+    }catch(e){
+      console.error("Falha ao atualizar calendário externo:", e);
+      if(!silencioso) showAlertBanner("⚠️ Não deu para buscar o calendário — confira a URL ou tente de novo mais tarde");
+    }
+  }
   /* Biblioteca de exercícios: [{id,nome,grupos,pesoAtual}], referenciada por
      etapas de rotina do tipo "exercicio" (s.exercicioId). Declarada aqui junto
      dos outros dados, mesma razão do diaKanban acima (TDZ com backupData()). */
@@ -1798,7 +1962,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-17 (v21)";
+  const BUILD_STAMP = "2026-08-17 (v22)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -3447,13 +3611,14 @@ window.addEventListener("unhandledrejection", function(e){
     try{
       const P = window.Capacitor.Plugins.DriveSync;
       const status = await P.getStatus();
+      aplicarStatusNoBadgeSync(status); // roda mesmo se o sync abaixo for pulado (recente/desconectado)
       if(!status.connected) return;
       const DEZ_MIN = 10*60*1000;
       if(status.lastSyncAt && Date.now()-status.lastSyncAt < DEZ_MIN) return;
       const r = await P.syncNow();
       await aplicarChavesSincronizadasNative(r.downloaded);
       if(r.conflicts && r.conflicts.length) showAlertBanner("⚠️ Conflito de sincronização — resolva em Configurações → Backup");
-      if(document.getElementById("cfgSyncCard")) refreshSyncCard();
+      if(document.getElementById("cfgSyncCard")) refreshSyncCard(); else refreshSyncConflictBadge();
     }catch(e){ console.error("auto-sync nativo falhou:", e); }
   }
   document.addEventListener("visibilitychange", ()=> marcarSegundoPlano(!!document.hidden));
@@ -3634,7 +3799,7 @@ window.addEventListener("unhandledrejection", function(e){
      os botões (nem o destino) em cinco telas. */
   function cfgBtnHtml(){
     return `<button class="bell-btn" data-searchbtn="1" title="Buscar em tudo" aria-label="Buscar em tudo">${svgIcon(ICON_D.magnifyingGlass,16)}</button>`
-         + `<button class="bell-btn" data-cfgbtn="1" title="Configurações" aria-label="Configurações">${svgIcon(ICON_D.settings, 17)}</button>`;
+         + `<button class="bell-btn" data-cfgbtn="1" title="${syncConflictCount>0?'Configurações — há conflito de sincronização pendente':'Configurações'}" aria-label="Configurações">${svgIcon(ICON_D.settings, 17)}<span class="sync-conflict-dot" data-syncdot="1" style="${syncConflictCount>0?'':'display:none;'}"></span></button>`;
   }
   function wireCfgBtn(scope){
     scope.querySelectorAll("[data-cfgbtn]").forEach(b=>{
@@ -3776,7 +3941,11 @@ window.addEventListener("unhandledrejection", function(e){
         results.appendChild(more);
       }
     }
-    input.oninput = paint;
+    // varredura completa de routines/tarefas/notes/templates/history/diario a
+    // cada tecla fica mais pesada com anos de dado acumulado — debounce evita
+    // recalcular a cada tecla digitada, só na pausa da digitação
+    let searchTimer = null;
+    input.oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(paint, 180); };
     ov.querySelector("#gsPeso").onchange = paint;
     ov.querySelector("#gsArea").onchange = paint;
     input.focus();
@@ -3901,6 +4070,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* ---------------- ROUTER ---------------- */
   function render(){
+    flushLiveSave(); // sai da tela atual: nunca deixar a última tecla digitada só no debounce
     app.innerHTML = "";
     atualizarBarraMarkdown(); // esconde a barra markdown se a tela nova não tiver #liveEditor
     // o hook aponta para nós da tela anterior: renderDiario o republica se for o caso
@@ -5960,6 +6130,10 @@ window.addEventListener("unhandledrejection", function(e){
 
     const listBox = document.getElementById("notesListBox");
     const tagBar = document.getElementById("tagBar");
+    // renderizar todas as notas de uma vez faz o DOM crescer proporcional a anos
+    // de uso — carrega só as N mais recentes, com "carregar mais" no fim
+    const NOTES_PAGE = 40;
+    let notesVisibleCount = NOTES_PAGE;
 
     function updateTagBar(){
       const tags = allTags();
@@ -5969,6 +6143,7 @@ window.addEventListener("unhandledrejection", function(e){
       tagBar.querySelectorAll("[data-tag]").forEach(ch=>{
         ch.onclick = () => {
           notesTag = notesTag === ch.dataset.tag ? null : ch.dataset.tag;
+          notesVisibleCount = NOTES_PAGE;
           updateTagBar(); updateList();
         };
       });
@@ -5991,7 +6166,8 @@ window.addEventListener("unhandledrejection", function(e){
         if(btn) btn.onclick = () => openNoteEditor(null);
         return;
       }
-      sorted.forEach(n=>{
+      const visible = sorted.slice(0, notesVisibleCount);
+      visible.forEach(n=>{
         const card = document.createElement("div");
         card.className = "note-card";
         card.innerHTML = `
@@ -6018,13 +6194,21 @@ window.addEventListener("unhandledrejection", function(e){
           });
         }));
       });
+      if(sorted.length > visible.length){
+        const more = document.createElement("button");
+        more.className = "link-btn";
+        more.style.cssText = "width:100%; padding:12px 0; text-align:center;";
+        more.textContent = `carregar mais (${sorted.length - visible.length} restante${sorted.length - visible.length>1?'s':''})`;
+        more.onclick = () => { notesVisibleCount += NOTES_PAGE; updateList(); };
+        listBox.appendChild(more);
+      }
     }
 
     updateTagBar();
     updateList();
 
     // busca sem re-render da tela: só a lista atualiza, o input mantém o foco
-    document.getElementById("noteSearch").oninput = e => { notesQuery = e.target.value; updateList(); };
+    document.getElementById("noteSearch").oninput = e => { notesQuery = e.target.value; notesVisibleCount = NOTES_PAGE; updateList(); };
 
     document.getElementById("backupBtn").onclick = exportBackup;
     const importFile = document.getElementById("importFile");
@@ -7027,6 +7211,7 @@ window.addEventListener("unhandledrejection", function(e){
     clock: "M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
     exclamationTriangle: "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z",
     magnifyingGlass: "m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z",
+    mic: "M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z",
     calendar: "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5",
     clipboard: "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z",
     eye: "M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
@@ -8016,6 +8201,10 @@ window.addEventListener("unhandledrejection", function(e){
       const order = doc.aisleOrder.concat(Object.keys(byAisle).filter(a=>!doc.aisleOrder.includes(a)));
 
       const hasAnyItem = doc.items.length > 0;
+      // acumula num array e faz um único += no fim: += dentro do loop reserializa
+      // e reparseia TODO o HTML já acumulado a cada gôndola, custo O(n²) (mesmo
+      // problema já corrigido em renderPeriodExtras)
+      const aislesHtml = [];
       order.forEach((aisle, ai)=>{
         const items = byAisle[aisle] || [];
         let visible = doc.shopMode ? items.filter(i=>!i.checked) : items;
@@ -8051,8 +8240,9 @@ window.addEventListener("unhandledrejection", function(e){
             <span class="mk-right" data-mkedit="${it.id}">${itemRight(it)}</span>
           </div>`;
         }).join("") || `<div class="dev-n" style="padding:4px 2px; opacity:.6;">— vazia —</div>`;
-        listBox.innerHTML += head + `<div class="stat-card" style="padding:10px 14px;">${rows}</div>`;
+        aislesHtml.push(head + `<div class="stat-card" style="padding:10px 14px;">${rows}</div>`);
       });
+      listBox.innerHTML += aislesHtml.join("");
 
       if(!doc.shopMode && doc.items.some(i=>i.checked)){
         listBox.innerHTML += `<button class="add-step-btn" id="mkClearDone" style="width:100%;">limpar itens marcados</button>`;
@@ -8453,6 +8643,15 @@ window.addEventListener("unhandledrejection", function(e){
           </div>` : ""}
         </form>`;
       body.appendChild(col);
+      // troca de coluna por swipe horizontal (modo abas): começa fora de
+      // .kb-card para não brigar com o arrasto do cartão (.kb-drag) nem com o
+      // adiar por swipe (attachSwipeAdiar, também horizontal, só nos cartões)
+      if(opts.abas){
+        attachSwipeColuna(col,
+          () => { if(kbAbaAtiva < cols.length-1){ kbAbaAtiva++; kbEdit=null; repaint(); } },
+          () => { if(kbAbaAtiva > 0){ kbAbaAtiva--; kbEdit=null; repaint(); } },
+          ".kb-card, .kb-drag, .kb-moves, button, input");
+      }
     });
     body.querySelectorAll("[data-kbe]").forEach(sp=> sp.onclick = () => { const [ci,ii]=sp.dataset.kbe.split("-").map(Number); kbEdit={ci,ii}; repaint(); setTimeout(()=>{const i=body.querySelector(".kb-e-text"); if(i) i.focus();},30); });
     // arrastar cartão para outra coluna/posição (alça ${svgIcon(ICON_D.bars3,15)}); botões ‹ › continuam como fallback
@@ -9851,6 +10050,9 @@ window.addEventListener("unhandledrejection", function(e){
       }
       const byMonth = {};
       doc.entries.forEach(e=>{ (byMonth[e.date.slice(0,7)] = byMonth[e.date.slice(0,7)]||[]).push(e); });
+      // acumula num array e faz um único += no fim (evita reserializar/reparsear
+      // o HTML já acumulado a cada mês — mesmo ajuste de renderPeriodExtras)
+      const mesesHtml = [];
       Object.keys(byMonth).sort().reverse().forEach(mk=>{
         const list = byMonth[mk].sort((a,b)=>b.date.localeCompare(a.date));
         const tot = list.reduce((a,e)=>a+e.value,0);
@@ -9875,10 +10077,11 @@ window.addEventListener("unhandledrejection", function(e){
           const pct = Math.round(v/tot*100);
           return `<div class="bar-row"><div class="bar-name">${escapeHtml(c)}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${catColor(c)};"></div></div><div class="bar-val">${brl(v)}</div></div>`;
         }).join("");
-        body.innerHTML += `<div class="section-label">${mk.slice(5,7)}/${mk.slice(0,4)} — total ${brl(tot)}</div>
+        mesesHtml.push(`<div class="section-label">${mk.slice(5,7)}/${mk.slice(0,4)} — total ${brl(tot)}</div>
           <div class="stat-card">${catsHtml}</div>
-          <div class="stat-card" style="margin-top:6px;">${rows}</div>`;
+          <div class="stat-card" style="margin-top:6px;">${rows}</div>`);
       });
+      body.innerHTML += mesesHtml.join("");
       if(doc.entries.length === 0) body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><p>Registre um gasto, ou importe um extrato CSV (${svgIcon(ICON_D.arrowUpTray,13)}CSV no topo).</p></div>`;
 
       body.querySelectorAll("[data-exview]").forEach(sp=> sp.onclick = () => { exView = sp.dataset.exview; paint(); });
@@ -10175,6 +10378,8 @@ window.addEventListener("unhandledrejection", function(e){
       doc.items.forEach(it=>{ (byCat[it.cat||"Outros"] = byCat[it.cat||"Outros"]||[]).push(it); });
       const order = doc.catOrder.concat(Object.keys(byCat).filter(c=>!doc.catOrder.includes(c)));
       const hasAnyItem = doc.items.length > 0;
+      // acumula num array e faz um único += no fim (mesmo ajuste de renderPeriodExtras/mercado)
+      const catsHtmlArr = [];
       order.forEach(cat=>{
         const items = byCat[cat] || [];
         if(items.length === 0 && !hasAnyItem) return; // lista vazia: mostra o estado vazio abaixo
@@ -10197,8 +10402,9 @@ window.addEventListener("unhandledrejection", function(e){
             <span class="txt mk-name" data-tvedit="${it.id}">${escapeHtml(it.name)}</span>
             <span class="mk-right" data-tvedit="${it.id}">${it.qty&&it.qty>1?'&times;'+it.qty:''}</span>
           </div>`).join("") || `<div class="dev-n" style="padding:4px 2px; opacity:.6;">— vazia —</div>`;
-        body.innerHTML += `<div class="section-label">${escapeHtml(cat)}</div><div class="stat-card" style="padding:10px 14px;">${rows}</div>`;
+        catsHtmlArr.push(`<div class="section-label">${escapeHtml(cat)}</div><div class="stat-card" style="padding:10px 14px;">${rows}</div>`);
       });
+      body.innerHTML += catsHtmlArr.join("");
       if(doc.items.length === 0) body.innerHTML += `<div class="empty-state" style="min-height:25vh;"><p>Adicione itens — eles serão agrupados por categoria.</p></div>`;
 
       body.querySelectorAll("[data-tvcheck]").forEach(b=> b.onclick = () => { const it=doc.items.find(x=>x.id===b.dataset.tvcheck); it.checked=!it.checked; saveTemplates(doc); paint(); });
@@ -10410,12 +10616,36 @@ window.addEventListener("unhandledrejection", function(e){
     liveSavedAt = Date.now();
     document.querySelectorAll(".live-saved-badge").forEach(b=>{ b.textContent = "salvo às " + fmtClock(new Date(liveSavedAt)); });
   }
+  /* ---- Debounce da gravação do editor contínuo ----
+     save()/saveDiario() clonam a coleção inteira via JSON e enfileiram uma
+     escrita real em disco (IndexedDB/Filesystem/IPC) — sem agrupar, digitar um
+     parágrafo dispara uma dessas a cada tecla. A mutação do texto em memória
+     (noteDraft.content = t / diario[k] = t) continua síncrona — só a gravação
+     pesada é adiada. `flushLiveSave()` roda antes de qualquer navegação
+     (topo de render()) e ao esconder a aba/app, para nunca perder a última
+     tecla digitada. */
+  let liveSaveTimer = null;
+  let liveSaveFlush = null;
+  const LIVE_SAVE_DEBOUNCE_MS = 400;
+  function debounceLiveSave(persistFn){
+    liveSaveFlush = persistFn;
+    clearTimeout(liveSaveTimer);
+    liveSaveTimer = setTimeout(flushLiveSave, LIVE_SAVE_DEBOUNCE_MS);
+  }
+  function flushLiveSave(){
+    clearTimeout(liveSaveTimer);
+    liveSaveTimer = null;
+    const fn = liveSaveFlush;
+    liveSaveFlush = null;
+    if(fn) fn();
+  }
+  document.addEventListener("visibilitychange", () => { if(document.hidden) flushLiveSave(); });
 
   function noteLiveCtx(){
     return {
       id: () => noteDraft.id,
       getText: () => noteDraft.content || "",
-      setText: t => { noteDraft.content = t; noteDraft.updatedAt = Date.now(); save(K_NOTES, notes); marcarLiveSalvo(); },
+      setText: t => { noteDraft.content = t; noteDraft.updatedAt = Date.now(); debounceLiveSave(() => { save(K_NOTES, notes); marcarLiveSalvo(); }); },
       sinkChecked: () => !!noteDraft.sinkChecked
     };
   }
@@ -12401,6 +12631,49 @@ window.addEventListener("unhandledrejection", function(e){
     paint();
     document.body.appendChild(ov);
   }
+  /* ---- Ditado por voz (Web Speech API) ----
+     Só existe onde a API realmente está disponível — sem branch por isNative/
+     isDesktop: o WebView do Android tipicamente não implementa, então o botão
+     simplesmente não aparece lá (nada de plugin nativo novo pra isso). Anexa o
+     texto reconhecido ao que já estiver no campo, nunca substitui — permite
+     complementar o que foi digitado antes de ditar. */
+  function speechRecognitionDisponivel(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+  /* `inputEl` precisa ser filho direto de um nó com classe "qa-mic-wrap"
+     (position:relative, ver CSS) — é nele que o botão é ancorado no canto. */
+  function wireMicButton(inputEl){
+    if(!speechRecognitionDisponivel()) return;
+    const wrap = inputEl.parentElement;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "icon-btn qa-mic-btn";
+    btn.title = "Ditar por voz";
+    btn.setAttribute("aria-label", "Ditar por voz");
+    btn.innerHTML = svgIcon(ICON_D.mic, 15);
+    wrap.appendChild(btn);
+    let rec = null;
+    btn.onclick = () => {
+      if(rec){ rec.stop(); return; } // 2º toque: para de ouvir antes da pausa natural
+      rec = new SR();
+      rec.lang = "pt-BR";
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      btn.classList.add("ouvindo");
+      rec.onresult = e => {
+        const texto = e.results[0][0].transcript;
+        const atual = inputEl.value;
+        inputEl.value = atual && !/\s$/.test(atual) ? atual + " " + texto : atual + texto;
+        inputEl.dispatchEvent(new Event("input", { bubbles:true }));
+        inputEl.focus();
+      };
+      rec.onerror = e => {
+        if(e.error !== "aborted" && e.error !== "no-speech") showAlertBanner("Não entendi — tenta de novo?");
+      };
+      rec.onend = () => { btn.classList.remove("ouvindo"); rec = null; };
+      try{ rec.start(); }catch(e){ btn.classList.remove("ouvindo"); rec = null; }
+    };
+  }
+
   /* lançamento rápido de nota/despesa sem sair da rotina em andamento (o timer continua rodando por trás) */
   function openPlayerQuickAdd(){
     const ov = document.createElement("div");
@@ -12438,7 +12711,7 @@ window.addEventListener("unhandledrejection", function(e){
           <p style="margin:0;">Nota do dia</p>
           <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
-        <textarea class="mk-e-name" id="qaDiarioTxt" rows="4" style="width:100%; line-height:1.5;" placeholder="O que registrar no diário de hoje?"></textarea>
+        <div class="qa-mic-wrap"><textarea class="mk-e-name" id="qaDiarioTxt" rows="4" style="width:100%; line-height:1.5;" placeholder="O que registrar no diário de hoje?"></textarea></div>
         <div class="dev-n" style="margin-top:6px;">${jaTem ? "Vai para o fim da nota de hoje." : "Começa a nota de hoje."} Markdown vale (- lista, - [ ] tarefa).</div>
         <div class="confirm-actions" style="margin-top:14px;">
           <button class="btn-cancel" id="qaCancel3">Cancelar</button>
@@ -12448,6 +12721,7 @@ window.addEventListener("unhandledrejection", function(e){
       const ta = ov.querySelector("#qaDiarioTxt");
       autoGrowTextarea(ta);
       ta.oninput = e => autoGrowTextarea(ta, e);
+      wireMicButton(ta);
       ov.querySelector("#qaClose").onclick = () => ov.remove();
       ov.querySelector("#qaCancel3").onclick = () => ov.remove();
       ov.querySelector("#qaDiarioSave").onclick = () => {
@@ -12468,7 +12742,7 @@ window.addEventListener("unhandledrejection", function(e){
           <p style="margin:0;">Cartão em "A fazer"</p>
           <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
-        <input type="text" class="mk-e-name" id="qaKbText" style="width:100%;" placeholder="O que precisa ser feito?">
+        <div class="qa-mic-wrap"><input type="text" class="mk-e-name" id="qaKbText" style="width:100%;" placeholder="O que precisa ser feito?"></div>
         <div class="section-label" style="margin:12px 0 4px;">Horário (opcional)</div>
         <div class="kb-e-horas">
           <div class="kb-horas-row">
@@ -12487,6 +12761,7 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       </div>`;
       wireTagValorPills(ov);
+      wireMicButton(ov.querySelector("#qaKbText"));
       let qaKbArea = null;
       const qaAreaWrap = ov.querySelector("#qaKbAreaWrap");
       if(qaAreaWrap) pintarAreaChips(qaAreaWrap, null, v => { qaKbArea = v; });
@@ -12563,7 +12838,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="section-label">Título</div>
         <input type="text" class="mk-e-name" id="qaTitle" style="width:100%;" placeholder="Nome da nota" value="${v("title")}">
         <div class="section-label">Conteúdo</div>
-        <textarea class="mk-e-name" id="qaContent" rows="5" style="line-height:1.5;" placeholder="Escreva em markdown…">${v("content")}</textarea>
+        <div class="qa-mic-wrap"><textarea class="mk-e-name" id="qaContent" rows="5" style="line-height:1.5;" placeholder="Escreva em markdown…">${v("content")}</textarea></div>
         <div class="section-label">Assunto</div>
         <div id="qaSubjectsWrap"></div>
         <div class="confirm-actions" style="margin-top:14px;"><button class="btn-confirm" id="qaDone" style="background:var(--grad);">Concluído</button></div>
@@ -12572,6 +12847,7 @@ window.addEventListener("unhandledrejection", function(e){
         noteSubjectsPool(existente ? existente.id : null), vals => { ensureDoc().subjects = vals; ensureDoc().updatedAt = Date.now(); save(K_NOTES, notes); });
       ov.querySelector("#qaTitle").oninput = e => { ensureDoc().title = e.target.value; ensureDoc().updatedAt = Date.now(); save(K_NOTES, notes); };
       ov.querySelector("#qaContent").oninput = e => { ensureDoc().content = e.target.value; ensureDoc().updatedAt = Date.now(); save(K_NOTES, notes); };
+      wireMicButton(ov.querySelector("#qaContent"));
       autoGrowAll(ov);
       ov.querySelector("#qaClose").onclick = () => ov.remove();
       ov.querySelector("#qaDone").onclick = () => { ov.remove(); if(notaDoc) showAlertBanner(existente ? "Nota atualizada ✓" : "Nota salva ✓"); };
@@ -12583,7 +12859,7 @@ window.addEventListener("unhandledrejection", function(e){
           <p style="margin:0;">Nova despesa</p>
           <button class="icon-btn" id="qaClose">${svgIcon(ICON_D.xmark,14)}</button>
         </div>
-        <input type="text" id="qaDesc" class="mk-e-name" placeholder="Descrição" style="width:100%; margin-bottom:8px;">
+        <div class="qa-mic-wrap"><input type="text" id="qaDesc" class="mk-e-name" placeholder="Descrição" style="width:100%; margin-bottom:8px;"></div>
         <div class="market-form-row" style="margin-bottom:8px;">
           <input type="number" id="qaVal" inputmode="decimal" min="0" step="0.01" placeholder="R$" style="flex:1; min-width:0;">
           <select id="qaCat" style="flex:1; min-width:0;">${EXP_CATS.map(c=>`<option>${c}</option>`).join("")}</select>
@@ -12594,6 +12870,7 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
         <div class="confirm-actions"><button class="btn-cancel" id="qaCancel2">Cancelar</button><button class="btn-confirm" id="qaSave" style="background:var(--grad);">Salvar</button></div>
       </div>`;
+      wireMicButton(ov.querySelector("#qaDesc"));
       ov.querySelector("#qaClose").onclick = () => ov.remove();
       ov.querySelector("#qaCancel2").onclick = () => ov.remove();
       ov.querySelector("#qaSave").onclick = () => {
@@ -12949,7 +13226,7 @@ window.addEventListener("unhandledrejection", function(e){
     return {
       id: () => "diario:" + k,
       getText: () => diario[k] || "",
-      setText: t => { if(t.trim()) diario[k] = t; else delete diario[k]; saveDiario(); agendarRepinturaDaAgenda(); marcarLiveSalvo(); },
+      setText: t => { if(t.trim()) diario[k] = t; else delete diario[k]; debounceLiveSave(() => { saveDiario(); marcarLiveSalvo(); }); agendarRepinturaDaAgenda(); },
       sinkChecked: () => false
     };
   }
@@ -13198,11 +13475,29 @@ window.addEventListener("unhandledrejection", function(e){
       return { compromissoId: c.id, ini, fim: ini + 30, feito:false, adiado:false, texto: c.title, cp:true };
     });
   }
+  /* Eventos com horário do calendário externo (iCal) — mesma grade, mas sem
+     `ref` de clique nenhum (nem agline/agcard/agcompromisso): read-only por
+     construção, wireAgendaBlocos() nunca liga handler num bloco sem esses
+     data-*. Eventos de dia inteiro não entram aqui (ver icalAllDayChipsHtml). */
+  function blocosDoIcal(iso){
+    const d0 = isoToDate(iso).getTime();
+    return icalEventosDoDia(iso).filter(e=>!e.allDay).map(e=>{
+      const ini = Math.max(0, Math.round((e.startMs - d0)/60000));
+      const fim = Math.min(24*60, Math.max(ini+15, Math.round((e.endMs - d0)/60000)));
+      return { ini, fim, feito:false, adiado:false, texto: e.title, ical:true };
+    });
+  }
+  function icalAllDayChipsHtml(iso){
+    const allDay = icalEventosDoDia(iso).filter(e=>e.allDay);
+    if(!allDay.length) return "";
+    return `<div class="ag-allday-row">${allDay.map(e=>`<span class="ag-allday-chip">${escapeHtml(e.title)}</span>`).join("")}</div>`;
+  }
   const AG_PX_MIN = 1.15; // pixels por minuto de altura
   function agendaHtml(texto, iso){
-    const blocos = parseTimeBlocks(texto).concat(blocosDoKanban(iso)).concat(blocosDoCompromisso(iso));
+    const blocos = parseTimeBlocks(texto).concat(blocosDoKanban(iso)).concat(blocosDoCompromisso(iso)).concat(blocosDoIcal(iso));
+    const allDayHtml = icalAllDayChipsHtml(iso);
     if(!blocos.length){
-      return `<div class="empty-state" style="min-height:30vh;"><h2>Sem blocos de horário</h2>
+      return allDayHtml + `<div class="empty-state" style="min-height:30vh;"><h2>Sem blocos de horário</h2>
         <p>Na nota do dia, escreva linhas como<br><b>- [ ] 08:00 - 09:30 Estudar</b><br>e elas viram blocos aqui.<br>Cartões do kanban com horário também aparecem.</p></div>`;
     }
     // reordenar: distribuirColunas assume a lista em ordem de início
@@ -13220,8 +13515,8 @@ window.addEventListener("unhandledrejection", function(e){
     }
     const blocosHtml = blocos.map(b=>{
       const larg = 100 / b.cols;
-      const ref = b.kb ? `data-agcard="${escapeHtml(b.cardId)}"` : (b.cp ? `data-agcompromisso="${escapeHtml(b.compromissoId)}"` : `data-agline="${b.linha}"`);
-      return `<div class="ag-bloco ${b.kb?'ag-kb':''} ${b.cp?'ag-cp':''} ${b.feito?'feito':''} ${b.adiado?'adiado':''}" ${ref}
+      const ref = b.kb ? `data-agcard="${escapeHtml(b.cardId)}"` : (b.cp ? `data-agcompromisso="${escapeHtml(b.compromissoId)}"` : (b.ical ? "" : `data-agline="${b.linha}"`));
+      return `<div class="ag-bloco ${b.kb?'ag-kb':''} ${b.cp?'ag-cp':''} ${b.ical?'ag-ical':''} ${b.feito?'feito':''} ${b.adiado?'adiado':''}" ${ref}
         style="top:${topo(b.ini)}px; height:${Math.max(24,(b.fim-b.ini)*AG_PX_MIN - 3)}px; left:calc(${b.col*larg}% + 2px); width:calc(${larg}% - 4px);">
         <span class="ag-hh">${hhmm(b.ini)}&ndash;${hhmm(b.fim)}${b.adiado?' · adiado':''}</span>
         <span class="ag-txt">${escapeHtml(b.texto)}</span>
@@ -13231,7 +13526,7 @@ window.addEventListener("unhandledrejection", function(e){
     const minAgora = agora.getHours()*60 + agora.getMinutes();
     const linhaAgora = (iso === localKey() && minAgora >= hIni*60 && minAgora <= hFim*60)
       ? `<div class="ag-agora" style="top:${topo(minAgora)}px;"></div>` : "";
-    return `<div class="ag-wrap" style="height:${topo(hFim*60)+24}px;">${horas}${linhaAgora}<div class="ag-blocos">${blocosHtml}</div></div>`;
+    return allDayHtml + `<div class="ag-wrap" style="height:${topo(hFim*60)+24}px;">${horas}${linhaAgora}<div class="ag-blocos">${blocosHtml}</div></div>`;
   }
 
   /* ---- agenda de semana/mês/ano: mesmo espírito do time-blocking do dia, mas
@@ -13394,6 +13689,35 @@ window.addEventListener("unhandledrejection", function(e){
         el.dataset.swiped = "1";
         setTimeout(onAdiar, 60);
       }
+    }
+    el.addEventListener("pointerup", soltar);
+    el.addEventListener("pointercancel", soltar);
+  }
+
+  /* Swipe horizontal genérico para paginar (ex.: trocar a aba de coluna do
+     kanban do Diário no celular) — ao contrário de attachSwipeAdiar, não
+     arrasta visualmente o elemento (a coluna some/aparece pela repintura, não
+     por transform) e dispara nos dois sentidos. */
+  function attachSwipeColuna(el, onSwipeLeft, onSwipeRight, ignoreSelector){
+    const THRESH = 50;
+    let startX = 0, startY = 0, arrastando = false, horizontal = false;
+    el.addEventListener("pointerdown", e=>{
+      if(ignoreSelector && e.target.closest(ignoreSelector)) return;
+      startX = e.clientX; startY = e.clientY; arrastando = true; horizontal = false;
+    });
+    el.addEventListener("pointermove", e=>{
+      if(!arrastando || horizontal) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if(Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)){ arrastando = false; return; }
+      if(Math.abs(dx) > 8) horizontal = true;
+    });
+    function soltar(e){
+      if(!arrastando) return;
+      arrastando = false;
+      if(!horizontal) return;
+      const dx = (e.clientX != null ? e.clientX : startX) - startX;
+      if(dx <= -THRESH) onSwipeLeft();
+      else if(dx >= THRESH) onSwipeRight();
     }
     el.addEventListener("pointerup", soltar);
     el.addEventListener("pointercancel", soltar);
@@ -13987,6 +14311,9 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="stat-foot">Rotinas com horário viram eventos recorrentes — importe no Google Agenda, Apple Calendar etc.</div>
         </div>
 
+        <div class="section-label">Calendário externo</div>
+        <div class="stat-card" id="cfgIcalCard">${icalCardHtml()}</div>
+
         ${(isDesktop || isNative) ? `<div class="section-label">Sincronização com nuvem</div>
         <div class="stat-card" id="cfgSyncCard"><div class="routine-meta">Carregando status…</div></div>` : ""}
 
@@ -14265,6 +14592,7 @@ window.addEventListener("unhandledrejection", function(e){
       };
     });
 
+    wireIcalCard(document.getElementById("cfgIcalCard"));
     if(isDesktop) refreshMcpCard();
     if(isDesktop || isNative) refreshSyncCard();
   }
@@ -14344,6 +14672,58 @@ window.addEventListener("unhandledrejection", function(e){
     wireMcpCard(card);
   }
 
+  /* ---- Configurações → Backup → Calendário externo (URL secreta iCal) ----
+     Disponível nas 3 plataformas (é só um fetch, sem OAuth) — diferente do
+     card de sync do Drive logo abaixo, que só existe em desktop/Android. */
+  function icalCardHtml(){
+    const statusHtml = icalUrl
+      ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Status</div><div class="bar-val" style="width:auto; color:var(--good);">configurado</div></div>
+         <div class="stat-foot" style="margin-top:6px;">${icalCache ? `Última busca: ${new Date(icalCache.fetchedAt).toLocaleString("pt-BR")} · ${icalCache.eventos.length} evento(s).` : "Ainda não buscou — toque em \"Salvar e atualizar\"."}</div>`
+      : "";
+    return `
+      ${statusHtml}
+      <div class="section-label" style="margin:${icalUrl?'14px':'0'} 0 4px;">URL secreta (iCal / .ics)</div>
+      <input type="text" id="icalUrlInp" class="mk-e-name" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" value="${escapeHtml(icalUrl)}">
+      <div class="stat-foot" style="margin-top:6px;">No Google Calendar: Configurações da agenda → "Endereço secreto em formato iCal". Cole aqui — os eventos aparecem só leitura no Diário, dia a dia.${(!isDesktop && !isNative) ? " No navegador, alguns provedores bloqueiam essa busca (CORS); funciona de forma mais confiável no app instalado (desktop/Android)." : ""}</div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn-primary" id="icalSave" style="flex:1;">Salvar${icalUrl?' e atualizar':''}</button>
+        ${icalUrl ? `<button class="btn-cancel" id="icalRefresh" style="flex:0 0 auto; padding:0 14px;">Atualizar agora</button>` : ""}
+      </div>
+      ${icalUrl ? `<button class="link-btn" id="icalRemove" style="margin-top:10px; color:var(--danger);">Remover calendário</button>` : ""}
+    `;
+  }
+  function wireIcalCard(card){
+    if(!card) return;
+    const saveBtn = card.querySelector("#icalSave");
+    if(saveBtn) saveBtn.onclick = async () => {
+      const url = card.querySelector("#icalUrlInp").value.trim();
+      if(!url){ showAlertBanner("Cole a URL do calendário"); return; }
+      saveIcalUrl(url);
+      saveBtn.disabled = true; saveBtn.textContent = "Buscando...";
+      await atualizarIcal(false);
+      refreshIcalCard();
+    };
+    const refreshBtn = card.querySelector("#icalRefresh");
+    if(refreshBtn) refreshBtn.onclick = async () => {
+      refreshBtn.disabled = true; refreshBtn.textContent = "Atualizando...";
+      await atualizarIcal(false);
+      refreshIcalCard();
+    };
+    const rmBtn = card.querySelector("#icalRemove");
+    if(rmBtn) rmBtn.onclick = () => {
+      confirmModal("Remover o calendário externo? Os eventos somem do Diário.", "Remover", ()=>{
+        saveIcalUrl(""); saveIcalCache(null);
+        refreshIcalCard();
+      });
+    };
+  }
+  function refreshIcalCard(){
+    const card = document.getElementById("cfgIcalCard");
+    if(!card) return;
+    card.innerHTML = icalCardHtml();
+    wireIcalCard(card);
+  }
+
   /* ---- Configurações → Backup → Sincronização com nuvem (Google Drive), desktop e Android ----
      Mesmo padrão de auto-refresh do card do MCP, sem passar por render(). A resolução de
      conflito é uma UI própria (manter local / usar remoto) em vez do modal de import de
@@ -14374,6 +14754,19 @@ window.addEventListener("unhandledrejection", function(e){
     return null;
   }
   let syncForceEditCreds = false;
+  // conflito de sync pendente é fácil de passar despercebido (fica só dentro de
+  // Configurações → Backup) — este contador alimenta o ponto vermelho no ícone
+  // de engrenagem, visível em qualquer aba (cfgBtnHtml/.sync-conflict-dot)
+  let syncConflictCount = 0;
+  function aplicarStatusNoBadgeSync(status){
+    syncConflictCount = (status && status.pendingConflicts) ? status.pendingConflicts.length : 0;
+    document.querySelectorAll("[data-syncdot]").forEach(el=> el.style.display = syncConflictCount>0 ? "" : "none");
+  }
+  function refreshSyncConflictBadge(){
+    const bridge = syncBridge();
+    if(!bridge) return;
+    bridge.getStatus().then(aplicarStatusNoBadgeSync).catch(()=>{});
+  }
   function syncCardHtml(status){
     if(!status.hasClientCreds || syncForceEditCreds){
       return `
@@ -14479,6 +14872,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(!document.getElementById("cfgSyncCard")) return;
     card.innerHTML = syncCardHtml(status);
     wireSyncCard(card);
+    aplicarStatusNoBadgeSync(status);
   }
 
   /* ---------------- INIT ---------------- */
@@ -14488,6 +14882,14 @@ window.addEventListener("unhandledrejection", function(e){
   render();
   window.__britaBooted = true; // boot ok: overlay de erro fatal não é mais necessário
   startScheduler();
+  // conflito de uma sessão anterior (ex.: fechou o app sem abrir Configurações)
+  // não pode ficar invisível até o próximo sync — confere já no boot.
+  if(isDesktop || isNative) refreshSyncConflictBadge();
+  // calendário externo: atualiza em segundo plano se o cache estiver velho, sem
+  // forçar repaint (o Diário pode estar com o editor contínuo focado — recriar
+  // o innerHTML ali no meio da digitação perderia o cursor). A tela pega o
+  // cache novo sozinha na próxima vez que for (re)renderizada.
+  if(icalStale()) atualizarIcal(true);
   // badge ganha durante a virada de semana/mês no boot (antes de qualquer
   // render): celebra só agora, com a tela já de pé, pra não passar batido.
   if(badgesGanhasNoBoot.length){
@@ -14701,6 +15103,7 @@ window.addEventListener("unhandledrejection", function(e){
     window.electronBridge.onSyncApplied((key, value) => applySyncedKey(key, value));
     window.electronBridge.onSyncConflict(() => {
       showAlertBanner("⚠️ Conflito de sincronização — resolva em Configurações → Backup");
+      if(document.getElementById("cfgSyncCard")) refreshSyncCard(); else refreshSyncConflictBadge();
     });
   }
 
