@@ -1798,7 +1798,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-16 (v20)";
+  const BUILD_STAMP = "2026-08-17 (v21)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2128,6 +2128,48 @@ window.addEventListener("unhandledrejection", function(e){
   // entradas já pontuadas (congelar, reparar, reancorar, migração legada)
   function fatorParaArea(area, fatoresArea, fatorPadrao){
     return (area != null && fatoresArea[area] != null) ? fatoresArea[area] : fatorPadrao;
+  }
+  /* ---- Simulador "e se" (Configurações → Pontuação do boletim) ----
+     Recalcula a agenda da semana atual com multiplicadores/duração hipotéticos
+     (ainda não salvos), pra mostrar como as rotinas se redistribuiriam ANTES de
+     clicar em "Salvar pontuação". Reaproveita a mesma fórmula/roda/hábito da
+     agenda real (fatoresPorArea, fatorParaArea, fatorHabito) — só o multiplicador
+     e o divisor de duração são hipotéticos, porque são os dois únicos campos
+     dessa tela que exigem confirmação explícita (o resto grava na hora). Não
+     muda a semana em curso (o fator dela já está congelado), é só uma prévia. */
+  function simularDistribuicaoSemana(multHipo, divisorHipo){
+    const habitos = mapaHabitos();
+    const base = isoToDate(inicioSemanaISO(new Date()));
+    let totalBruto = 0; const porArea = {}; const porRotina = {};
+    for(let dia=0; dia<7; dia++){
+      const dataDia = new Date(base); dataDia.setDate(dataDia.getDate() + dia);
+      routines.forEach(r=>{
+        if(!rotinaAgendadaEm(r, dataDia)) return;
+        const fh = fatorHabito(r.id, habitos);
+        const area = areaDaRotina(r);
+        (r.steps||[]).forEach(s=>{
+          if(s.isRest || (s.type !== "timer" && s.type !== "exercicio")) return;
+          const minutos = s.type==="exercicio" ? ((s.sets||1)*(r.restSeconds||120))/60 : (s.seconds||0)/60;
+          if(!minutos || minutos <= 0) return;
+          const tag = stepTagEfetiva(s, r);
+          const m = multHipo[tag] !== undefined ? multHipo[tag] : multHipo.medio;
+          const pb = m * Math.sqrt(minutos / divisorHipo) * fh;
+          if(pb <= 0) return;
+          totalBruto += pb;
+          porArea[area] = (porArea[area] || 0) + pb;
+          porRotina[r.id] = (porRotina[r.id] || 0) + pb;
+        });
+      });
+    }
+    const fator = fatorNormalizacaoPara(totalBruto);
+    const fatoresArea = fatoresPorArea(porArea);
+    const porRotinaPontos = {};
+    Object.keys(porRotina).forEach(rid=>{
+      const r = routines.find(x=>x.id===rid);
+      const area = r ? areaDaRotina(r) : null;
+      porRotinaPontos[rid] = porRotina[rid] * fatorParaArea(area, fatoresArea, fator);
+    });
+    return { porRotinaPontos, porArea, fatoresArea, fator, totalBruto };
   }
   function congelarSemana(inicioISO){
     const habitos = mapaHabitos();
@@ -8363,6 +8405,8 @@ window.addEventListener("unhandledrejection", function(e){
               ${tagValorPillsHtml(it.tagValor || "nenhum", false)}
               <div class="dev-n" style="margin-top:5px;">Vale um bloco de ${gam.config.divisorDuracao} min${(KB_ESCOPO_MULT[escopoDoPer(opts.per)]||1) > 1 ? " &times;" + KB_ESCOPO_MULT[escopoDoPer(opts.per)] + " (escopo " + KB_ESCOPO_LABEL[escopoDoPer(opts.per)] + ")" : ""}. Pontua ao cair em "Feito".</div>` : ""}
             ${opts.pesos && rodaAtiva() ? `<div class="section-label" style="margin:10px 0 4px;">Área</div><div class="kb-e-area"></div>` : ""}
+            ${kbEscopo === "dia" ? `<label class="switch-row" style="margin-top:10px;"><span>Repetir toda semana</span><input type="checkbox" class="kb-e-rec" ${it.recorrente?'checked':''}></label>
+              <div class="dev-n" style="margin-top:2px;">Recria o cartão no mesmo dia da semana seguinte, em "A fazer". Desmarcar para nesta ocorrência interrompe a repetição.</div>` : ""}
             <div class="notice-actions kb-e-acoes" style="margin-top:10px; justify-content:space-between;">
               <button class="ghost" data-kbdel="1" style="color:var(--danger);" title="Excluir cartão" aria-label="Excluir cartão">${svgIcon(ICON_D.trash,15)}</button>
               <button data-kbok="1">Salvar</button>
@@ -8385,6 +8429,7 @@ window.addEventListener("unhandledrejection", function(e){
           </div>
           <div class="kb-card-bot">
             ${hora ? `<span class="kb-hora" title="${kbEscopo === "dia" ? "Aparece como bloco na agenda" : "Dia/horário do cartão"}">${svgIcon(ICON_D.clock,13)} ${escapeHtml(hora)}</span>` : ""}
+            ${it.recorrente ? `<span class="kb-hora" title="Repete toda semana">&#8635;</span>` : ""}
             ${pesoHtml}
             <div class="kb-moves">
               ${podeAdiar ? `<button class="kb-move-btn" data-kbadiar="${ci}-${ii}" title="Adiar para amanhã" aria-label="Adiar para amanhã">${svgIcon(ICON_D.arrowUturnRight,14)}</button>` : ""}
@@ -8521,6 +8566,14 @@ window.addEventListener("unhandledrejection", function(e){
           it.hIni = ini.value || "";
           // fim sem início não descreve nada; fim antes do início é engano de digitação
           it.hFim = (it.hIni && fim.value && horaParaMin(fim.value) > horaParaMin(it.hIni)) ? fim.value : "";
+        }
+        const recChk = eb.querySelector(".kb-e-rec");
+        if(recChk){
+          it.recorrente = recChk.checked;
+          // a família é identificada pelo id da 1ª ocorrência marcada — criado só
+          // na hora, nunca reatribuído (senão a busca pela "última ocorrência"
+          // em gerarCartoesRecorrentesHoje perderia o fio da família)
+          if(it.recorrente && !it.recGroupId) it.recGroupId = it.id;
         }
         kbEdit=null; commit();
       };
@@ -8763,13 +8816,20 @@ window.addEventListener("unhandledrejection", function(e){
     };
   }
 
-  function abrirFormMeta(doc, alvoExistente){
+  /* ---- Sub-metas ----
+     Uma meta grande pode ser dividida em sub-metas com prazo, quantidade e peso
+     PRÓPRIOS — cada uma pontua sozinha, pelo mesmo motor de metaEscopo/
+     metaPontosTotais/aplicarDeltaMeta que já existe (t.parentId é só um vínculo
+     de exibição, não muda a pontuação). Um nível só: sub-meta não ganha o botão
+     "+ sub-meta", para não empilhar hierarquia. */
+  function abrirFormMeta(doc, alvoExistente, parentIdNovo){
     const t = alvoExistente || null;
+    const pai = !t && parentIdNovo ? doc.targets.find(x=>x.id===parentIdNovo) : null;
     const ov = document.createElement("div");
     ov.className = "confirm-overlay";
     ov.innerHTML = `
       <div class="confirm-box" style="text-align:left; max-height:86vh; overflow-y:auto;">
-        <p style="margin-bottom:12px;">${t?"Editar meta":"Nova meta"}</p>
+        <p style="margin-bottom:12px;">${t ? "Editar meta" : (pai ? "Nova sub-meta de “"+escapeHtml(pai.title)+"”" : "Nova meta")}</p>
         <input type="text" id="cdTitle" placeholder="Alvo (ex: Prova SEFAZ-BA)" class="mk-e-name" style="width:100%; margin-bottom:8px;" value="${t?escapeHtml(t.title):""}">
         <div class="section-label" style="margin:8px 0 6px;">Prazo</div>
         <input type="date" id="cdDate" style="width:100%;" value="${t?t.date:""}">
@@ -8794,7 +8854,8 @@ window.addEventListener("unhandledrejection", function(e){
       </div>`;
     document.body.appendChild(ov);
     // valores normalizados para rótulo: o que for digitado e não existir vira área nova
-    let areasSel = ((t && t.areas) || []).map(a=>metaAreaInfo(a).label).filter(Boolean);
+    // sub-meta nova herda as áreas do pai por padrão (mesmo assunto, é só o corte do prazo que muda)
+    let areasSel = ((t && t.areas) || (pai && pai.areas) || []).map(a=>metaAreaInfo(a).label).filter(Boolean);
     mountTagInput(ov.querySelector("#cdAreasWrap"), areasSel, metaAreasPool(doc), vals => { areasSel = vals; });
     let diasSel = ((t && t.dias) || []).slice();
     ov.querySelectorAll("[data-cddia]").forEach(chip=>{
@@ -8844,7 +8905,7 @@ window.addEventListener("unhandledrejection", function(e){
         if(topics != null) t.done = Math.min(t.done||0, topics);
         sincronizarPontosMeta(t);
       } else {
-        doc.targets.push({ id: uid(), title, date, topics, unit, done:0, areas, dias, tagValor, criadoEm: Date.now() });
+        doc.targets.push({ id: uid(), title, date, topics, unit, done:0, areas, dias, tagValor, criadoEm: Date.now(), parentId: parentIdNovo || null });
       }
       saveTemplates(doc);
       ov.remove();
@@ -9025,7 +9086,10 @@ window.addEventListener("unhandledrejection", function(e){
     app.appendChild(el);
     wireCfgBtn(el);
 
-    function metaCardHtml(t){
+    function metaCardHtml(t, opts){
+      opts = opts || {};
+      const sub = !!opts.sub;
+      const filhos = opts.filhos || [];
       const d = daysUntil(t.date);
       const p = cdPace(t);
       const [y,m,dd] = t.date.split("-");
@@ -9034,9 +9098,9 @@ window.addEventListener("unhandledrejection", function(e){
       const feita = metaConcluida(t);
       const areas = (t.areas||[]).map(metaAreaChipHtml).join("");
       return `
-        <div class="stat-card" style="margin-bottom:10px; ${feita?'border-color:var(--good);':''}">
+        <div class="stat-card" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--good);':''}">
           <div class="dev-row" style="border:none; padding:0;">
-            <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(t.title)}</span>
+            <span style="font-family:'Fraunces',serif; font-size:${sub?15:17}px; flex:1;">${sub?'&#8618; ':''}${escapeHtml(t.title)}</span>
             <button class="icon-btn" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">${svgIcon(ICON_D.notes,14)}</button>
             <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta">${svgIcon(ICON_D.xmark,14)}</button>
           </div>
@@ -9052,10 +9116,12 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdplus="${t.id}" title="Mais um" aria-label="Mais um">+</button>
           </div>
           <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:${feita?'var(--good)':'var(--accent)'};">${p.txt}</b>${feita?" "+svgIcon(ICON_D.check,13):""}</div>` : ""}
+          ${filhos.length ? `<div class="dev-n" style="margin-top:6px;">${filhos.filter(metaConcluida).length} de ${filhos.length} sub-meta(s) concluída(s)</div>` : ""}
           ${(t.nota||"").trim()
             ? `<div class="meta-nota" data-cdnotaview="${t.id}">${renderMdBlock(t.nota, "meta:"+t.id, "")}</div>
                <button class="link-btn" data-cdnota="${t.id}" style="margin-top:2px;">${svgIcon(ICON_D.notes,14)} editar anotação</button>`
             : `<button class="link-btn" data-cdnota="${t.id}" style="margin-top:8px;">+ anotação</button>`}
+          ${!sub ? `<button class="link-btn" data-cdsubnova="${t.id}" style="margin-top:6px; margin-left:10px;">+ sub-meta</button>` : ""}
         </div>`;
     }
 
@@ -9096,12 +9162,21 @@ window.addEventListener("unhandledrejection", function(e){
     function pintarTudo(){
       const partes = [];
       if(mostraPrazos){
-        const sorted = [...doc.targets]
+        // sub-metas (t.parentId) não entram na lista plana: aparecem só aninhadas
+        // sob o card do pai, na mesma ordem por prazo que as metas de topo usam
+        const filtradas = [...doc.targets].filter(passaFiltroAreaMetaMulti);
+        const filhosPorPai = {};
+        filtradas.forEach(t=>{ if(t.parentId) (filhosPorPai[t.parentId] = filhosPorPai[t.parentId]||[]).push(t); });
+        Object.values(filhosPorPai).forEach(arr=>arr.sort((a,b)=>daysUntil(a.date)-daysUntil(b.date)));
+        const sorted = filtradas
+          .filter(t => !t.parentId)
           .filter(t => !homeSoHoje || metaOcorreHoje(t))
-          .filter(passaFiltroAreaMetaMulti)
           .sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
         if(ambos) partes.push(`<div class="section-label">Prazos</div>`);
-        partes.push(sorted.map(metaCardHtml).join(""));
+        partes.push(sorted.map(t=>{
+          const filhos = filhosPorPai[t.id] || [];
+          return metaCardHtml(t, {filhos}) + filhos.map(f=>metaCardHtml(f, {sub:true})).join("");
+        }).join(""));
         if(doc.targets.length > 0 && sorted.length === 0){
           partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta com esse filtro</h2><p>Desligue o "só hoje" ou troque a área para ver outras metas.</p></div>`);
         }
@@ -9124,12 +9199,17 @@ window.addEventListener("unhandledrejection", function(e){
           abrirFormMeta(doc, doc.targets.find(t=>t.id===b.dataset.cdedit));
         });
         body.querySelectorAll("[data-cddel]").forEach(b=> b.onclick = () => {
-          confirmModal("Remover esta meta?", "Remover", ()=>{
+          const filhos = doc.targets.filter(x=>x.parentId===b.dataset.cddel);
+          confirmModal("Remover esta meta?" + (filhos.length ? ` As ${filhos.length} sub-meta(s) viram metas independentes.` : ""), "Remover", ()=>{
             const t = doc.targets.find(x=>x.id===b.dataset.cddel);
             if(t) estornarMetaConcluida(t);
+            filhos.forEach(f=> f.parentId = null); // órfã vira meta de topo em vez de sumir da lista
             doc.targets = doc.targets.filter(x=>x.id!==b.dataset.cddel);
             saveTemplates(doc); pintarTudo();
           });
+        });
+        body.querySelectorAll("[data-cdsubnova]").forEach(b=> b.onclick = () => {
+          abrirFormMeta(doc, null, b.dataset.cdsubnova);
         });
         // anotação da meta: checklist e toggle funcionam direto no card, como no Diário
         body.querySelectorAll("[data-cdnotaview]").forEach(view=>{
@@ -12916,6 +12996,39 @@ window.addEventListener("unhandledrejection", function(e){
   function perAtual(escopo){ return diarioChave(escopo, localKey()); }
   // só faz sentido "amanhã" no escopo dia — semana/mês/ano não têm granularidade de dia
   function perDiaSeguinte(per){ return "dia:" + addDaysISO(per.slice(per.indexOf(":")+1), 1); }
+  /* ---- Cartão de kanban recorrente (repete toda semana) ----
+     `recGroupId` liga todas as ocorrências da mesma família (criado na 1ª vez
+     que "repetir toda semana" é marcado, nunca reatribuído). A ocorrência MAIS
+     RECENTE da família (por `per`, tenha ela sido concluída ou não) é a que
+     decide se a família ainda está ativa: desmarcar "repetir" na ocorrência
+     mais nova para a série ali, mesmo que ocorrências mais antigas ainda
+     estejam com `recorrente:true`. Só roda para o período de HOJE (mesmo
+     padrão de `rolarPendenciasPara`) — abrir o Diário é o gancho, não um cron. */
+  function gerarCartoesRecorrentesHoje(){
+    const hoje = localKey();
+    const perHoje = "dia:" + hoje;
+    const hojeDow = isoToDate(hoje).getDay();
+    const grupos = {};
+    diaKanban.forEach(c=>{
+      if(escopoDoPer(c.per) !== "dia" || !c.recGroupId) return;
+      if(!grupos[c.recGroupId] || c.per > grupos[c.recGroupId].per) grupos[c.recGroupId] = c;
+    });
+    let mudou = false;
+    Object.keys(grupos).forEach(gid=>{
+      const tpl = grupos[gid];
+      if(!tpl.recorrente || tpl.per === perHoje) return;
+      const dataTpl = isoToDate(tpl.per.slice(4));
+      if(dataTpl.getDay() !== hojeDow || dataTpl >= isoToDate(hoje)) return;
+      diaKanban.push({
+        id: uid(), text: tpl.text, col: DIA_KB_COLS[0][0], per: perHoje,
+        ord: diaKanban.filter(x=>x.per===perHoje).length,
+        tagValor: tpl.tagValor, eixo: tpl.eixo, hIni: tpl.hIni, hFim: tpl.hFim,
+        recorrente: true, recGroupId: gid
+      });
+      mudou = true;
+    });
+    if(mudou) saveDiaKanban();
+  }
   function rolarPendenciasPara(per){
     if(per !== perAtual(escopoDoPer(per))) return; // só o período corrente puxa
     let mudou = false;
@@ -13374,6 +13487,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
     function pintarKanbanDoPeriodo(){
       const per = chave();
+      if(escopoDoPer(per) === "dia" && per === perAtual("dia")) gerarCartoesRecorrentesHoje();
       rolarPendenciasPara(per);
       const cols = colunasKanban(per);
       // horários só no escopo "dia": semana/mês/ano não têm granularidade de hora na agenda
@@ -13902,6 +14016,8 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="sched-time-row"><span style="flex:1;">Meta anual (&gt; 3 meses)</span><input class="dur-input" type="number" min="0" max="100" id="cfgMetaAno" value="${c.pontosMeta.anual}"></div>
           <button class="btn-primary" id="cfgSalvarGam" style="width:100%; margin-top:14px;">Salvar pontuação</button>
           <div class="stat-foot">Vale para as próximas semanas — a semana atual já está com o fator congelado.</div>
+          <div class="section-label" style="margin:14px 0 4px;">Simulação — próxima semana</div>
+          <div class="stat-foot" id="cfgSimPreview" style="white-space:pre-line;"></div>
         </div>
 
         <div class="section-label">Roda da vida</div>
@@ -14037,6 +14153,33 @@ window.addEventListener("unhandledrejection", function(e){
       showAlertBanner("Pontuação atualizada ✓");
       render();
     };
+    /* prévia ao vivo: lê os inputs ainda não salvos e recalcula a distribuição
+       da semana, sem tocar em gam.config. Chamada uma vez no load (valores
+       atuais) e a cada edição dos campos que entram na fórmula. */
+    function atualizarSimPreview(){
+      const box = document.getElementById("cfgSimPreview");
+      if(!box) return;
+      const num = (id, fallback) => { const v = parseFloat(document.getElementById(id).value); return isFinite(v) && v > 0 ? v : fallback; };
+      const multHipo = {
+        nenhum: 0,
+        alto:  num("cfgMultAlto",  c.multiplicadores.alto),
+        medio: num("cfgMultMedio", c.multiplicadores.medio),
+        baixo: num("cfgMultBaixo", c.multiplicadores.baixo)
+      };
+      const divisorHipo = num("cfgDivisor", c.divisorDuracao);
+      const { porRotinaPontos, totalBruto } = simularDistribuicaoSemana(multHipo, divisorHipo);
+      if(totalBruto <= 0){ box.textContent = "Sem nada agendado nesta semana para simular — a escala padrão (20 blocos médios) vale 100 pts."; return; }
+      const linhas = Object.keys(porRotinaPontos)
+        .map(rid => ({ nome: (routines.find(r=>r.id===rid)||{}).name || "?", pts: porRotinaPontos[rid] }))
+        .sort((a,b)=> b.pts - a.pts)
+        .slice(0, 6)
+        .map(x => `${x.nome} — ${x.pts.toFixed(1)} pts`);
+      box.textContent = "Como a semana que vem ficaria com esses números:\n" + linhas.join("\n") + (Object.keys(porRotinaPontos).length > 6 ? "\n…" : "");
+    }
+    atualizarSimPreview();
+    ["cfgMultAlto","cfgMultMedio","cfgMultBaixo","cfgDivisor"].forEach(id=>{
+      document.getElementById(id).oninput = atualizarSimPreview;
+    });
 
     /* ---- roda da vida, hábito e vagas ----
        Tudo aqui grava na hora (sem botão "salvar"), porque nenhum destes

@@ -65,6 +65,18 @@
                 android:resource="@xml/widget_daily_goal_info" />
         </receiver>
 
+        <!-- Widget de nota da semana: sem configuração, mostra o boletim (nota + ritmo) -->
+        <receiver
+            android:name=".WeekScoreWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week_score_info" />
+        </receiver>
+
         <!-- Bolha do cronômetro por cima de outros apps. specialUse porque o
              Android não tem um tipo de foreground service para cronômetro. -->
         <service

@@ -24,6 +24,7 @@ public class WidgetsPlugin extends Plugin {
         RoutineWidgetProvider.refreshAll(ctx);
         StreakWidgetProvider.refreshAll(ctx);
         DailyGoalWidgetProvider.refreshAll(ctx);
+        WeekScoreWidgetProvider.refreshAll(ctx);
         call.resolve();
     }
 }
