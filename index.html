@@ -1934,6 +1934,37 @@ window.addEventListener("unhandledrejection", function(e){
       };
     });
   }
+  /* Filtro de área do kanban do Diário — mesmo padrão multiselect do de Metas,
+     mas escopado à sessão (não persistido): é um recorte temporário para achar
+     cartões de uma área específica, não uma preferência duradoura como as
+     outras. Zerado sempre que a roda da vida está desligada. */
+  let diKbAreaFiltro = [];
+  function diKbFiltroAtivo(){ return rodaAtiva() && diKbAreaFiltro.length > 0; }
+  function passaFiltroAreaKanban(it){
+    if(!diKbFiltroAtivo()) return true;
+    const area = areaDaRotina(it);
+    if(diKbAreaFiltro.includes(FILTRO_SEM_AREA) && !area) return true;
+    return diKbAreaFiltro.includes(area);
+  }
+  function diKbAreaFiltroChipsHtml(){
+    if(!rodaAtiva() || !rodaAreas().length) return "";
+    return `<div class="area-chips area-filter-row" id="diKbAreaFiltroRow">`
+      + `<span class="area-chip ${diKbAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-dikbareaf="${FILTRO_SEM_AREA}" style="--chip:var(--muted);">sem área</span>`
+      + rodaAreas().map(a=>`<span class="area-chip ${diKbAreaFiltro.includes(a.id)?'sel':''}" data-dikbareaf="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
+      + `</div>`;
+  }
+  function wireDiKbAreaFiltroChips(el, aoMudar){
+    const row = el.querySelector("#diKbAreaFiltroRow");
+    if(!row) return;
+    row.querySelectorAll("[data-dikbareaf]").forEach(ch=>{
+      ch.onclick = () => {
+        const v = ch.dataset.dikbareaf;
+        const pos = diKbAreaFiltro.indexOf(v);
+        if(pos >= 0) diKbAreaFiltro.splice(pos, 1); else diKbAreaFiltro.push(v);
+        aoMudar();
+      };
+    });
+  }
   function passaFiltroAreaMetaMulti(t){
     if(metasAreaFiltro.length === 0) return true;
     const temArea = !!(t.areas && t.areas.length);
@@ -1962,7 +1993,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-17 (v22)";
+  const BUILD_STAMP = "2026-08-18 (v23)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -6719,6 +6750,34 @@ window.addEventListener("unhandledrejection", function(e){
       partes.push(`<div class="section-label">Sequências por rotina</div><div class="stat-card">${sHtml}</div>`);
     }
 
+    /* --- etapas que mais estouram o planejado, cruzando TODAS as rotinas
+       (o ranking por etapa já existia dentro de cada rotina — renderRoutineStats
+       — mas obrigava abrir uma por uma; aqui é o mesmo cálculo (mediana de
+       actual-planned por etapa), só que agrupado por rotina+etapa e ordenado
+       globalmente, para achar o pior gargalo sem precisar navegar) --- */
+    const stepAggAll = {};
+    rich.forEach(h=> (h.steps||[]).forEach(s=>{
+      if(s.isRest || s.skipped || s.planned == null) return;
+      const base = s.name.replace(/ · volta \d+\/\d+$/,"");
+      const key = h.routineId + "|" + base;
+      const a = stepAggAll[key] = stepAggAll[key] || {n:0, acts:[], plan:s.planned, routineId:h.routineId, routineName:h.routineName, name:base};
+      a.n++; a.acts.push(s.actual); a.plan = s.planned;
+    }));
+    const stepRowsAll = Object.values(stepAggAll)
+      .filter(a=>a.n>=2)
+      .map(a=>({...a, medAct: Math.round(median(a.acts))}))
+      .map(a=>Object.assign(a, {medDev: a.medAct - a.plan}))
+      .sort((a,b)=>b.medDev-a.medDev)
+      .slice(0,8);
+    if(stepRowsAll.length){
+      const fmtSg = v => (v>=0?"+":"&minus;") + fmtTime(Math.abs(v)).replace("+","");
+      let gHtml = stepRowsAll.map(s=>{
+        const cls = s.medDev > 15 ? "late" : (s.medDev < -15 ? "early" : "ontime");
+        return `<div class="dev-row tappable" data-rstats="${s.routineId}"><span>${escapeHtml(s.routineName)} — ${escapeHtml(s.name)}</span><b class="${cls}">${fmtSg(s.medDev)}</b><span class="dev-n">${fmtTime(s.plan).replace("+","")}&rarr;${fmtTime(s.medAct).replace("+","")} · ${s.n}x</span></div>`;
+      }).join("");
+      partes.push(`<div class="section-label">Etapas que mais estouram (${periodLbl})</div><div class="stat-card">${gHtml}<div class="stat-foot">Positivo = etapa demora mais que o planejado. Toque para ver a rotina.</div></div>`);
+    }
+
     /* --- pontualidade --- */
     const punc = rich.filter(h=>h.schedDelayMin !== undefined);
     if(punc.length){
@@ -9045,6 +9104,9 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
         <div class="section-label" style="margin:12px 0 6px;">Peso no boletim</div>
         ${tagValorPillsHtml(t ? (t.tagValor || "alto") : "alto", false)}
+        ${(t && t.parentId) || pai ? `
+        <label class="switch-row" style="margin-top:12px;"><span>Só desbloqueia após a sub-meta anterior</span><input type="checkbox" id="cdSequencial" ${t&&t.travaAteAnterior?'checked':''}></label>
+        ` : ""}
         <div class="dev-n" id="cdEscopoHint" style="margin-top:12px;"></div>
         <div class="confirm-actions" style="margin-top:18px;">
           <button class="btn-cancel" id="cdFormCancel">Cancelar</button>
@@ -9098,13 +9160,16 @@ window.addEventListener("unhandledrejection", function(e){
       const areas = [...areasSel];
       const dias = [...diasSel];
       const tagValor = readTagValorPills(ov) || "alto";
+      const cdSeqEl = ov.querySelector("#cdSequencial");
+      const travaAteAnterior = cdSeqEl ? cdSeqEl.checked : false;
       if(t){
         t.title = title; t.date = date; t.unit = unit; t.areas = areas; t.dias = dias;
         t.topics = topics; t.tagValor = tagValor;
+        if(t.parentId) t.travaAteAnterior = travaAteAnterior;
         if(topics != null) t.done = Math.min(t.done||0, topics);
         sincronizarPontosMeta(t);
       } else {
-        doc.targets.push({ id: uid(), title, date, topics, unit, done:0, areas, dias, tagValor, criadoEm: Date.now(), parentId: parentIdNovo || null });
+        doc.targets.push({ id: uid(), title, date, topics, unit, done:0, areas, dias, tagValor, criadoEm: Date.now(), parentId: parentIdNovo || null, travaAteAnterior: parentIdNovo ? travaAteAnterior : false });
       }
       saveTemplates(doc);
       ov.remove();
@@ -9289,6 +9354,7 @@ window.addEventListener("unhandledrejection", function(e){
       opts = opts || {};
       const sub = !!opts.sub;
       const filhos = opts.filhos || [];
+      const bloqueada = !!opts.bloqueada;
       const d = daysUntil(t.date);
       const p = cdPace(t);
       const [y,m,dd] = t.date.split("-");
@@ -9297,9 +9363,9 @@ window.addEventListener("unhandledrejection", function(e){
       const feita = metaConcluida(t);
       const areas = (t.areas||[]).map(metaAreaChipHtml).join("");
       return `
-        <div class="stat-card" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--good);':''}">
+        <div class="stat-card" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--good);':''} ${bloqueada?'opacity:.55;':''}">
           <div class="dev-row" style="border:none; padding:0;">
-            <span style="font-family:'Fraunces',serif; font-size:${sub?15:17}px; flex:1;">${sub?'&#8618; ':''}${escapeHtml(t.title)}</span>
+            <span style="font-family:'Fraunces',serif; font-size:${sub?15:17}px; flex:1;">${sub?'&#8618; ':''}${bloqueada?'&#128274; ':''}${escapeHtml(t.title)}</span>
             <button class="icon-btn" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">${svgIcon(ICON_D.notes,14)}</button>
             <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta">${svgIcon(ICON_D.xmark,14)}</button>
           </div>
@@ -9308,13 +9374,14 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="cd-big ${cls}">${d>=0 ? d : "+"+Math.abs(d)}<span> dia(s)${d<0?" atrás":""}</span></div>
           <div class="dev-n">${dd}/${m}/${y} · escopo ${ESCOPO_META_LABEL[esc]} · peso ${TAG_LABELS[t.tagValor || "alto"].toLowerCase()}</div>
           ${t.topics ? `<div class="dev-n" style="margin-top:2px;">boletim ${ESCOPO_META_LABEL[esc]}: <b style="color:var(--accent);">${metaCreditado(t).toFixed(1)}</b> de ${metaPontosTotais(t).toFixed(1)} pts · ${(metaPontosTotais(t)/t.topics).toFixed(2)} pts cada</div>` : ""}
-          ${t.topics != null ? `
+          ${bloqueada ? `<div class="dev-n" style="margin-top:6px; color:var(--muted);">&#128274; desbloqueia ao concluir a sub-meta anterior</div>`
+            : (t.topics != null ? `
           <div class="cd-topics">
             <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdminus="${t.id}" title="Menos um" aria-label="Menos um">&minus;</button>
             <span><input type="number" class="cd-done-inp" data-cddone="${t.id}" value="${t.done||0}" inputmode="numeric" min="0" max="${t.topics}"> / <input type="number" class="cd-done-inp" data-cdtotal="${t.id}" value="${t.topics}" inputmode="numeric" min="1"> ${escapeHtml(cdUnit(t))}</span>
             <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdplus="${t.id}" title="Mais um" aria-label="Mais um">+</button>
           </div>
-          <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:${feita?'var(--good)':'var(--accent)'};">${p.txt}</b>${feita?" "+svgIcon(ICON_D.check,13):""}</div>` : ""}
+          <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:${feita?'var(--good)':'var(--accent)'};">${p.txt}</b>${feita?" "+svgIcon(ICON_D.check,13):""}</div>` : "")}
           ${filhos.length ? `<div class="dev-n" style="margin-top:6px;">${filhos.filter(metaConcluida).length} de ${filhos.length} sub-meta(s) concluída(s)</div>` : ""}
           ${(t.nota||"").trim()
             ? `<div class="meta-nota" data-cdnotaview="${t.id}">${renderMdBlock(t.nota, "meta:"+t.id, "")}</div>
@@ -9374,7 +9441,10 @@ window.addEventListener("unhandledrejection", function(e){
         if(ambos) partes.push(`<div class="section-label">Prazos</div>`);
         partes.push(sorted.map(t=>{
           const filhos = filhosPorPai[t.id] || [];
-          return metaCardHtml(t, {filhos}) + filhos.map(f=>metaCardHtml(f, {sub:true})).join("");
+          return metaCardHtml(t, {filhos}) + filhos.map((f,fi)=>{
+            const bloqueada = !!f.travaAteAnterior && fi > 0 && !metaConcluida(filhos[fi-1]);
+            return metaCardHtml(f, {sub:true, bloqueada});
+          }).join("");
         }).join(""));
         if(doc.targets.length > 0 && sorted.length === 0){
           partes.push(`<div class="empty-state" style="min-height:25vh;"><h2>Nenhuma meta com esse filtro</h2><p>Desligue o "só hoje" ou troque a área para ver outras metas.</p></div>`);
@@ -10585,6 +10655,16 @@ window.addEventListener("unhandledrejection", function(e){
     return lines.join("\n");
   }
 
+  /* Backlinks: quais OUTRAS notas citam esta via [[título]]. É o complemento
+     do link direto (mdInline/openNoteByTitle, que já existe) — sem isso dava
+     para navegar de A para B mas não descobrir, estando em B, quem aponta
+     para ela. Comparação por título (case-insensitive), igual openNoteByTitle. */
+  function notasComMencao(title, excludeId){
+    const t = (title||"").trim().toLowerCase();
+    if(!t) return [];
+    const re = new RegExp("\\[\\[\\s*" + t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "\\s*\\]\\]", "i");
+    return notes.filter(n => n.id !== excludeId && re.test(n.content||""));
+  }
   function openNoteByTitle(title){
     const t = title.trim().toLowerCase();
     let target = notes.find(n => (n.title||"").trim().toLowerCase() === t);
@@ -11780,6 +11860,25 @@ window.addEventListener("unhandledrejection", function(e){
     editor.className = "live-editor";
     editor.id = "liveEditor";
     el.appendChild(editor);
+
+    // menções: outras notas que linkam esta via [[título]] — calculado uma vez
+    // na abertura/save, não ao digitar (o título só conta depois de salvo)
+    const backlinks = notasComMencao(noteDraft.title, noteDraft.id);
+    if(backlinks.length){
+      const backLabel = document.createElement("div");
+      backLabel.className = "section-label";
+      backLabel.style.marginTop = "14px";
+      backLabel.textContent = "Menções (" + backlinks.length + ")";
+      el.appendChild(backLabel);
+      const backList = document.createElement("div");
+      backList.className = "stat-card";
+      backList.innerHTML = backlinks.map(n=>`<div class="dev-row tappable" data-backlink="${n.id}"><span>${escapeHtml(n.title||"(sem título)")}</span></div>`).join("");
+      el.appendChild(backList);
+      backList.querySelectorAll("[data-backlink]").forEach(row=> row.onclick = () => {
+        descartarEdicaoNota();
+        openNoteEditor(row.dataset.backlink);
+      });
+    }
 
     // excluir fica longe do fluxo de escrita: rodapé, à direita, em vermelho
     const footer = document.createElement("div");
@@ -13317,7 +13416,7 @@ window.addEventListener("unhandledrejection", function(e){
   function colunasKanban(per){
     return DIA_KB_COLS.map(([key,title])=>({
       key, title,
-      items: diaKanban.filter(c=> c.per === per && c.col === key)
+      items: diaKanban.filter(c=> c.per === per && c.col === key && passaFiltroAreaKanban(c))
                       .sort((a,b)=> (a.ord||0) - (b.ord||0))
     }));
   }
@@ -13393,9 +13492,11 @@ window.addEventListener("unhandledrejection", function(e){
         sincronizarPontosCartao(it);
       });
     });
-    // cartão excluído leva embora os pontos que tinha creditado
-    diaKanban.filter(c => c.per === per && !naTela.has(c.id)).forEach(descreditarCartao);
-    diaKanban = diaKanban.filter(c => c.per !== per || naTela.has(c.id));
+    // cartão excluído leva embora os pontos que tinha creditado — com o filtro
+    // de área ligado, `cols` só é a verdade PARA a área filtrada: cartão de
+    // outra área com o mesmo `per` fica intocado, não é tratado como excluído
+    diaKanban.filter(c => c.per === per && passaFiltroAreaKanban(c) && !naTela.has(c.id)).forEach(descreditarCartao);
+    diaKanban = diaKanban.filter(c => c.per !== per || !passaFiltroAreaKanban(c) || naTela.has(c.id));
     saveDiaKanban();
     // cartão com horário é bloco na agenda: mexeu no cartão, a agenda ao lado (desktop) desatualiza
     agendarRepinturaDaAgenda();
@@ -13817,6 +13918,11 @@ window.addEventListener("unhandledrejection", function(e){
       // horários só no escopo "dia": semana/mês/ano não têm granularidade de hora na agenda
       pintarKanban(body.querySelector("#diKanban"), cols, () => gravarKanban(cols, per),
         { pesos:true, per, abas:true, horarios: true });
+      wireDiKbAreaFiltroChips(body, () => {
+        const row = body.querySelector("#diKbAreaFiltroRow");
+        if(row) row.outerHTML = diKbAreaFiltroChipsHtml();
+        pintarKanbanDoPeriodo();
+      });
     }
 
     function paint(){
@@ -13835,6 +13941,7 @@ window.addEventListener("unhandledrejection", function(e){
             <section class="di-pane">
               <div class="section-label">Kanban ${KB_ESCOPO_LABEL[esc]}</div>
               <div class="di-pane-body">
+                ${diKbAreaFiltroChipsHtml()}
                 <div class="kb-board kb-inline" id="diKanban"></div>
               </div>
             </section>
@@ -13866,6 +13973,7 @@ window.addEventListener("unhandledrejection", function(e){
       }
       // fora da agenda, a nota do período é o editor contínuo — sempre editável
       body.innerHTML = `
+        ${diKbAreaFiltroChipsHtml()}
         <div class="kb-board kb-inline" id="diKanban"></div>
         <div class="section-label">Anotação ${KB_ESCOPO_LABEL[esc]} <span class="live-saved-badge dev-n"></span></div>
         <div class="live-editor di-live" id="liveEditor"></div>`;
