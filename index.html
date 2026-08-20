@@ -140,7 +140,15 @@
     font-size:19px; display:flex; align-items:center; justify-content:center;
     padding:3px 14px; border-radius:11px; transition: background .18s ease;
   }
-  .icon-svg{ display:inline-block; vertical-align:-4px; flex-shrink:0; }
+  /* SVGs são nativamente arrastáveis por padrão em vários navegadores (o mesmo
+     comportamento de "arrastar para salvar" de uma <img>) — sem isto, começar
+     um arrasto customizado (drag-handle de reordenar, swipe) em cima de um
+     ícone dispara TAMBÉM o drag nativo do navegador, que tira uma "foto" do
+     conteúdo ao redor do ícone (inclusive os botões de duplicar/excluir do
+     swipe, normalmente escondidos atrás do card) e mostra como fantasma
+     seguindo o cursor/dedo. preventDefault no pointerdown não basta porque o
+     dragstart nativo é um evento separado. */
+  .icon-svg{ display:inline-block; vertical-align:-4px; flex-shrink:0; -webkit-user-drag:none; user-select:none; }
   .tabbar button.active{ color:var(--accent); }
   .tabbar button.active .ic{ background:var(--accent-soft); }
 
@@ -745,7 +753,7 @@
   }
 
   /* ---------- DRAG ---------- */
-  .drag-handle{ color:var(--muted); font-size:17px; padding:2px 8px; cursor:grab; touch-action:none; user-select:none; }
+  .drag-handle{ color:var(--muted); font-size:17px; padding:2px 8px; cursor:grab; touch-action:none; user-select:none; -webkit-user-drag:none; }
   .step-row.dragging, .routine-card.dragging{ opacity:.45; border-color:var(--accent); }
   .step-row.drop-above, .routine-card.drop-above{ box-shadow: 0 -3px 0 0 var(--accent); }
   .step-row.drop-below, .routine-card.drop-below{ box-shadow: 0 3px 0 0 var(--accent); }
@@ -1997,7 +2005,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-20 (v24)";
+  const BUILD_STAMP = "2026-08-20 (v25)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -3251,6 +3259,24 @@ window.addEventListener("unhandledrejection", function(e){
     cardEl.addEventListener("pointerup", finish);
     cardEl.addEventListener("pointercancel", finish);
     return wrap;
+  }
+
+  /* Cards montados por STRING (metas, recorrentes) às vezes carregam margem/
+     recuo como estilo INLINE no próprio card (margin-bottom sempre; margin-left
+     + border-left só nas sub-metas). `.swipe-item` tem overflow:hidden, que
+     estabelece um novo bloco de formatação — a margem do filho não colapsa
+     para fora, ela "conta" dentro do wrap e o estica além do card visível
+     (botões ficam mais altos/largos que o card, sobrando um "fantasma" de cor
+     visível nas bordas). Mover a margem para o WRAP resolve os dois sintomas:
+     o wrap passa a ocupar exatamente o espaço do card visível, e continua
+     empurrando os vizinhos com a mesma margem de antes. Chamar sempre depois
+     de wrapSwipeActions/wrapSwipeDelete quando o card vier de um innerHTML
+     com margin-bottom/margin-left inline (rotinas e etapas usam gap no
+     container-pai, não margem no card, e não precisam disto). */
+  function moverMargemParaSwipeWrap(card, wrap){
+    ["marginTop","marginRight","marginBottom","marginLeft"].forEach(prop=>{
+      if(card.style[prop]){ wrap.style[prop] = card.style[prop]; card.style[prop] = "0"; }
+    });
   }
 
   /* ---------------- SWIPE: dispensar aviso (cima ou lados) ---------------- */
@@ -6219,6 +6245,7 @@ window.addEventListener("unhandledrejection", function(e){
             <input type="file" id="importFile" accept="application/json" style="display:none">
           </div>
         </div>
+        ${modelosTabPillHtml("notas")}
         <input type="search" id="noteSearch" class="note-search" placeholder="Buscar notas..." value="${escapeHtml(notesQuery)}">
         <div class="tag-bar" id="tagBar"></div>
         <div class="notes-list" id="notesListBox" style="flex:0 0 auto; overflow:visible;"></div>
@@ -6231,6 +6258,7 @@ window.addEventListener("unhandledrejection", function(e){
     el.appendChild(fab);
     el.appendChild(renderTabbar("notes"));
     app.appendChild(el);
+    wireModelosTabPill(el);
     document.getElementById("notesBackBtn").onclick = () => { goTo({ tab:"templates", screen:"templates" }); };
 
     const listBox = document.getElementById("notesListBox");
@@ -7056,7 +7084,20 @@ window.addEventListener("unhandledrejection", function(e){
     const partes = [nav, `<div class="stat-card">${grid}
       <div class="stat-foot">&#9679; executada &nbsp; <span class="late" style="font-weight:600;">n</span> agendadas não feitas${rate!==null?` &nbsp;·&nbsp; cumprimento da semana: ${rate}% (${doneTotal}/${plannedTotal})`:""}</div></div>`];
     partes.push(routineFilterSelectHtml());
-    if(selectedDay) partes.push(dayDetailHtml(selectedDay));
+    if(selectedDay){
+      partes.push(dayDetailHtml(selectedDay));
+    } else {
+      // nenhum dia escolhido: mostra os dados de todos os dias da semana com
+      // algo pra mostrar (dayDetailHtml já cobre um dia só — reaproveita sem
+      // duplicar a lógica; dia sem execução nem agendamento fica de fora pra
+      // não empilhar 7 cards de "nada").
+      for(let i=0; i<7; i++){
+        const d = new Date(weekStart); d.setDate(d.getDate()+i); d.setHours(12,0,0,0);
+        const key = dateKey(d);
+        const temAlgo = history.some(h=>h.date===key) || routines.some(r=>rotinaAgendadaEm(r, d));
+        if(temAlgo) partes.push(dayDetailHtml(key));
+      }
+    }
     partes.push(`<div style="height:20px"></div>`);
     // += (não =): renderTarefasResumo já pode ter escrito na mesma `body` antes.
     body.innerHTML += partes.join("");
@@ -7637,6 +7678,24 @@ window.addEventListener("unhandledrejection", function(e){
     };
   }
 
+  /* Pill "Notas"/"Outros" no topo de Modelos e de Notas — as duas telas já
+     existem prontas e inalteradas (renderNotes/renderTemplates); a pill só
+     troca de screen dentro da mesma aba "templates", nunca reconstrói
+     conteúdo duplicado. */
+  function modelosTabPillHtml(active){
+    return `<div class="area-chips area-filter-row" style="margin-bottom:14px;">
+      <span class="area-chip ${active==='notas'?'sel':''}" data-modelostab="notas" style="--chip:var(--accent);">Notas</span>
+      <span class="area-chip ${active==='outros'?'sel':''}" data-modelostab="outros" style="--chip:var(--accent);">Outros</span>
+    </div>`;
+  }
+  function wireModelosTabPill(scope){
+    scope.querySelectorAll("[data-modelostab]").forEach(sp=>{
+      sp.onclick = () => {
+        goTo({ tab:"templates", screen: sp.dataset.modelostab==="notas" ? "notes" : "templates" });
+      };
+    });
+  }
+
   function renderTemplates(){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
@@ -7652,6 +7711,7 @@ window.addEventListener("unhandledrejection", function(e){
         ${cfgBtnHtml()}
         <input type="file" id="importTmplFile" accept="application/json" style="display:none">
       </div></div>
+      ${modelosTabPillHtml("outros")}
       <div class="tmpl-folders">
         ${secoes.map(s=>`<div class="tmpl-sep"><span>${escapeHtml(s.label)}</span></div>${grade(s.tiles)}`).join("")}
         <div class="tmpl-sep"><span>Anotações de Rotinas</span></div>
@@ -7665,6 +7725,7 @@ window.addEventListener("unhandledrejection", function(e){
     el.appendChild(fab);
     app.appendChild(el);
     wireCfgBtn(el);
+    wireModelosTabPill(el);
     const impTmplFile = document.getElementById("importTmplFile");
     document.getElementById("importTmplBtn").onclick = () => impTmplFile.click();
     impTmplFile.onchange = e => { if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]); };
@@ -9753,6 +9814,7 @@ window.addEventListener("unhandledrejection", function(e){
             onLeft: () => delBtn.click(), leftLabel: "Excluir",
             onRight: () => { duplicarMeta(doc, id); pintarTudo(); }, rightLabel: "Duplicar"
           });
+          moverMargemParaSwipeWrap(card, wrap);
           parent.insertBefore(wrap, next);
         });
       }
@@ -9766,6 +9828,7 @@ window.addEventListener("unhandledrejection", function(e){
             onLeft: () => delBtn.click(), leftLabel: "Excluir",
             onRight: () => { duplicarMetaRec(doc, id); pintarTudo(); }, rightLabel: "Duplicar"
           });
+          moverMargemParaSwipeWrap(card, wrap);
           parent.insertBefore(wrap, next);
         });
       }
