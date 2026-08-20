@@ -547,8 +547,8 @@
   .step-title{ font-size:15px; color:var(--muted); font-family:'Inter', sans-serif; letter-spacing:.04em; text-transform:uppercase; }
 
   .player-controls{ display:flex; align-items:center; justify-content:center; gap:22px; width:100%; }
-  /* com o botão de adiar são 4 controles na linha: aperta o espaçamento p/ caber */
-  .player-controls.four{ gap:14px; }
+  /* etapa em tempo tem 5 controles na linha (voltar, reiniciar, pausar, concluir, adiar): aperta o espaçamento p/ caber */
+  .player-controls.five{ gap:10px; }
   .ctrl-btn{ width:56px; height:56px; border-radius:50%; background:var(--surface); border:1px solid var(--line); color:var(--text); font-size:18px; display:flex; align-items:center; justify-content:center; }
   .ctrl-btn.big{ width:76px; height:76px; background:var(--grad); color:var(--on-accent); border:none; font-size:24px; box-shadow: 0 6px 20px rgba(200,100,180,.4); }
   /* concluir etapa é sempre verde — o gesto de "feito" não disputa cor com o play */
@@ -693,6 +693,7 @@
   .tag-chip.active{ background:var(--grad); color:var(--on-accent); border-color:transparent; }
   .tag-token{ color:var(--accent); }
   .wikilink{ color:var(--accent-2); text-decoration:underline; text-underline-offset:3px; }
+  .md-img{ display:block; max-width:100%; border-radius:var(--radius-sm); margin:4px 0; }
 
   /* ---------- TAG INPUT (multiselect com criação livre) ---------- */
   .tag-input-box{
@@ -1125,7 +1126,8 @@
     .ctrl-btn{ width:46px; height:46px; font-size:16px; }
     .ctrl-btn.big{ width:58px; height:58px; font-size:20px; }
     .player-controls{ gap:14px; }
-    .player-controls.four{ gap:10px; }
+    .player-controls.five{ gap:6px; }
+    .player-controls.five .ctrl-btn{ width:42px; height:42px; }
     .next-task-row, .estimate-row{ padding:4px 2px; }
     .estimate-row b{ font-size:16px; }
     .zen-time{ font-size:min(17vh, 92px); }
@@ -1355,6 +1357,7 @@ window.addEventListener("unhandledrejection", function(e){
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
   const K_WEEKSTART = "rotinas_v2_weekstart"; // dia (0=domingo..6=sábado) em que a semana começa a contar
+  const K_HORASBUDGET = "rotinas_v2_horasbudget"; // horas disponíveis por semana p/ rotinas (orçamento de tempo no Boletim)
   const K_ICALURL = "rotinas_v2_icalurl"; // URL secreta iCal do calendário externo (Configurações), read-only
   const K_ICALCACHE = "rotinas_v2_icalcache"; // { fetchedAt, eventos:[{uid,title,startMs,endMs,allDay,rrule,exdatesMs}] } — último fetch bem-sucedido
   const K_FONTSCALE = "rotinas_v2_fontscale"; // escala de texto do app (acessibilidade)
@@ -1857,6 +1860,7 @@ window.addEventListener("unhandledrejection", function(e){
   let view = { tab: "metas", screen: "metas" };
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
+  let horasBudget = load(K_HORASBUDGET, 40); // orçamento de tempo do Boletim (horas/semana)
   // era single-select (string); migra pra multi-select (array) na leitura
   let homeAreaFiltro = load(K_HOMEAREA, []); // string[] de ids de área (ou FILTRO_SEM_AREA); [] = todas
   if(!Array.isArray(homeAreaFiltro)) homeAreaFiltro = homeAreaFiltro ? [homeAreaFiltro] : [];
@@ -1993,7 +1997,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-18 (v23)";
+  const BUILD_STAMP = "2026-08-20 (v24)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2796,6 +2800,17 @@ window.addEventListener("unhandledrejection", function(e){
     const nivel = minutosRotinas > 900 ? "alta" : (minutosRotinas > 450 ? "normal" : "baixa");
     return { minutosRotinas: Math.round(minutosRotinas), cartoesPendentes, metasVencendo, diasRestantes, nivel };
   }
+  /* Orçamento de tempo da semana (Boletim): total planejado (todas as rotinas
+     agendadas, os 7 dias inteiros da semana em curso, tempo real incluindo
+     descansos — routineDuration já soma isso) vs horasBudget configurável. */
+  function minutosPlanejadosSemana(){
+    let totalSeg = 0;
+    for(let off=0; off<7; off++){
+      const dataDia = isoToDate(addDaysISO(gam.semanaAtual.inicioISO, off));
+      routines.forEach(r=>{ if(rotinaAgendadaEm(r, dataDia)) totalSeg += routineDuration(r); });
+    }
+    return Math.round(totalSeg/60);
+  }
   const TAG_LABELS = { nenhum:"Nenhum", baixo:"Baixo", medio:"Médio", alto:"Alto" };
   function tagValorPillsHtml(current, comHerdar){
     const base = [["baixo","Baixo"],["medio","Médio"],["alto","Alto"]];
@@ -3177,14 +3192,30 @@ window.addEventListener("unhandledrejection", function(e){
     cardEl.dataset.swipeOpen = "0";
     wrap.appendChild(cardEl);
 
-    let startX=0, startY=0, dragging=false, decided=false, horiz=false, baseX=0;
+    let startX=0, startY=0, dragging=false, decided=false, horiz=false, baseX=0, initialState="0";
     cardEl.addEventListener("pointerdown", e=>{
       if(e.pointerType==="mouse" && e.button!==0) return;
       if(e.target.closest(".drag-handle, .order-btn, input, select, button, textarea, .type-toggle span")) return;
       startX = e.clientX; startY = e.clientY; dragging = true; decided = false; horiz = false;
-      baseX = cardEl.dataset.swipeOpen==="1" ? REVEAL : (cardEl.dataset.swipeOpen==="-1" ? -REVEAL : 0);
+      initialState = cardEl.dataset.swipeOpen || "0";
+      // posição visual ATUAL do card para esse estado — não a "posição de
+      // abertura" do lado oposto. Com o sinal trocado, tocar num card já
+      // aberto fazia o card pular pro lado oposto assim que o arrasto
+      // começava a ser decidido, antes mesmo de saber a direção do gesto.
+      baseX = initialState==="1" ? -REVEAL : (initialState==="-1" ? REVEAL : 0);
       cardEl.style.transition = "none";
     });
+    /* limite de arrasto depende de onde o gesto começou: de um card FECHADO,
+       as duas direções abrem (min/max normal); de um card já ABERTO, só é
+       permitido voltar para o centro — nunca cruzar direto para o botão do
+       lado oposto num único gesto. Sem essa trava, arrastar para a direção
+       oposta enquanto um botão já está revelado pulava direto para o outro
+       botão em vez de simplesmente fechar o card. */
+    function clampNext(dx){
+      if(initialState==="1") return Math.max(-REVEAL, Math.min(0, baseX+dx));
+      if(initialState==="-1") return Math.max(0, Math.min(REVEAL, baseX+dx));
+      return Math.max(-REVEAL, Math.min(REVEAL, baseX+dx));
+    }
     cardEl.addEventListener("pointermove", e=>{
       if(!dragging) return;
       const dx = e.clientX-startX, dy = e.clientY-startY;
@@ -3198,7 +3229,7 @@ window.addEventListener("unhandledrejection", function(e){
       }
       if(!horiz) return;
       e.preventDefault();
-      const next = Math.max(-REVEAL, Math.min(REVEAL, baseX+dx));
+      const next = clampNext(dx);
       cardEl.style.transform = `translateX(${next}px)`;
     });
     function finish(e){
@@ -3206,8 +3237,11 @@ window.addEventListener("unhandledrejection", function(e){
       dragging = false;
       if(!horiz) return;
       const dx = (e.clientX!=null ? e.clientX : startX) - startX;
-      const next = Math.max(-REVEAL, Math.min(REVEAL, baseX+dx));
-      const openState = next < -REVEAL/2 ? "1" : (next > REVEAL/2 ? "-1" : "0");
+      const next = clampNext(dx);
+      let openState;
+      if(initialState==="1") openState = next < -REVEAL/2 ? "1" : "0";
+      else if(initialState==="-1") openState = next > REVEAL/2 ? "-1" : "0";
+      else openState = next < -REVEAL/2 ? "1" : (next > REVEAL/2 ? "-1" : "0");
       const openX = openState==="1" ? -REVEAL : (openState==="-1" ? REVEAL : 0);
       cardEl.style.transition = "transform .18s ease";
       cardEl.style.transform = `translateX(${openX}px)`;
@@ -3472,10 +3506,11 @@ window.addEventListener("unhandledrejection", function(e){
      2. O serviço fica de pé durante toda a execução (mesmo com a bolha oculta).
         Iniciar um foreground service já em segundo plano é bloqueado no Android
         12+, então quem some é a *view*, não o serviço.
-     3. Com o WebView suspenso o JS não avança as etapas. Por isso o serviço
-        recebe a fila do que vem depois e rola os descansos por conta própria —
-        exatamente o que catchUpSteps() vai recalcular quando o app voltar. Sem
-        a fila, a bolha ficava presa na etapa anterior contando negativo. */
+     3. Com o WebView suspenso o JS não avança as etapas — e etapa nenhuma
+        (tarefa OU pausa) avança sozinha mesmo em primeiro plano, então o
+        serviço nunca precisa "rolar" nada por conta própria: fica preso na
+        etapa atual contando negativo até o app voltar e alguém tocar em
+        avançar, igual ao que já acontecia com tarefas. */
   let appEmSegundoPlano = false;
   function overlayPlugin(){
     return (isNative && window.Capacitor.Plugins.TimerOverlay) ? window.Capacitor.Plugins.TimerOverlay : null;
@@ -3490,16 +3525,16 @@ window.addEventListener("unhandledrejection", function(e){
       return true;
     }catch(e){ console.error("permissão de overlay:", e); return false; }
   }
-  /* Etapas a partir da próxima, no formato que o serviço entende. `auto` marca
-     as que o app avançaria sozinho ao zerar (só os descansos); nas outras o
-     cronômetro entra em tempo negativo e espera o toque. Para na primeira etapa
-     de checklist: dali em diante só o app resolve. */
+  /* Etapas a partir da próxima, no formato que o serviço entende. `auto` fica
+     sempre false: nenhuma etapa (tarefa ou pausa) avança sozinha ao zerar —
+     o cronômetro só entra em tempo negativo e espera o toque, em qualquer uma
+     delas. Para na primeira etapa de checklist: dali em diante só o app resolve. */
   function filaOverlay(){
     const out = [];
     for(let i = playerState.idx + 1; i < playerState.steps.length; i++){
       const s = playerState.steps[i];
       if(s.type !== "timer") break;
-      out.push({ label: s.name || "", seconds: s.seconds || 0, auto: !!s.isRest });
+      out.push({ label: s.name || "", seconds: s.seconds || 0, auto: false });
     }
     return out;
   }
@@ -3566,10 +3601,9 @@ window.addEventListener("unhandledrejection", function(e){
   }
   /* Reagenda a cada mudança relevante do player (ver sincronizarPlayerBackground)
      — cancela sempre primeiro e só recria se: nativo, em segundo plano, com
-     rotina rodando, não pausada e na etapa atual em tempo (timer). Encadeia os
-     descansos automáticos seguintes (mesmo critério de filaOverlay()/auto),
-     até um teto de 10, para avisar mesmo se o app ficar minimizado por várias
-     etapas seguidas. */
+     rotina rodando, não pausada e na etapa atual em tempo (timer). Como
+     nenhuma etapa avança sozinha, um único alarme (para a etapa atual) basta —
+     não há mais cadeia de descansos automáticos para prever. */
   async function sincronizarAlertaFundo(){
     await cancelarAlertaFundo();
     if(!isNative || !appEmSegundoPlano || !playerState || playerState.paused) return;
@@ -3580,37 +3614,13 @@ window.addEventListener("unhandledrejection", function(e){
       const perm = await LN.checkPermissions();
       if(perm.display !== "granted") return;
       const channelId = soundMode(playerState.routine) === "mudo" ? "brita_timer_mudo" : "brita_timer";
-      const notifs = [];
-      let quando = cd.endTs;
-      let n = 0;
-      notifs.push({
-        id: STEPALERT_ID_BASE + n, channelId,
+      await LN.schedule({ notifications: [{
+        id: STEPALERT_ID_BASE, channelId,
         title: cd.isRest ? "Descanso acabou" : "Tempo esgotado",
         body: playerState.routine.name + (cd.label ? " — " + cd.label : ""),
         extra: { brita:"stepAlert" },
-        schedule: { at: new Date(quando), allowWhileIdle: true }
-      });
-      n++;
-      // encadeamento dos próximos descansos automáticos: só se aplica à
-      // sequência de etapas "timer" — o descanso entre séries de exercício
-      // não tem próxima etapa conhecida (depende da série ser concluída
-      // manualmente), então fica só o alarme desta pausa
-      if(cd.endTs === playerState.stepEndTs){
-        for(let i = playerState.idx+1; i < playerState.steps.length && n < 10; i++){
-          const s = playerState.steps[i];
-          if(s.type !== "timer" || !s.isRest) break;
-          quando += s.seconds*1000;
-          notifs.push({
-            id: STEPALERT_ID_BASE + n, channelId,
-            title: "Descanso acabou",
-            body: playerState.routine.name + (s.name ? " — " + s.name : ""),
-            extra: { brita:"stepAlert" },
-            schedule: { at: new Date(quando), allowWhileIdle: true }
-          });
-          n++;
-        }
-      }
-      await LN.schedule({ notifications: notifs });
+        schedule: { at: new Date(cd.endTs), allowWhileIdle: true }
+      }] });
     }catch(e){ console.error("sincronizarAlertaFundo:", e); }
   }
   /* ponto único chamado sempre que o estado do player muda de um jeito que
@@ -4306,6 +4316,44 @@ window.addEventListener("unhandledrejection", function(e){
       } else { clearPlayerSnapshot(); }
     }
 
+    // "Hoje" unificado: compromissos avulsos + pendências do kanban do dia
+    // numa visão só, pra não obrigar abrir Diário toda vez que só se quer
+    // saber o que falta hoje. Toca no kanban conclui na hora (mesma função
+    // que a agenda do Diário usa); toca no compromisso leva pro Diário.
+    const hojeISO = localKey();
+    const perHoje = "dia:" + hojeISO;
+    rolarPendenciasPara(perHoje);
+    gerarCartoesRecorrentesHoje();
+    const compromissosHoje = compromissos.filter(c=>c.date===hojeISO)
+      .sort((a,b)=>(a.time||"24:00").localeCompare(b.time||"24:00"));
+    const cartoesHoje = diaKanban.filter(c=>c.per===perHoje && c.col!=="done" && passaFiltroAreaKanban(c))
+      .sort((a,b)=>(a.ord||0)-(b.ord||0));
+    if(compromissosHoje.length || cartoesHoje.length){
+      const hojeCard = document.createElement("div");
+      hojeCard.className = "stat-card pinned-card";
+      const irParaDiario = () => { diarioEscopo = "dia"; diarioData = hojeISO; diarioAgenda = true; goTo({tab:"diario", screen:"diario"}); };
+      hojeCard.innerHTML = `
+        <div class="dev-row" style="border:none; padding:0 0 6px;">
+          <span style="font-family:'Fraunces',serif; font-size:16px; flex:1;">Hoje</span>
+          <button class="link-btn" id="hojeAbrirDiario" style="padding:0;">agenda &rarr;</button>
+        </div>
+        ${compromissosHoje.map(c=>`
+          <div class="dev-row" data-hojecp="${c.id}" style="cursor:pointer;">
+            <span>${c.time ? escapeHtml(c.time)+" — " : ""}${escapeHtml(c.title)}</span>
+          </div>`).join("")}
+        ${cartoesHoje.map(c=>`
+          <div class="dev-row" data-hojekb="${c.id}" style="cursor:pointer;">
+            <span>${svgIcon(ICON_D.check,13)} ${c.hIni ? escapeHtml(c.hIni)+" — " : ""}${escapeHtml(c.text)}</span>
+          </div>`).join("")}
+      `;
+      scroll.appendChild(hojeCard);
+      hojeCard.querySelector("#hojeAbrirDiario").onclick = irParaDiario;
+      hojeCard.querySelectorAll("[data-hojecp]").forEach(row=> row.onclick = irParaDiario);
+      hojeCard.querySelectorAll("[data-hojekb]").forEach(row=>{
+        row.onclick = () => { alternarCartaoFeitoNaAgenda(row.dataset.hojekb, perHoje); render(); };
+      });
+    }
+
     const visiveis = rotinasOrdenadas()
       .filter(r => !homeSoHoje || rotinaOcorreHoje(r))
       .filter(r => passaFiltroArea(areaDaRotina(r)));
@@ -4540,7 +4588,10 @@ window.addEventListener("unhandledrejection", function(e){
           </div>
         </div>
         <button class="icon-btn" data-stepedit="${i}" title="Editar etapa" aria-label="Editar etapa">${svgIcon(ICON_D.notes,14)}</button>`;
-      stepsBox.appendChild(card);
+      stepsBox.appendChild(wrapSwipeActions(card, {
+        onLeft: () => removeStepFromRoutine(r, i), leftLabel: "Excluir",
+        onRight: () => duplicateStepInRoutine(r, i), rightLabel: "Duplicar"
+      }));
     });
     if(r.steps.length===0) stepsBox.insertAdjacentHTML("beforeend", `<div class="empty-state" style="min-height:20vh;"><p>Esta rotina não tem etapas.</p></div>`);
 
@@ -4590,6 +4641,28 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("rdBack").onclick = () => { goTo({tab:"home",screen:"home"}); };
     document.getElementById("rdStart").onclick = () => startPlayer(r.id);
     document.getElementById("rdEdit").onclick = () => openEditor(r.id);
+  }
+
+  /* duplicar/excluir etapa direto na view de detalhe (fora do editor) — mexe
+     em r.steps de verdade e salva na hora, diferente do editor que só grava
+     no "Salvar" (aqui não há rascunho para cancelar). */
+  function duplicateStepInRoutine(r, i){
+    const copy = JSON.parse(JSON.stringify(r.steps[i]));
+    copy.id = uid();
+    r.steps.splice(i+1, 0, copy);
+    save(K_ROUTINES, routines);
+    render();
+  }
+  function removeStepFromRoutine(r, i){
+    const removed = r.steps[i];
+    r.steps.splice(i, 1);
+    save(K_ROUTINES, routines);
+    render();
+    showUndoBanner("Etapa excluída", ()=>{
+      r.steps.splice(Math.min(i, r.steps.length), 0, removed);
+      save(K_ROUTINES, routines);
+      render();
+    });
   }
 
   /* edição restrita a uma única etapa da rotina (a partir da página de detalhe) */
@@ -5357,7 +5430,8 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* ================= NOTES ================= */
   function stripMdForSnippet(content){
-    return content.replace(/^#+\s*/gm,"").replace(/[*_~`]/g,"").replace(/(-\s*)?\[[ xX>]?\]\s*/g,"").replace(/\n+/g," ").trim().slice(0,90);
+    return content.replace(/!\[[^\]]*\]\(data:image\/[^)]+\)/g,"🖼")
+      .replace(/^#+\s*/gm,"").replace(/[*_~`]/g,"").replace(/(-\s*)?\[[ xX>]?\]\s*/g,"").replace(/\n+/g," ").trim().slice(0,90);
   }
   function relativeTime(ts){
     const diff = Date.now() - ts;
@@ -6558,6 +6632,84 @@ window.addEventListener("unhandledrejection", function(e){
     });
   }
 
+  /* ============ RELATÓRIO DE FECHAMENTO (PDF legível) ============
+     Diferente do CSV bruto (exportStatsCsv) e do backup completo (JSON): um
+     resumo pronto pra ler ou arquivar — pontuação, destaques por área, metas
+     e rotinas do período. Acompanha o toggle semanal/mensal/anual da própria
+     aba Dados, reaproveitando exportPdfView (mesma superfície do PDF de
+     Metas). */
+  function relatorioFechamentoHtml(){
+    if(statsView === "mensal") return relatorioMensalHtml();
+    if(statsView === "anual") return relatorioAnualHtml();
+    return relatorioSemanalHtml();
+  }
+  function relatorioTopRotinasHtml(concluidos){
+    const porRotulo = {};
+    concluidos.forEach(c=>{
+      if(!c.rotulo) return;
+      porRotulo[c.rotulo] = (porRotulo[c.rotulo]||0) + c.pontos;
+    });
+    const top = Object.entries(porRotulo).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    if(!top.length) return "";
+    return "<h2>Maiores contribuições</h2><ul>" + top.map(([nome,pts])=>
+      `<li>${escapeHtml(nome)} — ${pts.toFixed(1)} pts</li>`).join("") + "</ul>";
+  }
+  function relatorioSemanalHtml(){
+    const nota = notaSemanaAtual();
+    const porArea = pontosPorAreaSemana();
+    const streak = computeStreak();
+    let inner = `<h1>Relatório da semana</h1><p class="score">Pontuação: ${nota.toFixed(1)} pts</p>`;
+    if(streak>0) inner += `<p class="meta">Sequência atual: ${streak} dia(s)</p>`;
+    if(porArea.linhas.length){
+      inner += "<h2>Por área</h2><ul>" + porArea.linhas.map(l=>
+        `<li>${escapeHtml(l.label)}: ${l.pontos.toFixed(1)} pts${rodaAtiva()&&l.previsto? " de "+l.previsto.toFixed(1)+" previstos" : ""}</li>`).join("") + "</ul>";
+    }
+    inner += relatorioTopRotinasHtml(gam.semanaAtual.concluidos||[]);
+    const inicio = gam.semanaAtual.inicioISO;
+    const feitas = history.filter(h=>h.date >= inicio);
+    if(feitas.length){
+      inner += `<h2>Rotinas concluídas</h2><p class="meta">${feitas.length} execução(ões) desde ${inicio}</p>`;
+    }
+    const doc = metaDoc();
+    const metasSemana = (doc.targets||[]).filter(t=>metaConcluida(t) && t.date >= inicio);
+    if(metasSemana.length){
+      inner += "<h2>Metas concluídas</h2><ul>" + metasSemana.map(t=>`<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
+    }
+    inner += `<p class="meta">gerado em ${localKey()}</p>`;
+    return { title:"Relatório da semana", inner };
+  }
+  function relatorioMensalHtml(){
+    const anoMes = localKey().slice(0,7);
+    const bonusMetas = gam.metasPontos[anoMes] || 0;
+    const semanas = gam.historico.semanas.filter(s=>!s.dispensada && anoMesDoFimDaSemana(s.inicioISO)===anoMes);
+    const somaSemanas = semanas.reduce((s,w)=>s+w.nota,0);
+    let inner = `<h1>Relatório do mês — ${anoMes}</h1><p class="score">Pontuação: ${(somaSemanas+bonusMetas).toFixed(1)} pts</p>
+      <p class="meta">${semanas.length} semana(s) fechada(s) neste mês · bônus de metas: ${bonusMetas.toFixed(1)} pts</p>`;
+    const inicioMes = anoMes + "-01";
+    const feitas = history.filter(h=>h.date >= inicioMes && h.date.slice(0,7)===anoMes);
+    if(feitas.length) inner += `<h2>Rotinas concluídas</h2><p class="meta">${feitas.length} execução(ões) no mês</p>`;
+    const doc = metaDoc();
+    const metasMes = (doc.targets||[]).filter(t=>metaConcluida(t) && t.date.slice(0,7)===anoMes);
+    if(metasMes.length) inner += "<h2>Metas concluídas</h2><ul>" + metasMes.map(t=>`<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
+    inner += `<p class="meta">gerado em ${localKey()}</p>`;
+    return { title:"Relatório do mês", inner };
+  }
+  function relatorioAnualHtml(){
+    const ano = localKey().slice(0,4);
+    const bonusMetas = gam.metasPontos[ano] || 0;
+    const meses = gam.historico.meses.filter(m=>m.anoMes.slice(0,4)===ano);
+    const somaMeses = meses.reduce((s,m)=>s+m.nota,0);
+    let inner = `<h1>Relatório do ano — ${ano}</h1><p class="score">Pontuação: ${(somaMeses+bonusMetas).toFixed(1)} pts</p>
+      <p class="meta">${meses.length} mês(es) fechado(s) neste ano · bônus de metas: ${bonusMetas.toFixed(1)} pts</p>`;
+    const feitas = history.filter(h=>h.date.slice(0,4)===ano);
+    if(feitas.length) inner += `<h2>Rotinas concluídas</h2><p class="meta">${feitas.length} execução(ões) no ano</p>`;
+    const doc = metaDoc();
+    const metasAno = (doc.targets||[]).filter(t=>metaConcluida(t) && t.date.slice(0,4)===ano);
+    if(metasAno.length) inner += "<h2>Metas concluídas</h2><ul>" + metasAno.map(t=>`<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
+    inner += `<p class="meta">gerado em ${localKey()}</p>`;
+    return { title:"Relatório do ano", inner };
+  }
+
   function renderStats(){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
@@ -6577,6 +6729,7 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="bell-btn" id="statsImportBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
             <input type="file" id="statsImportFile" accept="application/json" style="display:none">
             <button class="bell-btn" id="csvBtn" title="Exportar CSV" aria-label="Exportar CSV" style="width:auto; padding:0 10px; font-size:12px; font-family:'Inter', sans-serif;">CSV</button>
+            <button class="bell-btn" id="relatorioBtn" title="Relatório de fechamento (PDF)" aria-label="Relatório de fechamento" style="width:auto; padding:0 10px; font-size:12px; font-family:'Inter', sans-serif;">Relatório</button>
             ${cfgBtnHtml()}
           </div>
         </div>
@@ -6598,6 +6751,10 @@ window.addEventListener("unhandledrejection", function(e){
     wireCfgBtn(el);
 
     document.getElementById("csvBtn").onclick = exportStatsCsv;
+    document.getElementById("relatorioBtn").onclick = () => {
+      const { title, inner } = relatorioFechamentoHtml();
+      exportPdfView(title, inner, "Relatórios");
+    };
     document.getElementById("statsBackupBtn").onclick = exportBackup;
     const statsImpFile = document.getElementById("statsImportFile");
     document.getElementById("statsImportBtn").onclick = () => statsImpFile.click();
@@ -7236,6 +7393,7 @@ window.addEventListener("unhandledrejection", function(e){
     market: "M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z",
     expense: "M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
     notes: "m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10",
+    photo: "M2.25 15.75l5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z",
     matrix: "M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z",
     kanban: "M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125Z",
     countdown: "M6.75 2.994v2.25m10.5-2.25v2.25m-14.252 13.5V7.491a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v11.251m-18 0a2.25 2.25 0 0 0 2.25 2.25h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-7.5a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5m-6.75-6h2.25m-9 2.25h4.5m.002-2.25h.005v.006H12v-.006Zm-.001 4.5h.006v.006h-.006v-.005Zm-2.25.001h.005v.006H9.75v-.006Zm-2.25 0h.005v.005h-.006v-.005Zm6.75-2.247h.005v.005h-.005v-.005Zm0 2.247h.006v.006h-.006v-.006Zm2.25-2.248h.006V15H16.5v-.005Z",
@@ -9080,6 +9238,34 @@ window.addEventListener("unhandledrejection", function(e){
      metaPontosTotais/aplicarDeltaMeta que já existe (t.parentId é só um vínculo
      de exibição, não muda a pontuação). Um nível só: sub-meta não ganha o botão
      "+ sub-meta", para não empilhar hierarquia. */
+  /* duplicar meta de prazo: cópia independente, progresso zerado (senão o
+     boletim creditaria de novo pontos já pagos na original). Sub-meta duplicada
+     continua presa ao mesmo pai (vira uma nova irmã), meta de topo duplicada
+     nasce sem filhos — mesmo padrão raso de duplicateRoutine. */
+  function duplicarMeta(doc, id){
+    const src = doc.targets.find(x=>x.id===id);
+    if(!src) return;
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.id = uid();
+    copy.title = src.title + " (cópia)";
+    copy.done = 0;
+    copy.creditos = {};
+    copy.criadoEm = Date.now();
+    doc.targets.push(copy);
+    saveTemplates(doc);
+  }
+  function duplicarMetaRec(doc, id){
+    const src = doc.recorrentes.find(x=>x.id===id);
+    if(!src) return;
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.id = uid();
+    copy.titulo = src.titulo + " (cópia)";
+    copy.progresso = null;
+    copy.criadoEm = Date.now();
+    doc.recorrentes.push(copy);
+    saveTemplates(doc);
+  }
+
   function abrirFormMeta(doc, alvoExistente, parentIdNovo){
     const t = alvoExistente || null;
     const pai = !t && parentIdNovo ? doc.targets.find(x=>x.id===parentIdNovo) : null;
@@ -9363,7 +9549,7 @@ window.addEventListener("unhandledrejection", function(e){
       const feita = metaConcluida(t);
       const areas = (t.areas||[]).map(metaAreaChipHtml).join("");
       return `
-        <div class="stat-card" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--good);':''} ${bloqueada?'opacity:.55;':''}">
+        <div class="stat-card" data-metaid="${t.id}" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--good);':''} ${bloqueada?'opacity:.55;':''}">
           <div class="dev-row" style="border:none; padding:0;">
             <span style="font-family:'Fraunces',serif; font-size:${sub?15:17}px; flex:1;">${sub?'&#8618; ':''}${bloqueada?'&#128274; ':''}${escapeHtml(t.title)}</span>
             <button class="icon-btn" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">${svgIcon(ICON_D.notes,14)}</button>
@@ -9402,7 +9588,7 @@ window.addEventListener("unhandledrejection", function(e){
         : (completa?'concluída ✓':'');
       return `
         <div class="stat-card rec-card" data-mrid="${rec.id}" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--danger);':'border-color:var(--good);') : (completa?'border-color:var(--good);':'')}">
-          <span class="rec-drag" data-mrdrag="${rec.id}" title="Arrastar para reordenar" aria-label="Arrastar para reordenar">${svgIcon(ICON_D.bars3,15)}</span>
+          <span class="rec-drag drag-handle" data-mrdrag="${rec.id}" title="Arrastar para reordenar" aria-label="Arrastar para reordenar">${svgIcon(ICON_D.bars3,15)}</span>
           <div class="rec-card-body">
             <div class="dev-row" style="border:none; padding:0;">
               <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}${rec.negativa?' <span class="dev-n">(limite)</span>':''}</span>
@@ -9553,6 +9739,36 @@ window.addEventListener("unhandledrejection", function(e){
           };
         });
       }
+      // gesto de arrastar (direita revela duplicar, esquerda revela excluir),
+      // igual ao resto do app — envolve os cards já wireados acima; excluir
+      // aciona por proxy o botão que já existe (evita duplicar a lógica de
+      // confirmação/estorno de metaRecNeg/sub-metas).
+      if(mostraPrazos){
+        body.querySelectorAll(".stat-card[data-metaid]").forEach(card=>{
+          const id = card.dataset.metaid;
+          const delBtn = card.querySelector("[data-cddel]");
+          if(!delBtn) return;
+          const next = card.nextSibling, parent = card.parentNode;
+          const wrap = wrapSwipeActions(card, {
+            onLeft: () => delBtn.click(), leftLabel: "Excluir",
+            onRight: () => { duplicarMeta(doc, id); pintarTudo(); }, rightLabel: "Duplicar"
+          });
+          parent.insertBefore(wrap, next);
+        });
+      }
+      if(mostraRecorrentes){
+        body.querySelectorAll(".rec-card[data-mrid]").forEach(card=>{
+          const id = card.dataset.mrid;
+          const delBtn = card.querySelector("[data-mrdel]");
+          if(!delBtn) return;
+          const next = card.nextSibling, parent = card.parentNode;
+          const wrap = wrapSwipeActions(card, {
+            onLeft: () => delBtn.click(), leftLabel: "Excluir",
+            onRight: () => { duplicarMetaRec(doc, id); pintarTudo(); }, rightLabel: "Duplicar"
+          });
+          parent.insertBefore(wrap, next);
+        });
+      }
     }
 
     pintarTudo();
@@ -9578,6 +9794,31 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* ============ DESPESAS RÁPIDAS ============ */
   const EXP_CATS = ["Alimentação","Transporte","Moradia","Lazer","Saúde","Educação","Outros"];
+
+  /* ---- Categorização automática por regra aprendida ----
+     Sem armazenamento próprio: a "regra" é simplesmente reaproveitar como
+     entradas já categorizadas manualmente se parecem com a nova, por nome de
+     estabelecimento (as duas primeiras palavras não-numéricas da descrição).
+     "UBER *TRIP HELP.UBER.COM" e "UBER *EATS" batem no mesmo prefixo "UBER" e
+     puxam a categoria mais usada entre lançamentos anteriores com esse nome. */
+  function chaveDescDespesa(desc){
+    const norm = normalizeStr(desc).toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
+    const partes = norm.split(" ").filter(p=>p && !/^\d+$/.test(p));
+    return partes.slice(0,2).join(" ");
+  }
+  function sugerirCategoriaDespesa(desc, entradasExistentes){
+    const chave = chaveDescDespesa(desc);
+    if(!chave) return null;
+    const contagem = {};
+    (entradasExistentes||[]).forEach(e=>{
+      if(!e.cat) return;
+      const k2 = chaveDescDespesa(e.desc);
+      if(!k2) return;
+      if(k2 === chave || k2.startsWith(chave) || chave.startsWith(k2)) contagem[e.cat] = (contagem[e.cat]||0) + 1;
+    });
+    const melhores = Object.entries(contagem).sort((a,b)=>b[1]-a[1]);
+    return melhores.length ? melhores[0][0] : null;
+  }
 
   /* ---- Parsing de CSV de extrato (banco/cartão) ---- */
   function parseCsvText(text){
@@ -9992,7 +10233,8 @@ window.addEventListener("unhandledrejection", function(e){
       document.getElementById("impCancelEx").onclick = () => { exImport = null; paint(); };
       document.getElementById("impConfirmEx").onclick = () => {
         const res = computeImportPreview();
-        res.parsed.forEach(e=> templates.push({ id: uid(), type:"expense", updatedAt: Date.now(), createdAt: Date.now(), desc: e.desc, value: +e.value.toFixed(2), cat: "Outros", date: e.date }));
+        const existentes = templates.filter(t=>t.type==="expense");
+        res.parsed.forEach(e=> templates.push({ id: uid(), type:"expense", updatedAt: Date.now(), createdAt: Date.now(), desc: e.desc, value: +e.value.toFixed(2), cat: sugerirCategoriaDespesa(e.desc, existentes) || "Outros", date: e.date }));
         save(K_TEMPLATES, templates);
         const n = res.parsed.length;
         exImport = null;
@@ -10238,7 +10480,7 @@ window.addEventListener("unhandledrejection", function(e){
       document.getElementById("impCancelEx").onclick = () => { exImport = null; paint(); };
       document.getElementById("impConfirmEx").onclick = () => {
         const res = computeImportPreview();
-        res.parsed.forEach(e=> doc.entries.push({ id: uid(), desc: e.desc, value: +e.value.toFixed(2), cat: "Outros", date: e.date }));
+        res.parsed.forEach(e=> doc.entries.push({ id: uid(), desc: e.desc, value: +e.value.toFixed(2), cat: sugerirCategoriaDespesa(e.desc, doc.entries) || "Outros", date: e.date }));
         saveTemplates(doc);
         const n = res.parsed.length;
         exImport = null;
@@ -10593,7 +10835,8 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   function mdInline(t){
-    return t.replace(/\[\[([^\[\]]+?)\]\]/g,'<span class="wikilink" data-wikilink="$1">$1</span>')
+    return t.replace(/!\[([^\]]*)\]\((data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+)\)/g,'<img class="md-img" src="$2" alt="$1" loading="lazy">')
+            .replace(/\[\[([^\[\]]+?)\]\]/g,'<span class="wikilink" data-wikilink="$1">$1</span>')
             .replace(/(^|\s)#([\p{L}0-9_\-]+)/gu,'$1<span class="tag-token">#$2</span>')
             .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
             .replace(/\*(.+?)\*/g,"<em>$1</em>")
@@ -10977,6 +11220,7 @@ window.addEventListener("unhandledrejection", function(e){
         const m = corpo.match(RE_CHECK);
         return pad + (m ? m[4] : "- [ ] " + corpo);
       }) },
+    { label:svgIcon(ICON_D.photo,14), title:"Anexar imagem", acao: () => mdToolbarInserirImagem() },
     { label:svgIcon(ICON_D.chevronDoubleLeft,14), title:"Diminuir recuo", acao: () => mdToolbarPrefixo(raw =>
         raw.replace(new RegExp("^ {1," + INDENT_PASSO.length + "}"), "")) },
     { label:svgIcon(ICON_D.chevronDoubleRight,14), title:"Aumentar recuo", acao: () => mdToolbarPrefixo(raw =>
@@ -11035,6 +11279,37 @@ window.addEventListener("unhandledrejection", function(e){
     } else {
       renderLiveEditor(pos);
     }
+  }
+  /* Anexa uma imagem local como markdown `![](data:...)` embutido no próprio
+     texto — sem storage novo: a imagem some/aparece/sincroniza junto com a
+     nota, igual ao resto do conteúdo. A posição é capturada ANTES de abrir o
+     seletor de arquivo nativo (o diálogo tira o foco do contenteditable, então
+     não dá pra confiar na seleção viva depois que ele fecha). */
+  let mdImgFileInput = null;
+  function mdToolbarInserirImagem(){
+    const box = document.getElementById("liveEditor");
+    if(!box || !liveCtx) return;
+    const p = liveSelecao(box);
+    if(!p) return;
+    if(!mdImgFileInput){
+      mdImgFileInput = document.createElement("input");
+      mdImgFileInput.type = "file";
+      mdImgFileInput.accept = "image/*";
+      mdImgFileInput.style.display = "none";
+      document.body.appendChild(mdImgFileInput);
+    }
+    mdImgFileInput.onchange = () => {
+      const file = mdImgFileInput.files && mdImgFileInput.files[0];
+      mdImgFileInput.value = "";
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const pos = liveAplicar(p.a, p.f, "![](" + reader.result + ")");
+        renderLiveEditor(pos);
+      };
+      reader.readAsDataURL(file);
+    };
+    mdImgFileInput.click();
   }
   /* aplica um prefixo/estrutura de linha (título, lista, checklist) a cada
      linha selecionada — alterna se já estiver aplicado, igual ao editor. */
@@ -11507,7 +11782,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function exportAgendaIcs(){
     const comHorario = routines.filter(r=>computeSchedule(r));
-    if(comHorario.length===0){ showAlertBanner("Nenhuma rotina com horário agendado para exportar"); return; }
+    if(comHorario.length===0 && compromissos.length===0){ showAlertBanner("Nada agendado para exportar"); return; }
     const ICS_DOW = ["SU","MO","TU","WE","TH","FR","SA"];
     const now = new Date();
     const dtstamp = now.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
@@ -11539,6 +11814,24 @@ window.addEventListener("unhandledrejection", function(e){
       lines.push("DTEND:"+fmtLocal(dtEnd));
       lines.push(rrule);
       lines.push("SUMMARY:"+icsEscape(r.name));
+      lines.push("END:VEVENT");
+    });
+    // compromissos avulsos: ocorrência única (sem RRULE), dia inteiro quando
+    // não têm horário — mesma convenção de abrirNovoCompromisso
+    compromissos.forEach(c=>{
+      lines.push("BEGIN:VEVENT");
+      lines.push("UID:"+c.id+"@brita");
+      lines.push("DTSTAMP:"+dtstamp);
+      if(c.time){
+        const [hh,mm] = c.time.split(":").map(Number);
+        const dtStart = new Date(c.date+"T00:00:00"); dtStart.setHours(hh,mm,0,0);
+        const dtEnd = new Date(dtStart.getTime() + 60*60000);
+        lines.push("DTSTART:"+fmtLocal(dtStart));
+        lines.push("DTEND:"+fmtLocal(dtEnd));
+      } else {
+        lines.push("DTSTART;VALUE=DATE:"+c.date.replace(/-/g,""));
+      }
+      lines.push("SUMMARY:"+icsEscape(c.title));
       lines.push("END:VEVENT");
     });
     lines.push("END:VCALENDAR");
@@ -12121,8 +12414,6 @@ window.addEventListener("unhandledrejection", function(e){
     playerState = Object.assign({ zen:false }, snap, { routine:r });
     if(!playerState.journalTexts) playerState.journalTexts = {};
     pushView({ tab:"home", screen:"player" });
-    catchUpSteps();
-    if(view.screen !== "player") return; // terminou durante o catch-up
     render();
     acquireWakeLock();
     if(currentStep().type==="timer" && !playerState.paused) startTicking();
@@ -12195,6 +12486,9 @@ window.addEventListener("unhandledrejection", function(e){
     sincronizarPlayerBackground();
   }
 
+  /* Etapas de tempo (tarefa OU pausa) nunca avançam sozinhas — as duas exigem
+     o toque em "concluir"/"avançar". Zerou o tempo: só o aviso sonoro dispara
+     (uma vez) e o cronômetro segue contando negativo, até alguém tocar. */
   function startTicking(){
     clearTicking();
     timerHandle = setInterval(()=>{
@@ -12202,41 +12496,10 @@ window.addEventListener("unhandledrejection", function(e){
       const step = currentStep();
       if(step.type !== "timer") return;
       const rem = computeRemaining();
-      const manual = !step.isRest;
-      if(rem <= 0 && !manual){ advanceStep(false); return; }
-      if(rem <= 0 && manual && !playerState.overtimeCueFired){ timeUpCue(); playerState.overtimeCueFired = true; }
+      if(rem <= 0 && !playerState.overtimeCueFired){ timeUpCue(); playerState.overtimeCueFired = true; }
       updateTicker();
       savePlayerSnapshot();
     }, 1000);
-  }
-
-  /* Consome etapas que expiraram enquanto o app estava fechado/oculto */
-  function catchUpSteps(){
-    let guard = 0;
-    while(guard++ < 100){
-      const step = currentStep();
-      if(step.type !== "timer" || playerState.paused) return;
-      const manual = !step.isRest;
-      const rem = Math.round((playerState.stepEndTs - Date.now())/1000);
-      if(rem > 0 || manual) return;
-      const caughtUp = {
-        id: step.id, tag: stepTagEfetiva(step, playerState.routine),
-        name: step.name, isRest: !!step.isRest, planned: step.seconds,
-        actual: Math.round((playerState.stepEndTs - playerState.stepStart)/1000), skipped:false
-      };
-      playerState.stepActuals[playerState.idx] = caughtUp;
-      pontuarEtapaConcluida(caughtUp);
-      if(playerState.idx >= playerState.steps.length - 1){
-        clearTicking(); finishCue(); finishRoutine(); return;
-      }
-      playerState.idx += 1;
-      playerState.overtimeCueFired = false;
-      const ns = currentStep();
-      playerState.stepStart = playerState.stepEndTs;
-      playerState.stepEndTs = ns.type==="timer" ? playerState.stepStart + ns.seconds*1000 : null;
-      playerState.ex = ns.type==="exercicio" ? freshExState() : null;
-      if(ns.type !== "timer"){ clearTicking(); savePlayerSnapshot(true); return; }
-    }
   }
 
   function togglePause(){
@@ -12550,12 +12813,41 @@ window.addEventListener("unhandledrejection", function(e){
     pintar();
   }
 
+  /* Reinicia o cronômetro da etapa atual do zero, sem avançar nem concluir
+     nada — útil quando a etapa/pausa estourou e o Pedro quer começar a contar
+     de novo em vez de continuar no negativo. */
+  function reiniciarTimerEtapa(){
+    const step = currentStep();
+    if(step.type !== "timer") return;
+    endPauseIfAny();
+    playerState.overtimeCueFired = false;
+    playerState.stepStart = Date.now();
+    playerState.stepEndTs = Date.now() + step.seconds*1000;
+    render();
+    savePlayerSnapshot(true);
+    startTicking();
+    sincronizarPlayerBackground();
+  }
+
+  /* Adia por BLOCO, não por posição: a etapa atual (com a pausa que vem logo
+     depois dela, se houver) troca de lugar com o bloco seguinte inteiro
+     (próxima etapa + a pausa dela). Sem isso, adiar "escovar os dentes" numa
+     rotina "escovar → pausa → lavar o rosto → pausa → remédios" simplesmente
+     trocaria de lugar com a PAUSA (posição i+1), sem nunca alcançar "lavar o
+     rosto" de verdade. Mesma convenção de agrupamento tarefa+pausa que o
+     painel de reordenar etapas (openPlayerStepsOverlay) já usa. */
   function adiarEtapa(){
+    const steps = playerState.steps;
     const i = playerState.idx;
-    if(i >= playerState.steps.length - 1){ showAlertBanner("Não há próxima etapa para adiar"); return; }
+    const curLen = (!steps[i].isRest && steps[i+1] && steps[i+1].isRest) ? 2 : 1;
+    const nextStart = i + curLen;
+    if(nextStart >= steps.length){ showAlertBanner("Não há próxima etapa para adiar"); return; }
+    const nextLen = (!steps[nextStart].isRest && steps[nextStart+1] && steps[nextStart+1].isRest) ? 2 : 1;
+    const curBlock = steps.slice(i, i+curLen);
+    const nextBlock = steps.slice(nextStart, nextStart+nextLen);
+    playerState.steps = steps.slice(0, i).concat(nextBlock, curBlock, steps.slice(nextStart+nextLen));
+    const adiada = curBlock[0];
     // stepActuals não precisa de ajuste: da posição atual em diante ainda está vazio
-    const [adiada] = playerState.steps.splice(i, 1);
-    playerState.steps.splice(i+1, 0, adiada);
     endPauseIfAny();
     playerState.overtimeCueFired = false;
     playerState.stepStart = Date.now();
@@ -13067,7 +13359,10 @@ window.addEventListener("unhandledrejection", function(e){
             ${step.noteId && notes.some(n=>n.id===step.noteId) ? `<button class="skip-btn note-link-btn" id="viewStepNote">${svgIcon(ICON_D.arrowUpRight,13)} nota</button>` : ""}
             <button class="skip-btn" id="zenExit">${svgIcon(ICON_D.arrowsPointingIn,14)} sair do zen</button>
           </div>
-          ${step.journaling && !step.isRest ? `<textarea id="journalInput" class="mk-e-name" rows="1" placeholder="Escreva aqui... (markdown: **negrito**, - lista, 1. lista, - [ ] check)" style="width:100%; max-width:340px; margin-top:14px; resize:none; overflow:hidden; line-height:1.5;">${escapeHtml(playerState.journalTexts[step.id]||"")}</textarea>` : ""}
+          ${step.journaling && !step.isRest ? `<div style="display:flex; align-items:flex-start; gap:6px; width:100%; max-width:340px; margin-top:14px;">
+            <textarea id="journalInput" class="mk-e-name" rows="1" placeholder="Escreva aqui... (markdown: **negrito**, - lista, 1. lista, - [ ] check)" style="width:100%; resize:none; overflow:hidden; line-height:1.5;">${escapeHtml(playerState.journalTexts[step.id]||"")}</textarea>
+            <button class="icon-btn" id="journalImgBtn" type="button" title="Anexar imagem" aria-label="Anexar imagem" style="flex:0 0 auto;">${svgIcon(ICON_D.photo,14)}</button>
+          </div>` : ""}
         </div>
       `;
       app.appendChild(el);
@@ -13081,8 +13376,7 @@ window.addEventListener("unhandledrejection", function(e){
       const esr = document.getElementById("exSkipRest"); if(esr) esr.onclick = pularDescansoExercicio;
       wireSkipRow(el);
       const nb = document.getElementById("viewStepNote"); if(nb) nb.onclick = () => openNoteOverlay(step.noteId);
-      const ji = document.getElementById("journalInput");
-      if(ji){ autoGrowTextarea(ji); ji.oninput = e => { playerState.journalTexts[step.id] = e.target.value; autoGrowTextarea(ji, e); }; }
+      wireJournalInput(step);
       return;
     }
 
@@ -13191,14 +13485,18 @@ window.addEventListener("unhandledrejection", function(e){
     });
     wrap.appendChild(track);
 
-    // só faz sentido adiar se ainda existe uma próxima etapa para trocar de lugar
-    const podeAdiar = !!nextStepObj;
-    const adiarBtn = `<button class="ctrl-btn" id="postponeStep" ${podeAdiar?"":"disabled style=\"opacity:.35;\""} title="Adiar: vai para depois da próxima etapa" aria-label="Adiar etapa">${svgIcon(ICON_D.arrowUturnRight,14)}</button>`;
+    // só faz sentido adiar se existe um próximo BLOCO (tarefa + pausa dela)
+    // inteiro para trocar de lugar — mesma conta de adiarEtapa()
+    const curBlockLen = (!step.isRest && steps[playerState.idx+1] && steps[playerState.idx+1].isRest) ? 2 : 1;
+    const podeAdiar = (playerState.idx + curBlockLen) < steps.length;
+    const adiarBtn = `<button class="ctrl-btn" id="postponeStep" ${podeAdiar?"":"disabled style=\"opacity:.35;\""} title="Adiar: vai para depois da pausa da próxima etapa" aria-label="Adiar etapa">${svgIcon(ICON_D.arrowUturnRight,14)}</button>`;
+    const restartBtn = `<button class="ctrl-btn" id="restartTimer" title="Reiniciar o temporizador da etapa" aria-label="Reiniciar o temporizador da etapa">${svgIcon(ICON_D.arrowPath,15)}</button>`;
     if(step.type === "timer"){
       const controls = document.createElement("div");
-      controls.className = "player-controls four";
+      controls.className = "player-controls five";
       controls.innerHTML = `
         <button class="ctrl-btn" id="prevStep" title="Etapa anterior" aria-label="Etapa anterior">${svgIcon(ICON_D.arrowLeft,15)}</button>
+        ${restartBtn}
         <button class="ctrl-btn big" id="pauseBtn">${playerState.paused?svgIcon(ICON_D.play,22):svgIcon(ICON_D.pause,22)}</button>
         <button class="ctrl-btn ok ${rem<0?'pulse':''}" id="nextStep" title="Concluir etapa" aria-label="Concluir etapa">${svgIcon(ICON_D.check,14)}</button>
         ${adiarBtn}
@@ -13237,8 +13535,9 @@ window.addEventListener("unhandledrejection", function(e){
 
     if(step.journaling && !step.isRest){
       const journalRow = document.createElement("div");
-      journalRow.style.cssText = "width:100%; padding:10px 4px 4px;";
-      journalRow.innerHTML = `<textarea id="journalInput" class="mk-e-name" rows="1" placeholder="Escreva aqui... (markdown: **negrito**, - lista, 1. lista, - [ ] check)" style="width:100%; resize:none; overflow:hidden; line-height:1.5;">${escapeHtml(playerState.journalTexts[step.id]||"")}</textarea>`;
+      journalRow.style.cssText = "width:100%; padding:10px 4px 4px; display:flex; align-items:flex-start; gap:6px;";
+      journalRow.innerHTML = `<textarea id="journalInput" class="mk-e-name" rows="1" placeholder="Escreva aqui... (markdown: **negrito**, - lista, 1. lista, - [ ] check)" style="width:100%; resize:none; overflow:hidden; line-height:1.5;">${escapeHtml(playerState.journalTexts[step.id]||"")}</textarea>
+        <button class="icon-btn" id="journalImgBtn" type="button" title="Anexar imagem" aria-label="Anexar imagem" style="flex:0 0 auto;">${svgIcon(ICON_D.photo,14)}</button>`;
       wrap.appendChild(journalRow);
     }
 
@@ -13259,9 +13558,47 @@ window.addEventListener("unhandledrejection", function(e){
     const exSkipRest = document.getElementById("exSkipRest"); if(exSkipRest) exSkipRest.onclick = pularDescansoExercicio;
     wireSkipRow(el);
     const postponeBtn = document.getElementById("postponeStep"); if(postponeBtn) postponeBtn.onclick = adiarEtapa;
+    const restartBtn2 = document.getElementById("restartTimer"); if(restartBtn2) restartBtn2.onclick = reiniciarTimerEtapa;
     const noteBtn = document.getElementById("viewStepNote"); if(noteBtn) noteBtn.onclick = () => openNoteOverlay(step.noteId);
-    const journalInput = document.getElementById("journalInput");
-    if(journalInput){ autoGrowTextarea(journalInput); journalInput.oninput = e => { playerState.journalTexts[step.id] = e.target.value; autoGrowTextarea(journalInput, e); }; }
+    wireJournalInput(step);
+  }
+
+  /* Textarea de anotação da etapa (player normal e zen, mesmo markup e mesma
+     função — usada nos dois lugares para não divergir). O botão de anexo
+     converte a imagem local em `![](data:...)` e insere no cursor: sem
+     storage novo, a anotação já é o texto salvo em playerState.journalTexts
+     e depois em history[].steps[].journal, então a imagem viaja junto. */
+  function wireJournalInput(step){
+    const ji = document.getElementById("journalInput");
+    if(!ji) return;
+    autoGrowTextarea(ji);
+    ji.oninput = e => { playerState.journalTexts[step.id] = e.target.value; autoGrowTextarea(ji, e); };
+    const imgBtn = document.getElementById("journalImgBtn");
+    if(!imgBtn) return;
+    imgBtn.onclick = () => {
+      const inicio = ji.selectionStart != null ? ji.selectionStart : ji.value.length;
+      const fim = ji.selectionEnd != null ? ji.selectionEnd : ji.value.length;
+      const fileInput = document.createElement("input");
+      fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.style.display = "none";
+      document.body.appendChild(fileInput);
+      fileInput.onchange = () => {
+        const file = fileInput.files && fileInput.files[0];
+        fileInput.remove();
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const md = "![](" + reader.result + ")";
+          ji.value = ji.value.slice(0, inicio) + md + ji.value.slice(fim);
+          playerState.journalTexts[step.id] = ji.value;
+          autoGrowTextarea(ji);
+          ji.focus();
+          const cursorPos = inicio + md.length;
+          ji.setSelectionRange(cursorPos, cursorPos);
+        };
+        reader.readAsDataURL(file);
+      };
+      fileInput.click();
+    };
   }
 
   function renderDone(){
@@ -14073,6 +14410,25 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="routine-meta">${r.porDia100.toFixed(1)} pontos/dia até sábado para chegar a 100</div>
           ${r.nota < gam.config.notaMinima ? `<div class="routine-meta">${r.porDia60.toFixed(1)} pontos/dia para ao menos aprovar (${gam.config.notaMinima})</div>` : ""}
         </div>` : `<div class="stat-card"><div class="routine-meta" style="color:var(--good);">Meta da semana batida — o que vier agora é estouro &#9733;</div></div>`)}
+        <div class="section-label">Orçamento de tempo da semana</div>
+        <div class="stat-card">
+          ${(() => {
+            const planMin = minutosPlanejadosSemana();
+            const budgetMin = horasBudget * 60;
+            const pct = budgetMin > 0 ? Math.round(planMin/budgetMin*100) : 0;
+            const estourou = budgetMin > 0 && planMin > budgetMin;
+            const h = Math.floor(planMin/60), m = planMin%60;
+            return `<div class="bar-row">
+              <div class="bar-name">Planejado</div>
+              <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,Math.max(3,pct))}%; background:${estourou?'var(--danger)':'var(--grad)'};"></div></div>
+              <div class="bar-val" style="width:auto; white-space:nowrap; flex:0 0 auto;">${h}h${m>0?m+'min':''}</div>
+            </div>
+            <div class="stat-foot" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              de <input type="number" id="blHorasBudget" min="1" value="${horasBudget}" style="width:52px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:2px 6px; font-size:13px; color:var(--text);"> horas/semana disponíveis para rotinas
+              ${estourou ? ` · <span style="color:var(--danger);">${pct}% do orçamento — planejado estoura o disponível</span>` : ""}
+            </div>`;
+          })()}
+        </div>
         ${evolucao.length >= 2 ? `<div class="section-label">Evolução do boletim</div>
         <div class="stat-card">
           <div class="hour-chart">
@@ -14160,6 +14516,11 @@ window.addEventListener("unhandledrejection", function(e){
     `;
     app.appendChild(el);
     document.getElementById("blBack").onclick = () => { goTo({tab:"home", screen:"home"}); };
+    document.getElementById("blHorasBudget").onchange = e => {
+      horasBudget = Math.max(1, +e.target.value || horasBudget);
+      save(K_HORASBUDGET, horasBudget);
+      render();
+    };
     const abrirAvancadoBtn = document.getElementById("blAbrirAvancado");
     if(abrirAvancadoBtn) abrirAvancadoBtn.onclick = () => { goTo({tab:"home", screen:"settings"}); };
     document.getElementById("blDispensar").onclick = () => {
@@ -14416,7 +14777,7 @@ window.addEventListener("unhandledrejection", function(e){
           <input type="file" id="cfgImportFile" accept="application/json" style="display:none">
           <div class="stat-foot">${ultBak ? "Último backup: " + new Date(ultBak).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
           <button class="btn-cancel" id="cfgExportIcs" style="width:100%; margin-top:10px;">Exportar agenda (.ics)</button>
-          <div class="stat-foot">Rotinas com horário viram eventos recorrentes — importe no Google Agenda, Apple Calendar etc.</div>
+          <div class="stat-foot">Rotinas com horário viram eventos recorrentes e compromissos avulsos viram eventos únicos — importe no Google Agenda, Apple Calendar etc.</div>
         </div>
 
         <div class="section-label">Calendário externo</div>
@@ -15130,7 +15491,7 @@ window.addEventListener("unhandledrejection", function(e){
         return notes
           .filter(n => (n.title||"").toLowerCase().includes(q) || (n.content||"").toLowerCase().includes(q))
           .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))
-          .map(n => ({ id:n.id, title:n.title, snippet:(n.content||"").slice(0,200) }));
+          .map(n => ({ id:n.id, title:n.title, snippet:stripMdForSnippet(n.content||"").slice(0,200) }));
       },
       read_diario(args){
         const escopo = (args && args.escopo) || "dia";
@@ -15243,13 +15604,9 @@ window.addEventListener("unhandledrejection", function(e){
   document.addEventListener("visibilitychange", () => {
     if(document.hidden) return;
     if(view.screen === "player" && playerState){
-      catchUpSteps();
-      if(view.screen === "player"){
-        render(); acquireWakeLock();
-        if(currentStep().type==="timer" && !playerState.paused) startTicking();
-        // o catch-up pode ter trocado a etapa: a bolha precisa saber
-        sincronizarPlayerBackground();
-      }
+      render(); acquireWakeLock();
+      if(currentStep().type==="timer" && !playerState.paused) startTicking();
+      sincronizarPlayerBackground();
     }
     if(view.screen === "templateDoc"){
       const doc = templates.find(t=>t.id===view.id);
