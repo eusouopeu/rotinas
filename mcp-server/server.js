@@ -52,10 +52,6 @@ function buildServer({ getConfig, callRenderer, logCall }) {
     apenas_hoje: z.boolean().optional().describe("se true, só rotinas agendadas para hoje")
   });
   registerRead("get_today_agenda", "Agenda de hoje: rotinas agendadas, blocos de horário do diário e kanban do dia.", {});
-  registerRead("list_tasks", "Lista a fila de tarefas de estudo (pool), com filtro opcional por eixo.", {
-    eixo: z.string().optional(),
-    apenas_ativas: z.boolean().optional().describe("padrão true — esconde as concluídas do tipo trilha")
-  });
   registerRead("list_metas", "Lista as metas (contagens regressivas) com prazo e progresso.", {});
   registerRead("read_note", "Lê uma nota pelo id.", { id: z.string() });
   registerRead("search_notes", "Busca notas por título ou conteúdo.", { query: z.string() });
@@ -66,22 +62,6 @@ function buildServer({ getConfig, callRenderer, logCall }) {
   registerRead("get_gamificacao_status", "Boletim da semana atual: nota, ritmo e pontos por área.", {});
 
   /* ---------------- Escrita (exige modo \"leitura e escrita\") ---------------- */
-  registerWrite("create_task", "Cria uma nova tarefa na fila de estudo.", {
-    eixo: z.string(), area: z.string(), tipo: z.string(), conteudo: z.string(),
-    tipo_tarefa: z.string().optional(), detalhes: z.string().optional(),
-    dur: z.number().optional().describe("minutos: 15, 30 ou 60 (padrão 15)"),
-    tag_valor: TAG_VALOR.optional().describe("peso no boletim, padrão medio")
-  });
-  registerWrite("complete_task", "Marca uma tarefa da fila como concluída hoje e credita os pontos do boletim.", {
-    id: z.string()
-  });
-  registerWrite("update_task", "Atualiza campos de uma tarefa existente da fila.", {
-    id: z.string(),
-    conteudo: z.string().optional(),
-    detalhes: z.string().optional(),
-    dur: z.number().optional(),
-    tag_valor: TAG_VALOR.optional()
-  });
   registerWrite("append_diario", "Acrescenta um texto ao fim da nota do diário de um período.", {
     escopo: ESCOPO.default("dia"),
     iso: z.string().optional(),

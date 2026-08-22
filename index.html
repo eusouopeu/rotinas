@@ -12,1300 +12,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
 <link href="fonts/fonts.css" rel="stylesheet">
-<style>
-  :root{
-    --bg: #1C1B1A;
-    --surface: #262422;
-    --surface-2: #2F2C29;
-    --line: #3A3632;
-    --text: #EDE7DD;
-    --muted: #8A8478;
-    --accent: #E0619E;
-    --accent-2: #5B8DEF;
-    --accent-dim: #8F4066;
-    --grad: linear-gradient(135deg, #EC6AA8, #5B8DEF);
-    --on-accent: #FFFFFF;
-    --good: #6B8F71;
-    --danger: #B25B4C;
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
-    --tabbar-h: 58px;
-    --font-scale: 1;
-    /* raio e elevação como tokens: o "moderno" é a superfície flutuar com
-       sombra em vez de depender só da borda de 1px */
-    --radius: 18px;
-    --radius-sm: 12px;
-    --shadow-1: 0 1px 2px rgba(0,0,0,.30);
-    --shadow-2: 0 10px 28px rgba(0,0,0,.38);
-    /* fundo translúcido de barras fixas (tabbar) — precisa de alfa, não serve var(--surface) */
-    --surface-blur: rgba(38,36,34,.82);
-    --accent-soft: rgba(224,97,158,.16);
-    /* estágios do kanban: neutro -> azul (em curso) -> verde (feito). Os tons
-       quentes de antes deixavam as colunas com cara de papel envelhecido */
-    --kb-todo: #94A3B8;   --kb-todo-bg: rgba(148,163,184,.09);
-    --kb-doing: #6E9BF2;  --kb-doing-bg: rgba(110,155,242,.10);
-    --kb-done: #6B8F71;   --kb-done-bg: rgba(107,143,113,.10);
-  }
-  /* Tema claro: cinza claríssimo neutro (não bege), superfícies brancas
-     destacadas por sombra suave — leitura tipo Google Docs, com acentos
-     saturados no lugar dos tons apagados. */
-  body.light{
-    --bg: #F3F5F8;
-    --surface: #FFFFFF;
-    --surface-2: #EDF1F6;
-    --line: #E2E7EE;
-    --text: #191D23;
-    --muted: #5F6977;
-    --accent: #D8407F;
-    --accent-2: #2F6BE0;
-    --accent-dim: #F0AECC;
-    --grad: linear-gradient(135deg, #E8478C, #3D74E8);
-    --on-accent: #FFFFFF;
-    --good: #2E9C5C;
-    --danger: #D2453B;
-    --shadow-1: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.07);
-    --shadow-2: 0 10px 28px rgba(16,24,40,.11);
-    --surface-blur: rgba(255,255,255,.86);
-    --accent-soft: rgba(216,64,127,.11);
-    --kb-todo: #64748B;   --kb-todo-bg: rgba(100,116,139,.07);
-    --kb-doing: #2F6BE0;  --kb-doing-bg: rgba(47,107,224,.07);
-    --kb-done: #2E9C5C;   --kb-done-bg: rgba(46,156,92,.07);
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
-  form{ margin:0; }
-  /* overscroll-behavior no body sozinho não segura o rubber-band: com
-     <!DOCTYPE html>, quem rola o documento é o html, não o body — sem isso
-     um arrasto lateral dava uma folga elástica na página inteira (a tabbar
-     fixa "balançava" junto, mesmo sem nada pra rolar). */
-  html{ height:100%; overscroll-behavior:none; }
-  body{
-    height:100%;
-    margin:0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', -apple-system, sans-serif;
-    overscroll-behavior: none;
-    user-select: none;
-  }
-  #app{
-    /* escala de acessibilidade (Configurações → Aparência): transform, não a
-       propriedade `zoom` — testado e revertido: `zoom` desalinha o hit-test de
-       clique/toque em relação à posição visual (bug real de Chromium com essa
-       propriedade não-padrão), o que quebraria toda a interação do app fora do
-       tamanho "M". transform é padrão e não tem esse problema. O truque é
-       encolher a CAIXA de #app na proporção inversa da escala antes de ampliar
-       visualmente — assim o box pós-transform volta a cobrir exatamente o
-       viewport, e os descendentes position:fixed (tabbar, FAB), que passam a
-       ser ancorados a esse box (transform cria um novo containing block pra
-       eles), ficam nas bordas reais da tela. Só não alcança overlays anexados
-       direto a document.body (confirm-overlay, busca, tela de PIN) — ficam de
-       fora da escala, mas continuam clicáveis normalmente. */
-    width: calc(100% / var(--font-scale));
-    height: calc(100vh / var(--font-scale));
-    height: calc(100dvh / var(--font-scale));
-    transform-origin: top left;
-    transform: scale(var(--font-scale));
-    display:flex;
-    flex-direction:column;
-    padding-top: calc(var(--safe-top) + 18px);
-    overflow:hidden;
-  }
-  .screen{ flex:1; display:flex; flex-direction:column; padding:0 20px; animation: fade .25s ease; min-height:0; }
-  .screen.with-tabbar{ padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 10px); }
-  /* nó de rolagem que leva o cabeçalho da aba junto (Metas, Modelos) */
-  .tab-scroll{ flex:1; overflow-y:auto; min-height:0; }
-  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
-  @media (prefers-reduced-motion: reduce){ .screen{ animation:none; } }
-
-  h1,h2,h3{ font-family:'Fraunces', serif; font-weight:600; margin:0; letter-spacing:-0.01em; }
-
-  /* ---------- TABBAR ---------- */
-  .tabbar{
-    position:fixed; left:0; right:0; bottom:0; height:calc(var(--tabbar-h) + var(--safe-bottom));
-    background:var(--surface-blur); border-top:1px solid var(--line);
-    backdrop-filter: blur(14px) saturate(1.1); -webkit-backdrop-filter: blur(14px) saturate(1.1);
-    display:flex; padding-bottom:var(--safe-bottom); z-index:30;
-    /* os 5 botões não têm rolagem horizontal própria; sem isso um arrasto
-       lateral no dedo dava uma leve folga elástica nos botões (nativo do
-       WebView tentando "arrastar" algo que não rola de verdade) */
-    touch-action: pan-y;
-  }
-  .tabbar button{
-    flex:1; background:none; border:none; color:var(--muted);
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
-    font-family:'Inter'; font-size:11.5px;
-  }
-  /* pílula atrás do ícone da aba ativa: marca o lugar sem depender só da cor */
-  .tabbar button .ic{
-    font-size:19px; display:flex; align-items:center; justify-content:center;
-    padding:3px 14px; border-radius:11px; transition: background .18s ease;
-  }
-  /* SVGs são nativamente arrastáveis por padrão em vários navegadores (o mesmo
-     comportamento de "arrastar para salvar" de uma <img>) — sem isto, começar
-     um arrasto customizado (drag-handle de reordenar, swipe) em cima de um
-     ícone dispara TAMBÉM o drag nativo do navegador, que tira uma "foto" do
-     conteúdo ao redor do ícone (inclusive os botões de duplicar/excluir do
-     swipe, normalmente escondidos atrás do card) e mostra como fantasma
-     seguindo o cursor/dedo. preventDefault no pointerdown não basta porque o
-     dragstart nativo é um evento separado. */
-  .icon-svg{ display:inline-block; vertical-align:-4px; flex-shrink:0; -webkit-user-drag:none; user-select:none; }
-  .tabbar button.active{ color:var(--accent); }
-  .tabbar button.active .ic{ background:var(--accent-soft); }
-
-  /* ---------- DIÁRIO ---------- */
-  .di-badge{ align-self:center; margin-bottom:10px; font-size:12px; }
-  .di-badge span{ padding:6px 12px; }
-  /* botão de agenda na mesma linha da pill tab de escopo, do mesmo tamanho */
-  .di-escopo-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px; }
-  .di-agenda-inline{ height:auto; padding:6px 11px; align-self:stretch; }
-  .di-daterow{ display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
-  .di-daterow-label{ text-align:center; margin-bottom:12px; }
-  .di-daterow input[type=date]{
-    background:var(--surface); border:1px solid var(--line); border-radius:9px;
-    color:var(--text); font-family:'Inter', sans-serif; font-size:13px; padding:8px 10px;
-  }
-  .di-daterow input[type=date]:focus{ outline:none; border-color:var(--accent); }
-  /* botão de texto no lugar de ícone: precisa vencer o width fixo de .bell-btn */
-  .bell-btn.di-hoje{ width:auto; padding:0 11px; font-size:12px; font-family:'Inter'; white-space:nowrap; }
-  .di-body{ flex:1; overflow-y:auto; padding-bottom:16px; display:flex; flex-direction:column; }
-  /* #diContent estica até o fim do espaço disponível em vez de encolher para o
-     conteúdo — sem isto a view agenda (que só tem altura própria até a última
-     hora com bloco) parecia parar na metade da tela, com vão em branco embaixo.
-     Sem display:flex aqui (só no pai): o editor contínuo dentro de #diContent
-     (.live-editor) não pode ganhar um contexto flex novo, senão herdaria um
-     comportamento de scroll próprio que hoje não tem. */
-  .di-body > #diContent{ flex:1; min-height:0; }
-  .di-tools{ display:flex; justify-content:flex-end; margin-bottom:8px; }
-  /* o kanban do dia vem logo abaixo: o respiro de 40px viraria um vão morto */
-  .di-live{ min-height:150px; padding-bottom:14px; }
-  /* agenda de time-blocking: régua de horas + blocos posicionados por minuto */
-  .ag-wrap{ position:relative; padding-left:52px; margin:4px 0 20px; }
-  .ag-hora{ position:absolute; left:0; right:0; border-top:1px solid var(--line); }
-  .ag-hora span{ position:absolute; left:0; top:-8px; font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); }
-  .ag-blocos{ position:absolute; left:52px; right:0; top:0; bottom:0; }
-  /* horário e nome na MESMA linha, o nome logo em seguida ao horário; só quebra
-     para baixo quando o texto não cabe na largura do bloco */
-  .ag-bloco{
-    position:absolute; background:var(--surface-2); border:1px solid var(--line);
-    border-left:3px solid var(--accent); border-radius:8px; padding:4px 7px;
-    overflow:hidden; display:flex; flex-flow:row wrap; align-items:baseline;
-    gap:0 6px; align-content:flex-start;
-  }
-  .ag-bloco{ touch-action:pan-y; } /* o arrasto horizontal é do gesto de adiar */
-  /* bloco que veio de um cartão do kanban, e não de uma linha da nota */
-  .ag-bloco.ag-kb{ border-left-color:var(--accent-2); background:var(--surface); }
-  .ag-bloco.ag-kb .ag-hh::after{ content:" · cartão"; }
-  /* bloco de compromisso avulso — mesma linguagem visual, cor própria */
-  .ag-bloco.ag-cp{ border-left-color:var(--good); background:var(--surface); }
-  .ag-bloco.ag-cp .ag-hh::after{ content:" · compromisso"; }
-  /* evento do calendário externo (URL iCal) — só leitura, cor própria pra não
-     confundir com nota/cartão/compromisso, que aceitam toque */
-  .ag-bloco.ag-ical{ border-left-color:var(--muted); background:var(--surface); cursor:default; }
-  .ag-bloco.ag-ical .ag-hh::after{ content:" · calendário"; }
-  .ag-allday-row{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
-  .ag-allday-chip{ font-size:11.5px; padding:3px 9px; border-radius:20px; background:var(--surface-2); border:1px solid var(--line); color:var(--muted); }
-  .ag-bloco.feito{ border-left-color:var(--good); opacity:.6; }
-  .ag-bloco.feito .ag-txt{ text-decoration:line-through; }
-  .ag-bloco.adiado{
-    border-left-color:var(--muted); border-style:dashed;
-    background:repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 7px, var(--surface) 7px, var(--surface) 14px);
-  }
-  .ag-bloco.adiado .ag-txt{ color:var(--muted); }
-  .ag-hh{ font-family:'Inter', sans-serif; font-size:10px; color:var(--muted); flex:0 0 auto; }
-  /* basis 0 e não auto: com basis auto o texto largo já não caberia ao lado do
-     horário e quebraria para a linha de baixo — o que era exatamente o problema */
-  .ag-txt{ font-size:12.5px; line-height:1.25; flex:1 1 0; min-width:0; overflow-wrap:break-word; }
-  .ag-agora{ position:absolute; left:44px; right:0; border-top:2px solid var(--danger); z-index:2; }
-  /* agenda de semana/mês/ano: lista agrupada em vez de grade de minuto — não
-     há granularidade suficiente para posicionar por pixel */
-  .ag-grupos{ display:flex; flex-direction:column; gap:16px; margin:4px 0 20px; }
-  .ag-grupo-titulo{ font-family:'Fraunces', serif; font-weight:600; font-size:15px; margin-bottom:6px; }
-  .ag-item{
-    display:flex; align-items:baseline; gap:8px; background:var(--surface-2); border:1px solid var(--line);
-    border-left:3px solid var(--accent); border-radius:8px; padding:8px 10px; margin-bottom:6px; touch-action:pan-y;
-  }
-  .ag-item.feito{ border-left-color:var(--good); opacity:.6; }
-  .ag-item.feito .ag-item-txt{ text-decoration:line-through; }
-  .ag-item.adiado{
-    border-left-color:var(--muted); border-style:dashed;
-    background:repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 7px, var(--surface) 7px, var(--surface) 14px);
-  }
-  .ag-item.adiado .ag-item-txt{ color:var(--muted); }
-  .ag-item-hora{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); flex:0 0 auto; }
-  .ag-item-txt{ font-size:13.5px; line-height:1.3; flex:1 1 0; min-width:0; overflow-wrap:break-word; }
-
-  /* ---------- HOME / HEADER ---------- */
-  .home-header{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; gap:10px; }
-  .home-header h1{ font-size:32px; }
-  .header-right{ display:flex; align-items:center; gap:10px; }
-  .bell-btn{
-    width:34px; height:34px; border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--line);
-    color:var(--muted); font-size:15px; box-shadow: var(--shadow-1); transition: transform .12s ease, background .12s ease;
-  }
-  .bell-btn:active{ transform: scale(.92); background:var(--surface-2); }
-  /* estado ligado de um bell-btn que é toggle (ex.: "hoje" nas Rotinas) */
-  .bell-btn.on{ background:var(--accent-soft); border-color:transparent; color:var(--accent); }
-  /* alvo de toque de 44px sem mudar o tamanho visual de 34px: a área clicável
-     é estendida por um pseudo-elemento, preservando o layout já ajustado */
-  .bell-btn, .icon-btn{ position:relative; }
-  .bell-btn::after, .icon-btn::after{ content:""; position:absolute; inset:-5px; border-radius:14px; }
-  /* conflito de sync pendente: ponto vermelho no ícone de Configurações, visível
-     em qualquer aba — sem isso um conflito fica escondido até abrir Configurações */
-  .sync-conflict-dot{ position:absolute; top:3px; right:3px; width:8px; height:8px; border-radius:50%; background:var(--danger); border:1.5px solid var(--surface); }
-  /* ditado por voz no lançamento rápido: botão flutuante no canto do campo, sem
-     empurrar o layout — mesmos campos existentes, só ganham o ícone por cima */
-  .qa-mic-wrap{ position:relative; }
-  .qa-mic-wrap textarea, .qa-mic-wrap input{ padding-right:40px; }
-  .qa-mic-btn{ position:absolute; top:6px; right:6px; width:28px; height:28px; }
-  .qa-mic-btn.ouvindo{ background:var(--danger); border-color:transparent; color:#fff; animation:qaMicPulse 1.2s ease-in-out infinite; }
-  @keyframes qaMicPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.55; } }
-
-  .routine-list, .notes-list{ display:flex; flex-direction:column; gap:12px; flex:1; overflow-y:auto; }
-  .routine-card, .note-card{
-    background: var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px;
-    display:flex; justify-content:space-between; align-items:center; gap:12px;
-    box-shadow: var(--shadow-1);
-    transition: transform .14s ease, background .14s ease, box-shadow .14s ease;
-  }
-  /* afundar no toque: o card responde antes da tela trocar */
-  .routine-card:active, .note-card:active{ background: var(--surface-2); transform: scale(.985); }
-  .routine-info, .note-info{ min-width:0; flex:1; }
-  .routine-info h3, .note-info h3{ font-size:19px; margin-bottom:6px; }
-  .routine-meta{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
-
-  /* ---------- SWIPE (revelar excluir / dispensar) ---------- */
-  .swipe-item{ position:relative; overflow:hidden; border-radius:var(--radius); flex:0 0 auto; }
-  .swipe-track{ position:relative; z-index:1; touch-action:pan-y; will-change:transform; }
-  .swipe-del-btn{
-    position:absolute; top:0; right:0; bottom:0; width:76px; background:var(--danger); color:#fff;
-    border:none; font-family:'Inter'; font-weight:600; font-size:12.5px; z-index:0;
-  }
-  .swipe-dup-btn{
-    position:absolute; top:0; left:0; bottom:0; width:76px; background:var(--accent-2); color:#fff;
-    border:none; font-family:'Inter'; font-weight:600; font-size:12.5px; z-index:0;
-  }
-
-  /* ---------- TAREFAS: bloco (sub-toggle) + bullets ---------- */
-  .tar-bloco-head{ display:flex; align-items:center; gap:8px; cursor:pointer; margin:14px 0 6px; padding:2px 2px; flex:0 0 auto; }
-  .tar-bloco-arrow{ color:var(--muted); font-size:11px; width:12px; flex:0 0 auto; text-align:center; }
-  .tar-bloco-title{ flex:1; min-width:0; font-family:'Fraunces', serif; font-weight:600; font-size:15px; color:var(--text); line-height:1.3; }
-  .tar-bloco-count{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); flex:0 0 auto; }
-  .tar-item{
-    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px;
-    display:flex; justify-content:space-between; align-items:center; gap:10px; margin-left:14px;
-    box-shadow: var(--shadow-1); transition: transform .14s ease, background .14s ease;
-  }
-  .tar-item:active{ background:var(--surface-2); transform: scale(.985); }
-  .tar-item-info{ display:flex; align-items:flex-start; gap:9px; flex:1; min-width:0; }
-  .tar-bullet{ flex:0 0 auto; color:var(--muted); font-size:15px; line-height:1.4; }
-  .tar-conteudo{ font-family:'Inter'; font-size:14.5px; font-weight:400; line-height:1.4; color:var(--text); overflow-wrap:break-word; word-break:break-word; }
-  .tar-item-meta{ margin-top:3px; }
-  .tar-detalhes{ margin:5px 0 0; padding-left:16px; list-style:disc; }
-  .tar-detalhes li{ font-size:12.5px; color:var(--muted); line-height:1.45; margin:1px 0; overflow-wrap:break-word; word-break:break-word; }
-  .tar-item-actions{ display:flex; gap:8px; flex:0 0 auto; }
-  .note-snippet{ font-size:13px; color:var(--muted); line-height:1.4; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .routine-actions{ display:flex; gap:8px; align-items:center; flex-shrink:0; }
-  .icon-btn{
-    width:34px; height:34px; border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--line);
-    color:var(--muted); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0;
-    box-shadow: var(--shadow-1); transition: transform .12s ease, background .12s ease;
-  }
-  .icon-btn:active{ transform: scale(.92); background:var(--surface-2); }
-  .play-btn{
-    width:44px; height:44px; border-radius:50%; background: var(--grad); color:var(--on-accent);
-    display:flex; align-items:center; justify-content:center; font-size:16px; border:none;
-    box-shadow: 0 4px 14px rgba(200,100,180,.35); flex-shrink:0;
-    transition: transform .12s ease;
-  }
-  .play-btn:active{ transform: scale(.92); }
-  .sched-chip{
-    display:inline-flex; align-items:center; gap:4px; font-family:'Inter', sans-serif;
-    font-size:11px; color:var(--accent); margin-top:6px;
-  }
-  /* inline-flex faria o chip dividir a linha com o de agendamento */
-  .sched-chip.chip-block{ display:flex; }
-  .empty-state{
-    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; color:var(--muted); gap:10px;
-  }
-  .empty-state h2{ color:var(--text); font-size:22px; }
-  .empty-state p{ font-size:14px; max-width:260px; line-height:1.5; }
-
-  .fab{
-    position:fixed; right:24px; bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 20px);
-    width:58px; height:58px; border-radius:50%; background: var(--grad); color:var(--on-accent); border:none;
-    font-size:28px; font-weight:400; display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 8px 24px rgba(200,100,180,.4); z-index:20;
-    transition: transform .14s cubic-bezier(.34,1.56,.64,1);
-  }
-  .fab:active{ transform: scale(.9); }
-
-  /* ---------- ALERT BANNER ---------- */
-  .alert-banner{
-    position:fixed; top:calc(var(--safe-top) + 10px); left:16px; right:16px;
-    background:var(--grad); color:var(--on-accent); padding:14px 16px; border-radius:var(--radius-sm);
-    box-shadow: var(--shadow-2);
-    font-family:'Inter'; font-weight:600; font-size:14px; z-index:999;
-    box-shadow:0 8px 24px rgba(0,0,0,.4); animation: slideIn .3s ease;
-  }
-  .alert-banner.hide{ opacity:0; transform:translateY(-10px); transition:.4s; }
-  @keyframes slideIn{ from{opacity:0; transform:translateY(-12px);} to{opacity:1; transform:translateY(0);} }
-  /* celebração (badge/meta concluída): mesmo banner, com ícone + leve "pop" de
-     entrada pra marcar que este é diferente dos toasts neutros do dia a dia */
-  .alert-banner.celebrate{ display:flex; align-items:center; gap:8px; font-size:14.5px; animation: slideIn .3s ease, popIn .4s ease; box-shadow:0 8px 28px rgba(224,97,158,.45); }
-  @keyframes popIn{ 0%{transform:scale(.96);} 60%{transform:scale(1.02);} 100%{transform:scale(1);} }
-
-  /* ---------- EDITOR (shared) ---------- */
-  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; gap:12px; }
-  .topbar .link-btn{ color:var(--accent); font-size:15px; background:none; border:none; padding:8px 0; }
-  .topbar .link-btn.muted{ color:var(--muted); }
-
-  input.name-input{
-    background:none; border:none; border-bottom:2px solid var(--line);
-    font-family:'Fraunces', serif; font-size:26px; color:var(--text);
-    padding:8px 0; margin-bottom:18px; width:100%;
-  }
-  input.name-input:focus{ outline:none; border-color:var(--accent); }
-
-  .section-label{ font-family:'Inter', sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 10px; }
-
-  .steps-list{ display:flex; flex-direction:column; gap:10px; overflow-y:auto; flex:1; }
-  .step-row{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; align-items:flex-start; gap:12px; }
-  .step-num{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); width:22px; flex-shrink:0; padding-top:2px; }
-  .step-fields{ flex:1; display:flex; flex-direction:column; gap:8px; min-width:0; }
-  .step-fields input[type=text]{ background:none; border:none; color:var(--text); font-size:16px; font-family:'Inter'; padding:0; width:100%; }
-  .step-fields input[type=text]:focus{ outline:none; }
-  .step-sub{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .type-toggle{ display:flex; background:var(--surface-2); border-radius:8px; padding:2px; font-size:11px; font-family:'Inter', sans-serif; }
-  /* 4 a 5 opções de peso: em tela estreita quebram a linha em vez de estourar */
-  .tagval-pills{ flex-wrap:wrap; }
-  .type-toggle span{ padding:4px 8px; border-radius:6px; color:var(--muted); }
-  .type-toggle span.active{ background:var(--grad); color:var(--on-accent); }
-  .dur-input{ background:none; border:none; color:var(--muted); font-family:'Inter', sans-serif; font-size:13px; width:52px; }
-  .dur-input:focus{ outline:none; color:var(--accent); }
-  .remove-step{ color:var(--danger); background:none; border:none; font-size:18px; padding:4px 6px; flex-shrink:0; }
-  .order-btn{ background:none; border:none; color:var(--muted); font-size:13px; padding:4px 8px; }
-  .order-btn:disabled{ opacity:.25; }
-  /* alça de arrastar: única coisa na coluna direita agora (sem os botões
-     ↑/↓), centralizada na altura do card em vez de presa no topo junto do
-     número da etapa — align-self próprio, sem mexer no alinhamento das
-     outras colunas do .step-row. */
-  .step-side{ display:flex; align-items:center; flex-shrink:0; align-self:center; }
-
-  .add-step-btn{ border:1px dashed var(--line); border-radius:14px; padding:16px; color:var(--muted); background:none; font-size:14px; text-align:center; margin-top:4px; }
-
-  .schedule-box{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; }
-  .switch-row{ display:flex; align-items:center; justify-content:space-between; font-size:15px; }
-  .switch-row input[type=checkbox]{ width:44px; height:26px; accent-color: var(--accent); }
-  .sched-time-row{ margin-top:14px; display:flex; align-items:center; gap:12px; }
-  /* "a cada N dias" + "a partir de <data>": duas .sched-time-row empilhadas —
-     a coluna vem daqui, e não de inline style, porque o JS do toggle de modo
-     só liga/desliga o display (none/flex); sem a classe, ligar de volta caía
-     no flex-direction:row padrão e as duas linhas voltavam a disputar espaço. */
-  .sched-intervalo-wrap{ display:flex; flex-direction:column; gap:8px; }
-  .sched-time-row input[type=time]{
-    background:var(--surface-2); border:1px solid var(--line); border-radius:10px; color:var(--text);
-    font-family:'Inter', sans-serif; font-size:16px; padding:8px 10px;
-  }
-  .sched-computed{ margin-top:12px; font-size:13px; color:var(--muted); font-family:'Inter', sans-serif; }
-  .sched-computed b{ color:var(--accent); font-weight:600; }
-  /* swatch de cor da área (Configurações → roda da vida) — reset do chrome
-     nativo do input[type=color] pra virar um quadradinho simples */
-  .area-color-swatch{
-    width:26px; height:26px; padding:0; border:1px solid var(--line); border-radius:8px;
-    background:none; flex:0 0 auto; cursor:pointer;
-  }
-  .area-color-swatch::-webkit-color-swatch-wrapper{ padding:2px; }
-  .area-color-swatch::-webkit-color-swatch{ border:none; border-radius:5px; }
-
-  .bottom-actions{
-    position:fixed; left:0; right:0; bottom:0; padding:16px 20px calc(16px + var(--safe-bottom));
-    background: linear-gradient(to top, var(--bg) 65%, transparent); display:flex; gap:10px; z-index:15;
-  }
-  .btn-primary{
-    flex:1; background:var(--grad); color:var(--on-accent); border:none; border-radius:var(--radius-sm);
-    padding:16px; font-size:16px; font-weight:600; font-family:'Inter';
-    box-shadow: 0 4px 14px rgba(200,100,180,.30); transition: transform .12s ease, box-shadow .12s ease;
-  }
-  .btn-primary:active{ transform: scale(.975); box-shadow: 0 2px 8px rgba(200,100,180,.26); }
-  .btn-danger-outline{ background:none; border:1px solid var(--danger); color:var(--danger); border-radius:14px; padding:16px 18px; font-size:15px; }
-
-  /* ---------- NOTES ---------- */
-  .note-topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; }
-  /* carimbo automático de criação: informativo, nunca editável */
-  .created-stamp{
-    font-family:'Inter', sans-serif; font-size:11px; color:var(--muted);
-    margin:-4px 0 10px; letter-spacing:.01em;
-  }
-  .btn-save-note{ background:var(--grad); color:var(--on-accent); border:none; border-radius:10px; padding:0 14px; height:34px; font-family:'Inter'; font-size:13.5px; }
-  .note-footer{ display:flex; justify-content:flex-end; padding:12px 0 4px; }
-  .note-footer .btn-danger-outline{ padding:10px 20px; font-size:14px; border-radius:12px; }
-  input.note-title-input{
-    background:none; border:none; font-family:'Fraunces', serif; font-size:28px; color:var(--text);
-    padding:6px 0; width:100%; margin-bottom:10px; border-bottom:2px solid var(--line);
-    line-height:1.25;
-  }
-  input.note-title-input:focus{ outline:none; border-color:var(--accent); }
-  .mode-toggle{ display:flex; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:3px; }
-  .mode-toggle span{ padding:6px 12px; border-radius:8px; font-size:13px; color:var(--muted); font-family:'Inter', sans-serif; }
-  .mode-toggle span.active{ background:var(--grad); color:var(--on-accent); }
-  textarea.note-content{
-    flex:1; background:var(--surface); border:1px solid var(--line); border-radius:14px;
-    color:var(--text); font-family:'Inter', sans-serif; font-size:15px; line-height:1.6;
-    padding:14px; resize:none; width:100%;
-  }
-  textarea.note-content:focus{ outline:none; border-color:var(--accent); }
-  .note-preview{ flex:1; overflow-y:auto; padding-bottom:20px; }
-  .note-preview h1{ font-size:24px; margin:16px 0 8px; }
-  .note-preview h2{ font-size:20px; margin:14px 0 6px; }
-  .note-preview h3{ font-size:17px; margin:12px 0 6px; }
-  .note-preview p{ margin:6px 0; font-size:15px; line-height:1.55; color:var(--text); }
-  .note-preview ul, .note-preview ol{ margin:6px 0; padding-left:22px; }
-  .note-preview li{ margin:3px 0; font-size:15px; line-height:1.5; }
-  .note-preview code{ background:var(--surface-2); padding:1px 6px; border-radius:5px; font-family:'Inter', sans-serif; font-size:13.5px; }
-  .checklist-item{ display:flex; align-items:flex-start; gap:10px; margin:6px 0; font-size:15px; line-height:1.4; }
-  .checklist-box{ width:19px; height:19px; border-radius:5px; border:2px solid var(--accent); flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--accent); }
-  .checklist-item.checked .checklist-box{ background:var(--grad); color:var(--on-accent); border-color:transparent; }
-  .checklist-item.checked span.txt{ color:var(--muted); text-decoration:line-through; }
-  /* "[>]" — item adiado: nem aberto nem concluído */
-  .checklist-item.adiado .checklist-box{ border-color:var(--muted); color:var(--muted); border-style:dashed; }
-  .checklist-item.adiado span.txt{ color:var(--muted); }
-
-  /* ---------- LIVE EDITOR (Obsidian-style) ---------- */
-  .live-editor{ flex:1; overflow-y:auto; padding-bottom:10px; user-select:text; }
-  .live-line{ padding:4px 2px; font-size:15px; line-height:1.5; border-radius:6px; min-height:24px; }
-  .live-line:active{ background:var(--surface); }
-  .live-line.empty{ min-height:20px; }
-  .live-line .inline-h{ margin:6px 0 2px; }
-  .live-line h1.inline-h{ font-size:24px; }
-  .live-line h2.inline-h{ font-size:20px; }
-  .live-line h3.inline-h{ font-size:17px; }
-  .li-line{ padding-left:8px; }
-  .li-marker{ color:var(--accent); margin-right:6px; }
-  .live-line code{ background:var(--surface-2); padding:1px 6px; border-radius:5px; font-family:'Inter', sans-serif; font-size:13.5px; }
-  /* superfície contínua: uma só caixa editável, com as linhas dentro */
-  .live-editor{ white-space:pre-wrap; overflow-wrap:break-word; word-break:break-word; }
-  .live-editor:focus{ outline:none; }
-  /* A linha do cursor mostra o markdown cru. Sem caixa, sem barra lateral e sem
-     mudar de tamanho: no Obsidian a linha em edição é igual às outras, só com a
-     sintaxe à vista. Era o realce em caixa (fundo + barra + padding) somado ao
-     título que encolhia para 15px que fazia o editor parecer linha a linha em
-     vez de um texto corrido. As classes -hN devolvem a tipografia do bloco para
-     a linha crua, então nada pula ao mover o cursor. */
-  .live-raw{ background:transparent; }
-  .live-raw-h1, .live-raw-h2, .live-raw-h3{
-    font-family:'Fraunces', serif; font-weight:600;
-    padding-top:10px; padding-bottom:6px; /* = padding 4px + margem 6px/2px do .inline-h */
-  }
-  .live-raw-h1{ font-size:24px; }
-  .live-raw-h2{ font-size:20px; }
-  .live-raw-h3{ font-size:17px; }
-  .live-raw-li{ padding-left:8px; }
-  .live-hr{ border-top:1px solid var(--line); margin:8px 0; }
-
-  /* Barra de atalhos markdown acima do teclado (estilo Obsidian): fixa no
-     rodapé, deslocada pela altura do teclado via visualViewport (ver
-     atualizarBarraMarkdown). Some quando o editor perde o foco ou some da tela. */
-  .md-toolbar{
-    position:fixed; left:0; right:0; bottom:0; z-index:520;
-    display:flex; gap:4px; overflow-x:auto; padding:7px 8px;
-    background:var(--surface); border-top:1px solid var(--line);
-    box-shadow:var(--shadow-1);
-    transform:translateY(100%); transition:transform .15s ease;
-  }
-  .md-toolbar.show{ transform:translateY(0); }
-  .md-tb-btn{
-    flex:0 0 auto; min-width:38px; height:38px; padding:0 10px;
-    display:flex; align-items:center; justify-content:center;
-    border-radius:var(--radius-sm); border:1px solid var(--line);
-    background:var(--surface-2); color:var(--text); font-size:15px; font-family:'Inter', sans-serif;
-  }
-  .md-tb-btn:active{ transform:scale(.92); background:var(--surface); }
-  .md-tb-btn.md-tb-b{ font-weight:700; }
-  .md-tb-btn.md-tb-i{ font-style:italic; }
-
-  /* ---------- PLAYER ---------- */
-  .player{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding: 6px 0 20px; width:100%; }
-  .player-top{ width:100%; display:flex; justify-content:space-between; align-items:center; padding:0 4px; }
-  .player-close{ color:var(--muted); background:none; border:none; font-size:15px; }
-  .player-progress-label{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
-
-  .next-task-row{
-    width:100%; text-align:center; font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); margin:10px 0 6px; line-height:1.5;
-  }
-  .estimate-row{
-    width:100%; display:flex; justify-content:center; align-items:center; gap:8px;
-    font-family:'Inter', sans-serif; font-size:12.5px; color:var(--muted); margin:0 0 6px;
-  }
-  .estimate-row b{ color:var(--accent); font-size:19px; font-weight:700; }
-
-  .dial-wrap{ position:relative; width:min(72vw, 280px); height:min(72vw, 280px); display:flex; align-items:center; justify-content:center; margin:8px 0; }
-  .dial-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); transition: filter .3s; }
-  .dial-track{ stroke: var(--line); }
-  .dial-wrap.overtime svg circle#dialArc{ stroke: var(--danger) !important; }
-  .dial-time{ position:absolute; font-family:'Inter', sans-serif; font-size:15px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:6px; }
-  .dial-time .t{ font-size:50px; letter-spacing:-1px; }
-  .dial-time .t.overtime{ color: var(--danger); }
-  .dial-time .label{ font-family:'Fraunces', serif; font-size:16px; color:var(--muted); font-weight:500; max-width:200px; text-align:center; }
-
-  .checklist-body{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; flex:1; padding: 24px 20px; }
-  .checklist-body h2{ font-size:26px; text-align:center; }
-  .check-circle{ width:110px; height:110px; border-radius:50%; border:3px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:44px; }
-
-  .step-title{ font-size:15px; color:var(--muted); font-family:'Inter', sans-serif; letter-spacing:.04em; text-transform:uppercase; }
-
-  .player-controls{ display:flex; align-items:center; justify-content:center; gap:22px; width:100%; }
-  /* etapa em tempo tem 5 controles na linha (voltar, reiniciar, pausar, concluir, adiar): aperta o espaçamento p/ caber */
-  .player-controls.five{ gap:10px; }
-  .ctrl-btn{ width:56px; height:56px; border-radius:50%; background:var(--surface); border:1px solid var(--line); color:var(--text); font-size:18px; display:flex; align-items:center; justify-content:center; }
-  .ctrl-btn.big{ width:76px; height:76px; background:var(--grad); color:var(--on-accent); border:none; font-size:24px; box-shadow: 0 6px 20px rgba(200,100,180,.4); }
-  /* concluir etapa é sempre verde — o gesto de "feito" não disputa cor com o play */
-  .ctrl-btn.ok{ background:var(--good); border-color:var(--good); color:#fff; }
-  .ctrl-btn.ok.big{ background:var(--good); box-shadow: 0 6px 20px rgba(107,143,113,.42); }
-  .ctrl-btn.pulse{ animation: pulseGlow 1.1s infinite; }
-  @keyframes pulseGlow{ 0%,100%{ box-shadow:0 0 0 0 rgba(178,91,76,.55);} 50%{ box-shadow:0 0 0 10px rgba(178,91,76,0);} }
-
-  .stepper-track{ display:flex; gap:5px; width:100%; padding:0 4px; margin-bottom:4px; }
-  .stepper-track .seg{ flex:1; height:4px; border-radius:2px; background:var(--line); overflow:hidden; }
-  .stepper-track .seg .fill{ height:100%; background:var(--grad); width:0%; }
-  .stepper-track .seg.done .fill{ width:100%; }
-
-  .done-screen{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; }
-  .done-screen .mark{ font-size:56px; color:var(--good); }
-  .done-screen h2{ font-size:26px; }
-  .done-screen p{ color:var(--muted); font-size:14px; }
-
-  ::-webkit-scrollbar{ display:none; }
-
-  /* ---------- STATS ---------- */
-  .stat-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:6px; box-shadow: var(--shadow-1); }
-  /* card de meta recorrente: alça de arrastar à esquerda, editar/excluir
-     empilhados à direita, os dois centralizados na altura do card inteiro */
-  .rec-card{ display:flex; align-items:center; gap:10px; }
-  .rec-card.dragging{ opacity:.45; }
-  .rec-drag{ flex-shrink:0; align-self:center; color:var(--muted); font-size:15px; cursor:grab; touch-action:none; padding:2px 4px; }
-  .rec-card-body{ flex:1; min-width:0; }
-  .rec-actions{ display:flex; flex-direction:column; gap:6px; flex-shrink:0; align-self:center; }
-  .cal-grid{ display:grid; grid-template-columns: repeat(14, 1fr); gap:5px; }
-  .cal-dot{ aspect-ratio:1; border-radius:4px; background:var(--surface-2); }
-  .cal-dot.on{ background:var(--grad); }
-  .stat-foot{ margin-top:12px; font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
-  .bar-row{ display:flex; align-items:center; gap:10px; margin:8px 0; }
-  .bar-name{ width:34%; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .bar-track{ flex:1; height:8px; background:var(--surface-2); border-radius:4px; overflow:hidden; }
-  .bar-fill{ height:100%; background:var(--grad); border-radius:4px; }
-  .bar-val{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); width:52px; text-align:right; }
-  .dev-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
-  .dev-row:last-child{ border-bottom:none; }
-  /* Linha de tabela: a 1ª coluna é texto e fica com toda a sobra; as colunas de
-     número têm largura mínima fixa, alinhamento à direita e dígitos de largura
-     igual (tabular-nums), para uma linha ficar alinhada com a de cima. Sem isso
-     o space-between esticava a coluna do meio e cada linha saía torta. */
-  .dev-row:not(.exec-row) > :first-child{ flex:1 1 auto; min-width:0; overflow-wrap:break-word; }
-  .dev-row:not(.exec-row) > b,
-  .dev-row:not(.exec-row) > .dev-n{
-    flex:0 0 auto; text-align:right; font-variant-numeric: tabular-nums;
-  }
-  .dev-row:not(.exec-row) > b{ min-width:58px; }
-  .dev-row:not(.exec-row) > .dev-n{ min-width:76px; }
-  /* 3ª coluna com texto longo (ex.: "1:30→2:05 · 4x") pode passar da mínima */
-  .dev-row:not(.exec-row) > .dev-n.wide{ min-width:110px; }
-  /* cabeçalho de tabela: mesma grade das linhas, tipografia de rótulo */
-  .dev-row.dev-head{ border-bottom-color:var(--muted); }
-  .dev-row.dev-head > *{
-    font-family:'Inter', sans-serif; font-size:10.5px; font-weight:400;
-    text-transform:uppercase; letter-spacing:.05em; color:var(--muted) !important;
-  }
-  .bar-val{ font-variant-numeric: tabular-nums; }
-  .dev-row b.late{ color:var(--danger); }
-  .dev-row b.early{ color:var(--good); }
-  .dev-row b.ontime{ color:var(--accent); }
-  .dev-n{ font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
-  .exec-row{ flex-direction:column; align-items:flex-start; gap:2px; }
-  .exec-row .exec-name{ line-height:1.3; }
-
-  /* ---------- ZEN MODE ---------- */
-  /* lista de etapas do player (overlay ☰) */
-  .pl-steps{ display:block; overflow-y:auto; }
-  .pl-step{ display:flex; align-items:center; gap:9px; padding:9px 2px; border-bottom:1px solid var(--line); }
-  .pl-step:last-child{ border-bottom:none; }
-  .pl-step-i{ flex:0 0 22px; text-align:center; font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); }
-  .pl-step-nome{ flex:1 1 auto; min-width:0; font-size:14.5px; }
-  .pl-step-dur{ flex:0 0 auto; font-family:'Inter', sans-serif; font-size:11.5px; color:var(--muted); }
-  .pl-step-moves{ display:flex; gap:4px; flex-shrink:0; }
-  .pl-step.feita .pl-step-nome, .pl-step.feita .pl-step-dur{ color:var(--muted); text-decoration:line-through; }
-  .pl-step.feita .pl-step-i{ color:var(--good); }
-  .pl-step.atual{ background:var(--accent-soft); border-radius:10px; padding-left:6px; padding-right:6px; }
-  .pl-step.atual .pl-step-nome{ color:var(--accent); font-weight:600; }
-
-  .zen-screen{ justify-content:center; }
-  .zen-wrap{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; }
-  .zen-label{ font-family:'Fraunces', serif; font-size:22px; color:var(--muted); }
-  .zen-time{ font-family:'Inter', sans-serif; font-size:min(26vw, 120px); font-weight:500; letter-spacing:-2px; line-height:1; }
-  .zen-time.overtime{ color:var(--danger); }
-  .zen-sub{ font-family:'Inter', sans-serif; font-size:13px; color:var(--muted); }
-  .zen-sub b{ color:var(--accent); }
-
-  /* ---------- DAY CHIPS / REST / SELECT ---------- */
-  .day-chips{ display:flex; gap:6px; margin-top:14px; }
-  .day-chip{
-    flex:1; text-align:center; padding:8px 0; border-radius:9px; background:var(--surface-2);
-    color:var(--muted); font-family:'Inter', sans-serif; font-size:13px; border:1px solid var(--line);
-  }
-  .day-chip.active{ background:var(--grad); color:var(--on-accent); border-color:transparent; }
-  .routine-select{
-    background:var(--surface-2); border:1px solid var(--line); border-radius:10px; color:var(--text);
-    font-family:'Inter'; font-size:14px; padding:8px 10px; width:100%;
-  }
-  .stepper-track .seg.rest .fill{ background:var(--good); }
-  .dial-wrap.restdial .dial-time .label{ color:var(--good); }
-
-  /* ---------- NOTES: SEARCH & PIN ---------- */
-  .note-search{
-    background:var(--surface); border:1px solid var(--line); border-radius:12px; color:var(--text);
-    font-family:'Inter'; font-size:15px; padding:11px 14px; width:100%; margin-bottom:14px;
-  }
-  .note-search:focus{ outline:none; border-color:var(--accent); }
-  .pin-btn{ color:var(--line); font-size:18px; }
-  .pin-btn.pinned{ color:var(--accent); border-color:var(--accent-dim); }
-  .pin-mark{ color:var(--accent); font-size:14px; }
-
-  /* ---------- CONFIRM MODAL ---------- */
-  .confirm-overlay{
-    position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000;
-    display:flex; align-items:center; justify-content:center; padding:30px;
-    animation: fade .15s ease;
-  }
-  .confirm-box{
-    background:var(--surface); border:1px solid var(--line); border-radius:20px;
-    padding:22px; max-width:320px; width:100%; box-shadow: var(--shadow-2);
-  }
-  /* busca global: mesma caixa do modal, mas encostada no topo e alta o
-     bastante para a lista de acertos rolar sem empurrar o campo de busca */
-  .confirm-overlay.search-overlay{ align-items:flex-start; padding:24px 18px; }
-  .search-box{ max-width:460px; display:flex; flex-direction:column; max-height:82vh; }
-  .search-box .notes-list{ overflow-y:auto; flex:1 1 auto; }
-  .confirm-box p{ margin:0 0 18px; font-size:15.5px; line-height:1.5; }
-  .confirm-box small{ color:var(--muted); }
-  .confirm-actions{ display:flex; gap:10px; }
-  .confirm-actions button{ flex:1; border-radius:12px; padding:13px; font-size:15px; font-family:'Inter'; }
-  .btn-cancel{ background:var(--surface-2); border:1px solid var(--line); color:var(--text); }
-  .btn-confirm{ background:var(--danger); border:none; color:#fff; font-weight:600; }
-
-  /* ---------- TAGS & WIKILINKS ---------- */
-  .tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
-  .tag-chip{
-    padding:5px 11px; border-radius:20px; background:var(--surface); border:1px solid var(--line);
-    color:var(--muted); font-family:'Inter', sans-serif; font-size:12.5px;
-  }
-  .tag-chip.active{ background:var(--grad); color:var(--on-accent); border-color:transparent; }
-  .tag-token{ color:var(--accent); }
-  .wikilink{ color:var(--accent-2); text-decoration:underline; text-underline-offset:3px; }
-  .md-img{ display:block; max-width:100%; border-radius:var(--radius-sm); margin:4px 0; }
-
-  /* ---------- TAG INPUT (multiselect com criação livre) ---------- */
-  .tag-input-box{
-    display:flex; flex-wrap:wrap; gap:6px; align-items:center; width:100%;
-    background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:7px 8px; margin-bottom:8px;
-  }
-  .tag-input-chip{
-    display:flex; align-items:center; gap:5px; padding:4px 6px 4px 10px; border-radius:20px;
-    background:var(--grad); color:var(--on-accent); font-family:'Inter', sans-serif; font-size:12.5px;
-  }
-  .tag-input-chip button{ background:none; border:none; color:inherit; font-size:14px; line-height:1; padding:0 2px; cursor:pointer; }
-  .tag-input-field{ flex:1; min-width:80px; background:none; border:none; color:var(--text); font-size:14px; padding:4px; }
-  .tag-input-field:focus{ outline:none; }
-  .tag-input-suggest{ display:flex; flex-wrap:wrap; gap:6px; margin:-2px 0 8px; }
-
-  /* ---------- IDENTIDADE VISUAL DA ROTINA ---------- */
-  .ident-row{ display:flex; align-items:center; gap:14px; margin:-6px 0 18px; }
-  .r-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; vertical-align:1px; }
-
-  /* ---------- PLAYER EXTRAS ---------- */
-  .skip-btn{
-    background:none; border:1px dashed var(--line); color:var(--muted); border-radius:10px;
-    padding:8px 16px; font-size:13.5px; font-family:'Inter';
-  }
-  .skip-row{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; width:100%; }
-  .resume-card{ border-color:var(--accent-dim); }
-  .resume-card h3{ color:var(--accent); font-size:16px; }
-  /* cards fixados no topo da home (boletim, rotina em andamento, semana fechada):
-     não podem encostar na lista de rotinas logo abaixo */
-  .pinned-card{ flex:0 0 auto; margin-bottom:14px; }
-  .pinned-card + .pinned-card{ margin-top:-4px; }
-
-  /* ---------- AVISOS / UNDO ---------- */
-  .notice-card{
-    background:var(--surface); border:1px dashed var(--accent-dim); border-radius:14px;
-    padding:14px 16px; margin-bottom:12px; font-size:13.5px; line-height:1.45;
-    display:flex; flex-direction:column; gap:10px;
-  }
-  .notice-actions{ display:flex; gap:8px; }
-  .notice-actions button{
-    background:var(--grad); color:var(--on-accent); border:none; border-radius:9px;
-    padding:8px 16px; font-size:13.5px; font-family:'Inter'; font-weight:600;
-  }
-  .notice-actions button.ghost{ background:var(--surface-2); color:var(--muted); font-weight:400; }
-  .undo-banner{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .undo-btn{
-    background:rgba(255,255,255,.25); border:none; color:var(--on-accent); border-radius:8px;
-    padding:7px 14px; font-size:13.5px; font-weight:700; font-family:'Inter'; flex-shrink:0;
-  }
-
-  /* ---------- DRAG ---------- */
-  .drag-handle{ color:var(--muted); font-size:17px; padding:2px 8px; cursor:grab; touch-action:none; user-select:none; -webkit-user-drag:none; }
-  .step-row.dragging, .routine-card.dragging{ opacity:.45; border-color:var(--accent); }
-  .step-row.drop-above, .routine-card.drop-above{ box-shadow: 0 -3px 0 0 var(--accent); }
-  .step-row.drop-below, .routine-card.drop-below{ box-shadow: 0 3px 0 0 var(--accent); }
-
-  /* ---------- NOTE OVERLAY ---------- */
-  .note-overlay{
-    position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:900;
-    display:flex; align-items:flex-end; justify-content:center; animation: fade .2s ease;
-  }
-  .note-overlay-box{
-    background:var(--bg); border:1px solid var(--line); border-radius:22px 22px 0 0;
-    width:100%; max-height:75vh; display:flex; flex-direction:column;
-    padding:18px 20px calc(18px + var(--safe-bottom));
-  }
-  .note-overlay-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-  .note-overlay-top h3{ font-size:19px; }
-  .note-overlay-body{ overflow-y:auto; user-select:text; }
-  .note-link-btn{ border-style:solid; color:var(--accent-2); border-color:var(--accent-2); }
-  .note-link-select{ font-size:13px; padding:6px 8px; color:var(--muted); }
-
-  /* ---------- AGENDA ---------- */
-  .agenda-row{ cursor:pointer; }
-  .agenda-time{ font-family:'Inter', sans-serif; font-size:12.5px; color:var(--muted); width:96px; flex-shrink:0; }
-  .agenda-today{ border-color:var(--accent-dim); }
-
-  /* ---------- TREND ---------- */
-  .trend-chart{ display:flex; align-items:flex-end; gap:6px; }
-  .trend-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
-  .trend-bar-area{ height:64px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px; }
-  .trend-bar{ width:70%; max-width:26px; border-radius:4px 4px 0 0; }
-  .trend-bar.late{ background:var(--danger); }
-  .trend-bar.early{ background:var(--good); }
-  .trend-bar.ontime{ background:var(--grad); }
-  .trend-val{ font-family:'Inter', sans-serif; font-size:9.5px; color:var(--muted); }
-  .trend-lbl{ font-family:'Inter', sans-serif; font-size:9.5px; color:var(--muted); }
-
-  /* ---------- HEATMAP (estilo GitHub) ---------- */
-  .hm-scroll{ overflow-x:auto; padding-bottom:4px; }
-  .hm-months{ display:flex; gap:3px; margin-bottom:4px; }
-  .hm-mlabel{ width:13px; flex-shrink:0; font-family:'Inter', sans-serif; font-size:9px; color:var(--muted); overflow:visible; white-space:nowrap; }
-  .hm-grid{ display:flex; gap:3px; }
-  .hm-col{ display:flex; flex-direction:column; gap:3px; }
-  .hm-cell{ width:13px; height:13px; border-radius:3px; background:var(--surface-2); flex-shrink:0; }
-  .hm-cell.hm-void{ background:transparent; }
-  .hm-cell.lv1{ background:#EC6AA84D; }
-  .hm-cell.lv2{ background:#C973BE99; }
-  .hm-cell.lv3{ background:#8B7FD9CC; }
-  .hm-cell.lv4{ background:#5B8DEF; }
-  body.light .hm-cell.lv1{ background:#EC6AA855; }
-  .hm-cell.hm-sel{ outline:2px solid var(--text); outline-offset:1px; }
-  .hm-legend{ display:flex; align-items:center; gap:5px; margin-top:8px; font-family:'Inter', sans-serif; font-size:10px; color:var(--muted); }
-
-  /* ---------- NAVEGAÇÃO E CALENDÁRIO MENSAL ---------- */
-  .stats-nav{ margin-bottom:12px; display:flex; }
-  .view-toggle{ width:100%; }
-  .view-toggle span{ flex:1; text-align:center; }
-  .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-  .cal-title{ font-family:'Fraunces', serif; font-size:20px; font-weight:600; }
-  .mcal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-  .mcal-dowlbl{ text-align:center; font-family:'Inter', sans-serif; font-size:10px; color:var(--muted); padding-bottom:2px; }
-  .mcal-cell{
-    aspect-ratio:.85; border-radius:8px; background:var(--surface-2); position:relative;
-    display:flex; flex-direction:column; align-items:center; padding-top:4px; gap:2px;
-  }
-  .mcal-cell.mcal-void{ background:transparent; }
-  .mcal-num{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); }
-  .mcal-today .mcal-num{ color:var(--accent); font-weight:700; }
-  .mcal-today{ outline:1.5px solid var(--accent-dim); }
-  .mcal-sel{ outline:2px solid var(--text); }
-  .mcal-dots{ display:flex; gap:2px; flex-wrap:wrap; justify-content:center; max-width:90%; }
-  .mcal-dot{ width:6px; height:6px; border-radius:50%; }
-  .mcal-missed{
-    position:absolute; top:2px; right:3px; font-family:'Inter', sans-serif;
-    font-size:9px; color:var(--danger); font-weight:700;
-  }
-
-  /* ---------- EMPILHADO POR DIA / HISTOGRAMA HORA ---------- */
-  .stack-chart{ display:flex; gap:8px; align-items:flex-end; }
-  .stack-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; }
-  .stack-bars{ display:flex; flex-direction:column-reverse; width:70%; max-width:30px; min-height:2px; }
-  .stack-seg{ width:100%; }
-  .stack-seg:first-child{ border-radius:0 0 3px 3px; }
-  .stack-seg:last-child{ border-radius:3px 3px 0 0; }
-  .hour-chart{ display:flex; gap:2px; align-items:flex-end; height:84px; }
-  .hour-col{ flex:1; display:flex; flex-direction:column; align-items:center; height:100%; }
-  .hour-col .trend-lbl{ height:12px; line-height:12px; }
-  .hour-bar-area{ flex:1; width:100%; display:flex; align-items:flex-end; justify-content:center; }
-  .hour-bar{ width:100%; max-width:12px; background:var(--grad); border-radius:2px 2px 0 0; }
-  .tappable{ cursor:pointer; }
-  .tappable:active{ opacity:.6; }
-
-  /* ---------- HUMOR / METAS / EXCLUIR EXEC ---------- */
-  .mood-row{ display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; justify-content:center; }
-  .mood-btn{ background:var(--surface); border:1px solid var(--line); border-radius:14px; font-size:14px; letter-spacing:1px; color:var(--accent); padding:10px 9px; }
-  .mood-btn.sel{ border-color:var(--accent); background:var(--surface-2); transform:scale(1.12); }
-  .goal-track{ position:relative; }
-  .goal-marker{ position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--text); opacity:.65; border-radius:1px; }
-  .del-exec{ background:none; border:none; color:var(--muted); font-size:13px; padding:2px 6px; flex-shrink:0; }
-  .del-exec:active{ color:var(--danger); }
-  .suggest-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:2px 0 8px 12px; }
-  .suggest-btn{
-    background:var(--surface-2); border:1px dashed var(--accent-dim); color:var(--accent);
-    border-radius:8px; padding:5px 12px; font-size:12.5px; font-family:'Inter', sans-serif;
-  }
-  .cyc-inp{ background:var(--surface-2) !important; border:1px solid var(--line) !important; border-radius:8px !important; padding:7px 8px !important; color:var(--text) !important; font-size:15px !important; }
-
-  /* ---------- MODELOS ---------- */
-  .tmpl-new-row{ display:flex; gap:10px; margin-bottom:18px; }
-  .tmpl-new{
-    background:var(--surface); border:1px dashed var(--accent-dim); border-radius:12px;
-    padding:9px 6px; color:var(--text); font-family:'Inter'; font-size:12px; text-align:center;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; min-height:0;
-    aspect-ratio:1/1;
-  }
-  .tmpl-ic{ font-size:19px; height:19px; display:flex; align-items:center; justify-content:center; }
-  .tmpl-new .icon-svg{ vertical-align:0; }
-  .market-form{ margin-bottom:14px; }
-  .market-form input[type=text]{
-    width:100%; background:var(--surface); border:1px solid var(--line); border-radius:12px;
-    color:var(--text); font-size:15px; padding:11px 14px; margin-bottom:8px;
-  }
-  .market-form input[type=text]:focus{ outline:none; border-color:var(--accent); }
-  .market-form-row{ display:flex; gap:8px; }
-  .market-form-row input, .market-form-row select{
-    background:var(--surface); border:1px solid var(--line); border-radius:10px;
-    color:var(--text); font-size:14px; padding:9px 8px;
-  }
-  .market-form-row input{ width:64px; }
-  .market-form-row select{ flex:1; min-width:0; }
-  .matrix-grid{
-    flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
-    gap:10px; overflow-y:auto; padding-bottom:16px; min-height:0;
-  }
-  .matrix-quad{
-    border:1.5px solid; border-radius:14px; padding:10px; display:flex; flex-direction:column;
-    min-height:0; overflow:hidden;
-  }
-  .mx-title{
-    background:none; border:none; font-family:'Fraunces', serif; font-weight:600; font-size:14px;
-    width:100%; padding:0 0 4px;
-  }
-  .mx-title:focus{ outline:none; }
-  .mx-tools{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:6px; flex-wrap:wrap; row-gap:6px; }
-  .mx-colors{ display:flex; gap:4px; flex-wrap:wrap; }
-  .mx-items{ flex:1; overflow-y:auto; min-height:0; }
-  .mx-add input{
-    width:100%; background:transparent; border:none; border-top:1px dashed var(--line);
-    color:var(--text); font-size:13px; padding:7px 2px 2px;
-  }
-  .mx-add input:focus{ outline:none; }
-
-  /* ---------- MERCADO v2 ---------- */
-  .mk-chips{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
-  .mk-item{ gap:8px; }
-  .mk-name{ flex:1; min-width:0; overflow-wrap:break-word; }
-  .mk-right{ margin-left:auto; flex-shrink:0; font-family:'Inter', sans-serif; font-size:12px; color:var(--muted); text-align:right; }
-  .mk-edit{ background:var(--surface-2); border-radius:10px; padding:10px; margin:6px 0; }
-  .mk-e-name{ width:100%; background:var(--surface); border:1px solid var(--line); border-radius:9px; color:var(--text); font-size:14.5px; padding:9px 10px; margin-bottom:8px; }
-  .mk-e-name:focus{ outline:none; border-color:var(--accent); }
-  /* caixas de texto livres crescem com o conteúdo (autoGrowAll), então nada de
-     rolagem interna nem alça de resize manual */
-  textarea.mk-e-name, textarea.mx-e-text{
-    resize:none; overflow:hidden; line-height:1.5;
-    font-family:'Inter', -apple-system, sans-serif;
-  }
-  .shop-counter{ font-family:'Inter', sans-serif; font-size:44px; text-align:center; padding:8px 0 2px; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
-  .shop-counter span{ font-size:14px; color:var(--muted); -webkit-text-fill-color:var(--muted); }
-  .tmpl-new-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:18px; }
-  /* o nó que rola é o de fora (cabeçalho junto): aqui só o empilhamento */
-  .tmpl-folders{ flex:0 0 auto; }
-  /* divisor entre as pastas fixas e as que nascem das anotações de rotina */
-  .tmpl-sep{ display:flex; align-items:center; gap:10px; margin:2px 0 14px; }
-  .tmpl-sep::before, .tmpl-sep::after{ content:""; flex:1; height:1px; background:var(--line); }
-  .tmpl-sep span{
-    font-family:'Inter', sans-serif; font-size:10.5px; letter-spacing:.08em;
-    text-transform:uppercase; color:var(--muted);
-  }
-
-  /* ---------- REGISTRO DE PONTOS ---------- */
-  .sb-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:2px 0 12px; flex-wrap:wrap; }
-  .sb-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  .sb-grid{ display:grid; width:100%; align-items:stretch; }
-  .sb-grid > div{ border-bottom:1px solid var(--line); padding:6px 2px; display:flex; align-items:center; justify-content:center; min-width:0; }
-  /* a coluna do número do turno gruda à esquerda: com muitos jogadores a grade
-     rola e sem isso perde-se a referência de qual linha é qual turno */
-  .sb-idx{
-    font-family:'Inter', sans-serif; font-size:11px; color:var(--muted);
-    position:sticky; left:0; z-index:1; background:var(--bg);
-  }
-  .sb-tot.sb-idx{ background:var(--surface); }
-  /* nome em cima e o ✕ embaixo: empilhados, o cabeçalho não disputa largura */
-  .sb-h{ border-bottom:1px solid var(--line); flex-direction:column; gap:1px; }
-  .sb-name{
-    width:100%; min-width:0; background:none; border:none; color:var(--text);
-    font-family:'Fraunces', serif; font-size:14px; text-align:center; padding:2px 0;
-    text-overflow:ellipsis;
-  }
-  .sb-name:focus{ outline:none; color:var(--accent); }
-  .sb-delp{ font-size:10px; padding:0; line-height:1; }
-  .sb-tot{
-    font-family:'Inter', sans-serif; font-size:20px; font-weight:600;
-    background:var(--surface); border-bottom:2px solid var(--line) !important;
-  }
-  .sb-tot.lider{ color:var(--accent); }
-  .sb-in{
-    width:100%; min-width:0; background:none; border:none; color:var(--text);
-    font-family:'Inter', sans-serif; font-size:16px; text-align:center; padding:4px 0;
-    -moz-appearance:textfield;
-  }
-  /* 4–5 e 6+ jogadores: a tipografia encolhe para tudo caber sem rolar */
-  .sb-grid.compacto .sb-name{ font-size:12px; }
-  .sb-grid.compacto .sb-tot{ font-size:16px; }
-  .sb-grid.compacto .sb-in{ font-size:14px; }
-  .sb-grid.mini .sb-name{ font-size:10.5px; }
-  .sb-grid.mini .sb-tot{ font-size:13.5px; }
-  .sb-grid.mini .sb-in{ font-size:12.5px; }
-  .sb-grid.mini > div{ padding:5px 1px; }
-  .sb-in::-webkit-outer-spin-button, .sb-in::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
-  .sb-in:focus{ outline:none; background:var(--surface); border-radius:6px; }
-
-  /* ---------- MATRIZ v2 ---------- */
-  .matrix-single{ flex:1; display:flex; min-height:0; }
-  .matrix-single .matrix-quad{ flex:1; min-height:0; }
-  .mx-editbox{ background:var(--surface); border-radius:9px; padding:8px; margin:4px 0; }
-  .mx-e-text{ width:100%; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-size:14px; padding:8px 9px; margin-bottom:6px; }
-  .mx-e-text:focus{ outline:none; border-color:var(--accent); }
-  .mx-e-tools{ display:flex; align-items:center; gap:2px; margin-bottom:6px; flex-wrap:wrap; }
-  .mx-e-quad{ flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-size:12px; padding:6px; }
-  .mx-axes{ display:flex; gap:8px; margin-bottom:8px; }
-  .mx-axes input{ flex:1; background:var(--surface); border:1px solid var(--line); border-radius:9px; color:var(--text); font-size:13px; padding:8px 10px; }
-  .mx-axis-x{ text-align:center; font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); margin-bottom:4px; }
-  .mx-axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); display:flex; align-items:center; }
-
-  /* ---------- KANBAN ---------- */
-  .kb-board{ flex:1; display:flex; flex-direction:column; gap:10px; overflow-y:auto; padding-bottom:14px; min-height:0; }
-  .kb-col{ flex:0 0 auto; width:100%; max-height:min(46vh,360px); background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px; display:flex; flex-direction:column; min-height:0; }
-  .kb-head{ font-family:'Fraunces', serif; font-weight:600; font-size:15px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
-  /* cor por estágio (índice da coluna, ciclando se houver mais de 3) */
-  .kb-col.kb-s0{ background:var(--kb-todo-bg);  border-left:4px solid var(--kb-todo); }
-  .kb-col.kb-s1{ background:var(--kb-doing-bg); border-left:4px solid var(--kb-doing); }
-  .kb-col.kb-s2{ background:var(--kb-done-bg);  border-left:4px solid var(--kb-done); }
-  /* chips de área (multiselect das metas) */
-  .meta-areas{ display:flex; flex-wrap:wrap; gap:6px; }
-  /* anotação da meta: bloco recuado, para não se confundir com os dados do prazo */
-  .meta-nota{ margin-top:10px; padding-left:10px; border-left:2px solid var(--line); font-size:14px; line-height:1.55; }
-  .meta-nota .live-line.empty{ height:6px; }
-  .area-chip{ font-family:'Inter', sans-serif; font-size:11px; padding:5px 9px; border-radius:999px;
-    border:1px solid var(--line); color:var(--muted); background:var(--surface-2); cursor:pointer; }
-  .area-chip.sel{ border-color:var(--chip); color:var(--chip); background:transparent; }
-  .area-chips{ display:flex; flex-wrap:wrap; gap:6px; flex:1; }
-  /* filtro de área nas abas Rotinas/Metas: rola na horizontal em vez de quebrar linha.
-     Precisa anular o flex:1 de .area-chips — aqui a linha é filha direta do .screen
-     (coluna flex) e flex:1 a esticava para ocupar a altura toda da tela. */
-  .area-filter-row{ flex:0 0 auto; flex-wrap:nowrap; overflow-x:auto; margin-bottom:16px; padding-bottom:2px; }
-  .area-filter-row .area-chip{ flex:0 0 auto; }
-  /* selo da rotina já consolidada (desconto de hábito ativo na semana) */
-  .habito-chip{ font-family:'Inter', sans-serif; font-size:10.5px; color:var(--good); border:1px solid var(--good);
-    border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
-  .kb-col.kb-s0 .kb-head{ color:var(--kb-todo); }
-  .kb-col.kb-s1 .kb-head{ color:var(--kb-doing); }
-  .kb-col.kb-s2 .kb-head{ color:var(--kb-done); }
-  .kb-cards{ flex:1; overflow-y:auto; min-height:60px; }
-  /* kanban embutido numa tela que já rola (o do diário): sem altura travada e
-     sem rolagem própria, para não criar rolagem dentro de rolagem */
-  .kb-board.kb-inline{ flex:0 0 auto; overflow:visible; margin-top:2px; }
-  .kb-inline .kb-col{ max-height:none; }
-  .kb-inline .kb-cards{ overflow:visible; }
-  /* Cartão em duas linhas: texto em cima com a largura toda, controles embaixo.
-     Em linha única o texto ficava espremido entre a alça e três botões. */
-  .kb-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:9px 10px; margin-bottom:7px; display:flex; flex-direction:column; gap:6px; box-shadow: var(--shadow-1); }
-  .kb-card-top{ display:flex; align-items:flex-start; gap:6px; }
-  .kb-card-bot{ display:flex; align-items:center; gap:6px; padding-left:23px; } /* alinha com o texto, depois da alça */
-  .kb-card-bot .kb-moves{ margin-left:auto; }
-  .kb-hora{ flex-shrink:0; font-family:'Inter', sans-serif; font-size:10px; color:var(--accent-2);
-    border:1px solid var(--accent-2); border-radius:6px; padding:1px 5px; }
-  /* nota anexada à rotina, aberta por cima do player */
-  .ed-nota-sel{ flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--line);
-    border-radius:9px; color:var(--text); font-size:13px; padding:7px 9px; }
-  .nota-rot-box{ display:flex; flex-direction:column; max-height:82vh; }
-  .nota-rot-top{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .nota-rot-titulo{ flex:1; min-width:0; font-family:'Fraunces', serif; font-weight:600; font-size:17px;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .nota-rot-corpo{ flex:1; min-height:0; overflow-y:auto; font-size:14.5px; line-height:1.55; }
-  .nota-rot-ta{ width:100%; min-height:40vh; line-height:1.55; }
-  /* lista de notas já anotadas no lançamento rápido do player */
-  .qa-idea-list{ display:flex; flex-direction:column; gap:6px; max-height:34vh; overflow-y:auto; }
-  .qa-idea-row{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;
-    background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm);
-    padding:9px 11px; color:var(--text); width:100%; }
-  .qa-idea-row:active{ transform:scale(.985); background:var(--surface); }
-  /* o aspect-ratio 1/1 de .tmpl-new viraria um quadradão de largura total aqui */
-  .qa-idea-nova{ width:100%; margin-top:12px; aspect-ratio:auto; flex-direction:row; gap:8px; padding:12px; }
-  .qa-idea-nome{ font-size:14px; }
-  .qa-idea-meta{ font-family:'Inter', sans-serif; font-size:11px; color:var(--muted);
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
-  /* data numa linha, início/"até"/fim noutra — duas linhas fixas, não um
-     flex-wrap solto (que quebrava de um jeito diferente a cada largura de tela) */
-  .kb-e-horas{ display:flex; flex-direction:column; gap:8px; }
-  .kb-e-horas .kb-horas-row{ display:flex; align-items:center; gap:8px; }
-  .kb-e-horas input[type=time], .kb-e-horas input[type=date]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
-    color:var(--text); font-family:'Inter', sans-serif; font-size:13px; padding:6px 8px; }
-  .kb-e-horas input[type=date]{ flex:1; }
-  /* segmentado de coluna do kanban do Diário (uma coluna por vez) */
-  .kb-abas{ margin-bottom:8px; }
-  .kb-abas span{ flex:1; text-align:center; white-space:nowrap; }
-  .kb-abas b{ font-weight:600; opacity:.65; }
-  .kb-drag{ flex-shrink:0; color:var(--muted); font-size:15px; cursor:grab; touch-action:none; padding:2px 4px; }
-  .kb-card.dragging{ opacity:.45; }
-  .kb-col.kb-drop{ border-color:var(--accent-2); }
-  .kb-text{ flex:1; font-size:14px; min-width:0; overflow-wrap:break-word; }
-  .kb-moves{ display:flex; flex-shrink:0; gap:4px; }
-  /* alvo de toque de verdade: os ‹ › eram texto de 13px e erravam o dedo.
-     O último salto (para "Feito") vira um check verde — é a ação que fecha. */
-  .kb-move-btn{
-    width:30px; height:30px; border-radius:9px; background:var(--surface); border:1px solid var(--line);
-    color:var(--muted); font-size:17px; line-height:1; display:flex; align-items:center; justify-content:center;
-    box-shadow: var(--shadow-1); transition: transform .12s ease, background .12s ease; position:relative;
-  }
-  .kb-move-btn::after{ content:""; position:absolute; inset:-6px; border-radius:14px; }
-  .kb-move-btn:active:not(:disabled){ transform: scale(.9); background:var(--surface-2); }
-  .kb-move-btn.para-feito{ color:var(--good); font-size:14px; }
-  .kb-move-btn:disabled{ opacity:.28; box-shadow:none; }
-  /* cartão em edição empilha texto + peso: o flex em linha do .kb-card não serve */
-  .kb-card.kb-editing{ flex-direction:column; align-items:stretch; }
-  .kb-peso{
-    flex-shrink:0; font-family:'Inter', sans-serif; font-size:10px;
-    color:var(--accent); border:1px solid var(--accent-dim); border-radius:6px; padding:1px 5px;
-  }
-  .kb-peso.feito{ color:var(--good); border-color:var(--good); }
-  .kb-add{ width:100%; background:transparent; border:none; border-top:1px dashed var(--line); color:var(--text); font-size:13.5px; padding:8px 2px 2px; }
-  .kb-add:focus{ outline:none; }
-  .kb-add-horas{ display:flex; flex-direction:column; gap:6px; padding:4px 2px 2px; }
-  .kb-add-horas .kb-horas-row{ display:flex; align-items:center; gap:6px; }
-  .kb-add-horas input[type=time], .kb-add-horas input[type=date]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
-    color:var(--text); font-family:'Inter', sans-serif; font-size:12px; padding:4px 6px; }
-  .kb-add-horas input[type=date]{ flex:1; }
-
-  /* ---------- CONTAGEM / PESOS ---------- */
-  .cd-big{ font-family:'Inter', sans-serif; font-size:40px; font-weight:500; }
-  .cd-big span{ font-size:14px; color:var(--muted); }
-  .cd-big.late{ color:var(--danger); }
-  .cd-big.ontime{ color:var(--accent); }
-  .cd-big.early{ color:var(--good); }
-  .cd-topics{ display:flex; align-items:center; gap:12px; margin-top:8px; }
-  .cd-done-inp{ width:52px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:'Inter', sans-serif; font-size:14px; padding:5px 6px; text-align:center; }
-  .pc-weights{ display:flex; gap:3px; flex-shrink:0; }
-  .pc-w{ width:24px; height:24px; border-radius:6px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'Inter', sans-serif; font-size:11.5px; color:var(--muted); }
-
-  /* ---------- PAISAGEM (celular deitado) ----------
-     O app é desenhado para retrato; deitado sobra largura e falta altura. Aqui
-     o eixo curto vira a referência (vh no lugar de vw), a cromagem vertical
-     encolhe e o que era empilhado passa a usar a largura: kanban em colunas
-     lado a lado e grades com mais colunas. O recorte por max-height deixa
-     tablets deitados (altura folgada) com o layout normal. */
-  @media (orientation: landscape) and (max-height: 560px){
-    :root{ --tabbar-h: 46px; }
-    .screen{ padding:0 16px; }
-    .home-header{ margin-bottom:12px; align-items:center; }
-    .home-header h1{ font-size:23px; }
-    .section-label{ margin-top:12px; }
-
-    .tabbar button{ font-size:10.5px; gap:1px; }
-    .tabbar button .ic{ font-size:16px; }
-    .fab{ width:48px; height:48px; font-size:23px; right:16px; bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 10px); }
-
-    /* player: o mostrador passa a medir pela altura e a coluna inteira rola
-       se ainda assim não couber — nunca deixa o botão de concluir fora da tela */
-    .player{ justify-content:flex-start; gap:4px; overflow-y:auto; padding:2px 0 8px; }
-    .dial-wrap{ width:min(36vh, 190px); height:min(36vh, 190px); margin:0; }
-    .player .skip-row{ padding:4px 0 2px !important; }
-    .stepper-track{ margin-bottom:0; }
-    .dial-time .t{ font-size:34px; }
-    .dial-time .label{ font-size:13px; max-width:150px; }
-    .step-title{ font-size:12px; }
-    .checklist-body{ gap:12px; padding:10px; flex:0 0 auto; }
-    .check-circle{ width:72px; height:72px; font-size:30px; border-width:2px; }
-    .checklist-body h2{ font-size:20px; }
-    .ctrl-btn{ width:46px; height:46px; font-size:16px; }
-    .ctrl-btn.big{ width:58px; height:58px; font-size:20px; }
-    .player-controls{ gap:14px; }
-    .player-controls.five{ gap:6px; }
-    .player-controls.five .ctrl-btn{ width:42px; height:42px; }
-    .next-task-row, .estimate-row{ padding:4px 2px; }
-    .estimate-row b{ font-size:16px; }
-    .zen-time{ font-size:min(17vh, 92px); }
-    .zen-label{ font-size:17px; }
-    .zen-wrap{ gap:4px; }
-
-    /* kanban: deitado cabem as três colunas lado a lado */
-    .kb-board{ flex-direction:row; align-items:stretch; gap:8px; }
-    .kb-col{ flex:1 1 0; width:auto; min-width:0; max-height:none; }
-    .kb-board.kb-inline{ min-height:200px; }
-    .kb-card{ padding:7px 8px; }
-
-    /* grades e formulários aproveitam a largura extra */
-    .tmpl-new-grid{ grid-template-columns:repeat(4, 1fr); }
-    .confirm-overlay{ padding:12px; align-items:flex-start; }
-    .confirm-box{ max-height:94vh; overflow-y:auto; max-width:520px; }
-    .confirm-overlay.search-overlay{ padding:12px; }
-    .search-box{ max-height:94vh; }
-  }
-
-  /* ---------- DESKTOP (tela larga) ----------
-     Mesmo DOM/JS do celular (renderTabbar, .home-header) — só a CSS muda: a
-     tabbar vira uma sidebar fixa à esquerda (coluna em vez de linha) e cada
-     .home-header vira uma topbar grudada no topo da PRÓPRIA área que rola
-     (sticky, não fixed). Funciona nos dois padrões de tela que já existem:
-     onde o header é irmão de uma lista com scroll próprio (Rotinas), o sticky
-     não muda nada; onde o header mora DENTRO de .tab-scroll/#diBody (Metas,
-     Diário, Modelos, Dados — ver nota de arquitetura sobre cabeçalho não-fixo),
-     o sticky é o que faz ele virar uma topbar de verdade ao rolar o conteúdo.
-     Layout inspirado em plataformas tipo Estudei/Estratégia Concursos: nav
-     lateral + coluna de conteúdo central, sem o vão morto de esticar em
-     monitores largos. */
-  @media (min-width: 900px){
-    /* 196px cabe "Conhecimento Sistêmico"? não — mas nenhum rótulo da nav passa
-       de "Modelos". A sidebar existe para navegar, não para preencher pixel. */
-    :root{ --sidebar-w: 196px; }
-    #app{ padding-top:0; }
-    .screen{ margin-left:var(--sidebar-w); max-width:1060px; padding:0 40px; }
-    .screen.with-tabbar{ padding-bottom:28px; }
-
-    .tabbar{
-      left:0; right:auto; top:0; bottom:0; width:var(--sidebar-w); height:auto;
-      flex-direction:column; align-items:stretch; justify-content:flex-start;
-      padding:22px 10px; gap:2px; border-top:none; border-right:1px solid var(--line);
-      backdrop-filter:none; -webkit-backdrop-filter:none; background:var(--surface);
-    }
-    .tabbar::before{
-      content:"Rotinas"; display:block; font-family:'Fraunces', serif; font-weight:600;
-      font-size:18px; padding:0 10px 18px; color:var(--text); letter-spacing:-.01em;
-    }
-    .tabbar button{
-      /* flex:1 vem do mobile (5 abas dividindo a LARGURA). Numa coluna ele passa
-         a dividir a ALTURA e espalha os 5 itens pela tela inteira. */
-      flex:0 0 auto;
-      flex-direction:row; justify-content:flex-start; align-items:center; gap:10px;
-      padding:9px 10px; border-radius:var(--radius-sm); font-size:14px;
-      transition: background .14s ease, color .14s ease;
-    }
-    .tabbar button .ic{ font-size:18px; padding:0; border-radius:0; }
-    .tabbar button:hover{ background:var(--surface-2); color:var(--text); }
-    .tabbar button.active, .tabbar button.active:hover{ background:var(--accent-soft); color:var(--accent); }
-    .tabbar button.active .ic{ background:none; }
-
-    .home-header{
-      position:sticky; top:0; z-index:10; background:var(--bg);
-      padding-top:22px; padding-bottom:16px; margin-bottom:6px; border-bottom:1px solid var(--line);
-    }
-
-    /* ---- Ponteiro: o app inteiro foi desenhado para toque (:active) e numa
-       tela com mouse fica sem resposta ao passar por cima. Estes :hover são o
-       equivalente desktop do afundar-no-toque, sem mexer no comportamento
-       tátil. Sob `any-hover` para não pegar tablet/touch em tela larga. */
-    @media (any-hover: hover){
-      .routine-card:hover, .note-card:hover, .stat-card:hover, .tar-item:hover{
-        border-color:var(--accent-dim); box-shadow:var(--shadow-2);
-      }
-      .icon-btn:hover, .bell-btn:hover, .kb-move-btn:hover:not(:disabled), .ctrl-btn:hover{
-        background:var(--surface-2); color:var(--text); border-color:var(--accent-dim);
-      }
-      .bell-btn.on:hover{ color:var(--accent); }
-      .tmpl-new:hover{ border-color:var(--accent); background:var(--surface-2); }
-      .kb-card:hover{ border-color:var(--accent-dim); }
-      .area-chip:hover{ border-color:var(--accent-dim); color:var(--text); }
-      .type-toggle span:hover{ color:var(--text); }
-      .live-line:hover{ background:var(--surface); }
-      .fab:hover{ transform: scale(1.04); }
-      .del-exec:hover{ color:var(--danger); }
-    }
-
-    /* ---- Listas em duas colunas: um card de rotina/meta tem título + duas
-       linhas de meta; esticado a 1000px sobra tarja vazia à direita. */
-    .routine-list, .notes-list{
-      display:grid; grid-template-columns:repeat(2, minmax(0,1fr));
-      gap:12px; align-content:start; overflow-y:visible;
-    }
-    #metasBody{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; align-items:start; }
-    #metasBody > .stat-card{ margin-bottom:0; }
-    /* empty-state e cabeçalhos de seção ocupam a linha inteira, não meia coluna */
-    .routine-list > .empty-state, .notes-list > .empty-state,
-    #metasBody > .empty-state{ grid-column:1 / -1; }
-
-    /* ---- Modelos: o aspect-ratio 1/1 vira um quadradão de 300px numa grade
-       larga. Altura fixa e mais colunas deixam a pasta com cara de pasta. */
-    .tmpl-new-grid{ grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; }
-    .tmpl-new{ aspect-ratio:auto; min-height:96px; font-size:13px; }
-    .tmpl-ic{ font-size:22px; height:22px; }
-
-    /* ---- FAB rotulado: um "+" flutuante e mudo é linguagem de celular; no
-       desktop o mesmo botão diz o que cria, usando o title que já existe. */
-    .fab{
-      right:40px; bottom:32px; width:auto; height:46px; border-radius:23px;
-      padding:0 20px; gap:8px; font-size:20px;
-    }
-    .fab[title]::after{
-      content: attr(title); font-family:'Inter'; font-size:14px; font-weight:500; letter-spacing:-.01em;
-    }
-    .fab:active{ transform: scale(.96); }
-
-    /* ---- Medida de leitura: uma linha com ~950px cansa de ler e de escrever.
-       O seletor filho-direto pega o editor de NOTA (filho do .screen) e deixa
-       de fora o do Diário, que já vive numa coluna estreita (.di-pane-body). */
-    .screen > .live-editor, .screen > .note-title-input{ max-width:70ch; }
-    .empty-state p{ max-width:340px; }
-
-    /* ---- Diário em três colunas (agenda | anotação | kanban).
-       Cada painel rola sozinho: a agenda tem 24h de altura e faria a página
-       inteira rolar atrás dela. #diBody perde o scroll próprio para não criar
-       duas barras concorrentes. */
-    .di-body{ overflow:hidden; display:flex; flex-direction:column; }
-    .di-body > #diContent{ flex:1; min-height:0; display:flex; flex-direction:column; }
-    .di-cols{
-      flex:1; min-height:0; display:grid; gap:18px;
-      grid-template-columns: minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr);
-    }
-    .di-pane{ display:flex; flex-direction:column; min-height:0; min-width:0; }
-    .di-pane > .section-label{ margin:0 0 8px; }
-    .di-pane-body{
-      flex:1; min-height:0; overflow-y:auto; padding:12px;
-      background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-    }
-    /* dentro do painel a agenda já tem o respiro do próprio padding */
-    .di-pane-body .ag-wrap, .di-pane-body .ag-grupos{ margin:0; }
-    .di-pane-body .di-live{ min-height:100%; padding-bottom:0; }
-    /* o kanban empilhado é a forma certa numa coluna estreita */
-    .di-pane-body .kb-board.kb-inline{ min-height:0; }
-
-    /* ---- Barra de rolagem discreta: a padrão do macOS/Windows corta o
-       arredondamento dos painéis e briga com o tema escuro. */
-    *{ scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
-    ::-webkit-scrollbar{ width:10px; height:10px; }
-    ::-webkit-scrollbar-track{ background:transparent; }
-    ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:6px; border:3px solid var(--bg); }
-    ::-webkit-scrollbar-thumb:hover{ background:var(--muted); }
-
-    /* ---- Modais: centralizados num monitor grande ficam pequenos demais no
-       centro de um vazio enorme; um teto de largura mantém a proporção. */
-    .confirm-box{ max-width:460px; }
-    .search-box{ max-width:640px; }
-
-    /* ---- A barra de atalhos markdown existe para o teclado VIRTUAL, que come
-       metade da tela e deixa os símbolos longe. Com teclado físico ela vira
-       uma faixa flutuante por cima da sidebar, sem função. */
-    .md-toolbar{ display:none; }
-
-    /* ---- Segmentado (Prazos|Recorrentes, Dia|Semana|Mês|Ano) abraça o próprio
-       conteúdo: esticado por 550px vira uma faixa, e não um controle. */
-    .type-toggle{ align-self:flex-start; width:fit-content; font-size:12px; }
-    .type-toggle span{ padding:5px 12px; }
-  }
-</style>
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 <div id="app"></div>
@@ -1348,8 +55,6 @@ window.addEventListener("unhandledrejection", function(e){
   const K_LASTBACKUP = "rotinas_v2_lastbackup";
   const K_TEMPLATES = "rotinas_v2_templates";
   const K_SNOOZES   = "rotinas_v2_snoozes";
-  const K_TAREFAS  = "rotinas_v2_tarefas";
-  const K_TAREFAS_HIST = "rotinas_v2_tarefas_hist";
   const K_AUTOBAK  = "rotinas_v2_autobackup";
   const K_MIGRATED = "rotinas_v2_migrated";
   const K_GAMIFICACAO = "rotinas_v2_gamificacao";
@@ -1361,7 +66,6 @@ window.addEventListener("unhandledrejection", function(e){
   const K_NAOFEITAS = "rotinas_v2_naofeitas"; // etapas marcadas como não feitas hoje
   const K_DIAKANBAN = "rotinas_v2_diakanban"; // kanban do diário, por dia
   const K_SOHOJE   = "rotinas_v2_so_hoje";    // filtro "só as rotinas de hoje" na aba Rotinas
-  const K_HOMEAREA = "rotinas_v2_home_area";  // filtro de área da roda da vida nas abas Rotinas/Metas
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
   const K_WEEKSTART = "rotinas_v2_weekstart"; // dia (0=domingo..6=sábado) em que a semana começa a contar
@@ -1861,17 +565,12 @@ window.addEventListener("unhandledrejection", function(e){
     { id:"exercicios",  label:"Exercícios Físicos",    area:"Musculação",    color:"#6B8F71" },
     { id:"sistemico",   label:"Conhecimento Sistêmico",area:"Medicina",      color:"#B25B4C" }
   ];
-  let tarefas  = load(K_TAREFAS, []);
-  let tarefasHist = load(K_TAREFAS_HIST, []);
-  tarefas.forEach((m,i)=>{ if(m.ord===undefined) m.ord=i; if(m.tagValor===undefined) m.tagValor="medio"; });
 
   let view = { tab: "metas", screen: "metas" };
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
   let horasBudget = load(K_HORASBUDGET, 40); // orçamento de tempo do Boletim (horas/semana)
   // era single-select (string); migra pra multi-select (array) na leitura
-  let homeAreaFiltro = load(K_HOMEAREA, []); // string[] de ids de área (ou FILTRO_SEM_AREA); [] = todas
-  if(!Array.isArray(homeAreaFiltro)) homeAreaFiltro = homeAreaFiltro ? [homeAreaFiltro] : [];
   const K_METASSUBVIEW = "rotinas_v2_metas_subview";       // legado, só para migração
   const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
   // multiselect: array com "prazos" e/ou "recorrentes" — permite ver os dois
@@ -1891,36 +590,6 @@ window.addEventListener("unhandledrejection", function(e){
      referencia — um `let` lá embaixo ficaria em TDZ no primeiro render. */
   let repintarAgendaDoDiario = null;
   let agendaRepaintTimer = null;
-  /* Filtro de área, compartilhado entre a aba Rotinas e a aba Metas — só é
-     desenhado com rodaAtiva(). `getArea(item)` deve devolver o mesmo formato
-     de areaDaRotina: "" para sem área. */
-  function areaFiltroChipsHtml(){
-    if(!rodaAtiva() || !rodaAreas().length) return "";
-    // sem chip "todas": nenhuma tag marcada já É "todas". Um toque marca,
-    // outro toque desmarca (mesmo padrão multiselect do filtro de Metas).
-    return `<div class="area-chips area-filter-row" id="areaFiltroRow">`
-      + `<span class="area-chip ${homeAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-areaf="${FILTRO_SEM_AREA}" style="--chip:var(--muted);">sem área</span>`
-      + rodaAreas().map(a=>`<span class="area-chip ${homeAreaFiltro.includes(a.id)?'sel':''}" data-areaf="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
-      + `</div>`;
-  }
-  function wireAreaFiltroChips(el){
-    const row = el.querySelector("#areaFiltroRow");
-    if(!row) return;
-    row.querySelectorAll("[data-areaf]").forEach(ch=>{
-      ch.onclick = () => {
-        const v = ch.dataset.areaf;
-        const pos = homeAreaFiltro.indexOf(v);
-        if(pos >= 0) homeAreaFiltro.splice(pos, 1); else homeAreaFiltro.push(v);
-        save(K_HOMEAREA, homeAreaFiltro);
-        render();
-      };
-    });
-  }
-  function passaFiltroArea(area){
-    if(homeAreaFiltro.length === 0) return true;
-    if(homeAreaFiltro.includes(FILTRO_SEM_AREA) && !area) return true;
-    return homeAreaFiltro.some(id => id !== FILTRO_SEM_AREA && id === area);
-  }
   /* Filtro de área MULTISELECT específico da aba Metas — pedido para poder ver
      metas de mais de uma área ao mesmo tempo. Array vazio = todas (sem chip
      "todas" explícito — nenhuma tag marcada já é "todas"). */
@@ -2005,7 +674,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-20 (v25)";
+  const BUILD_STAMP = "2026-08-22 (v26)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2245,7 +914,6 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function rotinaTagEfetiva(r){ return r.tagValor || "medio"; }
   function stepTagEfetiva(s, r){ return s.tagValor || rotinaTagEfetiva(r); }
-  function tarefaTagEfetiva(t){ return t.tagValor || "medio"; }
 
   /* ---- HÁBITO CONSOLIDADO ----
      Uma rotina que já emendou `streakMin` execuções não precisa mais valer o
@@ -2705,8 +1373,8 @@ window.addEventListener("unhandledrejection", function(e){
     delete t.creditos;
   }
 
-  // tipo: "step" (etapa de rotina), "tarefa" (módulo de estudo) ou "kanban"
-  // (cartão do diário). Retorna a entrada criada em concluidos (ou null se não
+  // tipo: "step" (etapa de rotina) ou "kanban" (cartão do diário).
+  // Retorna a entrada criada em concluidos (ou null se não
   // pontuou) para permitir desfazer a conclusão depois.
   function registrarConclusao(tipo, dados){
     avancarGamificacaoAteAgora();
@@ -2738,9 +1406,6 @@ window.addEventListener("unhandledrejection", function(e){
       // passam por aqui, vão para gam.metasPontos. Entra no próprio `pb` para
       // que repararFatorSemanaAtual reescale a entrada sem perder o escopo.
       pb *= (dados.mult || 1);
-      pontos = pb * fatorDaArea(area);
-    } else {
-      itemId = "tarefa:"+dados.tarefaId+":"+dataISO+":"+uid();
       pontos = pb * fatorDaArea(area);
     }
     // `pb` fica guardado para permitir reescalar a entrada se o fator da semana
@@ -2999,20 +1664,37 @@ window.addEventListener("unhandledrejection", function(e){
      do boletim, mas sem a linha "Sem área" (ela não diz nada sobre a roda) e
      sem seções nem rodapé explicativo. Vazio (sem chamar attention) quando não
      há pelo menos uma área com pontos. */
+  /* O boletim deixou de ter card próprio na home: a nota da semana virou o
+     RODAPÉ deste card, e o card inteiro é o caminho para a tela de boletim
+     (delegação em [data-boletimcard], logo abaixo — assim vale nas quatro abas
+     que desenham a roda, sem religar handler a cada paint()). Sem nada
+     agendado não há nota, e sem áreas não há barra: faltando os dois, o card
+     não existe. */
   function rodaVidaResumoHtml(){
     const roda = pontosPorAreaSemana();
     const linhas = roda.linhas.filter(l=>l.label !== "Sem área");
-    if(!linhas.length) return "";
+    const temNota = gam.semanaAtual.totalBrutoAgendado > 0;
+    if(!linhas.length && !temNota) return "";
     const max = Math.max(...linhas.map(l=>Math.max(l.pontos, l.previsto)), 0);
-    return `<div class="stat-card roda-resumo-card" style="margin-bottom:14px;">
+    let rodape = "";
+    if(temNota){
+      const r = ritmoInfo(), d = r.diasRestantes;
+      rodape = `<div class="roda-boletim">Nota <b style="color:${r.cor};">${r.nota.toFixed(1)}</b>/100 · <span style="color:${r.cor};">${r.label}</span> · ${d} dia${d>1?'s':''} restante${d>1?'s':''}</div>`;
+    }
+    return `<div class="stat-card roda-resumo-card" data-boletimcard="1" role="button" tabindex="0" title="Ver o boletim da semana" style="margin-bottom:14px; cursor:pointer;">
       <div class="section-label" style="margin-top:0;">Roda da vida — semana</div>
       ${linhas.map(l=>`<div class="bar-row">
         <div class="bar-name" style="color:${l.color};">${escapeHtml(l.label)}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${max ? Math.max(3, Math.round(l.pontos/max*100)) : 0}%; background:${l.color};"></div></div>
         <div class="bar-val" style="width:auto; white-space:nowrap; flex:0 0 auto;">${l.pontos.toFixed(1)}${l.previsto ? " / " + l.previsto.toFixed(0) : ""}</div>
       </div>`).join("")}
+      ${rodape}
     </div>`;
   }
+  document.addEventListener("click", e => {
+    const alvo = e.target.closest && e.target.closest("[data-boletimcard]");
+    if(alvo) goTo({ tab:"home", screen:"boletim" });
+  });
 
   function alternarDispensaSemana(){
     gam.semanaAtual.dispensada = !gam.semanaAtual.dispensada;
@@ -3864,8 +2546,12 @@ window.addEventListener("unhandledrejection", function(e){
   /* Busca e Configurações são alcançáveis do topo de TODAS as abas, sempre no
      nível do título e do lado oposto a ele. Um par html+wire para não repetir
      os botões (nem o destino) em cinco telas. */
-  function cfgBtnHtml(){
-    return `<button class="bell-btn" data-searchbtn="1" title="Buscar em tudo" aria-label="Buscar em tudo">${svgIcon(ICON_D.magnifyingGlass,16)}</button>`
+  /* `opts.busca:false` esconde a lupa — usado só por Dados, cujo cabeçalho já
+     carrega backup/importar/relatório e não tem largura para mais um ícone.
+     A busca continua a um toque nas outras quatro abas e na tecla "/". */
+  function cfgBtnHtml(opts){
+    const busca = !opts || opts.busca !== false;
+    return (busca ? `<button class="bell-btn" data-searchbtn="1" title="Buscar em tudo" aria-label="Buscar em tudo">${svgIcon(ICON_D.magnifyingGlass,16)}</button>` : "")
          + `<button class="bell-btn" data-cfgbtn="1" title="${syncConflictCount>0?'Configurações — há conflito de sincronização pendente':'Configurações'}" aria-label="Configurações">${svgIcon(ICON_D.settings, 17)}<span class="sync-conflict-dot" data-syncdot="1" style="${syncConflictCount>0?'':'display:none;'}"></span></button>`;
   }
   function wireCfgBtn(scope){
@@ -3903,17 +2589,34 @@ window.addEventListener("unhandledrejection", function(e){
   function areaOptionsFromData(){
     const out = EIXOS.map(e=>({ id:e.id, label:e.label }));
     const vistos = new Set(out.map(o=>o.id));
-    [...routines.map(r=>r.eixo), ...tarefas.map(t=>t.eixo), ...diaKanban.map(c=>c.eixo)].forEach(v=>{
+    [...routines.map(r=>r.eixo), ...diaKanban.map(c=>c.eixo)].forEach(v=>{
       if(v && !vistos.has(v)){ vistos.add(v); out.push({ id:v, label:v }); }
     });
     return out;
   }
+  /* Filtro de TIPO da busca global. Escopo de sessão (não persistido): é um
+     recorte para achar uma coisa agora, não uma preferência duradoura — mesma
+     razão do filtro de área do kanban do Diário. */
+  const GS_TIPOS = [
+    { key:"tudo",     label:"tudo" },
+    { key:"rotinas",  label:"rotinas" },
+    { key:"metas",    label:"metas" },
+    { key:"notas",    label:"notas" },
+    { key:"modelos",  label:"modelos" },
+    { key:"diario",   label:"diário" },
+    { key:"kanban",   label:"kanban" }
+  ];
+  let gsTipo = "tudo";
+
   function openGlobalSearch(){
     const ov = document.createElement("div");
     ov.className = "confirm-overlay search-overlay";
     const areaOpts = areaOptionsFromData();
     ov.innerHTML = `<div class="confirm-box search-box" role="dialog" aria-modal="true" aria-label="Busca" style="text-align:left;">
-      <input type="search" id="globalSearch" class="note-search" style="margin-bottom:10px;" placeholder="Buscar rotinas, tarefas, notas, modelos, histórico, diário...">
+      <input type="search" id="globalSearch" class="note-search" style="margin-bottom:10px;" placeholder="Buscar rotinas, metas, notas, modelos, histórico, diário...">
+      <div class="area-chips area-filter-row" id="gsTipos" style="margin-bottom:10px;">
+        ${GS_TIPOS.map(t=>`<span class="area-chip ${gsTipo===t.key?'sel':''}" data-gstipo="${t.key}" style="--chip:var(--accent);">${t.label}</span>`).join("")}
+      </div>
       <div class="sched-time-row" style="margin:0 0 10px; gap:8px;">
         <select id="gsPeso" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 6px; font-size:13px; color:var(--text);">
           <option value="">peso: todos</option>
@@ -3943,35 +2646,60 @@ window.addEventListener("unhandledrejection", function(e){
       if(q.length < 2) return;
       const peso = ov.querySelector("#gsPeso").value;
       const area = ov.querySelector("#gsArea").value;
+      /* Nota, modelo, diário e histórico não têm peso nem área: com um desses
+         filtros ligados eles não podem "passar", então ficam de fora em vez de
+         aparecerem ignorando o filtro que o usuário acabou de escolher. */
       const semFiltro = !peso && !area;
+      const quer = tipo => gsTipo === "tudo" || gsTipo === tipo;
       const hits = [];
-      routines.forEach(r=>{
+
+      if(quer("rotinas")) routines.forEach(r=>{
         if(peso && (r.tagValor||"medio") !== peso) return;
         if(area && (r.eixo||"") !== area) return;
-        if((r.name||"").toLowerCase().includes(q))
-          hits.push({ icon:r.icon||svgIcon(ICON_D.play,16), title:r.name, sub:"Rotina", go:()=>{ goTo({tab:"home",screen:"routineDetail",id:r.id}); } }); });
-      tarefas.forEach(t=>{
-        if(peso && (t.tagValor||"medio") !== peso) return;
-        if(area && (t.eixo||"") !== area) return;
-        if(((t.tipo||"")+" "+(t.conteudo||"")+" "+(t.area||"")).toLowerCase().includes(q))
-          hits.push({ icon:svgIcon(ICON_D.check,13), title:(t.tipo?t.tipo+": ":"")+(t.conteudo||""), sub:"Tarefa"+(t.area?" · "+t.area:""), go:()=>{ tarefaDraft = JSON.parse(JSON.stringify(t)); goTo({tab:"tarefas",screen:"tarefaEditor"}); } }); });
+        if(!(r.name||"").toLowerCase().includes(q)) return;
+        hits.push({
+          icon:r.icon||svgIcon(ICON_D.play,16), title:r.name, sub:"Rotina",
+          go:()=>{ goTo({tab:"home",screen:"routineDetail",id:r.id}); },
+          acao:{ label:svgIcon(ICON_D.play,14), title:"Iniciar rotina", fecha:true, run:()=>startPlayer(r.id) }
+        });
+      });
+
+      /* Metas nunca tinham entrado na busca — só o texto do card as encontrava,
+         e só depois de já estar na aba certa. */
+      if(quer("metas") && semFiltro) templates.filter(t=>t.type==="countdown").forEach(doc=>{
+        (doc.targets||[]).forEach(t=>{
+          if(!(t.title||"").toLowerCase().includes(q)) return;
+          const feito = t.done||0, alvo = t.topics||0;
+          hits.push({ icon:svgIcon(ICON_D.countdown,14), title:t.title,
+            sub:`Meta · ${feito}/${alvo}${t.date?" · até "+t.date:""}`,
+            go:()=>{ goTo({tab:"metas",screen:"metas"}); } });
+        });
+        (doc.recorrentes||[]).forEach(rec=>{
+          if(!(rec.title||"").toLowerCase().includes(q)) return;
+          hits.push({ icon:svgIcon(ICON_D.arrowPath,14), title:rec.title, sub:"Meta recorrente",
+            go:()=>{ goTo({tab:"metas",screen:"metas"}); } });
+        });
+      });
+
       if(semFiltro){
-        notes.forEach(n=>{ if(((n.title||"")+" "+(n.content||"")).toLowerCase().includes(q))
+        if(quer("notas")) notes.forEach(n=>{ if(((n.title||"")+" "+(n.content||"")).toLowerCase().includes(q))
           hits.push({ icon:svgIcon(ICON_D.notes,14), title:n.title||"Sem título", sub:"Nota", go:()=>openNoteEditor(n.id) }); });
-        templates.forEach(t=>{ if((t.title||"").toLowerCase().includes(q))
+        if(quer("modelos")) templates.forEach(t=>{ if(t.type!=="countdown" && (t.title||"").toLowerCase().includes(q))
           hits.push({ icon:(TMPL_TYPES.find(x=>x.type===t.type)||{}).icon||svgIcon(ICON_D.templates,14), title:t.title, sub:"Modelo", go:()=>{ goTo({tab:"templates",screen:"templateDoc",id:t.id}); } }); });
         // Histórico: só entra quando a rotina de origem já foi excluída — enquanto
         // ela ainda existir, a busca por rotinas acima já encontra o mesmo nome.
-        const rotinasVistas = new Set();
-        history.forEach(h=>{
-          if(!h.routineName || rotinasVistas.has(h.routineId)) return;
-          if(!h.routineName.toLowerCase().includes(q)) return;
-          rotinasVistas.add(h.routineId);
-          if(routines.some(r=>r.id===h.routineId)) return;
-          hits.push({ icon:svgIcon(ICON_D.clock,14), title:h.routineName, sub:"Histórico (rotina excluída)", go:()=>{ goTo({tab:"stats",screen:"stats"}); } });
-        });
+        if(quer("rotinas")){
+          const rotinasVistas = new Set();
+          history.forEach(h=>{
+            if(!h.routineName || rotinasVistas.has(h.routineId)) return;
+            if(!h.routineName.toLowerCase().includes(q)) return;
+            rotinasVistas.add(h.routineId);
+            if(routines.some(r=>r.id===h.routineId)) return;
+            hits.push({ icon:svgIcon(ICON_D.clock,14), title:h.routineName, sub:"Histórico (rotina excluída)", go:()=>{ goTo({tab:"stats",screen:"stats"}); } });
+          });
+        }
         // Diário: um resultado por período com texto batendo, abre direto nele.
-        Object.keys(diario).forEach(k=>{
+        if(quer("diario")) Object.keys(diario).forEach(k=>{
           const texto = diario[k];
           if(!texto || !texto.toLowerCase().includes(q)) return;
           const escopo = escopoDoPer(k);
@@ -3979,15 +2707,26 @@ window.addEventListener("unhandledrejection", function(e){
           hits.push({ icon:svgIcon(ICON_D.calendar,14), title: diarioRotulo(escopo, iso), sub:"Diário", go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
         });
       }
+
       // Cartões do kanban do Diário, em qualquer escopo/período.
-      diaKanban.forEach(c=>{
+      if(quer("kanban")) diaKanban.forEach(c=>{
         if(peso && (c.tagValor||"nenhum") !== peso) return;
         if(area && (c.eixo||"") !== area) return;
         if(!c.text || !c.text.toLowerCase().includes(q)) return;
         const escopo = escopoDoPer(c.per);
         const iso = c.per.slice(c.per.indexOf(":")+1);
-        hits.push({ icon:svgIcon(ICON_D.clipboard,14), title:c.text, sub:"Kanban · "+diarioRotulo(escopo, iso), go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
+        const feito = c.col === "done";
+        hits.push({
+          icon:svgIcon(ICON_D.clipboard,14), title:c.text,
+          sub:"Kanban · "+diarioRotulo(escopo, iso)+(feito?" · feito":""),
+          go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); },
+          /* Concluir/reabrir sem sair da busca: passa pela MESMA função da
+             agenda do Diário, então a pontuação é reconciliada igual. */
+          acao:{ label:svgIcon(feito?ICON_D.arrowUturnRight:ICON_D.check,14), title:feito?"Reabrir cartão":"Concluir cartão",
+                 fecha:false, run:()=>{ alternarCartaoFeitoNaAgenda(c.id, c.per); } }
+        });
       });
+
       if(hits.length === 0){
         results.innerHTML = `<div class="routine-meta" style="padding:8px 2px;">Nada encontrado.</div>`;
         return;
@@ -3996,8 +2735,16 @@ window.addEventListener("unhandledrejection", function(e){
         const card = document.createElement("div");
         card.className = "routine-card";
         card.style.cursor = "pointer";
-        card.innerHTML = `<div class="note-info"><h3>${h.icon} ${escapeHtml(h.title)}</h3><div class="routine-meta" style="margin-top:2px;">${escapeHtml(h.sub)}</div></div>`;
+        card.innerHTML = `<div class="note-info" style="flex:1; min-width:0;"><h3>${h.icon} ${escapeHtml(h.title)}</h3><div class="routine-meta" style="margin-top:2px;">${escapeHtml(h.sub)}</div></div>`
+          + (h.acao ? `<div class="routine-actions"><button class="icon-btn" data-gsacao="1" title="${escapeHtml(h.acao.title)}" aria-label="${escapeHtml(h.acao.title)}">${h.acao.label}</button></div>` : "");
         card.onclick = () => { close(); h.go(); };
+        const btn = card.querySelector("[data-gsacao]");
+        if(btn) btn.onclick = e => {
+          e.stopPropagation(); // o card inteiro navega; o botão age no lugar
+          h.acao.run();
+          if(h.acao.fecha){ close(); render(); }
+          else paint(); // repinta a lista para o resultado refletir o novo estado
+        };
         results.appendChild(card);
       });
       if(hits.length > 20){
@@ -4008,13 +2755,20 @@ window.addEventListener("unhandledrejection", function(e){
         results.appendChild(more);
       }
     }
-    // varredura completa de routines/tarefas/notes/templates/history/diario a
+    // varredura completa de routines/notes/templates/history/diario a
     // cada tecla fica mais pesada com anos de dado acumulado — debounce evita
     // recalcular a cada tecla digitada, só na pausa da digitação
     let searchTimer = null;
     input.oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(paint, 180); };
     ov.querySelector("#gsPeso").onchange = paint;
     ov.querySelector("#gsArea").onchange = paint;
+    ov.querySelectorAll("[data-gstipo]").forEach(ch=>{
+      ch.onclick = () => {
+        gsTipo = ch.dataset.gstipo;
+        ov.querySelectorAll("[data-gstipo]").forEach(x=> x.classList.toggle("sel", x.dataset.gstipo === gsTipo));
+        paint();
+      };
+    });
     input.focus();
   }
 
@@ -4071,6 +2825,35 @@ window.addEventListener("unhandledrejection", function(e){
      Rotina sem agendamento não tem dia devido, então fica fora do filtro. */
   function rotinaOcorreHoje(r){
     return rotinaAgendadaEm(r, new Date());
+  }
+  /* Rotina "sem dia fixo" = sem agendamento ativo: não tem dia devido, mas
+     também nunca está fora de dia. Some do filtro "hoje" exatamente no modo em
+     que se quer saber o que ainda dá para fazer — por isso o filtro da home
+     usa rotinaCabeEmHoje, e não rotinaOcorreHoje direto. As outras chamadas de
+     rotinaOcorreHoje (nudge, MCP, notificações) querem mesmo só o que tem dia
+     devido e continuam como estavam. */
+  function rotinaSemDiaFixo(r){ return !r || !r.schedule || !r.schedule.enabled; }
+  function rotinaCabeEmHoje(r){ return rotinaOcorreHoje(r) || rotinaSemDiaFixo(r); }
+
+  /* Execução de hoje de uma rotina (a mais recente do dia). Alimenta as duas
+     coisas que a home faz com "já concluída": mandar o card para o fim da lista
+     e trocar o chip de horário PLANEJADO pelo horário REAL da execução. */
+  function execucaoDeHoje(routineId){
+    const hoje = localKey();
+    for(let i = history.length - 1; i >= 0; i--){
+      const h = history[i];
+      if(h.routineId === routineId && h.date === hoje) return h;
+    }
+    return null;
+  }
+  /* `startedTs` só existe nas execuções gravadas a partir desta versão; para as
+     antigas o início é reconstruído a partir do fim (`ts`) menos o tempo que a
+     execução levou de verdade, pausas incluídas. */
+  function horarioRealChipHtml(h){
+    const fimD = new Date(h.ts);
+    const iniD = new Date(h.startedTs != null ? h.startedTs : h.ts - ((h.actualSec||0) + (h.pausedSec||0)) * 1000);
+    const hm = d => formatHM(d.getHours()*60 + d.getMinutes());
+    return `<div class="sched-chip" style="color:var(--good);">${svgIcon(ICON_D.check,13)} ${hm(iniD)} &rarr; ${hm(fimD)}</div>`;
   }
 
   /* A lista de rotinas fica sempre em ordem de horário de início. Rotina sem
@@ -4157,10 +2940,6 @@ window.addEventListener("unhandledrejection", function(e){
     else if(view.screen === "player") renderPlayer();
     else if(view.screen === "done") renderDone();
     else if(view.screen === "routineDetail") renderRoutineDetail();
-    else if(view.screen === "tarefas") renderTarefas();
-    else if(view.screen === "tarefaEditor") renderTarefaEditor();
-    else if(view.screen === "tarefaTimer") renderTarefaTimer();
-    else if(view.screen === "tarefaImportPreview") renderTarefaImportPreview();
     else if(view.screen === "boletim") renderBoletim();
     else if(view.screen === "settings") renderSettings();
     else if(view.screen === "semanaFechada") renderSemanaFechada();
@@ -4258,16 +3037,14 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       </div>
       ${rodaVidaResumoHtml()}
+      <div id="homeSemanaFechada"></div>
       <div class="header-right" style="margin-bottom:18px; flex-wrap:wrap;">
         <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">hoje</button>
         <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">${svgIcon(ICON_D.calendar,14)} agenda</button>
-        <button class="bell-btn" id="boletimBtn" title="Boletim da semana" aria-label="Boletim da semana">${svgIcon(ICON_D.trophy, 17)}</button>
         <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
       </div>
-      ${areaFiltroChipsHtml()}
     `;
     el.appendChild(scroll);
-    wireAreaFiltroChips(scroll);
     // aviso de backup vem antes de tudo: é o único card cujo custo de ignorar
     // é perda de dados
     if(backupOverdue()){
@@ -4300,22 +3077,8 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="routine-meta">Nota ${semFechada.nota.toFixed(1)} — toque para ver o fechamento</div>
         </div>`;
       fc.onclick = () => { goTo({ tab:"home", screen:"semanaFechada" }); };
-      scroll.appendChild(fc);
-    }
-
-    if(gam.semanaAtual.totalBrutoAgendado > 0){
-      const rInfo = ritmoInfo();
-      const boletimCard = document.createElement("div");
-      boletimCard.className = "routine-card pinned-card";
-      boletimCard.style.cursor = "pointer";
-      boletimCard.innerHTML = `
-        <div class="routine-info">
-          <h3>Boletim da semana</h3>
-          <div class="routine-meta">Nota <b style="color:${rInfo.cor};">${rInfo.nota.toFixed(1)}</b>/100 · <span style="color:${rInfo.cor};">${rInfo.label}</span> · ${rInfo.diasRestantes} dia${rInfo.diasRestantes>1?'s':''} restante${rInfo.diasRestantes>1?'s':''}</div>
-        </div>
-      `;
-      boletimCard.onclick = () => { goTo({ tab:"home", screen:"boletim" }); };
-      scroll.appendChild(boletimCard);
+      // slot logo acima da linha "hoje / agenda", não no fim do cabeçalho
+      scroll.querySelector("#homeSemanaFechada").appendChild(fc);
     }
 
     const snap = getPlayerSnapshot();
@@ -4342,47 +3105,20 @@ window.addEventListener("unhandledrejection", function(e){
       } else { clearPlayerSnapshot(); }
     }
 
-    // "Hoje" unificado: compromissos avulsos + pendências do kanban do dia
-    // numa visão só, pra não obrigar abrir Diário toda vez que só se quer
-    // saber o que falta hoje. Toca no kanban conclui na hora (mesma função
-    // que a agenda do Diário usa); toca no compromisso leva pro Diário.
-    const hojeISO = localKey();
-    const perHoje = "dia:" + hojeISO;
-    rolarPendenciasPara(perHoje);
+    // rolagem de pendências e cartões recorrentes continuam acontecendo aqui
+    // (o card "Hoje" saiu da home, mas eles alimentam o Diário e o kanban e
+    // precisam rodar no primeiro render do dia, não só ao abrir o Diário)
+    rolarPendenciasPara("dia:" + localKey());
     gerarCartoesRecorrentesHoje();
-    const compromissosHoje = compromissos.filter(c=>c.date===hojeISO)
-      .sort((a,b)=>(a.time||"24:00").localeCompare(b.time||"24:00"));
-    const cartoesHoje = diaKanban.filter(c=>c.per===perHoje && c.col!=="done" && passaFiltroAreaKanban(c))
-      .sort((a,b)=>(a.ord||0)-(b.ord||0));
-    if(compromissosHoje.length || cartoesHoje.length){
-      const hojeCard = document.createElement("div");
-      hojeCard.className = "stat-card pinned-card";
-      const irParaDiario = () => { diarioEscopo = "dia"; diarioData = hojeISO; diarioAgenda = true; goTo({tab:"diario", screen:"diario"}); };
-      hojeCard.innerHTML = `
-        <div class="dev-row" style="border:none; padding:0 0 6px;">
-          <span style="font-family:'Fraunces',serif; font-size:16px; flex:1;">Hoje</span>
-          <button class="link-btn" id="hojeAbrirDiario" style="padding:0;">agenda &rarr;</button>
-        </div>
-        ${compromissosHoje.map(c=>`
-          <div class="dev-row" data-hojecp="${c.id}" style="cursor:pointer;">
-            <span>${c.time ? escapeHtml(c.time)+" — " : ""}${escapeHtml(c.title)}</span>
-          </div>`).join("")}
-        ${cartoesHoje.map(c=>`
-          <div class="dev-row" data-hojekb="${c.id}" style="cursor:pointer;">
-            <span>${svgIcon(ICON_D.check,13)} ${c.hIni ? escapeHtml(c.hIni)+" — " : ""}${escapeHtml(c.text)}</span>
-          </div>`).join("")}
-      `;
-      scroll.appendChild(hojeCard);
-      hojeCard.querySelector("#hojeAbrirDiario").onclick = irParaDiario;
-      hojeCard.querySelectorAll("[data-hojecp]").forEach(row=> row.onclick = irParaDiario);
-      hojeCard.querySelectorAll("[data-hojekb]").forEach(row=>{
-        row.onclick = () => { alternarCartaoFeitoNaAgenda(row.dataset.hojekb, perHoje); render(); };
-      });
-    }
 
     const visiveis = rotinasOrdenadas()
-      .filter(r => !homeSoHoje || rotinaOcorreHoje(r))
-      .filter(r => passaFiltroArea(areaDaRotina(r)));
+      .filter(r => !homeSoHoje || rotinaCabeEmHoje(r));
+    /* Concluída hoje desce para o fim da lista: o topo fica com o que ainda
+       falta fazer. `sort` é estável em qualquer motor moderno, então a ordem
+       por horário de rotinasOrdenadas() se preserva dentro de cada grupo. */
+    const feitasHoje = new Map();
+    visiveis.forEach(r => { const h = execucaoDeHoje(r.id); if(h) feitasHoje.set(r.id, h); });
+    visiveis.sort((a,b) => (feitasHoje.has(a.id)?1:0) - (feitasHoje.has(b.id)?1:0));
     if(routines.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
@@ -4394,9 +3130,7 @@ window.addEventListener("unhandledrejection", function(e){
     } else if(visiveis.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
-      empty.innerHTML = homeAreaFiltro.length
-        ? `<h2>Nenhuma rotina nessa área</h2><p>Troque o filtro de área para ver outras rotinas.</p>`
-        : `<h2>Nada agendado para hoje</h2><p>Desligue o "hoje" para ver todas as rotinas.</p>`;
+      empty.innerHTML = `<h2>Nada agendado para hoje</h2><p>Desligue o "hoje" para ver todas as rotinas.</p>`;
       scroll.appendChild(empty);
     } else {
       const list = document.createElement("div");
@@ -4411,15 +3145,18 @@ window.addEventListener("unhandledrejection", function(e){
         const sched = computeSchedule(r);
         const rStreak = computeStreakFor(r.id);
         const rPend = naoFeitasDe(r.id).length;
+        const execHoje = feitasHoje.get(r.id);
         const card = document.createElement("div");
         card.className = "routine-card";
         card.innerHTML = `
           <div class="routine-info" data-detail="${r.id}" style="cursor:pointer;">
             <h3><span class="r-dot" style="background:${fillStyle(corDaRotina(r))}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h3>
-            <div class="routine-meta">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}${rStreak>0?` · &#9679; ${rStreak}d`:""}${rotinaEhHabito(r)?`<span class="habito-chip" title="Hábito consolidado: vale ${Math.round((gam.config.habito.fator||0.6)*100)}% do peso, para abrir espaço ao que ainda não pegou">hábito</span>`:""}</div>
+            <div class="routine-meta">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}${rStreak>0?`<span class="streak-tag" title="${rStreak} dia${rStreak>1?'s':''} seguidos">${svgIcon(ICON_D.fire,12)}${rStreak}</span>`:""}${rotinaEhHabito(r)?`<span class="habito-chip" title="Hábito consolidado: vale ${Math.round((gam.config.habito.fator||0.6)*100)}% do peso, para abrir espaço ao que ainda não pegou">hábito</span>`:""}</div>
             ${rodaAtiva() && areaDaRotina(r) ? `<div class="sched-chip chip-block" style="color:${areaInfoRoda(areaDaRotina(r)).color};">${escapeHtml(areaInfoRoda(areaDaRotina(r)).label)}</div>` : ""}
             ${rPend ? `<div class="sched-chip chip-block" style="color:var(--danger);">${svgIcon(ICON_D.arrowPath,15)} ${rPend} etapa${rPend>1?'s':''} não feita${rPend>1?'s':''} hoje</div>` : ""}
-            ${sched ? `<div class="sched-chip">${svgIcon(ICON_D.clock,13)} ${sched.startStr} &rarr; ${sched.endStr}</div>` : ""}
+            ${execHoje
+                ? horarioRealChipHtml(execHoje)
+                : (sched ? `<div class="sched-chip">${svgIcon(ICON_D.clock,13)} ${sched.startStr} &rarr; ${sched.endStr}</div>` : "")}
             ${sched ? diasChipHtml(r) : ""}
           </div>
           <div class="routine-actions">
@@ -4446,7 +3183,6 @@ window.addEventListener("unhandledrejection", function(e){
       render();
     };
     document.getElementById("agendaBtn").onclick = () => { goTo({ tab:"home", screen:"agenda" }); };
-    document.getElementById("boletimBtn").onclick = () => { goTo({ tab:"home", screen:"boletim" }); };
     wireCfgBtn(el);
     // importa o .json gerado pelo "Exportar" do editor de rotina (e também aceita
     // um backup completo — importBackup distingue os dois formatos)
@@ -5495,742 +4231,7 @@ window.addEventListener("unhandledrejection", function(e){
     return [...t].sort();
   }
 
-  /* ================= MARMITAS ================= */
-  let tarefaDurFilter = 0; // 0 = todas
-  let tarefaCollapsed = load("rotinas_v2_tar_collapsed", {});
-  let tarefaConcluidasCollapsed = load("rotinas_v2_tar_concl_collapsed", {});
-  let tarefaBlocoCollapsed = load("rotinas_v2_tar_bloco_collapsed", {});
-  let tarefaDraft = null;
-  let tarefaTimerState = null;
-  let tarefaTimerHandle = null;
-  let tarefaImportDraft = null; // { parsed, fileName } enquanto a tela de preview de importa\u00e7\u00e3o est\u00e1 aberta
-
-  function saveTarefas(){ save(K_TAREFAS, tarefas); }
-  function saveTarefasHist(){ save(K_TAREFAS_HIST, tarefasHist); }
-  function eixoInfo(id){ return EIXOS.find(e=>e.id===id) || EIXOS[0]; }
-  function tarefaGenero(m){ return m.genero || "pool"; }
-
   function normalizeStr(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim(); }
-  function matchEixo(name){
-    const n = normalizeStr(name);
-    return EIXOS.find(e=> normalizeStr(e.label)===n || normalizeStr(e.id)===n || normalizeStr(e.area)===n);
-  }
-
-  /* ---- Parser do formato .md de toggle-list (pool / trilha) ----
-     Convenção: "&gt;" no início da linha = toggle list; nível de aninhamento = nº de "&gt;" repetidos.
-     Nível 1 = "Eixo — Área". Pool: nível 2 = duração, nível 3 = tipo + tabela Tarefa|Peso.
-     Trilha: nível 2 = bloco (tipo) + tabela #|Tarefa|Tipo, direto (sem nível 3). */
-  function parseTarefasToggleMd(text){
-    const lines = String(text).split(/\r?\n/);
-    const warnings = [];
-    let level1 = null; // { titleRaw, eixoLabel, area, eixoMatch, notes:[] }
-    let level2 = null, level3 = null;
-    const level2Nodes = [];
-
-    function boldText(s){ const m = s.match(/^\*\*(.+?)\*\*/); return m ? m[1].trim() : null; }
-    function flushLevel3(){ if(level3 && level2) level2.level3s.push(level3); level3 = null; }
-    function flushLevel2(){ flushLevel3(); if(level2) level2Nodes.push(level2); level2 = null; }
-
-    lines.forEach(raw=>{
-      const lm = raw.match(/^\s*((?:>\s*)+)/);
-      if(!lm) return; // fora do toggle-list, ignora (linha de prosa solta)
-      const level = (lm[1].match(/>/g)||[]).length;
-      const content = raw.slice(lm[0].length).trim();
-      if(!content) return;
-
-      if(level === 1){
-        const b = boldText(content);
-        if(b !== null){
-          flushLevel2();
-          const parts = b.split(/\s+[—–-]\s+/);
-          level1 = { titleRaw:b, eixoLabel:(parts[0]||b).trim(), area:(parts[1]||"").trim(), eixoMatch: matchEixo(parts[0]||b), notes:[] };
-        } else if(level1 && !level2){
-          level1.notes.push(content);
-        } else if(!level1){
-          warnings.push('Conteúdo de nível 1 antes de qualquer título de eixo, ignorado: "'+content.slice(0,60)+'"');
-        }
-        return;
-      }
-      if(!level1){ warnings.push('Linha de nível '+level+' encontrada antes do título do eixo (nível 1), ignorada: "'+content.slice(0,60)+'"'); return; }
-
-      if(level === 2){
-        const b = boldText(content);
-        if(b !== null){ flushLevel2(); level2 = { title:b, level3s:[], tableLines:[] }; }
-        else if(content.startsWith("|")){
-          if(!level2){ warnings.push('Linha de tabela em nível 2 sem bloco aberto, ignorada: "'+content.slice(0,60)+'"'); return; }
-          level2.tableLines.push(content);
-        }
-        return;
-      }
-      if(level === 3){
-        if(!level2){ warnings.push('Linha de nível 3 sem bloco de nível 2 aberto, ignorada: "'+content.slice(0,60)+'"'); return; }
-        const b = boldText(content);
-        if(b !== null){ flushLevel3(); level3 = { title:b, tableLines:[] }; }
-        else if(content.startsWith("|")){
-          if(!level3){ warnings.push('Linha de tabela em nível 3 sem tipo aberto, ignorada: "'+content.slice(0,60)+'"'); return; }
-          level3.tableLines.push(content);
-        }
-        return;
-      }
-      warnings.push('Nível de aninhamento '+level+' não suportado (máx. 3), ignorado: "'+content.slice(0,60)+'"');
-    });
-    flushLevel2();
-
-    if(!level1){
-      return { error:'Não foi encontrado o título de eixo (nível 1, ex: "Idiomas — Mandarim").', warnings };
-    }
-
-    function parseTableLines(rawTableLines){
-      const rows = rawTableLines
-        .map(l=> l.split("|").slice(1,-1).map(c=>c.trim()))
-        .filter(cells => !cells.every(c=>/^:?-+:?$/.test(c)));
-      if(rows.length===0) return { header:null, dataRows:[] };
-      return { header:rows[0], dataRows:rows.slice(1) };
-    }
-    function detectFormat(header){
-      if(!header) return null;
-      const norm = header.map(normalizeStr);
-      if(norm.length===2 && norm[0]==="tarefa" && norm[1]==="peso") return "pool";
-      // trilha: "# | Tarefa | Tipo" (3 col.) ou a variação com coluna extra "Detalhe" (4 col.)
-      if(norm.length>=3 && norm[0]==="#" && norm[1]==="tarefa" && norm[2]==="tipo") return "trilha";
-      return null;
-    }
-    function parseDurTitle(title){ const m = title.match(/(\d+)/); return m ? +m[1] : null; }
-    // coluna "Detalhe": bullet list separada por "<br>• " → texto multi-linha (um item por linha)
-    function parseDetalheCell(raw){
-      if(!raw) return "";
-      return String(raw).split(/<br\s*\/?>/i)
-        .map(s => s.replace(/^\s*[-*•]\s*/,"").replace(/\*\*(.+?)\*\*/g,"$1").trim())
-        .filter(Boolean)
-        .join("\n");
-    }
-
-    const items = [];
-    const blockSummary = [];
-    let genero = null;
-
-    level2Nodes.forEach(l2=>{
-      if(l2.level3s.length > 0){
-        // esperado: pool (nível 3 = tipo, tabela Tarefa|Peso)
-        const dur = parseDurTitle(l2.title);
-        l2.level3s.forEach(l3=>{
-          const { header, dataRows } = parseTableLines(l3.tableLines);
-          const fmt = detectFormat(header);
-          if(fmt === null){
-            if(header || dataRows.length) warnings.push('Tabela em "'+l3.title+'" com cabeçalho não reconhecido ('+(header?header.join(" | "):"vazio")+'), bloco ignorado.');
-            return;
-          }
-          if(fmt !== "pool"){
-            warnings.push('Tabela em "'+l3.title+'" tem cabeçalho de trilha mas está aninhada em nível 3 (esperado pool) — bloco ignorado.');
-            return;
-          }
-          if(genero===null) genero = "pool";
-          else if(genero !== "pool") warnings.push('Arquivo mistura pool e trilha — isso não é suportado; mantendo apenas os blocos pool já processados.');
-          if(genero !== "pool") return;
-          let count = 0;
-          dataRows.forEach((cells, ri)=>{
-            if(cells.length < 2){ warnings.push('Linha de tabela mal formada em "'+l3.title+'" (linha '+(ri+1)+'), ignorada.'); return; }
-            const conteudo = cells[0], pesoRaw = cells[1];
-            if(!conteudo){ warnings.push('Linha de tabela sem conteúdo em "'+l3.title+'" (linha '+(ri+1)+'), ignorada.'); return; }
-            const pm = (pesoRaw||"").match(/(\d+)/);
-            if(!pm) warnings.push('Peso não reconhecido ("'+pesoRaw+'") em "'+conteudo+'", assumindo 1×.');
-            const peso = pm ? Math.min(9, Math.max(1, +pm[1])) : 1;
-            for(let c=0;c<peso;c++){ items.push({ tipo:l3.title, conteudo, dur, genero:"pool" }); count++; }
-          });
-          if(count>0) blockSummary.push({ group:l3.title, sub:(dur!==null?dur+" min":"?"), count });
-        });
-      } else {
-        // esperado: trilha (tabela direto no nível 2)
-        const { header, dataRows } = parseTableLines(l2.tableLines);
-        const fmt = detectFormat(header);
-        if(fmt === null){
-          if(header || dataRows.length) warnings.push('Tabela em "'+l2.title+'" com cabeçalho não reconhecido ('+(header?header.join(" | "):"vazio")+'), bloco ignorado.');
-          return;
-        }
-        if(fmt !== "trilha"){
-          warnings.push('Tabela em "'+l2.title+'" tem cabeçalho de pool mas não tem nível 3 (esperado trilha) — bloco ignorado.');
-          return;
-        }
-        if(genero===null) genero = "trilha";
-        else if(genero !== "trilha"){ warnings.push('Arquivo mistura pool e trilha — isso não é suportado; mantendo apenas os blocos trilha já processados.'); return; }
-        const tipo = l2.title;
-        let count = 0;
-        dataRows.forEach((cells, ri)=>{
-          if(cells.length < 3){ warnings.push('Linha de tabela mal formada em "'+tipo+'" (linha '+(ri+1)+'), ignorada.'); return; }
-          const numero = cells[0], conteudo = cells[1], tipoRaw = cells[2], detalheRaw = cells[3] || "";
-          if(!conteudo){ warnings.push('Linha de tabela sem conteúdo em "'+tipo+'" (linha '+(ri+1)+'), ignorada.'); return; }
-          const tipoNorm = normalizeStr(tipoRaw);
-          // Tipos aceitos: "trilha"/"simulado" (3 col.) e "Aula"/"Questões" (variação 4 col.).
-          // Aula e Questões sequenciam como trilha (não reciclam); só "simulado" muda a natureza.
-          const conhecidos = ["trilha","simulado","aula","questoes","questao"];
-          if(!conhecidos.includes(tipoNorm)) warnings.push('Tipo de linha não reconhecido ("'+tipoRaw+'") em "'+conteudo+'", assumindo "trilha".');
-          const natureza = tipoNorm === "simulado" ? "simulado" : "trilha";
-          const it = { tipo, conteudo, numero, natureza, genero:"trilha" };
-          // preserva o rótulo original do Tipo (Aula/Questões/simulado) quando não for o genérico "trilha"
-          if(tipoRaw && tipoNorm !== "trilha") it.tipoTarefa = tipoRaw;
-          const detalhes = parseDetalheCell(detalheRaw);
-          if(detalhes) it.detalhes = detalhes;
-          items.push(it);
-          count++;
-        });
-        if(count>0) blockSummary.push({ group:tipo, sub:null, count });
-      }
-    });
-
-    let suggestedDur = null;
-    if(genero === "trilha"){
-      const dm = level1.notes.join(" ").match(/(\d+)\s*min/i);
-      suggestedDur = dm ? +dm[1] : null;
-    }
-
-    return {
-      eixoLabel: level1.eixoLabel,
-      area: level1.area,
-      eixoMatch: level1.eixoMatch,
-      notes: level1.notes,
-      genero, items, blockSummary, suggestedDur, warnings
-    };
-  }
-
-  function tarefaKey(m){ return (m.tipo||"")+"‖"+(m.conteudo||"")+"‖"+(m.numero||""); }
-
-  function importTarefasMd(file){
-    const reader = new FileReader();
-    reader.onload = () => {
-      const parsed = parseTarefasToggleMd(String(reader.result));
-      if(parsed.error){
-        showAlertBanner("Não foi possível importar: " + parsed.error + (parsed.warnings.length ? ` · ${parsed.warnings.length} aviso(s)` : ""));
-        return;
-      }
-      tarefaImportDraft = { parsed, fileName: file.name };
-      goTo({ tab:"tarefas", screen:"tarefaImportPreview" });
-    };
-    reader.readAsText(file);
-  }
-
-  function confirmImportTarefas(mode, eixoId, area, trilhaDur){
-    const d = tarefaImportDraft;
-    if(!d) return;
-    const parsed = d.parsed;
-    if(parsed.items.length === 0){ showAlertBanner("Nada pra importar"); return; }
-    if(!eixoId){ showAlertBanner("Escolha um eixo antes de importar"); return; }
-    const finalArea = (area||"").trim() || eixoInfo(eixoId).area;
-
-    if(mode === "replace"){
-      tarefas = tarefas.filter(m => !(m.eixo===eixoId && m.area===finalArea));
-    }
-    let ord = tarefas.length ? Math.max(...tarefas.map(m=>m.ord||0))+1 : 0;
-    const novos = parsed.items.map(it=>{
-      const base = { id:uid(), eixo:eixoId, area:finalArea, tipo:it.tipo, conteudo:it.conteudo, lastDone:null, ord:ord++, genero:parsed.genero };
-      if(parsed.genero === "trilha"){ base.dur = trilhaDur; base.numero = it.numero; base.natureza = it.natureza; }
-      else { base.dur = it.dur; }
-      if(it.tipoTarefa) base.tipoTarefa = it.tipoTarefa;
-      if(it.detalhes) base.detalhes = it.detalhes;
-      return base;
-    });
-
-    let added = novos.length, skippedDup = 0;
-    if(mode === "merge"){
-      const existingKeys = new Set(tarefas.map(tarefaKey));
-      const toAdd = novos.filter(it => !existingKeys.has(tarefaKey(it)));
-      skippedDup = novos.length - toAdd.length;
-      added = toAdd.length;
-      tarefas.push(...toAdd);
-    } else {
-      tarefas.push(...novos);
-    }
-    saveTarefas();
-    tarefaImportDraft = null;
-    pushView({ tab:"tarefas", screen:"tarefas" });
-    const warnCount = parsed.warnings.length;
-    showAlertBanner(
-      added + " tarefa(s) importada(s) ✓" +
-      (skippedDup ? ` · ${skippedDup} já existiam` : "") +
-      (warnCount ? ` · ${warnCount} aviso(s) de parsing` : "")
-    );
-    render();
-  }
-
-  function renderTarefaImportPreview(){
-    const d = tarefaImportDraft;
-    if(!d){ goTo({ tab:"tarefas", screen:"tarefas" }); return; }
-    const p = d.parsed;
-    const el = document.createElement("div");
-    el.className = "screen";
-    el.style.paddingBottom = "24px";
-
-    const matchedEixo = p.eixoMatch;
-    const totalItems = p.items.length;
-    const genero = p.genero;
-    const eixoOptions = EIXOS.map(e=>`<option value="${e.id}" ${matchedEixo && matchedEixo.id===e.id ? 'selected':''}>${escapeHtml(e.label)}</option>`).join("");
-
-    el.innerHTML = `
-      <div class="home-header">
-        <h1>Importar tarefas</h1>
-        <button class="bell-btn" id="tiCancel">${svgIcon(ICON_D.xmark,14)}</button>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:14px; overflow-y:auto;">
-        <div class="stat-card">
-          <div class="routine-meta" style="margin-bottom:6px;">${escapeHtml(d.fileName)}</div>
-          <h3 style="font-size:16px; margin-bottom:4px;">${escapeHtml(p.eixoLabel)}${p.area?' — '+escapeHtml(p.area):''}</h3>
-          <div class="routine-meta">Formato detectado: <b>${genero==='trilha'?'trilha (sequencial, não recicla)':genero==='pool'?'pool (fila cíclica)':'não identificado'}</b> · ${totalItems} tarefa(s)</div>
-        </div>
-
-        ${!matchedEixo ? `<div class="stat-card" style="border-color:var(--danger);">
-          <div style="font-size:13px; color:var(--danger); margin-bottom:8px;">${svgIcon(ICON_D.exclamationTriangle,14)} Eixo "${escapeHtml(p.eixoLabel)}" não bate com nenhum eixo existente. Escolha manualmente:</div>
-          <select id="tiEixo" class="routine-select">${eixoOptions}</select>
-        </div>` : `<div>
-          <div class="section-label">Eixo detectado</div>
-          <select id="tiEixo" class="routine-select">${eixoOptions}</select>
-        </div>`}
-
-        <div>
-          <div class="section-label">Área</div>
-          <input type="text" id="tiArea" class="mk-e-name" value="${escapeHtml(p.area || (matchedEixo?matchedEixo.area:''))}" placeholder="Ex: Contabilidade">
-        </div>
-
-        ${genero === 'trilha' ? `<div>
-          <div class="section-label">Duração por sessão (min) — o arquivo não define isso por linha, confirme</div>
-          <input type="number" id="tiDur" class="mk-e-name" min="1" value="${p.suggestedDur || 60}">
-        </div>` : ''}
-
-        ${p.notes.length ? `<div>
-          <div class="section-label">Notas do cabeçalho do arquivo</div>
-          <div class="stat-card" style="font-size:13px; line-height:1.6; color:var(--muted);">${p.notes.map(n=>escapeHtml(n)).join("<br>")}</div>
-        </div>` : ''}
-
-        <div>
-          <div class="section-label">Tarefas por bloco</div>
-          <div class="stat-card" style="padding:10px 16px;">
-            ${p.blockSummary.length===0 ? `<div class="routine-meta" style="padding:6px 0;">Nenhuma tarefa reconhecida.</div>` : p.blockSummary.map(b=>`
-              <div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:13.5px;">
-                <span>${escapeHtml(b.group)}${b.sub?' · '+escapeHtml(String(b.sub)):''}</span>
-                <span style="color:var(--muted); flex:0 0 auto;">${b.count}</span>
-              </div>`).join("")}
-          </div>
-        </div>
-
-        ${p.warnings.length ? `<div>
-          <div class="section-label">Avisos de parsing (${p.warnings.length})</div>
-          <div class="stat-card" style="font-size:12.5px; line-height:1.6; color:var(--muted); max-height:180px; overflow-y:auto;">
-            ${p.warnings.map(w=>escapeHtml(w)).join("<br>")}
-          </div>
-        </div>` : ''}
-
-        <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
-          <button class="btn-primary" id="tiMerge" ${totalItems===0?'disabled':''}>Mesclar com a fila atual</button>
-          <button class="btn-cancel" id="tiReplace" ${totalItems===0?'disabled':''}>Substituir tarefas deste eixo + área</button>
-        </div>
-      </div>`;
-    app.appendChild(el);
-
-    document.getElementById("tiCancel").onclick = () => { tarefaImportDraft = null; goTo({ tab:"tarefas", screen:"tarefas" }); };
-
-    function readForm(){
-      const eixoId = document.getElementById("tiEixo").value;
-      const area = document.getElementById("tiArea").value;
-      const durEl = document.getElementById("tiDur");
-      const trilhaDur = durEl ? Math.max(1, +durEl.value || 60) : null;
-      return { eixoId, area, trilhaDur };
-    }
-    const mergeBtn = document.getElementById("tiMerge");
-    const replaceBtn = document.getElementById("tiReplace");
-    if(mergeBtn) mergeBtn.onclick = () => { const f = readForm(); confirmImportTarefas("merge", f.eixoId, f.area, f.trilhaDur); };
-    if(replaceBtn) replaceBtn.onclick = () => {
-      const f = readForm();
-      confirmModal("Remover as tarefas existentes de <b>"+escapeHtml(eixoInfo(f.eixoId).label)+" · "+escapeHtml(f.area||eixoInfo(f.eixoId).area)+"</b> e substituir pelas "+totalItems+" importadas?", "Substituir", () => {
-        confirmImportTarefas("replace", f.eixoId, f.area, f.trilhaDur);
-      });
-    };
-  }
-
-  function concludeTarefa(m){
-    const prev = m.lastDone;
-    const prevReview = m.reviewAt;
-    m.lastDone = Date.now();
-    delete m.reviewAt; // revisão vencida (ou nunca marcada): o ciclo recomeça
-    saveTarefas();
-    const histEntry = { id:uid(), tarefaId:m.id, eixo:m.eixo, area:m.area, tipo:m.tipo, conteudo:m.conteudo, dur:m.dur, ts:m.lastDone };
-    tarefasHist.push(histEntry); saveTarefasHist();
-    // o eixo da tarefa é a mesma chave de área da roda da vida (ids semeados dos EIXOS)
-    const gamEntry = registrarConclusao("tarefa", { tarefaId:m.id, tag: tarefaTagEfetiva(m), minutos:m.dur, data:new Date(m.lastDone), area: rodaAreas().some(a=>a.id===m.eixo) ? m.eixo : "", rotulo: m.area || m.tipo || "Tarefas" });
-    finishCue();
-    showUndoBanner("Tarefa concluída ✓", ()=>{
-      m.lastDone = prev;
-      if(prevReview !== undefined) m.reviewAt = prevReview;
-      saveTarefas();
-      tarefasHist = tarefasHist.filter(h=>h.id!==histEntry.id); saveTarefasHist();
-      desfazerConclusao(gamEntry);
-      render();
-    });
-    if(tarefaGenero(m)==='trilha') askReviewTarefa(m);
-  }
-
-  /* Revisão espaçada (só trilha): a tarefa concluída reaparece na fila na data. */
-  function askReviewTarefa(m){
-    const ov = document.createElement("div");
-    ov.className = "confirm-overlay";
-    ov.innerHTML = `
-      <div class="confirm-box" role="dialog" aria-modal="true">
-        <p>Revisar <b>${escapeHtml(m.conteudo)}</b> em:</p>
-        <div class="confirm-actions" style="flex-direction:column;">
-          <button class="btn-confirm" data-rev="1">1 dia</button>
-          <button class="btn-confirm" data-rev="7">7 dias</button>
-          <button class="btn-confirm" data-rev="30">30 dias</button>
-          <button class="btn-cancel" data-rev="">Sem revisão</button>
-        </div>
-      </div>`;
-    document.body.appendChild(ov);
-    ov.onclick = e => { if(e.target === ov) ov.remove(); };
-    ov.querySelectorAll("[data-rev]").forEach(b=> b.onclick = () => {
-      const d = +b.dataset.rev;
-      if(d > 0){ m.reviewAt = Date.now() + d * 86400000; saveTarefas(); }
-      ov.remove();
-      render();
-    });
-  }
-
-  function deleteTarefaComUndo(m){
-    const idx = tarefas.findIndex(x=>x.id===m.id);
-    if(idx===-1) return;
-    tarefas.splice(idx,1);
-    saveTarefas();
-    render();
-    showUndoBanner("Tarefa excluída", ()=>{
-      tarefas.splice(Math.min(idx, tarefas.length), 0, m);
-      saveTarefas();
-      render();
-    });
-  }
-
-  function notifyTarefaTimeUp(m){
-    const title = "\u23F1 Tempo esgotado";
-    const body = m.tipo + ": " + m.conteudo + " (" + m.dur + " min)";
-    if(isNative){ notifyNative(title, body, {}, notifIdFor("tarefa-" + m.id, 0)); return; }
-    if(isDesktop){ notifyDesktop(title, body); return; }
-    if(!("Notification" in window) || Notification.permission !== "granted") return;
-    if("serviceWorker" in navigator){
-      navigator.serviceWorker.ready.then(reg=>{
-        reg.showNotification(title, { body, tag:"tarefa-"+m.id, vibrate:[200,100,200] })
-          .catch(()=>{ try{ new Notification(title,{body}); }catch(e){} });
-      });
-    } else { try{ new Notification(title,{body}); }catch(e){} }
-  }
-
-  function tarefaAgo(m){
-    if(!m.lastDone) return "nunca feita";
-    const days = Math.floor((Date.now()-m.lastDone)/86400000);
-    if(days<=0) return "feita hoje";
-    if(days===1) return "feita ontem";
-    return "há "+days+" dias";
-  }
-
-  function tarefaAtiva(m){
-    if(tarefaGenero(m)!=='trilha' || !m.lastDone) return true;
-    // trilha concluída volta à fila quando a revisão espaçada vence
-    return !!(m.reviewAt && Date.now() >= m.reviewAt);
-  }
-  // "detalhes" (texto multi-linha) → lista com marcadores, uma linha por item
-  function tarefaDetalhesHtml(detalhes){
-    if(!detalhes) return "";
-    const items = String(detalhes).split(/\r?\n/).map(l=>l.replace(/^\s*[-*•]\s*/,"").trim()).filter(Boolean);
-    if(!items.length) return "";
-    return `<ul class="tar-detalhes">${items.map(l=>`<li>${escapeHtml(l)}</li>`).join("")}</ul>`;
-  }
-
-  function renderTarefas(){
-    const el = document.createElement("div");
-    el.className = "screen with-tabbar";
-    const durValues = Array.from(new Set(tarefas.map(m=>m.dur))).sort((a,b)=>a-b);
-    const durChips = `<span data-dur="0" class="${tarefaDurFilter===0?'active':''}">todas</span>` +
-      durValues.map(d=>`<span data-dur="${d}" class="${tarefaDurFilter===d?'active':''}">${d} min</span>`).join("");
-    el.innerHTML = `
-      <div class="tab-scroll">
-        <div class="home-header"><h1>Tarefas ${svgIcon(ICON_D.bars3,15)}</h1>
-          <div class="header-right">
-            <button class="bell-btn" id="tarImportBtn" title="Importar tarefas (.md)" aria-label="Importar tarefas (.md)">${svgIcon(ICON_D.arrowUpTray,14)}</button>
-            <input type="file" id="tarImportFile" accept=".md,.txt,text/markdown,text/plain" style="display:none">
-          </div>
-        </div>
-        <div class="type-toggle" id="tarDurChips" style="margin-bottom:14px;">${durChips}</div>
-        <div class="routine-list" id="tarList" style="flex:0 0 auto; overflow:visible;"></div>
-      </div>`;
-    const fab = document.createElement("button");
-    fab.className = "fab"; fab.textContent = "+"; fab.title = "Nova tarefa";
-    fab.onclick = () => { tarefaDraft = null; goTo({ tab:"tarefas", screen:"tarefaEditor" }); };
-    el.appendChild(fab);
-    el.appendChild(renderTabbar("tarefas"));
-    app.appendChild(el);
-
-    el.querySelectorAll("[data-dur]").forEach(sp=> sp.onclick = () => { tarefaDurFilter = +sp.dataset.dur; render(); });
-    const impFile = document.getElementById("tarImportFile");
-    document.getElementById("tarImportBtn").onclick = () => impFile.click();
-    impFile.onchange = e => { if(e.target.files && e.target.files[0]){ importTarefasMd(e.target.files[0]); e.target.value=""; } };
-
-    const list = document.getElementById("tarList");
-
-    if(tarefas.length===0){
-      list.innerHTML = `<div class="empty-state"><h2>Fila vazia</h2><p>Importe um arquivo .md (${svgIcon(ICON_D.arrowUpTray,14)} acima) ou adicione tarefas com o botão +.</p>
-        <div class="stat-card" style="text-align:left; margin-top:14px; font-family:'Inter', sans-serif; font-size:11.5px; line-height:1.6; color:var(--muted); white-space:pre;">&gt; **Idiomas — Mandarim**
-&gt;
-&gt; &gt; **15 minutos**
-&gt; &gt;
-&gt; &gt; &gt; **Revisão Anki**
-&gt; &gt; &gt;
-&gt; &gt; &gt; | Tarefa | Peso |
-&gt; &gt; &gt; |---|---|
-&gt; &gt; &gt; | Substantivos | 3× |</div>
-        <p style="font-size:12px; color:var(--muted); margin-top:8px;">Formato pool (fila cíclica) acima, ou trilha (sequencial) com tabela # | Tarefa | Tipo direto no nível 2 — a importação detecta pelo cabeçalho da tabela.</p>
-      </div>`;
-      return;
-    }
-
-    const filteredByDur = tarefas.filter(m=> tarefaDurFilter===0 || m.dur===tarefaDurFilter);
-    if(filteredByDur.length===0){
-      list.innerHTML = `<div class="empty-state"><h2>Nada aqui</h2><p>Nenhuma tarefa com essa duração.</p></div>`;
-      return;
-    }
-
-    EIXOS.forEach(ex=>{
-      const eixoItems = filteredByDur.filter(m=>m.eixo===ex.id);
-      if(eixoItems.length===0) return;
-      const areas = [];
-      eixoItems.forEach(m=>{ if(!areas.includes(m.area)) areas.push(m.area); });
-      areas.forEach(area=>{
-        const areaItems = eixoItems.filter(m=>m.area===area);
-        const active = areaItems.filter(tarefaAtiva).sort((a,b)=> (a.lastDone||0)-(b.lastDone||0) || a.ord-b.ord);
-        const done = areaItems.filter(m=>!tarefaAtiva(m)).sort((a,b)=> (b.lastDone||0)-(a.lastDone||0));
-        if(active.length===0 && done.length===0) return;
-        const secKey = ex.id+"|"+area;
-        const collapsed = !!tarefaCollapsed[secKey];
-        const sec = document.createElement("div");
-        sec.innerHTML = `<div class="section-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${ex.color};" data-eixosec="${escapeHtml(secKey)}">
-          <span>${collapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span><span style="flex:1;">${ex.label} · ${escapeHtml(area)}</span><span style="color:var(--muted); font-weight:400;">${active.length}</span>
-        </div>`;
-        sec.querySelector("[data-eixosec]").onclick = () => { tarefaCollapsed[secKey] = !collapsed; save("rotinas_v2_tar_collapsed", tarefaCollapsed); render(); };
-        list.appendChild(sec);
-        if(collapsed) return;
-
-        // a "próxima" da área é a primeira ativa (competição por área, não por bloco)
-        const nextId = active.length ? active[0].id : null;
-
-        // monta um card de conteúdo em bullet, com hierarquia de fonte (bloco = cabeçalho, conteúdo = bullet)
-        function bulletCard(m, dim){
-          const isNext = m.id===nextId;
-          const card = document.createElement("div");
-          card.className = "tar-item";
-          if(dim) card.style.opacity = "0.55";
-          card.style.borderLeft = "3px solid " + (isNext ? ex.color : "transparent");
-          const numeroTag = m.numero ? escapeHtml(m.numero)+' · ' : '';
-          const tipoTag = m.tipoTarefa ? escapeHtml(m.tipoTarefa)+' · ' : '';
-          const revTag = m.reviewAt ? (Date.now() >= m.reviewAt ? ' · revisão pendente' : ' · revisão em ' + new Date(m.reviewAt).toLocaleDateString("pt-BR", {day:"2-digit", month:"2-digit"})) : '';
-          const metaBits = `${numeroTag}${tipoTag}${m.dur} min · ${tarefaAgo(m)}${m.natureza==='simulado'?' · simulado':''}${revTag}`;
-          const detalhesHtml = tarefaDetalhesHtml(m.detalhes);
-          card.innerHTML = `
-            <div class="tar-item-info" data-medit="${m.id}">
-              <span class="tar-bullet" style="${isNext?`color:${ex.color};`:''}">${isNext?svgIcon(ICON_D.arrowRight,13):'&bull;'}</span>
-              <div style="flex:1; min-width:0;">
-                <div class="tar-conteudo">${escapeHtml(m.conteudo)}</div>
-                <div class="routine-meta tar-item-meta">${metaBits}</div>
-                ${detalhesHtml}
-              </div>
-            </div>
-            ${dim?'':`<div class="tar-item-actions">
-              <button class="bell-btn" data-mplay="${m.id}" title="Iniciar timer" aria-label="Iniciar timer" style="color:${ex.color};">${svgIcon(ICON_D.play,16)}</button>
-              <button class="bell-btn" data-mdone="${m.id}" title="Marcar feita hoje" aria-label="Marcar feita hoje">${svgIcon(ICON_D.check,14)}</button>
-            </div>`}`;
-          return wrapSwipeDelete(card, () => deleteTarefaComUndo(m));
-        }
-
-        // agrupa as ativas por bloco (tipo), preservando a ordem de leitura
-        const blocks = [];
-        active.forEach(m=>{
-          let b = blocks.find(x=>x.tipo===m.tipo);
-          if(!b){ b = { tipo:m.tipo, items:[] }; blocks.push(b); }
-          b.items.push(m);
-        });
-        blocks.forEach(block=>{
-          const hasNext = block.items.some(m=>m.id===nextId);
-          const blocoKey = secKey+"||"+block.tipo;
-          const stored = tarefaBlocoCollapsed[blocoKey];
-          const blocoCollapsed = stored === undefined ? !hasNext : stored; // padrão: colapsado, exceto o bloco da próxima
-          const bh = document.createElement("div");
-          bh.className = "tar-bloco-head";
-          bh.dataset.bloco = blocoKey;
-          bh.innerHTML = `<span class="tar-bloco-arrow">${blocoCollapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span>
-            <span class="tar-bloco-title">${escapeHtml(block.tipo)}</span>
-            <span class="tar-bloco-count">${block.items.length}</span>`;
-          bh.onclick = () => { tarefaBlocoCollapsed[blocoKey] = !blocoCollapsed; save("rotinas_v2_tar_bloco_collapsed", tarefaBlocoCollapsed); render(); };
-          list.appendChild(bh);
-          if(blocoCollapsed) return;
-          block.items.forEach(m=> list.appendChild(bulletCard(m, false)));
-        });
-
-        if(done.length){
-          const doneKey = secKey+"|done";
-          const doneCollapsed = tarefaConcluidasCollapsed[doneKey] !== false; // colapsada por padrão
-          const doneSec = document.createElement("div");
-          doneSec.innerHTML = `<div class="section-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;" data-donesec="${escapeHtml(doneKey)}">
-            <span>${doneCollapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span><span style="flex:1;">${svgIcon(ICON_D.check,14)} Concluídas</span><span style="color:var(--muted); font-weight:400;">${done.length}</span>
-          </div>`;
-          doneSec.querySelector("[data-donesec]").onclick = () => { tarefaConcluidasCollapsed[doneKey] = !doneCollapsed; save("rotinas_v2_tar_concl_collapsed", tarefaConcluidasCollapsed); render(); };
-          list.appendChild(doneSec);
-          if(!doneCollapsed){
-            // concluídas também agrupadas por bloco
-            const doneBlocks = [];
-            done.forEach(m=>{
-              let b = doneBlocks.find(x=>x.tipo===m.tipo);
-              if(!b){ b = { tipo:m.tipo, items:[] }; doneBlocks.push(b); }
-              b.items.push(m);
-            });
-            doneBlocks.forEach(block=>{
-              const bh = document.createElement("div");
-              bh.className = "tar-bloco-head done";
-              bh.innerHTML = `<span class="tar-bloco-arrow" style="visibility:hidden;">${svgIcon(ICON_D.chevronDown,13)}</span>
-                <span class="tar-bloco-title" style="color:var(--muted);">${escapeHtml(block.tipo)}</span>
-                <span class="tar-bloco-count">${block.items.length}</span>`;
-              list.appendChild(bh);
-              block.items.forEach(m=> list.appendChild(bulletCard(m, true)));
-            });
-          }
-        }
-      });
-    });
-    list.querySelectorAll("[data-mplay]").forEach(b=> b.onclick = () => startTarefaTimer(b.dataset.mplay));
-    list.querySelectorAll("[data-mdone]").forEach(b=> b.onclick = () => {
-      const m = tarefas.find(x=>x.id===b.dataset.mdone);
-      if(!m) return;
-      concludeTarefa(m);
-      render();
-    });
-    list.querySelectorAll("[data-medit]").forEach(d=> d.onclick = () => {
-      tarefaDraft = JSON.parse(JSON.stringify(tarefas.find(x=>x.id===d.dataset.medit)));
-      goTo({ tab:"tarefas", screen:"tarefaEditor" });
-    });
-  }
-
-  function renderTarefaEditor(){
-    const isNew = !tarefaDraft;
-    const d = tarefaDraft || { id:null, eixo:"idiomas", area:"", tipo:"", conteudo:"", dur:15 };
-    if(!d.area) d.area = eixoInfo(d.eixo).area;
-    const el = document.createElement("div");
-    el.className = "screen";
-    el.innerHTML = `
-      <div class="home-header">
-        <h1>${isNew?'Nova tarefa':'Editar tarefa'}</h1>
-        <button class="bell-btn" id="tarBack">${svgIcon(ICON_D.xmark,14)}</button>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; padding-bottom:20px;">
-        <div class="section-label">Eixo</div>
-        <select id="mEixo" class="routine-select">${EIXOS.map(e=>`<option value="${e.id}" ${d.eixo===e.id?'selected':''}>${e.label}</option>`).join("")}</select>
-        <div class="section-label">Área</div>
-        <input type="text" id="mArea" class="mk-e-name" value="${escapeHtml(d.area)}" placeholder="Ex: Mandarim">
-        <div class="section-label">Nome do bloco</div>
-        <input type="text" id="mTipo" class="mk-e-name" value="${escapeHtml(d.tipo)}" placeholder="Ex: Bloco 1 — Contabilidade Pública">
-        <div class="section-label">Título da tarefa</div>
-        <input type="text" id="mCont" class="mk-e-name" value="${escapeHtml(d.conteudo)}" placeholder="Ex: Introdução: Lei 4.320/64">
-        <div class="section-label">Tipo da tarefa</div>
-        <input type="text" id="mTipoTarefa" class="mk-e-name" value="${escapeHtml(d.tipoTarefa||'')}" placeholder="Ex: Leitura, Revisão, Simulado">
-        <div class="section-label">Detalhes (um por linha)</div>
-        <textarea id="mDetalhes" class="mk-e-name" rows="4" placeholder="Um item por linha — vira lista com marcadores" style="line-height:1.5;">${escapeHtml(d.detalhes||'')}</textarea>
-        <div class="section-label">Duração</div>
-        <div class="type-toggle" id="mDur">
-          <span data-d="15" class="${d.dur===15?'active':''}">15 min</span>
-          <span data-d="30" class="${d.dur===30?'active':''}">30 min</span>
-          <span data-d="60" class="${d.dur===60?'active':''}">60 min</span>
-        </div>
-        <div class="section-label">Peso no boletim</div>
-        ${tagValorPillsHtml(d.tagValor||"medio", false)}
-        ${isNew?`<div class="section-label">Cópias na fila (peso)</div>
-        <input type="number" id="mCopias" class="dur-input" inputmode="numeric" min="1" max="9" value="1" style="width:80px;">`:""}
-        <button class="btn-primary" id="mSave" style="margin-top:10px;">${isNew?'Adicionar à fila':'Salvar'}</button>
-        ${!isNew?`<button class="btn-cancel" id="mDel" style="color:var(--danger);">Excluir esta tarefa</button>`:""}
-      </div>`;
-    app.appendChild(el);
-    wireTagValorPills(el);
-    autoGrowAll(el);
-    let dur = d.dur;
-    el.querySelectorAll("#mDur [data-d]").forEach(sp=> sp.onclick = () => {
-      dur = +sp.dataset.d;
-      el.querySelectorAll("#mDur [data-d]").forEach(x=>x.classList.toggle("active", +x.dataset.d===dur));
-    });
-    document.getElementById("mEixo").onchange = e => {
-      document.getElementById("mArea").value = eixoInfo(e.target.value).area;
-    };
-    document.getElementById("tarBack").onclick = () => { goTo({ tab:"tarefas", screen:"tarefas" }); };
-    document.getElementById("mSave").onclick = () => {
-      const eixo = document.getElementById("mEixo").value;
-      const area = document.getElementById("mArea").value.trim() || eixoInfo(eixo).area;
-      const tipo = document.getElementById("mTipo").value.trim();
-      const conteudo = document.getElementById("mCont").value.trim();
-      const tipoTarefa = document.getElementById("mTipoTarefa").value.trim();
-      const detalhes = document.getElementById("mDetalhes").value.trim();
-      const tagValor = readTagValorPills(el) || "medio";
-      if(!tipo || !conteudo){ showAlertBanner("Preencha o nome do bloco e o título"); return; }
-      if(isNew){
-        const copias = Math.min(9, Math.max(1, +(document.getElementById("mCopias").value)||1));
-        const base = Math.max(0,...tarefas.map(m=>m.ord))+1;
-        for(let c=0;c<copias;c++) tarefas.push({ id:uid(), eixo, area, tipo, conteudo, tipoTarefa, detalhes, dur, tagValor, lastDone:null, ord:base+c, genero:"pool" });
-      } else {
-        const m = tarefas.find(x=>x.id===d.id);
-        if(m){ m.eixo=eixo; m.area=area; m.tipo=tipo; m.conteudo=conteudo; m.tipoTarefa=tipoTarefa; m.detalhes=detalhes; m.dur=dur; m.tagValor=tagValor; }
-      }
-      saveTarefas();
-      goTo({ tab:"tarefas", screen:"tarefas" });
-    };
-    const del = document.getElementById("mDel");
-    if(del) del.onclick = () => confirmModal("Excluir <b>"+escapeHtml(d.tipo+": "+d.conteudo)+"</b> da fila?","Excluir",()=>{
-      pushView({ tab:"tarefas", screen:"tarefas" });
-      deleteTarefaComUndo(d);
-    });
-  }
-
-  function startTarefaTimer(id){
-    const m = tarefas.find(x=>x.id===id);
-    if(!m) return;
-    tarefaTimerState = { id, startTs: Date.now(), seconds: m.dur*60, warned:false };
-    goTo({ tab:"tarefas", screen:"tarefaTimer" });
-  }
-
-  function renderTarefaTimer(){
-    const st = tarefaTimerState;
-    const m = st && tarefas.find(x=>x.id===st.id);
-    if(!m){ goTo({ tab:"tarefas", screen:"tarefas" }); return; }
-    const ex = eixoInfo(m.eixo);
-    const el = document.createElement("div");
-    el.className = "screen";
-    el.style.justifyContent = "center";
-    el.innerHTML = `
-      <div style="text-align:center; display:flex; flex-direction:column; gap:16px; align-items:center;">
-        <div class="section-label" style="color:${ex.color};">${ex.label} · ${escapeHtml(m.area)}</div>
-        <h2 style="font-size:22px;">${escapeHtml(m.tipo)}: ${escapeHtml(m.conteudo)}</h2>
-        <div id="tarClock" style="font-family:'Inter', sans-serif; font-size:64px; font-weight:500;">--:--</div>
-        <div id="tarHint" class="routine-meta">contagem não para sozinha — marque quando concluir</div>
-        <button class="btn-primary" id="tarDone" style="width:220px; background:${ex.color};">${svgIcon(ICON_D.check,14)} Concluída</button>
-        <button class="btn-cancel" id="tarCancel">Cancelar (não conta)</button>
-      </div>`;
-    app.appendChild(el);
-    const clock = document.getElementById("tarClock");
-    function tick(){
-      const elapsed = Math.floor((Date.now()-st.startTs)/1000);
-      const remaining = st.seconds - elapsed;
-      clock.textContent = fmtTime(remaining);
-      clock.style.color = remaining < 0 ? "var(--danger)" : "var(--text)";
-      if(remaining <= 0 && !st.warned){ st.warned = true; timeUpCue(); notifyTarefaTimeUp(m); }
-    }
-    tick();
-    if(tarefaTimerHandle) clearInterval(tarefaTimerHandle);
-    tarefaTimerHandle = setInterval(tick, 500);
-    function stop(){ if(tarefaTimerHandle){ clearInterval(tarefaTimerHandle); tarefaTimerHandle = null; } tarefaTimerState = null; }
-    document.getElementById("tarDone").onclick = () => {
-      stop(); concludeTarefa(m);
-      goTo({ tab:"tarefas", screen:"tarefas" });
-    };
-    document.getElementById("tarCancel").onclick = () => {
-      stop();
-      goTo({ tab:"tarefas", screen:"tarefas" });
-    };
-  }
 
   function renderNotes(){
     const el = document.createElement("div");
@@ -6574,30 +4575,6 @@ window.addEventListener("unhandledrejection", function(e){
     return "lv4";
   }
 
-  function exportStatsCsv(){
-    const rich = history.filter(h=>h.ts);
-    if(rich.length === 0){ showAlertBanner("Sem execuções detalhadas para exportar"); return; }
-    const rows = [["data","hora","rotina","planejado_s","real_s","desvio_s","pausas","pausado_s","etapas_puladas","atraso_min","humor_1a5"]];
-    rich.forEach(h=>{
-      const d = new Date(h.ts);
-      rows.push([
-        h.date, fmtClock(d), h.routineName,
-        h.plannedSec != null ? h.plannedSec : "",
-        h.actualSec != null ? h.actualSec : "",
-        (h.plannedSec != null && h.actualSec != null) ? (h.actualSec - h.plannedSec) : "",
-        h.pauses != null ? h.pauses : 0,
-        h.pausedSec != null ? h.pausedSec : 0,
-        h.skippedCount != null ? h.skippedCount : 0,
-        h.schedDelayMin != null ? h.schedDelayMin : "",
-        h.mood != null ? h.mood : ""
-      ]);
-    });
-    const csv = "\ufeff" + rows.map(r=>r.map(v=>String(v).replace(/;/g,",")).join(";")).join("\n");
-    downloadFile("rotinas-estatisticas.csv", csv, "text/csv;charset=utf-8", "Dados");
-    showAlertBanner("CSV exportado para Downloads ✓");
-  }
-
-  /* ---- painel de detalhe do dia tocado ---- */
   function dayDetailHtml(key){
     const d = new Date(key + "T12:00:00");
     const executed = history.filter(h=>h.date === key);
@@ -6661,7 +4638,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   /* ============ RELATÓRIO DE FECHAMENTO (PDF legível) ============
-     Diferente do CSV bruto (exportStatsCsv) e do backup completo (JSON): um
+     Diferente do backup completo (JSON): um
      resumo pronto pra ler ou arquivar — pontuação, destaques por área, metas
      e rotinas do período. Acompanha o toggle semanal/mensal/anual da própria
      aba Dados, reaproveitando exportPdfView (mesma superfície do PDF de
@@ -6756,9 +4733,8 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="bell-btn" id="statsBackupBtn" title="Exportar backup completo" aria-label="Exportar backup completo">${svgIcon(ICON_D.arrowDownTray,14)}</button>
             <button class="bell-btn" id="statsImportBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
             <input type="file" id="statsImportFile" accept="application/json" style="display:none">
-            <button class="bell-btn" id="csvBtn" title="Exportar CSV" aria-label="Exportar CSV" style="width:auto; padding:0 10px; font-size:12px; font-family:'Inter', sans-serif;">CSV</button>
-            <button class="bell-btn" id="relatorioBtn" title="Relatório de fechamento (PDF)" aria-label="Relatório de fechamento" style="width:auto; padding:0 10px; font-size:12px; font-family:'Inter', sans-serif;">Relatório</button>
-            ${cfgBtnHtml()}
+            <button class="bell-btn" id="relatorioBtn" title="Relatório de fechamento (PDF)" aria-label="Relatório de fechamento">${svgIcon(ICON_D.clipboard,15)}</button>
+            ${cfgBtnHtml({ busca:false })}
           </div>
         </div>
         ${rodaVidaResumoHtml()}
@@ -6778,7 +4754,6 @@ window.addEventListener("unhandledrejection", function(e){
     app.appendChild(el);
     wireCfgBtn(el);
 
-    document.getElementById("csvBtn").onclick = exportStatsCsv;
     document.getElementById("relatorioBtn").onclick = () => {
       const { title, inner } = relatorioFechamentoHtml();
       exportPdfView(title, inner, "Relatórios");
@@ -6789,36 +4764,14 @@ window.addEventListener("unhandledrejection", function(e){
     statsImpFile.onchange = e => { if(e.target.files && e.target.files[0]){ importBackup(e.target.files[0]); e.target.value=""; } };
     el.querySelectorAll("[data-sview]").forEach(sp=> sp.onclick = () => { statsView = sp.dataset.sview; selectedDay = null; render(); });
 
-    if(history.length === 0 && tarefasHist.length === 0){
+    if(history.length === 0){
       body.innerHTML = `<div class="empty-state" style="min-height:50vh;"><h2>Sem dados ainda</h2><p>Conclua rotinas para ver seu histórico, desvios de tempo e pontualidade aqui.</p></div>`;
       return;
     }
 
     if(statsView === "mensal"){ renderMonthView(body); return; }
     if(statsView === "anual"){ renderYearView(body); return; }
-    renderTarefasResumo(body);
     if(history.length) renderWeekView(body);
-  }
-
-  /* ============ RESUMO DAS TAREFAS (fila 🍱) ============ */
-  function renderTarefasResumo(body){
-    if(tarefasHist.length === 0) return;
-    const now = Date.now();
-    const d7 = now - 7*86400000, d30 = now - 30*86400000;
-    const last7 = tarefasHist.filter(h=>h.ts>=d7);
-    const last30 = tarefasHist.filter(h=>h.ts>=d30);
-    const min7 = last7.reduce((a,h)=>a+(h.dur||0),0);
-    let rows = "";
-    EIXOS.forEach(ex=>{
-      const n7 = last7.filter(h=>h.eixo===ex.id).length;
-      const n30 = last30.filter(h=>h.eixo===ex.id).length;
-      if(n30===0) return;
-      const pct = last7.length ? Math.round(n7/Math.max(1,last7.length)*100) : 0;
-      rows += `<div class="bar-row"><div class="bar-name" style="color:${ex.color};">${ex.label}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${ex.color};"></div></div><div class="bar-val">${n7} / 7d · ${n30} / 30d</div></div>`;
-    });
-    body.innerHTML += `<div class="section-label">Tarefas ${svgIcon(ICON_D.bars3,15)}</div>
-      <div class="stat-card">${rows || '<div class="dev-n">sem conclusões nos últimos 30 dias</div>'}
-      <div class="stat-foot">${last7.length} tarefa(s) e ${min7} min na última semana · ${tarefasHist.length} no total</div></div>`;
   }
 
   /* ============ VISÃO RESUMO ============ */
@@ -7099,7 +5052,6 @@ window.addEventListener("unhandledrejection", function(e){
       }
     }
     partes.push(`<div style="height:20px"></div>`);
-    // += (não =): renderTarefasResumo já pode ter escrito na mesma `body` antes.
     body.innerHTML += partes.join("");
 
     document.getElementById("prevWeek").onclick = () => { calWeek = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()-7); selectedDay = null; render(); };
@@ -7431,6 +5383,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   const MATRIX_COLORS = ["#EC6AA8","#5B8DEF","#6B8F71","#C9B23E","#B25B4C","#9C7BB8"];
   const ICON_D = {
+    fire: "M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z",
     market: "M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z",
     expense: "M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
     notes: "m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10",
@@ -7683,9 +5636,12 @@ window.addEventListener("unhandledrejection", function(e){
      troca de screen dentro da mesma aba "templates", nunca reconstrói
      conteúdo duplicado. */
   function modelosTabPillHtml(active){
-    return `<div class="area-chips area-filter-row" style="margin-bottom:14px;">
-      <span class="area-chip ${active==='notas'?'sel':''}" data-modelostab="notas" style="--chip:var(--accent);">Notas</span>
-      <span class="area-chip ${active==='outros'?'sel':''}" data-modelostab="outros" style="--chip:var(--accent);">Outros</span>
+    // mesmo componente do seletor semanal/mensal/anual de Dados (.type-toggle
+    // .view-toggle), e não os chips de área: são duas VIEWS excludentes da
+    // mesma aba, que é exatamente o que esse toggle representa no resto do app.
+    return `<div class="type-toggle view-toggle" style="margin-bottom:14px;">
+      <span data-modelostab="notas" class="${active==='notas'?'active':''}">Notas</span>
+      <span data-modelostab="outros" class="${active==='outros'?'active':''}">Outros</span>
     </div>`;
   }
   function wireModelosTabPill(scope){
@@ -11905,7 +9861,7 @@ window.addEventListener("unhandledrejection", function(e){
   function backupData(){
     // v5 passou a levar o diário e o kanban do dia; v6 passou a levar a biblioteca de
     // exercícios; v7 passou a levar os compromissos avulsos
-    return { version: 7, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, tarefas, tarefasHist, diario, diaKanban, exercicios, compromissos };
+    return { version: 8, exportedAt: new Date().toISOString(), routines, notes, history, templates, snoozes, diario, diaKanban, exercicios, compromissos };
   }
   async function exportBackup(){
     const ok = await shareOrDownload("rotinas-backup-" + localKey() + ".json", JSON.stringify(backupData(), null, 2), "application/json", "Backups");
@@ -11920,7 +9876,7 @@ window.addEventListener("unhandledrejection", function(e){
      ou vazio não destrói mais o único backup existente. */
   async function autoBackupNative(){
     if(!isNative) return;
-    if(routines.length + notes.length + tarefas.length + templates.length === 0) return; // nunca sobrescrever com dados vazios
+    if(routines.length + notes.length + templates.length === 0) return; // nunca sobrescrever com dados vazios
     if(Date.now() - load(K_AUTOBAK, 0) < 3 * 86400000) return;
     try{
       await nativeWriteExport("rotinas-backup-auto-" + localKey() + ".json", JSON.stringify(backupData(), null, 2), "Backups");
@@ -11985,7 +9941,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(bakWriting) return false;
     const h = backupHandle();
     if(!h) return false;
-    if(routines.length + notes.length + tarefas.length + templates.length === 0) return false; // nunca sobrescrever com dados vazios
+    if(routines.length + notes.length + templates.length === 0) return false; // nunca sobrescrever com dados vazios
     if(!forcar && Date.now() - load(K_BAKWEB, 0) < 5 * 60000) return false; // no máximo a cada 5 min
     if(!(await backupHandlePermitido(!!forcar))) return false;
     bakWriting = true;
@@ -12087,7 +10043,7 @@ window.addEventListener("unhandledrejection", function(e){
      compartilhada entre o import manual (arquivo escolhido no <input>) e a
      sincronização automática (arquivo do handle de backup, lido sozinho). */
   function oferecerImportarBackup(data, onResolvido){
-    const COLLS = ["routines","notes","history","templates","snoozes","tarefas","tarefasHist","exercicios"];
+    const COLLS = ["routines","notes","history","templates","snoozes","exercicios"];
     if(!data || typeof data !== "object" || !COLLS.some(k => Array.isArray(data[k]))){
       showAlertBanner("Arquivo não parece um backup do Rotinas");
       return;
@@ -12097,7 +10053,7 @@ window.addEventListener("unhandledrejection", function(e){
     ov.className = "confirm-overlay";
     ov.innerHTML = `
       <div class="confirm-box">
-        <p>Importar backup:<br><small>${(data.routines||[]).length} rotina(s), ${(data.notes||[]).length} nota(s), ${(data.history||[]).length} execução(ões), ${(data.tarefas||[]).length} tarefa(s).</small></p>
+        <p>Importar backup:<br><small>${(data.routines||[]).length} rotina(s), ${(data.notes||[]).length} nota(s), ${(data.history||[]).length} execução(ões).</small></p>
         <div class="confirm-actions" style="flex-direction:column;">
           <button class="btn-confirm" id="impMerge" style="background:var(--grad);">Mesclar com os dados atuais</button>
           <button class="btn-confirm" id="impReplace">Substituir tudo</button>
@@ -12114,8 +10070,6 @@ window.addEventListener("unhandledrejection", function(e){
       if(Array.isArray(data.history)) { history = data.history; save(K_HISTORY, history); }
       if(Array.isArray(data.templates)) { templates = data.templates; save(K_TEMPLATES, templates); }
       if(Array.isArray(data.snoozes)) { snoozes = data.snoozes; save(K_SNOOZES, snoozes); }
-      if(Array.isArray(data.tarefas)) { tarefas = data.tarefas; saveTarefas(); }
-      if(Array.isArray(data.tarefasHist)) { tarefasHist = data.tarefasHist; saveTarefasHist(); }
       if(data.diario && typeof data.diario === "object") { diario = data.diario; saveDiario(); }
       if(Array.isArray(data.diaKanban)) { diaKanban = data.diaKanban; saveDiaKanban(); }
       if(Array.isArray(data.exercicios)) { exercicios = data.exercicios; saveExercicios(); }
@@ -12131,14 +10085,12 @@ window.addEventListener("unhandledrejection", function(e){
       (data.templates||[]).forEach(t=>{ if(!templates.some(x=>x.id===t.id)) templates.push(t); });
       const tsSet = new Set(history.map(h=>h.ts));
       (data.history||[]).forEach(h=>{ if(!h.ts || !tsSet.has(h.ts)) history.push(h); });
-      (data.tarefas||[]).forEach(t=>{ if(!tarefas.some(x=>x.id===t.id)) tarefas.push(t); });
-      (data.tarefasHist||[]).forEach(h=>{ if(!tarefasHist.some(x=>x.id===h.id)) tarefasHist.push(h); });
       (data.diaKanban||[]).forEach(c=>{ if(c && c.id && !diaKanban.some(x=>x.id===c.id)) diaKanban.push(c); });
       (data.exercicios||[]).forEach(ex=>{ if(ex && ex.id && !exercicios.some(x=>x.id===ex.id)) exercicios.push(ex); });
       (data.compromissos||[]).forEach(c=>{ if(c && c.id && !compromissos.some(x=>x.id===c.id)) compromissos.push(c); });
       // no diário, período já escrito aqui ganha: mesclar textos criaria duplicata
       Object.keys(data.diario || {}).forEach(k=>{ if(!diario[k]) diario[k] = data.diario[k]; });
-      save(K_ROUTINES, routines); save(K_NOTES, notes); save(K_HISTORY, history); save(K_TEMPLATES, templates); saveTarefas(); saveTarefasHist(); saveDiario(); saveDiaKanban(); saveExercicios(); saveCompromissos();
+      save(K_ROUTINES, routines); save(K_NOTES, notes); save(K_HISTORY, history); save(K_TEMPLATES, templates); saveDiario(); saveDiaKanban(); saveExercicios(); saveCompromissos();
       showAlertBanner("Backup mesclado ✓");
       render();
       if(onResolvido) onResolvido(true);
@@ -12962,6 +10914,9 @@ window.addEventListener("unhandledrejection", function(e){
     const entry = {
       date: localKey(now),
       ts: Date.now(),
+      // início real da execução — o card da home mostra "início → fim" reais no
+      // lugar do horário planejado depois que a rotina é concluída
+      startedTs: playerState.startedAt,
       routineId: playerState.routine.id,
       routineName: playerState.routine.name,
       plannedSec, actualSec,
@@ -14889,7 +12844,7 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="btn-cancel" id="cfgRodaAdd" style="flex:0 0 auto;">Adicionar</button>
           </div>
           <div class="sched-time-row" style="margin-top:12px;"><span style="flex:1;">Peso de "sem área"</span><input class="dur-input" type="number" min="1" max="10" id="cfgRodaSemArea" value="${gam.config.roda.pesoSemArea}"></div>
-          <div class="stat-foot">As tarefas de estudo já vêm classificadas pelo eixo delas — as áreas nasceram com os mesmos nomes, então rotina e tarefa caem na mesma área.</div>
+          <div class="stat-foot">Cada rotina, meta e cartão aponta a sua área; a semana reparte os 100 pontos entre as áreas antes de repartir dentro de cada uma.</div>
         </div>
 
         <div class="section-label">Hábito consolidado</div>
@@ -14910,7 +12865,7 @@ window.addEventListener("unhandledrejection", function(e){
 
         <div class="section-label">Dados</div>
         <div class="stat-card">
-          <div class="routine-meta">${routines.length} rotina(s) · ${tarefas.length} tarefa(s) · ${notes.length} nota(s) · ${templates.length} modelo(s) · ${history.length} execução(ões)</div>
+          <div class="routine-meta">${routines.length} rotina(s) · ${notes.length} nota(s) · ${templates.length} modelo(s) · ${history.length} execução(ões)</div>
           <div class="stat-foot" style="margin-top:8px;">build ${BUILD_STAMP} · ${isNative?'app instalado':'PWA no navegador'}</div>
         </div>
       </div>
@@ -15338,7 +13293,31 @@ window.addEventListener("unhandledrejection", function(e){
         <button class="btn-cancel" id="syncDisconnect" style="flex:1;">Desconectar</button>
       </div>
       ${conflitos.length ? `<div class="section-label" style="margin:14px 0 4px;">Conflitos pendentes — os dois lados mudaram desde o último sync</div>${conflitosHtml}` : ""}
+      ${syncSaudeHtml(status)}
     `;
+  }
+  /* Saúde do sync, chave a chave. "Último sync: agora" continua verdade mesmo
+     quando UMA chave nunca subiu — foi exatamente assim que exercicios e
+     compromissos ficaram fora do motor do Android sem ninguém notar. O build
+     agora barra esse caso (test/sync-keys.cjs); este painel é o espelho dele em
+     tempo de execução, para uma instalação que já está torta. */
+  function syncSaudeHtml(status){
+    const keys = status.keys || [];
+    if(!keys.length) return "";
+    const nunca = keys.filter(k => !k.syncedAt).length;
+    const linhas = keys.map(k=>{
+      const quando = k.conflito ? "conflito"
+        : (k.syncedAt ? new Date(k.syncedAt).toLocaleString("pt-BR") : "nunca");
+      const cor = k.conflito ? "var(--danger)" : (k.syncedAt ? "var(--muted)" : "var(--accent)");
+      return `<div class="dev-row"><span>${escapeHtml(k.key.replace("rotinas_v2_",""))}</span>
+        <b class="dev-n wide" style="color:${cor};">${escapeHtml(quando)}</b></div>`;
+    }).join("");
+    return `
+      <div class="section-label" style="margin:16px 0 4px;">Saúde do sync — ${keys.length} chave(s)${nunca?` · ${nunca} nunca sincronizada(s)`:""}</div>
+      <div class="stat-card" style="margin:0;">
+        ${linhas}
+        <div class="stat-foot">Chave "nunca" que já tem dado local é sinal de coleção nova que ficou fora de SYNCED_KEYS.</div>
+      </div>`;
   }
   function wireSyncCard(card){
     const bridge = syncBridge();
@@ -15449,8 +13428,6 @@ window.addEventListener("unhandledrejection", function(e){
       case K_HISTORY: history = value; save(K_HISTORY, history); break;
       case K_TEMPLATES: templates = value; save(K_TEMPLATES, templates); break;
       case K_SNOOZES: snoozes = value; save(K_SNOOZES, snoozes); break;
-      case K_TAREFAS: tarefas = value; saveTarefas(); break;
-      case K_TAREFAS_HIST: tarefasHist = value; saveTarefasHist(); break;
       case K_DIARIO: diario = value; saveDiario(); break;
       case K_DIAKANBAN: diaKanban = value; saveDiaKanban(); break;
       case K_EXERCICIOS: exercicios = value; saveExercicios(); break;
@@ -15483,8 +13460,8 @@ window.addEventListener("unhandledrejection", function(e){
   /* ---------------- Bridge para o servidor MCP embutido (desktop) ----------------
      Registrado só no Electron (isDesktop). O servidor MCP roda no main process e
      não conhece a lógica de negócio do app — cada tool cai aqui e reaproveita as
-     mesmas funções que a UI já usa (registrarConclusao via concludeTarefa,
-     sincronizarPontosCartao, saveTarefas, saveDiario, etc.), nunca reimplementa. */
+     mesmas funções que a UI já usa (registrarConclusao, sincronizarPontosCartao,
+     saveDiario, etc.), nunca reimplementa. */
   if(isDesktop){
     function mcpTagValor(v){ return ["nenhum","baixo","medio","alto"].includes(v) ? v : undefined; }
     const britaMCP = {
@@ -15518,18 +13495,6 @@ window.addEventListener("unhandledrejection", function(e){
             items:c.items.map(it=>({ id:it.id, texto:it.text, tagValor:it.tagValor||"nenhum" }))
           }))
         };
-      },
-      list_tasks(args){
-        const eixo = args && args.eixo;
-        const apenasAtivas = !args || args.apenas_ativas !== false;
-        return tarefas
-          .filter(m => !eixo || m.eixo === eixo)
-          .filter(m => !apenasAtivas || tarefaAtiva(m))
-          .map(m => ({
-            id:m.id, eixo:m.eixo, area:m.area, tipo:m.tipo, conteudo:m.conteudo,
-            tipoTarefa:m.tipoTarefa||"", dur:m.dur, tagValor:m.tagValor||"medio",
-            lastDone:m.lastDone||null, ativa: tarefaAtiva(m)
-          }));
       },
       list_metas(){
         const out = [];
@@ -15566,33 +13531,6 @@ window.addEventListener("unhandledrejection", function(e){
         return { notaSemana: notaSemanaAtual(), ritmo: ritmoInfo(), pontosPorArea: pontosPorAreaSemana() };
       },
 
-      create_task(args){
-        const t = {
-          id: uid(), eixo: args.eixo, area: args.area, tipo: args.tipo, conteudo: args.conteudo,
-          tipoTarefa: args.tipo_tarefa || "", detalhes: args.detalhes || "",
-          dur: args.dur || 15, tagValor: mcpTagValor(args.tag_valor) || "medio",
-          lastDone: null, ord: tarefas.length, genero: "pool"
-        };
-        tarefas.push(t); saveTarefas(); render();
-        return { id: t.id };
-      },
-      complete_task(args){
-        const m = tarefas.find(x=>x.id===(args&&args.id));
-        if(!m) throw new Error("tarefa não encontrada");
-        concludeTarefa(m);
-        render();
-        return { id:m.id, lastDone:m.lastDone };
-      },
-      update_task(args){
-        const m = tarefas.find(x=>x.id===(args&&args.id));
-        if(!m) throw new Error("tarefa não encontrada");
-        if(args.conteudo != null) m.conteudo = args.conteudo;
-        if(args.detalhes != null) m.detalhes = args.detalhes;
-        if(args.dur != null) m.dur = args.dur;
-        if(mcpTagValor(args.tag_valor)) m.tagValor = args.tag_valor;
-        saveTarefas(); render();
-        return { id:m.id };
-      },
       append_diario(args){
         const escopo = args.escopo || "dia";
         const iso = args.iso || localKey();

@@ -41,8 +41,8 @@ final class SyncEngine {
     // mesmo motivo: last-write-wins é sempre correto para um escalar pequeno.
     static final String[] SYNCED_KEYS = {
             "rotinas_v2_routines", "rotinas_v2_notes", "rotinas_v2_history",
-            "rotinas_v2_templates", "rotinas_v2_snoozes", "rotinas_v2_tarefas",
-            "rotinas_v2_tarefas_hist", "rotinas_v2_diario", "rotinas_v2_diakanban",
+            "rotinas_v2_templates", "rotinas_v2_snoozes",
+            "rotinas_v2_diario", "rotinas_v2_diakanban",
             "rotinas_v2_exercicios", "rotinas_v2_compromissos",
             "rotinas_v2_theme", "rotinas_v2_weekstart"
     };
@@ -313,6 +313,21 @@ final class SyncEngine {
         java.util.Iterator<String> it = conflicts.keys();
         while (it.hasNext()) pending.put(it.next());
         status.put("pendingConflicts", pending);
+        // Estado POR CHAVE — paridade com getStatus() de sync/engine.js: sem
+        // ele o painel só sabe "sincronizou às 14:32", que continua verdade
+        // mesmo quando uma chave específica nunca subiu.
+        JSONObject state = SyncTokenStore.loadState(ctx);
+        JSONArray keys = new JSONArray();
+        for (String k : SYNCED_KEYS) {
+            JSONObject entry = new JSONObject();
+            entry.put("key", k);
+            JSONObject ks = state.optJSONObject(k);
+            long syncedAt = ks != null ? ks.optLong("syncedAt", 0) : 0;
+            entry.put("syncedAt", syncedAt > 0 ? syncedAt : JSONObject.NULL);
+            entry.put("conflito", conflicts.has(k));
+            keys.put(entry);
+        }
+        status.put("keys", keys);
         return status;
     }
 

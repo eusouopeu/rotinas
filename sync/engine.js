@@ -43,8 +43,6 @@ const SYNCED_KEYS = [
   "rotinas_v2_history",
   "rotinas_v2_templates",
   "rotinas_v2_snoozes",
-  "rotinas_v2_tarefas",
-  "rotinas_v2_tarefas_hist",
   "rotinas_v2_diario",
   "rotinas_v2_diakanban",
   "rotinas_v2_exercicios",
@@ -365,7 +363,16 @@ function getStatus() {
     connected: isConnected(),
     hasClientCreds: hasClientCreds(),
     lastSyncAt: state.lastSyncAt || null,
-    pendingConflicts: Object.keys(state.conflicts || {})
+    pendingConflicts: Object.keys(state.conflicts || {}),
+    /* Estado POR CHAVE: sem isto o painel só sabe dizer "sincronizou às
+       14:32", que é verdade mesmo quando uma chave específica nunca subiu
+       (nova, fora de SYNCED_KEYS, ou sempre em erro). É o dado que torna
+       visível a falha silenciosa que o test/sync-keys.cjs pega no build. */
+    keys: SYNCED_KEYS.map(k => ({
+      key: k,
+      syncedAt: ((state.keys || {})[k] || {}).syncedAt || null,
+      conflito: !!(state.conflicts || {})[k]
+    }))
   };
 }
 

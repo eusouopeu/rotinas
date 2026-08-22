@@ -1,5 +1,5 @@
-const CACHE_NAME = "rotinas-cache-v20";
-const ASSETS = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png",
+const CACHE_NAME = "rotinas-cache-v21";
+const ASSETS = ["./", "./index.html", "./app.css", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png",
   "./fonts/fonts.css", "./fonts/Fraunces.woff2", "./fonts/Inter.woff2"];
 
 self.addEventListener("install", (event) => {
