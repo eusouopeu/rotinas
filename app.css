@@ -137,6 +137,7 @@
   .tabbar button .ic{
     font-size:19px; display:flex; align-items:center; justify-content:center;
     padding:3px 14px; border-radius:11px; transition: background .18s ease;
+    position:relative; /* âncora do .sync-conflict-dot na aba Configurações */
   }
   /* SVGs são nativamente arrastáveis por padrão em vários navegadores (o mesmo
      comportamento de "arrastar para salvar" de uma <img>) — sem isto, começar
@@ -403,6 +404,22 @@
   }
   .area-color-swatch::-webkit-color-swatch-wrapper{ padding:2px; }
   .area-color-swatch::-webkit-color-swatch{ border:none; border-radius:5px; }
+  /* linha de área da roda da vida (Configurações): sem os botões de mover
+     que existiam antes, os 3 campos à direita do nome ficam com largura fixa
+     — é isso que faz peso e excluir alinharem como coluna de tabela entre
+     todas as áreas, em vez de dependerem do texto do nome. */
+  .roda-area-row{ gap:8px; }
+  .roda-area-nome{
+    flex:1 1 auto; min-width:0; background:none; border:none; font-family:'Inter', sans-serif;
+    font-size:14px; padding:6px 2px;
+  }
+  .roda-area-nome:focus{ outline:none; border-bottom:1px solid var(--line); }
+  .roda-area-peso{ flex:0 0 44px; width:44px; text-align:right; }
+  .roda-area-row .icon-btn.borderless{ flex:0 0 auto; }
+  /* botão-ícone sem o quadrado de fundo/borda do .icon-btn padrão — usado
+     onde o ícone já basta (excluir área, favoritar nota, editar meta). */
+  .icon-btn.borderless{ background:none; border:none; box-shadow:none; }
+  .icon-btn.borderless:active{ background:var(--surface-2); }
 
   .bottom-actions{
     position:fixed; left:0; right:0; bottom:0; padding:16px 20px calc(16px + var(--safe-bottom));
@@ -762,14 +779,22 @@
 
   /* ---------- AGENDA ---------- */
   .agenda-row{ cursor:pointer; }
-  /* A coluna de horário NÃO cresce: a regra genérica .dev-row > :first-child
-     dava flex:1 a ela e a sobra da linha virava um vão vazio entre a hora e o
-     nome. Aqui a sobra é toda do nome. */
-  .dev-row.agenda-row > .agenda-time{ flex:0 0 auto; width:auto; min-width:0; }
+  /* Largura FIXA (não auto): rotina mostra "07:00–07:40", compromisso só
+     "18:00" — com largura automática cada linha começava o nome numa coluna
+     diferente. Fixando a coluna, hora e nome alinham como tabela entre as
+     linhas dos 7 dias. */
+  .dev-row.agenda-row > .agenda-time{ flex:0 0 76px; width:76px; min-width:0; }
   .agenda-time{ font-family:'Inter', sans-serif; font-size:12.5px; color:var(--muted); }
-  .agenda-nome{ flex:1 1 auto; min-width:0; overflow-wrap:break-word; }
+  .agenda-nome{ flex:1 1 auto; min-width:0; overflow-wrap:break-word; display:flex; align-items:center; }
   .agenda-row.feito .agenda-nome, .agenda-row.feito .agenda-time{ color:var(--muted); text-decoration:line-through; }
   .agenda-today{ border-color:var(--accent-dim); }
+  /* quadradinho de tarefa/compromisso avulso — mesmo espaço do .r-dot de
+     rotina, mas quadrado: distingue "programado na rotina" de "adicionado na
+     agenda" sem precisar de texto. */
+  .ag-square{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; flex:0 0 auto; background:var(--muted); }
+  /* slot do lápis: mesma largura do botão exista ele ou não, pra a borda
+     direita de todas as linhas do dia ficar na mesma coluna. */
+  .agenda-edit-slot{ display:block; width:34px; flex:0 0 auto; }
   /* agenda inline da aba Rotinas (visões "semana" e "dia") */
   .ag-semana-topo{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
   .ag-dia-head{ display:flex; align-items:center; gap:8px; margin:16px 0 6px; }
@@ -810,6 +835,13 @@
   .stats-nav{ margin-bottom:12px; display:flex; }
   .view-toggle{ width:100%; }
   .view-toggle span{ flex:1; text-align:center; }
+  /* pill Notas/Outros de Modelos: mesmo componente do seletor semanal/mensal/
+     anual de Dados, mas sobre um cabeçalho sem card ao redor — o fundo padrão
+     (--surface-2) quase sumia ali. Borda + sombra + mais respiro vertical só
+     nesta instância, sem mexer no .type-toggle genérico usado em pesos/toggles
+     do app inteiro. */
+  .modelos-tab-pill{ background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow-1); }
+  .modelos-tab-pill span{ padding-top:9px; padding-bottom:9px; }
   .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
   .cal-title{ font-family:'Fraunces', serif; font-size:20px; font-weight:600; }
   .mcal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }

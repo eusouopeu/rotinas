@@ -567,7 +567,7 @@ window.addEventListener("unhandledrejection", function(e){
     { id:"sistemico",   label:"Conhecimento Sistêmico",area:"Medicina",      color:"#B25B4C" }
   ];
 
-  let view = { tab: "metas", screen: "metas" };
+  let view = { tab: "home", screen: "home" };
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
   /* O que ocupa a área de conteúdo da aba Rotinas: "rotinas" (a lista de
@@ -679,7 +679,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-23 (v27)";
+  const BUILD_STAMP = "2026-08-23 (v28)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2548,21 +2548,14 @@ window.addEventListener("unhandledrejection", function(e){
     return { startMin: ((startMin%1440)+1440)%1440, endMin: ((endMin%1440)+1440)%1440, startStr: formatHM(startMin), endStr: formatHM(endMin), durMin };
   }
 
-  /* Busca e Configurações são alcançáveis do topo de TODAS as abas, sempre no
-     nível do título e do lado oposto a ele. Um par html+wire para não repetir
-     os botões (nem o destino) em cinco telas. */
-  /* `opts.busca:false` esconde a lupa — usado só por Dados, cujo cabeçalho já
-     carrega backup/importar/relatório e não tem largura para mais um ícone.
-     A busca continua a um toque nas outras quatro abas e na tecla "/". */
-  function cfgBtnHtml(opts){
-    const busca = !opts || opts.busca !== false;
-    return (busca ? `<button class="bell-btn" data-searchbtn="1" title="Buscar em tudo" aria-label="Buscar em tudo">${svgIcon(ICON_D.magnifyingGlass,16)}</button>` : "")
-         + `<button class="bell-btn" data-cfgbtn="1" title="${syncConflictCount>0?'Configurações — há conflito de sincronização pendente':'Configurações'}" aria-label="Configurações">${svgIcon(ICON_D.settings, 17)}<span class="sync-conflict-dot" data-syncdot="1" style="${syncConflictCount>0?'':'display:none;'}"></span></button>`;
+  /* Busca é alcançável do topo de TODAS as abas, sempre no nível do título e
+     do lado oposto a ele. Configurações não mora mais aqui — virou uma aba
+     própria da tabbar (era um botão repetido em cinco cabeçalhos, redundante
+     com uma tela que já é "sobre o app inteiro", não sobre a aba atual). */
+  function cfgBtnHtml(){
+    return `<button class="bell-btn" data-searchbtn="1" title="Buscar em tudo" aria-label="Buscar em tudo">${svgIcon(ICON_D.magnifyingGlass,16)}</button>`;
   }
   function wireCfgBtn(scope){
-    scope.querySelectorAll("[data-cfgbtn]").forEach(b=>{
-      b.onclick = () => { goTo({ tab:"home", screen:"settings" }); };
-    });
     scope.querySelectorAll("[data-searchbtn]").forEach(b=>{
       b.onclick = openGlobalSearch;
     });
@@ -2994,7 +2987,7 @@ window.addEventListener("unhandledrejection", function(e){
      notas é um contenteditable, então sem ela um "1" no meio de uma frase
      trocaria de aba. Também respeita modificadores, para não roubar Cmd+1 do
      navegador. */
-  const TECLA_ABA = { "1":"metas", "2":"home", "3":"diario", "4":"templates", "5":"stats" };
+  const TECLA_ABA = { "1":"home", "2":"metas", "3":"diario", "4":"templates", "5":"settings" };
   function digitandoAgora(){
     const a = document.activeElement;
     if(!a) return false;
@@ -3014,14 +3007,19 @@ window.addEventListener("unhandledrejection", function(e){
     const bar = document.createElement("div");
     bar.className = "tabbar";
     bar.innerHTML = `
-      <button data-tab="metas" class="${activeTab==='metas'?'active':''}"><span class="ic">${svgIcon(ICON_D.countdown)}</span>Metas</button>
       <button data-tab="home" class="${activeTab==='home'?'active':''}"><span class="ic">${svgIcon(ICON_D.home)}</span>Rotinas</button>
+      <button data-tab="metas" class="${activeTab==='metas'?'active':''}"><span class="ic">${svgIcon(ICON_D.countdown)}</span>Metas</button>
       <button data-tab="diario" class="${activeTab==='diario'?'active':''}"><span class="ic">${svgIcon(ICON_D.notes)}</span>Diário</button>
       <button data-tab="templates" class="${activeTab==='templates'||activeTab==='notes'?'active':''}"><span class="ic">${svgIcon(ICON_D.templates)}</span>Modelos</button>
-      <button data-tab="stats" class="${activeTab==='stats'?'active':''}"><span class="ic">${svgIcon(ICON_D.stats)}</span>Dados</button>
+      <button data-tab="settings" class="${activeTab==='settings'?'active':''}" title="${syncConflictCount>0?'Configurações — há conflito de sincronização pendente':''}"><span class="ic">${svgIcon(ICON_D.settings)}<span class="sync-conflict-dot" data-syncdot="1" style="${syncConflictCount>0?'':'display:none;'}"></span></span>Configurações</button>
     `;
     bar.querySelectorAll("[data-tab]").forEach(b=>{
-      b.onclick = () => { goTo({ tab:b.dataset.tab, screen:b.dataset.tab }); };
+      b.onclick = () => {
+        // "Modelos" não tem tela própria chamada "templates" como padrão de
+        // exibição — abre sempre em Notas, que é a sub-aba mais usada.
+        const screen = b.dataset.tab === "templates" ? "notes" : b.dataset.tab;
+        goTo({ tab:b.dataset.tab, screen });
+      };
     });
     return bar;
   }
@@ -3042,6 +3040,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="header-right">
           <button class="bell-btn" id="importRoutineBtn" title="Importar rotina" aria-label="Importar rotina">${svgIcon(ICON_D.arrowUpTray,14)}</button>
           <button class="bell-btn" id="tplLibraryBtn" title="Modelos prontos" aria-label="Modelos prontos">${svgIcon(ICON_D.templates,14)}</button>
+          <button class="bell-btn" id="statsBtn" title="Dados" aria-label="Dados">${svgIcon(ICON_D.stats,14)}</button>
           ${cfgBtnHtml()}
         </div>
       </div>
@@ -3227,6 +3226,7 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("importRoutineBtn").onclick = () => impRoutineFile.click();
     impRoutineFile.onchange = e => { if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]); };
     document.getElementById("tplLibraryBtn").onclick = abrirBibliotecaModelos;
+    document.getElementById("statsBtn").onclick = () => { goTo({ tab:"stats", screen:"stats" }); };
     checkStorageWarning();
     el.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>startPlayer(b.dataset.play));
     el.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>{ goTo({ tab:"home", screen:"routineDetail", id:b.dataset.detail }); });
@@ -4272,7 +4272,7 @@ window.addEventListener("unhandledrejection", function(e){
             <div class="note-snippet">${escapeHtml(stripMdForSnippet(n.content))}</div>
             <div class="routine-meta" style="margin-top:6px;">${relativeTime(n.updatedAt)}${(n.subjects||[]).length ? ' · ' + n.subjects.slice(0,3).map(escapeHtml).join(", ") + (n.subjects.length>3?"…":"") : ''}</div>
           </div>
-          <button class="icon-btn pin-btn ${n.pinned?'pinned':''}" data-pin="${n.id}" title="Fixar nota" aria-label="Fixar nota">&#9733;</button>
+          <button class="icon-btn borderless pin-btn ${n.pinned?'pinned':''}" data-pin="${n.id}" title="Fixar nota" aria-label="Fixar nota">&#9733;</button>
         `;
         card.querySelector(".note-info").onclick = () => openNoteEditor(n.id);
         card.querySelector("[data-pin]").onclick = e => {
@@ -4355,10 +4355,23 @@ window.addEventListener("unhandledrejection", function(e){
     const ref = it.tipo === "rotina" ? `data-agrotina="${escapeHtml(it.id)}"`
       : it.tipo === "cartao" ? `data-agtarefa="${escapeHtml(it.id)}"`
       : `data-agcompr="${escapeHtml(it.id)}"`;
+    // marcador antes do nome: bolinha colorida (cor da rotina) pra rotina,
+    // quadradinho neutro pra tarefa/compromisso — mesma pista visual do resto
+    // do app (dev-dot vs. dev-square), só que aqui distingue "programado
+    // antes" de "adicionado avulso".
+    const marcador = it.tipo==="rotina"
+      ? `<span class="r-dot" style="background:${fillStyle(it.cor)}"></span>`
+      : `<span class="ag-square"></span>`;
+    // slot do lápis SEMPRE ocupa o mesmo espaço (mesmo vazio nas linhas sem
+    // edição) — senão a borda direita de cada linha ficava numa posição
+    // diferente conforme o tipo do item.
+    const editSlot = it.tipo==="cartao"
+      ? `<button class="icon-btn borderless" data-agedit="${escapeHtml(it.id)}" data-agdia="${iso}" title="Editar tarefa" aria-label="Editar tarefa">${svgIcon(ICON_D.notes,13)}</button>`
+      : `<span class="agenda-edit-slot"></span>`;
     return `<div class="dev-row agenda-row ${it.feito?'feito':''}" ${ref} data-agdia="${iso}">
       <span class="agenda-time">${horas}</span>
-      <span class="agenda-nome">${it.tipo==="rotina"?`<span class="r-dot" style="background:${fillStyle(it.cor)}"></span>`:""}${escapeHtml(it.texto)}</span>
-      ${it.tipo==="cartao" ? `<button class="icon-btn" data-agedit="${escapeHtml(it.id)}" data-agdia="${iso}" title="Editar tarefa" aria-label="Editar tarefa">${svgIcon(ICON_D.notes,13)}</button>` : ""}
+      <span class="agenda-nome">${marcador}${escapeHtml(it.texto)}</span>
+      ${editSlot}
     </div>`;
   }
 
@@ -4384,7 +4397,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="ag-dia-head">
           <span class="ag-dia-nome">${DIAS_PT[dow].charAt(0).toUpperCase()+DIAS_PT[dow].slice(1)}${d===0?' · hoje':''}</span>
           <span class="dev-n">${iso.slice(8,10)}/${iso.slice(5,7)}</span>
-          <button class="icon-btn" data-agnovo="${iso}" title="Nova tarefa neste dia" aria-label="Nova tarefa neste dia">${svgIcon(ICON_D.plus,15)}</button>
+          <button class="icon-btn borderless" data-agnovo="${iso}" title="Nova tarefa neste dia" aria-label="Nova tarefa neste dia">${svgIcon(ICON_D.plus,15)}</button>
         </div>
         <div class="stat-card ${d===0?'agenda-today':''}">${
           itens.length ? itens.map(it=>agendaLinhaHtml(it, iso)).join("")
@@ -4412,10 +4425,10 @@ window.addEventListener("unhandledrejection", function(e){
     return `<div class="ag-dia-head">
         <span class="ag-dia-nome">${DIAS_PT[dow].charAt(0).toUpperCase()+DIAS_PT[dow].slice(1)} · hoje</span>
         <span class="dev-n">${iso.slice(8,10)}/${iso.slice(5,7)}</span>
-        <button class="icon-btn" data-agnovo="${iso}" title="Nova tarefa hoje" aria-label="Nova tarefa hoje">${svgIcon(ICON_D.plus,15)}</button>
+        <button class="icon-btn borderless" data-agnovo="${iso}" title="Nova tarefa hoje" aria-label="Nova tarefa hoje">${svgIcon(ICON_D.plus,15)}</button>
       </div>`
       + icalAllDayChipsHtml(iso)
-      + `<div class="ag-dia-scroll">${agendaGradeHtml(blocosAgendaDia(iso), iso, { pxMin: AG_PX_MIN_ZOOM, passo:30, mIni:0, mFim:24*60 })}</div>`;
+      + `<div class="ag-dia-scroll">${agendaGradeHtml(blocosAgendaDia(iso), iso, { pxMin: AG_PX_MIN_ZOOM, passo:30, mIni:0, mFim:24*60, rotulo:false })}</div>`;
   }
 
   /* Handlers das duas visões (as linhas da semana e os blocos da grade do dia
@@ -4854,7 +4867,13 @@ window.addEventListener("unhandledrejection", function(e){
 
   function renderStats(){
     const el = document.createElement("div");
-    el.className = "screen with-tabbar";
+    el.className = "screen";
+    /* Dados deixou de ser uma aba própria (só existe estatística de ROTINA
+       aqui — não faz mais sentido disputar espaço na tabbar com Metas/Diário/
+       Modelos, que cobrem outros dados). Vira um botão-ícone no cabeçalho de
+       Rotinas, abrindo como subtela com "voltar" — mesmo padrão de
+       routineDetail/boletim, não mais renderTabbar("stats"). */
+    el.innerHTML = `<div class="topbar"><button class="link-btn muted" id="statsBack">&larr; Rotinas</button></div>`;
     /* Cabeçalho e navegação ficam DENTRO da área que rola (em #statsHead, um
        irmão do conteúdo): fixados no topo eles comiam a altura útil da tela.
        O conteúdo mora em #statsBody porque as seções são montadas com
@@ -4871,7 +4890,6 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="bell-btn" id="statsImportBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
             <input type="file" id="statsImportFile" accept="application/json" style="display:none">
             <button class="bell-btn" id="relatorioBtn" title="Relatório de fechamento (PDF)" aria-label="Relatório de fechamento">${svgIcon(ICON_D.clipboard,15)}</button>
-            ${cfgBtnHtml({ busca:false })}
           </div>
         </div>
         ${rodaVidaResumoHtml()}
@@ -4887,9 +4905,8 @@ window.addEventListener("unhandledrejection", function(e){
     `;
     el.appendChild(scroll);
     const body = scroll.querySelector("#statsBody");
-    el.appendChild(renderTabbar("stats"));
     app.appendChild(el);
-    wireCfgBtn(el);
+    document.getElementById("statsBack").onclick = () => { goTo({ tab:"home", screen:"home" }); };
 
     document.getElementById("relatorioBtn").onclick = () => {
       const { title, inner } = relatorioFechamentoHtml();
@@ -5776,7 +5793,7 @@ window.addEventListener("unhandledrejection", function(e){
     // mesmo componente do seletor semanal/mensal/anual de Dados (.type-toggle
     // .view-toggle), e não os chips de área: são duas VIEWS excludentes da
     // mesma aba, que é exatamente o que esse toggle representa no resto do app.
-    return `<div class="type-toggle view-toggle" style="margin-bottom:14px;">
+    return `<div class="type-toggle view-toggle modelos-tab-pill" style="margin-bottom:14px;">
       <span data-modelostab="notas" class="${active==='notas'?'active':''}">Notas</span>
       <span data-modelostab="outros" class="${active==='outros'?'active':''}">Outros</span>
     </div>`;
@@ -7706,8 +7723,8 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="stat-card" data-metaid="${t.id}" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--good);':''} ${bloqueada?'opacity:.55;':''}">
           <div class="dev-row" style="border:none; padding:0;">
             <span style="font-family:'Fraunces',serif; font-size:${sub?15:17}px; flex:1;">${sub?'&#8618; ':''}${bloqueada?'&#128274; ':''}${escapeHtml(t.title)}</span>
-            <button class="icon-btn" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">${svgIcon(ICON_D.notes,14)}</button>
-            <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta">${svgIcon(ICON_D.xmark,14)}</button>
+            <button class="icon-btn borderless" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">${svgIcon(ICON_D.notes,14)}</button>
+            <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta" style="display:none;">${svgIcon(ICON_D.xmark,14)}</button>
           </div>
           ${areas ? `<div class="meta-areas" style="margin:6px 0 2px;">${areas}</div>` : ""}
           ${metaDiasChipHtml(t)}
@@ -12080,6 +12097,10 @@ window.addEventListener("unhandledrejection", function(e){
     opts = opts || {};
     const pxMin = opts.pxMin || AG_PX_MIN;
     const passo = opts.passo || 60;
+    // agenda "dia" da aba Rotinas: a posição já mostra o horário (é uma grade
+    // de minuto) e o rótulo de categoria (" · cartão"/" · compromisso", vindo
+    // do CSS) só repetia o óbvio dentro de cada bloco — pedido do Pedro.
+    const rotulo = opts.rotulo !== false;
     // reordenar: distribuirColunas assume a lista em ordem de início
     blocos.sort((a,b)=> a.ini - b.ini || (a.linha||0) - (b.linha||0));
     distribuirColunas(blocos);
@@ -12103,7 +12124,7 @@ window.addEventListener("unhandledrejection", function(e){
         : (b.ical ? "" : `data-agline="${b.linha}"`);
       return `<div class="ag-bloco ${b.rot?'ag-rot':''} ${b.kb?'ag-kb':''} ${b.cp?'ag-cp':''} ${b.ical?'ag-ical':''} ${b.feito?'feito':''} ${b.adiado?'adiado':''}" ${ref}
         style="top:${topo(b.ini)}px; height:${Math.max(24,(b.fim-b.ini)*pxMin - 3)}px; left:calc(${b.col*larg}% + 2px); width:calc(${larg}% - 4px);">
-        <span class="ag-hh">${hhmm(b.ini)}&ndash;${hhmm(b.fim)}${b.adiado?' · adiado':''}</span>
+        ${rotulo ? `<span class="ag-hh">${hhmm(b.ini)}&ndash;${hhmm(b.fim)}${b.adiado?' · adiado':''}</span>` : ""}
         <span class="ag-txt">${escapeHtml(b.texto)}</span>
       </div>`;
     }).join("");
@@ -12678,7 +12699,7 @@ window.addEventListener("unhandledrejection", function(e){
       render();
     };
     const abrirAvancadoBtn = document.getElementById("blAbrirAvancado");
-    if(abrirAvancadoBtn) abrirAvancadoBtn.onclick = () => { goTo({tab:"home", screen:"settings"}); };
+    if(abrirAvancadoBtn) abrirAvancadoBtn.onclick = () => { goTo({tab:"settings", screen:"settings"}); };
     document.getElementById("blDispensar").onclick = () => {
       if(gam.semanaAtual.dispensada){ alternarDispensaSemana(); render(); return; }
       confirmModal("Dispensar esta semana?<br><small>Ela é arquivada sem badge e fica fora da média do mês. Use em viagem, doença ou semana atípica.</small>", "Dispensar", ()=>{
@@ -12848,16 +12869,13 @@ window.addEventListener("unhandledrejection", function(e){
   /* ---------------- CONFIGURAÇÕES ---------------- */
   function renderSettings(){
     const el = document.createElement("div");
-    el.className = "screen";
+    el.className = "screen with-tabbar";
     const temaAtual = load(K_THEME, "auto");
     const fontScaleAtual = load(K_FONTSCALE, 1);
     const c = gam.config;
     const bakLigado = !!backupHandle();
     const ultBak = load(K_LASTBACKUP, null);
     el.innerHTML = `
-      <div class="topbar">
-        <button class="link-btn muted" id="cfgBack">&larr; Voltar</button>
-      </div>
       <div style="overflow-y:auto; flex:1; padding-bottom:24px;">
         <div class="home-header" style="margin-bottom:6px;"><h1>Configurações</h1></div>
 
@@ -12887,7 +12905,6 @@ window.addEventListener("unhandledrejection", function(e){
             <div class="routine-meta" style="margin-bottom:10px;">O app pede um PIN toda vez que é aberto.</div>
             <button class="btn-danger-outline" id="cfgPinRemove" style="width:100%;">Remover PIN</button>
           ` : `
-            <div class="routine-meta" style="margin-bottom:10px;">Peça um PIN toda vez que o app for aberto — útil se o Diário guarda algo sensível.</div>
             <button class="btn-primary" id="cfgPinSet" style="width:100%;">Definir PIN</button>
           `}
         </div>
@@ -12897,7 +12914,6 @@ window.addEventListener("unhandledrejection", function(e){
           <button class="btn-cancel" id="cfgNotif" style="width:100%;">Ativar notificações de rotina</button>
           <label class="switch-row" style="margin-top:12px;"><span>Resumo ao fechar a semana</span><input type="checkbox" id="cfgDigest" ${load(K_DIGESTSEMANAL,true)?'checked':''}></label>
           <label class="switch-row" style="margin-top:12px;"><span>Aviso de ritmo</span><input type="checkbox" id="cfgNudge" ${load(K_NUDGE,true)?'checked':''}></label>
-          <div class="stat-foot" style="margin-top:8px;">Lembra quantos pontos faltam para fechar a semana. Escolha em que dias ele pode chegar (a partir das 9h):</div>
           <div class="day-chips" id="cfgNudgeDias" style="margin-top:10px;">
             ${["D","S","T","Q","Q","S","S"].map((l,d)=>`<span class="day-chip ${nudgeDias().includes(d)?'active':''}" data-nudgeday="${d}">${l}</span>`).join("")}
           </div>
@@ -12947,25 +12963,22 @@ window.addEventListener("unhandledrejection", function(e){
 
         <div class="section-label">Início da semana</div>
         <div class="stat-card">
-          <div class="routine-meta" style="margin-bottom:10px;">Vale para o boletim, o Diário (aba "semana") e os gráficos de Dados.</div>
           <div class="day-chips" id="cfgWeekStart">
             ${DIAS_ABREV.map((l,d)=>`<span class="day-chip ${weekStartDow()===d?'active':''}" data-weekstart="${d}">${l}</span>`).join("")}
           </div>
-          <div class="stat-foot">A semana em curso reancora na hora — o que já foi feito dentro da nova janela é preservado.</div>
         </div>
 
         <div class="section-label">Pontuação do boletim</div>
         <div class="stat-card">
-          <div class="routine-meta" style="margin-bottom:10px;">Multiplicador de cada peso. Se quase tudo estiver como "alto", aumente a distância entre eles.</div>
           <div class="sched-time-row" style="margin-top:0;"><span style="flex:1;">Alto</span><input class="dur-input" type="number" step="0.25" min="1" max="10" id="cfgMultAlto" value="${c.multiplicadores.alto}"></div>
           <div class="sched-time-row"><span style="flex:1;">Médio</span><input class="dur-input" type="number" step="0.25" min="0.5" max="10" id="cfgMultMedio" value="${c.multiplicadores.medio}"></div>
           <div class="sched-time-row"><span style="flex:1;">Baixo</span><input class="dur-input" type="number" step="0.25" min="0.25" max="10" id="cfgMultBaixo" value="${c.multiplicadores.baixo}"></div>
           <div class="sched-time-row" style="margin-top:14px;"><span style="flex:1;">Nota mínima para aprovar</span><input class="dur-input" type="number" min="1" max="100" id="cfgNotaMin" value="${c.notaMinima}"></div>
           <div class="sched-time-row"><span style="flex:1;">Duração de referência (min)</span><input class="dur-input" type="number" min="5" max="240" id="cfgDivisor" value="${c.divisorDuracao}"></div>
           <div class="routine-meta" style="margin:14px 0 6px;">Bônus por meta concluída, no escopo definido pelo prazo dela.</div>
-          <div class="sched-time-row" style="margin-top:0;"><span style="flex:1;">Meta mensal (prazo &lt; 1 mês)</span><input class="dur-input" type="number" min="0" max="100" id="cfgMetaMes" value="${c.pontosMeta.mensal}"></div>
-          <div class="sched-time-row"><span style="flex:1;">Meta trimestral (1 a 3 meses)</span><input class="dur-input" type="number" min="0" max="100" id="cfgMetaTri" value="${c.pontosMeta.trimestral}"></div>
-          <div class="sched-time-row"><span style="flex:1;">Meta anual (&gt; 3 meses)</span><input class="dur-input" type="number" min="0" max="100" id="cfgMetaAno" value="${c.pontosMeta.anual}"></div>
+          <div class="sched-time-row" style="margin-top:0;"><span style="flex:1;">Meta mensal</span><input class="dur-input" type="number" min="0" max="100" id="cfgMetaMes" value="${c.pontosMeta.mensal}"></div>
+          <div class="sched-time-row"><span style="flex:1;">Meta trimestral</span><input class="dur-input" type="number" min="0" max="100" id="cfgMetaTri" value="${c.pontosMeta.trimestral}"></div>
+          <div class="sched-time-row"><span style="flex:1;">Meta anual</span><input class="dur-input" type="number" min="0" max="100" id="cfgMetaAno" value="${c.pontosMeta.anual}"></div>
           <button class="btn-primary" id="cfgSalvarGam" style="width:100%; margin-top:14px;">Salvar pontuação</button>
           <div class="stat-foot">Vale para as próximas semanas — a semana atual já está com o fator congelado.</div>
           <div class="section-label" style="margin:14px 0 4px;">Simulação — próxima semana</div>
@@ -12975,14 +12988,12 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="section-label">Roda da vida</div>
         <div class="stat-card">
           <label class="switch-row"><span>Repartir os pontos por área</span><input type="checkbox" id="cfgRodaAtiva" ${rodaAtiva()?'checked':''}></label>
-          <div class="stat-foot" style="margin-bottom:10px;">Ligada, os 100 pontos da semana são divididos primeiro entre as áreas (na proporção dos pesos abaixo) e só depois entre as rotinas de cada área. Uma rotina longa deixa de diluir as das outras áreas. Área sem nada agendado não reserva fatia.</div>
           <div id="cfgRodaLista"></div>
           <div class="market-form-row" style="margin-top:10px;">
             <input type="text" id="cfgRodaNova" placeholder="Nova área" style="flex:1; min-width:0;">
             <button class="btn-cancel" id="cfgRodaAdd" style="flex:0 0 auto;">Adicionar</button>
           </div>
           <div class="sched-time-row" style="margin-top:12px;"><span style="flex:1;">Peso de "sem área"</span><input class="dur-input" type="number" min="1" max="10" id="cfgRodaSemArea" value="${gam.config.roda.pesoSemArea}"></div>
-          <div class="stat-foot">Cada rotina, meta e cartão aponta a sua área; a semana reparte os 100 pontos entre as áreas antes de repartir dentro de cada uma.</div>
         </div>
 
         <div class="section-label">Hábito consolidado</div>
@@ -12990,12 +13001,10 @@ window.addEventListener("unhandledrejection", function(e){
           <label class="switch-row"><span>Descontar rotina que virou hábito</span><input type="checkbox" id="cfgHabAtivo" ${gam.config.habito.ativo?'checked':''}></label>
           <div class="sched-time-row" style="margin-top:10px;"><span style="flex:1;">Dias seguidos para virar hábito</span><input class="dur-input" type="number" min="3" max="365" id="cfgHabStreak" value="${gam.config.habito.streakMin}"></div>
           <div class="sched-time-row"><span style="flex:1;">Quanto ela passa a valer</span><input class="dur-input" type="number" min="0.1" max="1" step="0.05" id="cfgHabFator" value="${gam.config.habito.fator}"></div>
-          <div class="stat-foot">1 = sem desconto, 0,6 = vale 60% do peso. Rotinas hoje em hábito: ${routines.filter(rotinaEhHabito).map(r=>escapeHtml(r.name)).join(", ") || "nenhuma"}. Cada rotina pode ficar de fora pelo interruptor no editor dela.</div>
         </div>
 
         <div class="section-label">Vagas por nível de peso</div>
         <div class="stat-card">
-          <div class="routine-meta" style="margin-bottom:10px;">Quantas rotinas podem ocupar cada nível${rodaAtiva()?" dentro de cada área":""}. 0 = sem limite. Ao salvar uma rotina num nível lotado, o app pede para escolher quem cede a vaga.</div>
           <div class="sched-time-row" style="margin-top:0;"><span style="flex:1;">Alto</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaAlto" value="${gam.config.vagas.alto}"></div>
           <div class="sched-time-row"><span style="flex:1;">Médio</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaMedio" value="${gam.config.vagas.medio}"></div>
           <div class="sched-time-row"><span style="flex:1;">Baixo</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaBaixo" value="${gam.config.vagas.baixo}"></div>
@@ -13008,9 +13017,9 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
       </div>
     `;
+    el.appendChild(renderTabbar("settings"));
     app.appendChild(el);
 
-    document.getElementById("cfgBack").onclick = goBack;
     el.querySelectorAll("#cfgTema [data-tema]").forEach(sp=>{
       sp.onclick = () => { save(K_THEME, sp.dataset.tema); applyTheme(); render(); };
     });
@@ -13143,18 +13152,22 @@ window.addEventListener("unhandledrejection", function(e){
       const areas = rodaAreas();
       // ordem de exibição das barras (roda-vida-resumo, boletim, filtros) segue
       // esta mesma ordem do array — mover aqui reordena em todo lugar de uma vez.
-      lista.innerHTML = areas.map((a,i)=>`
-        <div class="sched-time-row" style="margin-top:0;">
-          <button class="icon-btn" data-rodaup="${a.id}" title="Mover para cima" aria-label="Mover para cima" ${i===0?'disabled':''}>${svgIcon(ICON_D.arrowUp,13)}</button>
-          <button class="icon-btn" data-rodadown="${a.id}" title="Mover para baixo" aria-label="Mover para baixo" ${i===areas.length-1?'disabled':''}>${svgIcon(ICON_D.arrowDown,13)}</button>
+      lista.innerHTML = areas.map(a=>`
+        <div class="sched-time-row roda-area-row" style="margin-top:0;">
           <input type="color" class="area-color-swatch" data-rodacolor="${a.id}" value="${a.color}" title="Cor da área" aria-label="Cor da área — usada também nas rotinas dessa área">
-          <span style="flex:1; color:${a.color};">${escapeHtml(a.label)}</span>
-          <input class="dur-input" type="number" min="1" max="10" data-rodapeso="${a.id}" value="${a.peso}">
-          <button class="icon-btn" data-rodadel="${a.id}" title="Remover área" aria-label="Remover área">${svgIcon(ICON_D.xmark,14)}</button>
+          <input type="text" class="roda-area-nome" data-rodalabel="${a.id}" value="${escapeHtml(a.label)}" style="color:${a.color};" aria-label="Nome da área">
+          <input class="dur-input roda-area-peso" type="number" min="1" max="10" data-rodapeso="${a.id}" value="${a.peso}">
+          <button class="icon-btn borderless" data-rodadel="${a.id}" title="Remover área" aria-label="Remover área" style="color:var(--danger);">${svgIcon(ICON_D.trash,15)}</button>
         </div>`).join("") || `<div class="dev-n">Nenhuma área — adicione abaixo.</div>`;
       lista.querySelectorAll("[data-rodapeso]").forEach(inp=> inp.onchange = () => {
         const a = rodaAreas().find(x=>x.id===inp.dataset.rodapeso);
         if(a){ a.peso = Math.max(1, Math.min(10, +inp.value || 5)); save(K_GAMIFICACAO, gam); }
+      });
+      lista.querySelectorAll("[data-rodalabel]").forEach(inp=> inp.onchange = () => {
+        const a = rodaAreas().find(x=>x.id===inp.dataset.rodalabel);
+        const label = inp.value.trim();
+        if(a && label){ a.label = label; save(K_GAMIFICACAO, gam); render(); }
+        else if(a) inp.value = a.label; // vazio não é um nome válido — volta pro que tinha
       });
       // cor da área: usada também como cor das rotinas designadas a ela (o
       // editor de rotina não escolhe mais cor própria)
@@ -13162,17 +13175,6 @@ window.addEventListener("unhandledrejection", function(e){
         const a = rodaAreas().find(x=>x.id===inp.dataset.rodacolor);
         if(a){ a.color = inp.value; save(K_GAMIFICACAO, gam); pintarRodaLista(); render(); }
       });
-      function moverArea(id, delta){
-        const arr = gam.config.roda.areas;
-        const i = arr.findIndex(a=>a.id===id);
-        const j = i + delta;
-        if(i<0 || j<0 || j>=arr.length) return;
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-        save(K_GAMIFICACAO, gam);
-        pintarRodaLista();
-      }
-      lista.querySelectorAll("[data-rodaup]").forEach(b=> b.onclick = () => moverArea(b.dataset.rodaup, -1));
-      lista.querySelectorAll("[data-rodadown]").forEach(b=> b.onclick = () => moverArea(b.dataset.rodadown, 1));
       lista.querySelectorAll("[data-rodadel]").forEach(b=> b.onclick = () => {
         const id = b.dataset.rodadel;
         const usadas = routines.filter(r=>r.eixo===id).length;
