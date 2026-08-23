@@ -66,6 +66,7 @@ window.addEventListener("unhandledrejection", function(e){
   const K_NAOFEITAS = "rotinas_v2_naofeitas"; // etapas marcadas como não feitas hoje
   const K_DIAKANBAN = "rotinas_v2_diakanban"; // kanban do diário, por dia
   const K_SOHOJE   = "rotinas_v2_so_hoje";    // filtro "só as rotinas de hoje" na aba Rotinas
+  const K_HOMEVIEW = "rotinas_v2_homeview";   // o que a aba Rotinas mostra: lista | semana | dia
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
   const K_WEEKSTART = "rotinas_v2_weekstart"; // dia (0=domingo..6=sábado) em que a semana começa a contar
@@ -569,6 +570,10 @@ window.addEventListener("unhandledrejection", function(e){
   let view = { tab: "metas", screen: "metas" };
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
+  /* O que ocupa a área de conteúdo da aba Rotinas: "rotinas" (a lista de
+     sempre), "semana" ou "dia" (as duas agendas, que substituem a lista no
+     mesmo nó em vez de abrir uma tela própria). */
+  let homeView = load(K_HOMEVIEW, "rotinas");
   let horasBudget = load(K_HORASBUDGET, 40); // orçamento de tempo do Boletim (horas/semana)
   // era single-select (string); migra pra multi-select (array) na leitura
   const K_METASSUBVIEW = "rotinas_v2_metas_subview";       // legado, só para migração
@@ -674,7 +679,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-22 (v26)";
+  const BUILD_STAMP = "2026-08-23 (v27)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2838,22 +2843,27 @@ window.addEventListener("unhandledrejection", function(e){
   /* Execução de hoje de uma rotina (a mais recente do dia). Alimenta as duas
      coisas que a home faz com "já concluída": mandar o card para o fim da lista
      e trocar o chip de horário PLANEJADO pelo horário REAL da execução. */
-  function execucaoDeHoje(routineId){
-    const hoje = localKey();
+  function execucaoDeHoje(routineId){ return execucaoDoDia(routineId, localKey()); }
+  /* Mesma busca para um dia qualquer — a agenda da semana precisa saber se a
+     rotina já rodou em cada um dos 7 dias, não só hoje. */
+  function execucaoDoDia(routineId, iso){
     for(let i = history.length - 1; i >= 0; i--){
       const h = history[i];
-      if(h.routineId === routineId && h.date === hoje) return h;
+      if(h.routineId === routineId && h.date === iso) return h;
     }
     return null;
   }
   /* `startedTs` só existe nas execuções gravadas a partir desta versão; para as
      antigas o início é reconstruído a partir do fim (`ts`) menos o tempo que a
      execução levou de verdade, pausas incluídas. */
-  function horarioRealChipHtml(h){
+  function execucaoMinutos(h){
     const fimD = new Date(h.ts);
     const iniD = new Date(h.startedTs != null ? h.startedTs : h.ts - ((h.actualSec||0) + (h.pausedSec||0)) * 1000);
-    const hm = d => formatHM(d.getHours()*60 + d.getMinutes());
-    return `<div class="sched-chip" style="color:var(--good);">${svgIcon(ICON_D.check,13)} ${hm(iniD)} &rarr; ${hm(fimD)}</div>`;
+    return { ini: iniD.getHours()*60 + iniD.getMinutes(), fim: fimD.getHours()*60 + fimD.getMinutes() };
+  }
+  function horarioRealChipHtml(h){
+    const m = execucaoMinutos(h);
+    return `<div class="sched-chip" style="color:var(--good);">${svgIcon(ICON_D.check,13)} ${formatHM(m.ini)} &rarr; ${formatHM(m.fim)}</div>`;
   }
 
   /* A lista de rotinas fica sempre em ordem de horário de início. Rotina sem
@@ -2928,7 +2938,6 @@ window.addEventListener("unhandledrejection", function(e){
     if(view.screen === "home") renderHome();
     else if(view.screen === "notes") renderNotes();
     else if(view.screen === "stats") renderStats();
-    else if(view.screen === "agenda") renderAgenda();
     else if(view.screen === "routineStats") renderRoutineStats();
     else if(view.screen === "templates") renderTemplates();
     else if(view.screen === "tmplFolder") renderTmplFolder();
@@ -3039,8 +3048,9 @@ window.addEventListener("unhandledrejection", function(e){
       ${rodaVidaResumoHtml()}
       <div id="homeSemanaFechada"></div>
       <div class="header-right" style="margin-bottom:18px; flex-wrap:wrap;">
-        <button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">hoje</button>
-        <button class="bell-btn di-hoje" id="agendaBtn" title="Agenda da semana" aria-label="Agenda da semana">${svgIcon(ICON_D.calendar,14)} agenda</button>
+        ${homeView === "rotinas" ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">hoje</button>` : ""}
+        <button class="bell-btn di-hoje ${homeView==='semana'?'on':''}" id="agSemanaBtn" title="Agenda dos próximos 7 dias" aria-pressed="${homeView==='semana'?'true':'false'}">semana</button>
+        <button class="bell-btn di-hoje ${homeView==='dia'?'on':''}" id="agDiaBtn" title="Agenda de hoje, hora a hora" aria-pressed="${homeView==='dia'?'true':'false'}">dia</button>
         <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
       </div>
     `;
@@ -3119,7 +3129,25 @@ window.addEventListener("unhandledrejection", function(e){
     const feitasHoje = new Map();
     visiveis.forEach(r => { const h = execucaoDeHoje(r.id); if(h) feitasHoje.set(r.id, h); });
     visiveis.sort((a,b) => (feitasHoje.has(a.id)?1:0) - (feitasHoje.has(b.id)?1:0));
-    if(routines.length===0){
+    /* As duas agendas ocupam o lugar da lista de rotinas — mesma área, logo
+       abaixo dos botões. `agendaScrollTo` roda depois do appendChild: rolar
+       para a hora atual exige o nó já em layout. */
+    let agendaScrollTo = null;
+    if(homeView !== "rotinas"){
+      const hojeISO = localKey();
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "flex:0 0 auto;";
+      wrap.innerHTML = homeView === "semana" ? agendaSemanaHomeHtml() : agendaDiaHomeHtml(hojeISO);
+      scroll.appendChild(wrap);
+      wireAgendaHome(wrap, hojeISO);
+      const snz = wrap.querySelector("#snoozeBtn");
+      if(snz) snz.onclick = abrirSnoozeModal;
+      if(homeView === "dia"){
+        const sc = wrap.querySelector(".ag-dia-scroll");
+        const agoraMin = new Date().getHours()*60 + new Date().getMinutes();
+        if(sc) agendaScrollTo = () => { sc.scrollTop = Math.max(0, (agoraMin - 60) * AG_PX_MIN_ZOOM); };
+      }
+    } else if(routines.length===0){
       const empty = document.createElement("div");
       empty.className = "empty-state";
       empty.innerHTML = emptyStateActionHtml("Nenhuma rotina ainda", "Crie sua primeira sequência de etapas com tempo — igual um ritual de prática.", "emptyNewRoutine", "+ Nova rotina")
@@ -3177,12 +3205,21 @@ window.addEventListener("unhandledrejection", function(e){
     el.appendChild(renderTabbar("home"));
     app.appendChild(el);
 
-    document.getElementById("soHojeBtn").onclick = () => {
+    if(agendaScrollTo) agendaScrollTo();
+    const soHojeBtn = document.getElementById("soHojeBtn");
+    if(soHojeBtn) soHojeBtn.onclick = () => {
       homeSoHoje = !homeSoHoje;
       save(K_SOHOJE, homeSoHoje);
       render();
     };
-    document.getElementById("agendaBtn").onclick = () => { goTo({ tab:"home", screen:"agenda" }); };
+    // botão da visão ativa volta para a lista de rotinas (toggle)
+    const trocarHomeView = v => {
+      homeView = homeView === v ? "rotinas" : v;
+      save(K_HOMEVIEW, homeView);
+      render();
+    };
+    document.getElementById("agSemanaBtn").onclick = () => trocarHomeView("semana");
+    document.getElementById("agDiaBtn").onclick = () => trocarHomeView("dia");
     wireCfgBtn(el);
     // importa o .json gerado pelo "Exportar" do editor de rotina (e também aceita
     // um backup completo — importBackup distingue os dois formatos)
@@ -3872,48 +3909,6 @@ window.addEventListener("unhandledrejection", function(e){
       addBtn.className = "add-step-btn"; addBtn.textContent = "+ adicionar etapa";
       addBtn.onclick = () => { editorDraft.steps.push({id:uid(), name:"", seconds:60, type:"timer"}); renderSteps(); };
       stepsList.appendChild(addBtn);
-      const pomoBtn = document.createElement("button");
-      pomoBtn.className = "add-step-btn"; pomoBtn.textContent = "+ Pomodoro";
-      pomoBtn.onclick = abrirConfigPomodoro;
-      stepsList.appendChild(pomoBtn);
-      /* Pomodoro não é um tipo de etapa novo: gera uma sequência real de etapas
-         "tempo" (foco, manual) + "tempo com isRest" (pausa, avança sozinha) —
-         reaproveita 100% do motor de timer/descanso que já existe, em vez de um
-         terceiro sub-loop no player (como o de exercício). */
-      function abrirConfigPomodoro(){
-        const ov = document.createElement("div");
-        ov.className = "confirm-overlay";
-        ov.innerHTML = `
-          <div class="confirm-box" style="text-align:left;">
-            <p style="margin-bottom:10px;">Pomodoro</p>
-            <div class="section-label" style="margin:6px 0 6px;">Foco (min)</div>
-            <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="pmFoco" value="25">
-            <div class="section-label" style="margin:12px 0 6px;">Pausa (min)</div>
-            <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="pmPausa" value="5">
-            <div class="section-label" style="margin:12px 0 6px;">Ciclos</div>
-            <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" max="12" id="pmCiclos" value="4">
-            <div class="confirm-actions" style="margin-top:18px;">
-              <button class="btn-cancel" id="pmCancel">Cancelar</button>
-              <button class="btn-confirm" id="pmSave" style="background:var(--grad);">Adicionar</button>
-            </div>
-          </div>`;
-        document.body.appendChild(ov);
-        ov.onclick = e => { if(e.target===ov) ov.remove(); };
-        ov.querySelector("#pmCancel").onclick = () => ov.remove();
-        ov.querySelector("#pmSave").onclick = () => {
-          const foco = Math.max(1, +ov.querySelector("#pmFoco").value || 25);
-          const pausa = Math.max(1, +ov.querySelector("#pmPausa").value || 5);
-          const ciclos = Math.max(1, Math.min(12, +ov.querySelector("#pmCiclos").value || 4));
-          for(let c=1;c<=ciclos;c++){
-            editorDraft.steps.push({ id:uid(), name:"Foco "+c+"/"+ciclos, seconds: foco*60, type:"timer" });
-            if(c<ciclos) editorDraft.steps.push({ id:uid(), name:"Pausa "+c+"/"+ciclos, seconds: pausa*60, type:"timer", isRest:true });
-          }
-          ov.remove();
-          renderSteps(); renderSchedComputed();
-          showAlertBanner(ciclos+" ciclo(s) de pomodoro adicionados ✓");
-        };
-      }
-
       stepsList.querySelectorAll("[data-field='name']").forEach(inp=> inp.oninput = e => editorDraft.steps[+e.target.dataset.idx].name = e.target.value);
       function updateDur(idx){
         const minInp = stepsList.querySelector(`[data-field='min'][data-idx='${idx}']`);
@@ -4110,39 +4105,6 @@ window.addEventListener("unhandledrejection", function(e){
     `;
     stepsWrap.appendChild(goalBox);
     goalBox.querySelector("#weeklyGoal").oninput = e => { editorDraft.weeklyGoalTimes = Math.max(0, +e.target.value || 0); };
-
-    // ciclo de repetição
-    if(!editorDraft.cycle) editorDraft.cycle = { enabled:false, from:1, to:1, times:2 };
-    const cycLabel = document.createElement("div");
-    cycLabel.className = "section-label"; cycLabel.textContent = "Ciclo de repetição";
-    stepsWrap.appendChild(cycLabel);
-    const cycBox = document.createElement("div");
-    cycBox.className = "schedule-box";
-    cycBox.innerHTML = `
-      <label class="switch-row">
-        <span>Repetir um bloco de etapas</span>
-        <input type="checkbox" id="cycEnabled" ${editorDraft.cycle.enabled?'checked':''}>
-      </label>
-      <div id="cycDetails" style="${editorDraft.cycle.enabled?'':'display:none'}">
-        <div class="sched-time-row">
-          etapas <input class="dur-input cyc-inp" type="number" inputmode="numeric" min="1" id="cycFrom" value="${editorDraft.cycle.from}">
-          a <input class="dur-input cyc-inp" type="number" inputmode="numeric" min="1" id="cycTo" value="${editorDraft.cycle.to}">
-          &times; <input class="dur-input cyc-inp" type="number" inputmode="numeric" min="2" id="cycTimes" value="${editorDraft.cycle.times}"> vezes
-        </div>
-      </div>
-    `;
-    stepsWrap.appendChild(cycBox);
-    cycBox.querySelector("#cycEnabled").onchange = e => {
-      editorDraft.cycle.enabled = e.target.checked;
-      cycBox.querySelector("#cycDetails").style.display = e.target.checked ? "" : "none";
-      renderSchedComputed();
-    };
-    ["From","To","Times"].forEach(f=>{
-      cycBox.querySelector("#cyc"+f).oninput = e => {
-        editorDraft.cycle[f.toLowerCase()] = Math.max(f==="Times"?2:1, +e.target.value || 1);
-        renderSchedComputed();
-      };
-    });
 
     const bottom = document.createElement("div");
     bottom.className = "bottom-actions";
@@ -4350,88 +4312,263 @@ window.addEventListener("unhandledrejection", function(e){
     importFile.onchange = e => { if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]); };
   }
 
-  /* ================= AGENDA ================= */
-  function renderAgenda(){
-    const el = document.createElement("div");
-    el.className = "screen";
+  /* ================= AGENDA (inline na aba Rotinas) =================
+     Era uma tela própria (renderAgenda + view.screen==="agenda") que listava só
+     rotinas com horário e cujo clique abria o EDITOR. Virou duas visões que
+     substituem a lista de rotinas dentro da própria aba, comandadas por
+     `homeView`: "semana" (7 dias em lista) e "dia" (grade de minuto de hoje,
+     com o dobro do zoom da agenda do Diário). Quem monta é renderHome, no
+     mesmo nó em que a lista de rotinas apareceria. */
+
+  /* Itens da agenda de um dia: rotinas agendadas + cartões do kanban daquele
+     dia + compromissos avulsos, na MESMA lista. Rotina já executada usa o
+     horário REAL (que também muda a posição dela na ordem). */
+  function itensAgendaDoDia(iso){
+    const data = isoToDate(iso);
+    const out = [];
+    routines.forEach(r=>{
+      if(!rotinaAgendadaEm(r, data)) return;
+      const sched = computeSchedule(r);
+      if(!sched) return;
+      const exec = execucaoDoDia(r.id, iso);
+      const real = exec ? execucaoMinutos(exec) : null;
+      out.push({ tipo:"rotina", id:r.id, texto:(r.icon?r.icon+" ":"")+r.name, cor:corDaRotina(r),
+        ini: real ? real.ini : sched.startMin, fim: real ? real.fim : sched.endMin, feito: !!exec });
+    });
+    diaKanban.filter(c=> c.per === "dia:"+iso).forEach(c=>{
+      const ini = horaParaMin(c.hIni);
+      let fim = c.hFim ? horaParaMin(c.hFim) : null;
+      if(ini != null && (fim == null || fim <= ini)) fim = ini + 60;
+      out.push({ tipo:"cartao", id:c.id, texto:c.text, ini, fim: ini==null?null:fim, feito: c.col === "done" });
+    });
+    compromissos.filter(c=> c.date === iso).forEach(c=>{
+      const ini = horaParaMin(c.time);
+      out.push({ tipo:"compromisso", id:c.id, texto:c.title, ini, fim: ini==null?null:ini+30, feito: !!c.feito });
+    });
+    // sem horário vai para o fim do dia, nunca some da lista
+    return out.sort((a,b)=> (a.ini==null?1:0)-(b.ini==null?1:0) || (a.ini||0)-(b.ini||0));
+  }
+
+  function agendaLinhaHtml(it, iso){
+    const horas = it.ini == null ? "sem hora"
+      : (it.tipo === "compromisso" ? formatHM(it.ini) : formatHM(it.ini)+"&ndash;"+formatHM(it.fim));
+    const ref = it.tipo === "rotina" ? `data-agrotina="${escapeHtml(it.id)}"`
+      : it.tipo === "cartao" ? `data-agtarefa="${escapeHtml(it.id)}"`
+      : `data-agcompr="${escapeHtml(it.id)}"`;
+    return `<div class="dev-row agenda-row ${it.feito?'feito':''}" ${ref} data-agdia="${iso}">
+      <span class="agenda-time">${horas}</span>
+      <span class="agenda-nome">${it.tipo==="rotina"?`<span class="r-dot" style="background:${fillStyle(it.cor)}"></span>`:""}${escapeHtml(it.texto)}</span>
+      ${it.tipo==="cartao" ? `<button class="icon-btn" data-agedit="${escapeHtml(it.id)}" data-agdia="${iso}" title="Editar tarefa" aria-label="Editar tarefa">${svgIcon(ICON_D.notes,13)}</button>` : ""}
+    </div>`;
+  }
+
+  /* Visão "semana": os próximos 7 dias a partir de hoje. Cada dia tem um
+     botão-ícone que cria uma tarefa naquele dia (mesmo popup do "dia"). */
+  function agendaSemanaHomeHtml(){
+    const hojeISO = localKey();
     const snoozed = agendaSnoozed();
-    el.innerHTML = `
-      <div class="topbar">
-        <button class="link-btn muted" id="backFromAgenda">&larr; Rotinas</button>
-        <button class="link-btn" id="snoozeBtn">${snoozed ? "retomar agenda" : "pausar agenda"}</button>
-      </div>
-      ${snoozed ? `<div class="notice-card" style="margin-bottom:14px;"><span>${svgIcon(ICON_D.exclamationTriangle,14)} Agenda pausada até ${(()=>{ const s = snoozes.find(x=>Date.now()>=x.from && Date.now()<=x.to); const dd = new Date(s.to); return String(dd.getDate()).padStart(2,"0")+"/"+String(dd.getMonth()+1).padStart(2,"0"); })()} — sem alertas, e os dias pausados não contam no cumprimento.</span></div>` : ""}`;
-
-    const body = document.createElement("div");
-    body.style.cssText = "overflow-y:auto; flex:1; padding-bottom:20px;";
-    el.appendChild(body);
-
-    const DAY_NAMES = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
-    const scheduled = routines.filter(r=>r.schedule && r.schedule.enabled && r.schedule.time);
-
-    if(scheduled.length === 0){
-      body.innerHTML = `<div class="empty-state" style="min-height:50vh;"><h2>Nada agendado</h2><p>Ative um horário em alguma rotina para vê-la aqui.</p></div>`;
-    } else {
-      for(let d=0; d<7; d++){
-        const dataDia = new Date(); dataDia.setDate(dataDia.getDate() + d);
-        const dow = dataDia.getDay();
-        const dayRoutines = scheduled
-          .filter(r=>rotinaAgendadaEm(r, dataDia))
-          .map(r=>({ r, sched: computeSchedule(r) }))
-          .filter(x=>x.sched)
-          .sort((a,b)=>a.sched.startMin - b.sched.startMin);
-        if(dayRoutines.length === 0) continue;
-        const isToday = d === 0;
-        let rows = dayRoutines.map(({r,sched})=>`
-          <div class="dev-row agenda-row" data-open="${r.id}">
-            <span class="agenda-time">${sched.startStr}&ndash;${sched.endStr}</span>
-            <span style="flex:1;"><span class="r-dot" style="background:${fillStyle(corDaRotina(r))}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</span>
-          </div>`).join("");
-        body.innerHTML += `
-          <div class="section-label">${DAY_NAMES[dow]}${isToday?' · hoje':''}</div>
-          <div class="stat-card ${isToday?'agenda-today':''}">${rows}</div>`;
-      }
-      body.querySelectorAll("[data-open]").forEach(row=>{
-        row.onclick = () => openEditor(row.dataset.open);
-      });
+    let out = `<div class="ag-semana-topo">
+      <span class="dev-n">próximos 7 dias</span>
+      <button class="link-btn" id="snoozeBtn">${snoozed ? "retomar agenda" : "pausar agenda"}</button>
+    </div>`;
+    if(snoozed){
+      const s = snoozes.find(x=>Date.now()>=x.from && Date.now()<=x.to);
+      const dd = new Date(s.to);
+      out += `<div class="notice-card" style="margin-bottom:14px;"><span>${svgIcon(ICON_D.exclamationTriangle,14)} Agenda pausada até ${String(dd.getDate()).padStart(2,"0")}/${String(dd.getMonth()+1).padStart(2,"0")} — sem alertas, e os dias pausados não contam no cumprimento.</span></div>`;
     }
+    for(let d=0; d<7; d++){
+      const iso = addDaysISO(hojeISO, d);
+      const dow = isoToDate(iso).getDay();
+      const itens = itensAgendaDoDia(iso);
+      out += `
+        <div class="ag-dia-head">
+          <span class="ag-dia-nome">${DIAS_PT[dow].charAt(0).toUpperCase()+DIAS_PT[dow].slice(1)}${d===0?' · hoje':''}</span>
+          <span class="dev-n">${iso.slice(8,10)}/${iso.slice(5,7)}</span>
+          <button class="icon-btn" data-agnovo="${iso}" title="Nova tarefa neste dia" aria-label="Nova tarefa neste dia">${svgIcon(ICON_D.plus,15)}</button>
+        </div>
+        <div class="stat-card ${d===0?'agenda-today':''}">${
+          itens.length ? itens.map(it=>agendaLinhaHtml(it, iso)).join("")
+                       : `<div class="dev-n" style="padding:4px 0;">nada agendado</div>`
+        }</div>`;
+    }
+    return `<div class="ag-semana">${out}</div>`;
+  }
 
-    app.appendChild(el);
-    document.getElementById("backFromAgenda").onclick = () => { goTo({ tab:"home", screen:"home" }); };
-    document.getElementById("snoozeBtn").onclick = () => {
-      if(agendaSnoozed()){
-        snoozes = snoozes.filter(s=>!(Date.now()>=s.from && Date.now()<=s.to));
-        save(K_SNOOZES, snoozes);
-        showAlertBanner("Agenda retomada ✓");
-        render();
-        return;
-      }
-      const ov = document.createElement("div");
-      ov.className = "confirm-overlay";
-      ov.innerHTML = `
-        <div class="confirm-box">
-          <p>Pausar todos os alertas e o cumprimento por:</p>
-          <div class="confirm-actions" style="flex-direction:column;">
-            ${[["1 dia",1],["3 dias",3],["7 dias",7],["30 dias",30]].map(([l,d])=>`<button class="btn-confirm" data-snooze="${d}" style="background:var(--grad);">${l}</button>`).join("")}
-            <button class="btn-cancel" id="snCancel">Cancelar</button>
-          </div>
-        </div>`;
-      document.body.appendChild(ov);
-      ov.querySelector("#snCancel").onclick = () => ov.remove();
-      ov.onclick = e => { if(e.target===ov) ov.remove(); };
-      ov.querySelectorAll("[data-snooze]").forEach(b=>{
-        b.onclick = () => {
-          const days = +b.dataset.snooze;
-          const from = Date.now();
-          const to = from + days*86400000;
-          snoozes.push({from, to});
-          save(K_SNOOZES, snoozes);
-          ov.remove();
-          showAlertBanner("Agenda pausada por " + days + " dia(s)");
-          render();
-        };
-      });
+  /* Blocos da grade do dia: os mesmos do Diário (nota, kanban, compromisso,
+     calendário externo) MAIS as rotinas agendadas — que só existem nesta
+     agenda, porque a do Diário é sobre o que foi escrito no dia. */
+  function blocosAgendaDia(iso){
+    const blocos = parseTimeBlocks(diario["dia:"+iso] || "")
+      .concat(blocosDoKanban(iso)).concat(blocosDoCompromisso(iso)).concat(blocosDoIcal(iso));
+    itensAgendaDoDia(iso).forEach(it=>{
+      if(it.tipo !== "rotina" || it.ini == null) return;
+      blocos.push({ rotinaId: it.id, ini: it.ini, fim: Math.max(it.ini+15, it.fim),
+        feito: it.feito, adiado:false, texto: it.texto, rot:true });
+    });
+    return blocos;
+  }
+  function agendaDiaHomeHtml(iso){
+    const dow = isoToDate(iso).getDay();
+    return `<div class="ag-dia-head">
+        <span class="ag-dia-nome">${DIAS_PT[dow].charAt(0).toUpperCase()+DIAS_PT[dow].slice(1)} · hoje</span>
+        <span class="dev-n">${iso.slice(8,10)}/${iso.slice(5,7)}</span>
+        <button class="icon-btn" data-agnovo="${iso}" title="Nova tarefa hoje" aria-label="Nova tarefa hoje">${svgIcon(ICON_D.plus,15)}</button>
+      </div>`
+      + icalAllDayChipsHtml(iso)
+      + `<div class="ag-dia-scroll">${agendaGradeHtml(blocosAgendaDia(iso), iso, { pxMin: AG_PX_MIN_ZOOM, passo:30, mIni:0, mFim:24*60 })}</div>`;
+  }
+
+  /* Handlers das duas visões (as linhas da semana e os blocos da grade do dia
+     usam os MESMOS data-*, então uma função religa as duas). */
+  function wireAgendaHome(scope, iso){
+    scope.querySelectorAll("[data-agnovo]").forEach(b=> b.onclick = () => abrirPopupTarefa(b.dataset.agnovo, null));
+    scope.querySelectorAll("[data-agedit]").forEach(b=> b.onclick = e => {
+      e.stopPropagation(); // a linha inteira alterna concluído
+      abrirPopupTarefa(b.dataset.agdia, b.dataset.agedit);
+    });
+    // rotina leva para a tela de visualização (de onde o play está a um toque),
+    // e não mais para o editor
+    scope.querySelectorAll("[data-agrotina]").forEach(row=> row.onclick = () => {
+      goTo({ tab:"home", screen:"routineDetail", id: row.dataset.agrotina });
+    });
+    scope.querySelectorAll("[data-agtarefa]").forEach(row=> row.onclick = () => {
+      alternarCartaoFeitoNaAgenda(row.dataset.agtarefa, "dia:" + row.dataset.agdia);
+      render();
+    });
+    scope.querySelectorAll("[data-agcard]").forEach(bl=> bl.onclick = () => {
+      alternarCartaoFeitoNaAgenda(bl.dataset.agcard, "dia:" + iso);
+      render();
+    });
+    scope.querySelectorAll("[data-agcompr], [data-agcompromisso]").forEach(row=> row.onclick = () => {
+      const id = row.dataset.agcompr || row.dataset.agcompromisso;
+      const c = compromissos.find(x=>x.id===id);
+      if(!c) return;
+      c.feito = !c.feito;
+      saveCompromissos();
+      render();
+    });
+    // linha de time-blocking da nota do dia: mesmo toque-para-concluir do Diário
+    scope.querySelectorAll("[data-agline]").forEach(bl=> bl.onclick = () => {
+      const k = "dia:" + iso;
+      const t = toggleCheckLineInText(diario[k] || "", +bl.dataset.agline);
+      if(t.trim()) diario[k] = t; else delete diario[k];
+      saveDiario();
+      render();
+    });
+  }
+
+  /* Popup de tarefa da agenda: os MESMOS campos da edição de cartão do kanban
+     do Diário (texto, horário, peso, área) menos o "repetir toda semana", e
+     gravando no MESMO diaKanban — a tarefa criada aqui aparece no kanban e na
+     agenda do Diário e pontua pela regra de sempre, sem duplicar nada. */
+  function abrirPopupTarefa(iso, cardId){
+    const per = "dia:" + iso;
+    const existente = cardId ? diaKanban.find(c=>c.id===cardId) : null;
+    const it = existente || { text:"", hIni:"", hFim:"", tagValor:"baixo", eixo:null };
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `
+      <div class="confirm-box" style="text-align:left;">
+        <p style="margin-bottom:10px;">${existente?"Editar":"Nova"} tarefa &middot; ${iso.slice(8,10)}/${iso.slice(5,7)}</p>
+        <input type="text" class="mk-e-name tf-text" style="width:100%;" placeholder="O que precisa ser feito?" value="${escapeHtml(it.text)}">
+        <div class="section-label" style="margin:12px 0 4px;">Horário (opcional)</div>
+        <div class="kb-e-horas"><div class="kb-horas-row">
+          <input type="time" class="tf-ini" value="${escapeHtml(it.hIni||"")}" aria-label="Hora de início">
+          <span class="dev-n">até</span>
+          <input type="time" class="tf-fim" value="${escapeHtml(it.hFim||"")}" aria-label="Hora de término">
+        </div></div>
+        <div class="dev-n" style="margin-top:5px;">Com hora de início a tarefa vira um bloco na agenda. Sem hora de término, vale 1h.</div>
+        <div class="section-label" style="margin:12px 0 4px;">Peso no boletim</div>
+        ${tagValorPillsHtml(it.tagValor || "nenhum", false)}
+        <div class="dev-n" style="margin-top:5px;">Vale um bloco de ${gam.config.divisorDuracao} min. Pontua ao ser concluída.</div>
+        ${rodaAtiva() ? `<div class="section-label" style="margin:12px 0 4px;">Área</div><div class="tf-area"></div>` : ""}
+        <div class="confirm-actions" style="margin-top:16px; justify-content:space-between;">
+          ${existente
+            ? `<button class="ghost" id="tfDel" style="color:var(--danger);" title="Excluir tarefa" aria-label="Excluir tarefa">${svgIcon(ICON_D.trash,15)}</button>`
+            : `<button class="btn-cancel" id="tfCancel">Cancelar</button>`}
+          <button class="btn-confirm" id="tfSave" style="background:var(--grad);">${existente?"Salvar":"Criar"}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    const cancel = ov.querySelector("#tfCancel");
+    if(cancel) cancel.onclick = () => ov.remove();
+    wireTagValorPills(ov);
+    let areaSel = it.eixo || null;
+    const areaWrap = ov.querySelector(".tf-area");
+    if(areaWrap) pintarAreaChips(areaWrap, areaSel, v => { areaSel = v; });
+    const txt = ov.querySelector(".tf-text");
+    setTimeout(()=>txt.focus(), 30);
+    txt.onkeydown = e => { if(e.key==="Enter") ov.querySelector("#tfSave").click(); };
+    ov.querySelector("#tfSave").onclick = () => {
+      const text = txt.value.trim();
+      if(!text){ showAlertBanner("Escreva o que precisa ser feito"); return; }
+      const hIni = ov.querySelector(".tf-ini").value || "";
+      const fimV = ov.querySelector(".tf-fim").value || "";
+      // fim sem início não descreve nada; fim antes do início é engano de digitação
+      const hFim = (hIni && fimV && horaParaMin(fimV) > horaParaMin(hIni)) ? fimV : "";
+      const tag = readTagValorPills(ov) || "nenhum";
+      const alvo = existente || { id: uid(), col: DIA_KB_COLS[0][0], per,
+        ord: diaKanban.filter(c=>c.per===per).length };
+      // cartão já concluído que muda de peso/área precisa estornar antes: o
+      // crédito antigo foi calculado com os valores velhos
+      const mudouPeso = existente && existente.col === "done"
+        && (existente.tagValor !== tag || (existente.eixo||null) !== areaSel);
+      if(mudouPeso) descreditarCartao(alvo);
+      alvo.text = text; alvo.hIni = hIni; alvo.hFim = hFim; alvo.tagValor = tag; alvo.eixo = areaSel;
+      if(!existente) diaKanban.push(alvo);
+      sincronizarPontosCartao(alvo);
+      saveDiaKanban();
+      agendarRepinturaDaAgenda();
+      ov.remove();
+      showAlertBanner(existente ? "Tarefa salva ✓" : "Tarefa criada ✓");
+      render();
     };
+    const del = ov.querySelector("#tfDel");
+    if(del) del.onclick = () => {
+      descreditarCartao(existente);
+      diaKanban = diaKanban.filter(c=>c.id !== existente.id);
+      saveDiaKanban();
+      ov.remove();
+      showAlertBanner("Tarefa excluída");
+      render();
+    };
+  }
+
+  /* Pausar/retomar a agenda (era o botão do topo da tela de agenda; agora mora
+     no topo da visão "semana"). */
+  function abrirSnoozeModal(){
+    if(agendaSnoozed()){
+      snoozes = snoozes.filter(s=>!(Date.now()>=s.from && Date.now()<=s.to));
+      save(K_SNOOZES, snoozes);
+      showAlertBanner("Agenda retomada ✓");
+      render();
+      return;
+    }
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `
+      <div class="confirm-box">
+        <p>Pausar todos os alertas e o cumprimento por:</p>
+        <div class="confirm-actions" style="flex-direction:column;">
+          ${[["1 dia",1],["3 dias",3],["7 dias",7],["30 dias",30]].map(([l,d])=>`<button class="btn-confirm" data-snooze="${d}" style="background:var(--grad);">${l}</button>`).join("")}
+          <button class="btn-cancel" id="snCancel">Cancelar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector("#snCancel").onclick = () => ov.remove();
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    ov.querySelectorAll("[data-snooze]").forEach(b=>{
+      b.onclick = () => {
+        const days = +b.dataset.snooze;
+        const from = Date.now();
+        snoozes.push({ from, to: from + days*86400000 });
+        save(K_SNOOZES, snoozes);
+        ov.remove();
+        showAlertBanner("Agenda pausada por " + days + " dia(s)");
+        render();
+      };
+    });
   }
 
   /* ================= STATS ================= */
@@ -10244,26 +10381,8 @@ window.addEventListener("unhandledrejection", function(e){
     });
     return out;
   }
-  function applyCycle(base, cycle){
-    if(!cycle || !cycle.enabled || cycle.times < 2) return base;
-    const from = Math.max(1, cycle.from) - 1;
-    const to = Math.min(base.length, cycle.to) - 1;
-    if(from > to || from >= base.length) return base;
-    const block = base.slice(from, to+1);
-    const out = base.slice(0, from);
-    for(let k=1; k<=cycle.times; k++){
-      block.forEach(s=>{
-        const c = Object.assign({}, s);
-        c.id = s.id + "-c" + k;
-        if(cycle.times > 1) c.name = s.name + " · volta " + k + "/" + cycle.times;
-        out.push(c);
-      });
-    }
-    return out.concat(base.slice(to+1));
-  }
   function playbackSteps(r){
-    let base = expandSteps(r);
-    base = applyCycle(base, r.cycle);
+    const base = expandSteps(r);
     const rest = r.restSeconds || 0;
     if(!rest || base.length < 2) return base;
     const out = [];
@@ -11928,7 +12047,7 @@ window.addEventListener("unhandledrejection", function(e){
   function blocosDoCompromisso(iso){
     return compromissos.filter(c => c.date === iso && horaParaMin(c.time) != null).map(c=>{
       const ini = horaParaMin(c.time);
-      return { compromissoId: c.id, ini, fim: ini + 30, feito:false, adiado:false, texto: c.title, cp:true };
+      return { compromissoId: c.id, ini, fim: ini + 30, feito: !!c.feito, adiado:false, texto: c.title, cp:true };
     });
   }
   /* Eventos com horário do calendário externo (iCal) — mesma grade, mas sem
@@ -11949,6 +12068,51 @@ window.addEventListener("unhandledrejection", function(e){
     return `<div class="ag-allday-row">${allDay.map(e=>`<span class="ag-allday-chip">${escapeHtml(e.title)}</span>`).join("")}</div>`;
   }
   const AG_PX_MIN = 1.15; // pixels por minuto de altura
+  /* Dobro do zoom para a agenda do dia da aba Rotinas: meia hora passa a ocupar
+     o espaço que uma hora ocupa no Diário — a maioria das tarefas dura entre 15
+     min e 1h e ficava ilegível na escala normal. */
+  const AG_PX_MIN_ZOOM = AG_PX_MIN * 2;
+  /* Grade de minuto compartilhada. `opts` permite fixar a janela (mIni/mFim em
+     minutos do dia), o zoom (pxMin) e o intervalo entre marcações (passo) — a
+     agenda do Diário usa o padrão (janela ajustada aos blocos, marcação de hora
+     em hora) e a da aba Rotinas fixa 00:00–24:00 com marcação de 30 em 30. */
+  function agendaGradeHtml(blocos, iso, opts){
+    opts = opts || {};
+    const pxMin = opts.pxMin || AG_PX_MIN;
+    const passo = opts.passo || 60;
+    // reordenar: distribuirColunas assume a lista em ordem de início
+    blocos.sort((a,b)=> a.ini - b.ini || (a.linha||0) - (b.linha||0));
+    distribuirColunas(blocos);
+    const mIni = opts.mIni != null ? opts.mIni
+      : Math.max(0, Math.floor(Math.min(...blocos.map(b=>b.ini))/60) - 1) * 60;
+    // Nunca para logo depois do último bloco: sem o piso de 21h a grade parava
+    // no meio da tela em dias com poucos compromissos à tarde.
+    const mFim = opts.mFim != null ? opts.mFim
+      : Math.min(24, Math.max(Math.ceil(Math.max(...blocos.map(b=>b.fim))/60) + 1, 21)) * 60;
+    const topo = min => (min - mIni) * pxMin;
+    const hhmm = min => String(Math.floor(min/60)).padStart(2,"0") + ":" + String(min%60).padStart(2,"0");
+    let horas = "";
+    for(let m = mIni; m <= mFim; m += passo){
+      horas += `<div class="ag-hora ${m%60?'ag-meia':''}" style="top:${topo(m)}px;"><span>${hhmm(m)}</span></div>`;
+    }
+    const blocosHtml = blocos.map(b=>{
+      const larg = 100 / b.cols;
+      const ref = b.rot ? `data-agrotina="${escapeHtml(b.rotinaId)}"`
+        : b.kb ? `data-agcard="${escapeHtml(b.cardId)}"`
+        : b.cp ? `data-agcompromisso="${escapeHtml(b.compromissoId)}"`
+        : (b.ical ? "" : `data-agline="${b.linha}"`);
+      return `<div class="ag-bloco ${b.rot?'ag-rot':''} ${b.kb?'ag-kb':''} ${b.cp?'ag-cp':''} ${b.ical?'ag-ical':''} ${b.feito?'feito':''} ${b.adiado?'adiado':''}" ${ref}
+        style="top:${topo(b.ini)}px; height:${Math.max(24,(b.fim-b.ini)*pxMin - 3)}px; left:calc(${b.col*larg}% + 2px); width:calc(${larg}% - 4px);">
+        <span class="ag-hh">${hhmm(b.ini)}&ndash;${hhmm(b.fim)}${b.adiado?' · adiado':''}</span>
+        <span class="ag-txt">${escapeHtml(b.texto)}</span>
+      </div>`;
+    }).join("");
+    const agora = new Date();
+    const minAgora = agora.getHours()*60 + agora.getMinutes();
+    const linhaAgora = (iso === localKey() && minAgora >= mIni && minAgora <= mFim)
+      ? `<div class="ag-agora" style="top:${topo(minAgora)}px;"></div>` : "";
+    return `<div class="ag-wrap" style="height:${topo(mFim)+24}px;">${horas}${linhaAgora}<div class="ag-blocos">${blocosHtml}</div></div>`;
+  }
   function agendaHtml(texto, iso){
     const blocos = parseTimeBlocks(texto).concat(blocosDoKanban(iso)).concat(blocosDoCompromisso(iso)).concat(blocosDoIcal(iso));
     const allDayHtml = icalAllDayChipsHtml(iso);
@@ -11956,33 +12120,7 @@ window.addEventListener("unhandledrejection", function(e){
       return allDayHtml + `<div class="empty-state" style="min-height:30vh;"><h2>Sem blocos de horário</h2>
         <p>Na nota do dia, escreva linhas como<br><b>- [ ] 08:00 - 09:30 Estudar</b><br>e elas viram blocos aqui.<br>Cartões do kanban com horário também aparecem.</p></div>`;
     }
-    // reordenar: distribuirColunas assume a lista em ordem de início
-    blocos.sort((a,b)=> a.ini - b.ini || (a.linha||0) - (b.linha||0));
-    distribuirColunas(blocos);
-    const hIni = Math.max(0, Math.floor(Math.min(...blocos.map(b=>b.ini))/60) - 1);
-    // Nunca para logo depois do último bloco: sem o piso de 21h a grade parava
-    // no meio da tela em dias com poucos compromissos à tarde.
-    const hFim = Math.min(24, Math.max(Math.ceil(Math.max(...blocos.map(b=>b.fim))/60) + 1, 21));
-    const topo = min => (min - hIni*60) * AG_PX_MIN;
-    const hhmm = min => String(Math.floor(min/60)).padStart(2,"0") + ":" + String(min%60).padStart(2,"0");
-    let horas = "";
-    for(let h = hIni; h <= hFim; h++){
-      horas += `<div class="ag-hora" style="top:${topo(h*60)}px;"><span>${String(h).padStart(2,"0")}:00</span></div>`;
-    }
-    const blocosHtml = blocos.map(b=>{
-      const larg = 100 / b.cols;
-      const ref = b.kb ? `data-agcard="${escapeHtml(b.cardId)}"` : (b.cp ? `data-agcompromisso="${escapeHtml(b.compromissoId)}"` : (b.ical ? "" : `data-agline="${b.linha}"`));
-      return `<div class="ag-bloco ${b.kb?'ag-kb':''} ${b.cp?'ag-cp':''} ${b.ical?'ag-ical':''} ${b.feito?'feito':''} ${b.adiado?'adiado':''}" ${ref}
-        style="top:${topo(b.ini)}px; height:${Math.max(24,(b.fim-b.ini)*AG_PX_MIN - 3)}px; left:calc(${b.col*larg}% + 2px); width:calc(${larg}% - 4px);">
-        <span class="ag-hh">${hhmm(b.ini)}&ndash;${hhmm(b.fim)}${b.adiado?' · adiado':''}</span>
-        <span class="ag-txt">${escapeHtml(b.texto)}</span>
-      </div>`;
-    }).join("");
-    const agora = new Date();
-    const minAgora = agora.getHours()*60 + agora.getMinutes();
-    const linhaAgora = (iso === localKey() && minAgora >= hIni*60 && minAgora <= hFim*60)
-      ? `<div class="ag-agora" style="top:${topo(minAgora)}px;"></div>` : "";
-    return allDayHtml + `<div class="ag-wrap" style="height:${topo(hFim*60)+24}px;">${horas}${linhaAgora}<div class="ag-blocos">${blocosHtml}</div></div>`;
+    return allDayHtml + agendaGradeHtml(blocos, iso, {});
   }
 
   /* ---- agenda de semana/mês/ano: mesmo espírito do time-blocking do dia, mas

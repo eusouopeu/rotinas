@@ -180,6 +180,10 @@
   .ag-wrap{ position:relative; padding-left:52px; margin:4px 0 20px; }
   .ag-hora{ position:absolute; left:0; right:0; border-top:1px solid var(--line); }
   .ag-hora span{ position:absolute; left:0; top:-8px; font-family:'Inter', sans-serif; font-size:11px; color:var(--muted); }
+  /* marcação de meia hora: mesma linha, mais apagada, para a hora cheia
+     continuar sendo a referência de leitura */
+  .ag-hora.ag-meia{ border-top-style:dashed; opacity:.5; }
+  .ag-hora.ag-meia span{ font-size:10px; }
   .ag-blocos{ position:absolute; left:52px; right:0; top:0; bottom:0; }
   /* horário e nome na MESMA linha, o nome logo em seguida ao horário; só quebra
      para baixo quando o texto não cabe na largura do bloco */
@@ -198,6 +202,8 @@
   .ag-bloco.ag-cp .ag-hh::after{ content:" · compromisso"; }
   /* evento do calendário externo (URL iCal) — só leitura, cor própria pra não
      confundir com nota/cartão/compromisso, que aceitam toque */
+  .ag-bloco.ag-rot{ border-left-color:var(--accent); background:var(--surface-2); }
+  .ag-bloco.ag-rot .ag-hh::after{ content:" · rotina"; }
   .ag-bloco.ag-ical{ border-left-color:var(--muted); background:var(--surface); cursor:default; }
   .ag-bloco.ag-ical .ag-hh::after{ content:" · calendário"; }
   .ag-allday-row{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
@@ -756,8 +762,22 @@
 
   /* ---------- AGENDA ---------- */
   .agenda-row{ cursor:pointer; }
-  .agenda-time{ font-family:'Inter', sans-serif; font-size:12.5px; color:var(--muted); width:96px; flex-shrink:0; }
+  /* A coluna de horário NÃO cresce: a regra genérica .dev-row > :first-child
+     dava flex:1 a ela e a sobra da linha virava um vão vazio entre a hora e o
+     nome. Aqui a sobra é toda do nome. */
+  .dev-row.agenda-row > .agenda-time{ flex:0 0 auto; width:auto; min-width:0; }
+  .agenda-time{ font-family:'Inter', sans-serif; font-size:12.5px; color:var(--muted); }
+  .agenda-nome{ flex:1 1 auto; min-width:0; overflow-wrap:break-word; }
+  .agenda-row.feito .agenda-nome, .agenda-row.feito .agenda-time{ color:var(--muted); text-decoration:line-through; }
   .agenda-today{ border-color:var(--accent-dim); }
+  /* agenda inline da aba Rotinas (visões "semana" e "dia") */
+  .ag-semana-topo{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .ag-dia-head{ display:flex; align-items:center; gap:8px; margin:16px 0 6px; }
+  .ag-dia-head .ag-dia-nome{ font-family:'Fraunces', serif; font-weight:600; font-size:15px; flex:1 1 auto; }
+  /* a grade do dia vai de 00:00 a 24:00 com o dobro do zoom: rola dentro da
+     própria caixa, senão a aba inteira teria mais de 3000px */
+  .ag-dia-scroll{ max-height:62vh; overflow-y:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 10px 0 4px; }
+  .ag-dia-scroll .ag-wrap{ margin:0; }
 
   /* ---------- TREND ---------- */
   .trend-chart{ display:flex; align-items:flex-end; gap:6px; }
