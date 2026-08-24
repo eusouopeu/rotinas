@@ -66,6 +66,7 @@ window.addEventListener("unhandledrejection", function(e){
   const K_NAOFEITAS = "rotinas_v2_naofeitas"; // etapas marcadas como não feitas hoje
   const K_DIAKANBAN = "rotinas_v2_diakanban"; // kanban do diário, por dia
   const K_SOHOJE   = "rotinas_v2_so_hoje";    // filtro "só as rotinas de hoje" na aba Rotinas
+  const K_METASSOHOJE = "rotinas_v2_metas_so_hoje"; // filtro "só as metas de hoje" na aba Metas — recorte diferente do de Rotinas, não pode compartilhar a chave
   const K_HOMEVIEW = "rotinas_v2_homeview";   // o que a aba Rotinas mostra: lista | semana | dia
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
@@ -570,10 +571,17 @@ window.addEventListener("unhandledrejection", function(e){
   let view = { tab: "home", screen: "home" };
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
+  let metasSoHoje = load(K_METASSOHOJE, false);
   /* O que ocupa a área de conteúdo da aba Rotinas: "rotinas" (a lista de
      sempre), "semana" ou "dia" (as duas agendas, que substituem a lista no
      mesmo nó em vez de abrir uma tela própria). */
   let homeView = load(K_HOMEVIEW, "rotinas");
+  /* Navegação de período das agendas "semana"/"dia" — sessão apenas (não
+     persistido, sempre volta para hoje ao reabrir o app). "dia" desloca por
+     dias; "semana" desloca por blocos de 7 dias (a janela continua rolante,
+     não alinhada ao início de semana configurado). */
+  let agendaDiaOffset = 0;
+  let agendaSemanaOffset = 0;
   let horasBudget = load(K_HORASBUDGET, 40); // orçamento de tempo do Boletim (horas/semana)
   // era single-select (string); migra pra multi-select (array) na leitura
   const K_METASSUBVIEW = "rotinas_v2_metas_subview";       // legado, só para migração
@@ -679,7 +687,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-23 (v28)";
+  const BUILD_STAMP = "2026-08-23 (v29)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -1489,6 +1497,27 @@ window.addEventListener("unhandledrejection", function(e){
     }
     return Math.round(totalSeg/60);
   }
+  /* Input de horário que abre o teclado numérico do celular em vez do
+     seletor nativo de relógio/calendário (type=time) — mesmo formato "HH:MM"
+     de sempre, então lê/grava igual a um input de horário comum. */
+  function timeKbInputHtml(cls, value, label){
+    return `<input type="text" inputmode="numeric" class="${cls} time-kb-input" placeholder="--:--" maxlength="5" value="${escapeHtml(value||"")}" aria-label="${escapeHtml(label||"")}">`;
+  }
+  function wireTimeKbInputs(scope){
+    scope.querySelectorAll(".time-kb-input").forEach(inp=>{
+      inp.oninput = () => {
+        let v = inp.value.replace(/[^0-9]/g,"").slice(0,4);
+        if(v.length >= 3) v = v.slice(0,2) + ":" + v.slice(2);
+        inp.value = v;
+      };
+      inp.onblur = () => {
+        const m = inp.value.match(/^(\d{1,2}):(\d{2})$/);
+        if(!m){ inp.value = ""; return; }
+        const h = Math.min(23, +m[1]), mi = Math.min(59, +m[2]);
+        inp.value = String(h).padStart(2,"0") + ":" + String(mi).padStart(2,"0");
+      };
+    });
+  }
   const TAG_LABELS = { nenhum:"Nenhum", baixo:"Baixo", medio:"Médio", alto:"Alto" };
   function tagValorPillsHtml(current, comHerdar){
     const base = [["baixo","Baixo"],["medio","Médio"],["alto","Alto"]];
@@ -1747,7 +1776,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="section-label" style="margin:12px 0 4px;">Dia</div>
       <input type="date" id="cpDate" value="${escapeHtml(defaults.date || localKey())}">
       <div class="section-label" style="margin:12px 0 4px;">Horário (opcional)</div>
-      <input type="time" id="cpTime" value="${escapeHtml(defaults.time || "")}">
+      <input type="text" inputmode="numeric" id="cpTime" class="time-kb-input" placeholder="--:--" maxlength="5" value="${escapeHtml(defaults.time || "")}" aria-label="Horário">
       <div class="section-label" style="margin:12px 0 4px;">Notificação</div>
       <div class="type-toggle" id="cpNotify">
         <span data-n="nenhuma" class="active">nenhuma</span>
@@ -1764,6 +1793,7 @@ window.addEventListener("unhandledrejection", function(e){
     ov.onclick = e => { if(e.target===ov) ov.remove(); };
     ov.querySelector("#cpClose").onclick = () => ov.remove();
     ov.querySelector("#cpCancel").onclick = () => ov.remove();
+    wireTimeKbInputs(ov);
     let notify = "nenhuma";
     ov.querySelectorAll("#cpNotify [data-n]").forEach(sp=> sp.onclick = () => {
       notify = sp.dataset.n;
@@ -2601,7 +2631,6 @@ window.addEventListener("unhandledrejection", function(e){
     { key:"metas",    label:"metas" },
     { key:"notas",    label:"notas" },
     { key:"modelos",  label:"modelos" },
-    { key:"diario",   label:"diário" },
     { key:"kanban",   label:"kanban" }
   ];
   let gsTipo = "tudo";
@@ -2696,17 +2725,12 @@ window.addEventListener("unhandledrejection", function(e){
             hits.push({ icon:svgIcon(ICON_D.clock,14), title:h.routineName, sub:"Histórico (rotina excluída)", go:()=>{ goTo({tab:"stats",screen:"stats"}); } });
           });
         }
-        // Diário: um resultado por período com texto batendo, abre direto nele.
-        if(quer("diario")) Object.keys(diario).forEach(k=>{
-          const texto = diario[k];
-          if(!texto || !texto.toLowerCase().includes(q)) return;
-          const escopo = escopoDoPer(k);
-          const iso = k.slice(k.indexOf(":")+1);
-          hits.push({ icon:svgIcon(ICON_D.calendar,14), title: diarioRotulo(escopo, iso), sub:"Diário", go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); } });
-        });
       }
 
-      // Cartões do kanban do Diário, em qualquer escopo/período.
+      // Cartões do kanban (a fazer/kanban do dia), em qualquer escopo/período.
+      // Sem a aba Diário, o destino é a agenda "dia" da aba Rotinas — só
+      // existe posição de dia lá, então cartão de semana/mês/ano cai só na
+      // aba Rotinas mesmo, sem apontar pra um dia específico.
       if(quer("kanban")) diaKanban.forEach(c=>{
         if(peso && (c.tagValor||"nenhum") !== peso) return;
         if(area && (c.eixo||"") !== area) return;
@@ -2716,10 +2740,16 @@ window.addEventListener("unhandledrejection", function(e){
         const feito = c.col === "done";
         hits.push({
           icon:svgIcon(ICON_D.clipboard,14), title:c.text,
-          sub:"Kanban · "+diarioRotulo(escopo, iso)+(feito?" · feito":""),
-          go:()=>{ diarioEscopo = escopo; diarioData = iso; diarioAgenda = false; goTo({tab:"diario",screen:"diario"}); },
-          /* Concluir/reabrir sem sair da busca: passa pela MESMA função da
-             agenda do Diário, então a pontuação é reconciliada igual. */
+          sub:"Tarefa · "+diarioRotulo(escopo, iso)+(feito?" · feito":""),
+          go:()=>{
+            if(escopo === "dia"){
+              agendaDiaOffset = Math.round((isoToDate(iso) - isoToDate(localKey())) / 86400000);
+              homeView = "dia"; save(K_HOMEVIEW, homeView);
+            }
+            goTo({tab:"home",screen:"home"});
+          },
+          /* Concluir/reabrir sem sair da busca: mesma função da agenda de
+             Rotinas, então a pontuação é reconciliada igual. */
           acao:{ label:svgIcon(feito?ICON_D.arrowUturnRight:ICON_D.check,14), title:feito?"Reabrir cartão":"Concluir cartão",
                  fecha:false, run:()=>{ alternarCartaoFeitoNaAgenda(c.id, c.per); } }
         });
@@ -2811,13 +2841,19 @@ window.addEventListener("unhandledrejection", function(e){
     for(let i=0; i<count; i++){ out.push(new Date(d)); d.setDate(d.getDate() + n); }
     return out;
   }
+  /* Rótulos amigáveis para os três padrões mais comuns de dias da semana —
+     nos demais casos, a lista abreviada de sempre ("seg/qua/sex"). */
   function diasChipHtml(r){
     if(r && r.schedule && r.schedule.mode === "intervalo"){
       return `<div class="sched-chip chip-block" style="color:var(--muted);">a cada ${r.schedule.intervaloDias||1}d</div>`;
     }
-    const dias = diasDaRotina(r);
-    if(dias.length >= 7) return "";
-    return `<div class="sched-chip chip-block" style="color:var(--muted);">${dias.slice().sort((a,b)=>a-b).map(d=>DIAS_ABREV[d]).join("/")}</div>`;
+    const dias = diasDaRotina(r).slice().sort((a,b)=>a-b);
+    let label;
+    if(dias.length === 7) label = "todos os dias";
+    else if(dias.length === 5 && dias.every(d=>d>=1 && d<=5)) label = "dias úteis";
+    else if(dias.length === 2 && dias[0]===0 && dias[1]===6) label = "fim de semana";
+    else label = dias.map(d=>DIAS_ABREV[d]).join("/");
+    return `<div class="sched-chip chip-block" style="color:var(--muted);">${label}</div>`;
   }
   /* "Deve ser feita hoje" = tem agendamento ativo e hoje é uma ocorrência.
      Rotina sem agendamento não tem dia devido, então fica fora do filtro. */
@@ -2935,7 +2971,6 @@ window.addEventListener("unhandledrejection", function(e){
     else if(view.screen === "templates") renderTemplates();
     else if(view.screen === "tmplFolder") renderTmplFolder();
     else if(view.screen === "expenseFolder") renderExpenseFolder();
-    else if(view.screen === "diarioFolder") renderDiarioFolder();
     else if(view.screen === "templateDoc") renderTemplateDoc();
     else if(view.screen === "editor") renderEditor();
     else if(view.screen === "noteEditor") renderNoteEditor();
@@ -2946,7 +2981,6 @@ window.addEventListener("unhandledrejection", function(e){
     else if(view.screen === "settings") renderSettings();
     else if(view.screen === "semanaFechada") renderSemanaFechada();
     else if(view.screen === "metas") renderMetas();
-    else if(view.screen === "diario") renderDiario();
   }
 
   /* ---------------- NAVEGAÇÃO (pilha p/ botão físico de voltar do Android) ---------------- */
@@ -2987,7 +3021,7 @@ window.addEventListener("unhandledrejection", function(e){
      notas é um contenteditable, então sem ela um "1" no meio de uma frase
      trocaria de aba. Também respeita modificadores, para não roubar Cmd+1 do
      navegador. */
-  const TECLA_ABA = { "1":"home", "2":"metas", "3":"diario", "4":"templates", "5":"settings" };
+  const TECLA_ABA = { "1":"home", "2":"metas", "3":"templates", "4":"settings" };
   function digitandoAgora(){
     const a = document.activeElement;
     if(!a) return false;
@@ -3009,12 +3043,13 @@ window.addEventListener("unhandledrejection", function(e){
     bar.innerHTML = `
       <button data-tab="home" class="${activeTab==='home'?'active':''}"><span class="ic">${svgIcon(ICON_D.home)}</span>Rotinas</button>
       <button data-tab="metas" class="${activeTab==='metas'?'active':''}"><span class="ic">${svgIcon(ICON_D.countdown)}</span>Metas</button>
-      <button data-tab="diario" class="${activeTab==='diario'?'active':''}"><span class="ic">${svgIcon(ICON_D.notes)}</span>Diário</button>
+      <button data-tab="__add" class="tab-add-btn" title="Criar novo" aria-label="Criar novo"><span class="ic">${svgIcon(ICON_D.plus,18)}</span></button>
       <button data-tab="templates" class="${activeTab==='templates'||activeTab==='notes'?'active':''}"><span class="ic">${svgIcon(ICON_D.templates)}</span>Modelos</button>
-      <button data-tab="settings" class="${activeTab==='settings'?'active':''}" title="${syncConflictCount>0?'Configurações — há conflito de sincronização pendente':''}"><span class="ic">${svgIcon(ICON_D.settings)}<span class="sync-conflict-dot" data-syncdot="1" style="${syncConflictCount>0?'':'display:none;'}"></span></span>Configurações</button>
+      <button data-tab="settings" class="${activeTab==='settings'?'active':''}" title="${syncConflictCount>0?'Ajustes — há conflito de sincronização pendente':''}"><span class="ic">${svgIcon(ICON_D.settings)}<span class="sync-conflict-dot" data-syncdot="1" style="${syncConflictCount>0?'':'display:none;'}"></span></span>Ajustes</button>
     `;
     bar.querySelectorAll("[data-tab]").forEach(b=>{
       b.onclick = () => {
+        if(b.dataset.tab === "__add"){ openGlobalCreatePopup(); return; }
         // "Modelos" não tem tela própria chamada "templates" como padrão de
         // exibição — abre sempre em Notas, que é a sub-aba mais usada.
         const screen = b.dataset.tab === "templates" ? "notes" : b.dataset.tab;
@@ -3022,6 +3057,51 @@ window.addEventListener("unhandledrejection", function(e){
       };
     });
     return bar;
+  }
+
+  /* Botão central da tabbar: popup com TODOS os tipos de item do app, de
+     qualquer aba — o FAB de cada tela cobre só os tipos daquela aba, este
+     cobre o resto (ex.: criar uma meta estando na aba Rotinas). */
+  function openGlobalCreatePopup(){
+    abrirPopupCriar("Criar novo", [
+      { label:"Rotina", icon:ICON_D.home, run:()=>openEditor(null) },
+      { label:"Compromisso", icon:ICON_D.clock, run:()=>abrirNovoCompromisso() },
+      { label:"Tarefa", icon:ICON_D.clipboard, run:()=>abrirPopupTarefa(localKey(), null) },
+      { label:"Meta recorrente", icon:ICON_D.countdown, run:()=>abrirFormMetaRec(metaDoc()) },
+      { label:"Meta com prazo", icon:ICON_D.countdown, run:()=>abrirFormMeta(metaDoc(), null) },
+      { label:"Nota simples", icon:ICON_D.notes, run:()=>openNoteEditor(null) },
+      ...TMPL_TYPES.map(t=>({ label:t.label, icon:t.type, iconHtml:t.icon, run:()=>criarModeloRapido(t.type) }))
+    ]);
+  }
+
+  /* Popup genérico de "criar novo": grade de botões (mesmo componente visual
+     de openNewTemplatePopup), reaproveitado pelo botão central da tabbar e
+     pelo FAB de cada aba — cada chamador só muda a lista de opções. */
+  function abrirPopupCriar(titulo, opcoes){
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `<div class="confirm-box" style="text-align:left;">
+      <p style="margin:0 0 10px;">${escapeHtml(titulo)}:</p>
+      <div class="tmpl-new-grid">
+        ${opcoes.map((o,i)=>`<button class="tmpl-new" data-criaridx="${i}"><span class="tmpl-ic">${o.iconHtml || svgIcon(o.icon)}</span><span>${escapeHtml(o.label)}</span></button>`).join("")}
+      </div>
+      <div class="confirm-actions" style="margin-top:14px;"><button class="btn-cancel" id="criarCancel">Cancelar</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.onclick = e => { if(e.target===ov) ov.remove(); };
+    ov.querySelector("#criarCancel").onclick = () => ov.remove();
+    ov.querySelectorAll("[data-criaridx]").forEach(b=>{
+      b.onclick = () => { ov.remove(); opcoes[+b.dataset.criaridx].run(); };
+    });
+  }
+  /* Atalho de criação de modelo a partir de fora da aba Modelos (popups de
+     criação globais) — mesma lógica de openNewTemplatePopup, só sem o overlay
+     de escolha (já escolhido) e sem depender de já estar na aba. */
+  function criarModeloRapido(type){
+    if(type === "matrix"){ openMatrixPresetPicker(); return; }
+    if(type === "expense"){ goTo({ tab:"templates", screen:"expenseFolder" }); return; }
+    const doc = newTemplateDoc(type);
+    goTo({ tab:"templates", screen:"templateDoc", id: doc.id, folderKind:"type", folderKey:type });
   }
 
   /* ================= HOME (ROUTINES) ================= */
@@ -3047,9 +3127,9 @@ window.addEventListener("unhandledrejection", function(e){
       ${rodaVidaResumoHtml()}
       <div id="homeSemanaFechada"></div>
       <div class="header-right" style="margin-bottom:18px; flex-wrap:wrap;">
-        ${homeView === "rotinas" ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">hoje</button>` : ""}
         <button class="bell-btn di-hoje ${homeView==='semana'?'on':''}" id="agSemanaBtn" title="Agenda dos próximos 7 dias" aria-pressed="${homeView==='semana'?'true':'false'}">semana</button>
         <button class="bell-btn di-hoje ${homeView==='dia'?'on':''}" id="agDiaBtn" title="Agenda de hoje, hora a hora" aria-pressed="${homeView==='dia'?'true':'false'}">dia</button>
+        ${homeView === "rotinas" ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="soHojeBtn" title="Mostrar só as rotinas de hoje" aria-pressed="${homeSoHoje?'true':'false'}">hoje</button>` : ""}
         <input type="file" id="importRoutineFile" accept="application/json" style="display:none">
       </div>
     `;
@@ -3134,14 +3214,23 @@ window.addEventListener("unhandledrejection", function(e){
     let agendaScrollTo = null;
     if(homeView !== "rotinas"){
       const hojeISO = localKey();
+      const diaISO = addDaysISO(hojeISO, agendaDiaOffset);
+      const semanaBaseISO = addDaysISO(hojeISO, agendaSemanaOffset*7);
       const wrap = document.createElement("div");
       wrap.style.cssText = "flex:0 0 auto;";
-      wrap.innerHTML = homeView === "semana" ? agendaSemanaHomeHtml() : agendaDiaHomeHtml(hojeISO);
+      wrap.innerHTML = homeView === "semana" ? agendaSemanaHomeHtml(semanaBaseISO) : agendaDiaHomeHtml(diaISO);
       scroll.appendChild(wrap);
-      wireAgendaHome(wrap, hojeISO);
+      wireAgendaHome(wrap, homeView === "semana" ? semanaBaseISO : diaISO);
       const snz = wrap.querySelector("#snoozeBtn");
       if(snz) snz.onclick = abrirSnoozeModal;
-      if(homeView === "dia"){
+      const irOffset = (v) => { if(homeView==="semana") agendaSemanaOffset = v; else agendaDiaOffset = v; render(); };
+      const prevBtn = wrap.querySelector("#agSemanaPrev, #agDiaPrev");
+      const nextBtn = wrap.querySelector("#agSemanaNext, #agDiaNext");
+      const hojeBtn = wrap.querySelector("#agSemanaHoje, #agDiaHoje");
+      if(prevBtn) prevBtn.onclick = () => irOffset((homeView==="semana"?agendaSemanaOffset:agendaDiaOffset) - 1);
+      if(nextBtn) nextBtn.onclick = () => irOffset((homeView==="semana"?agendaSemanaOffset:agendaDiaOffset) + 1);
+      if(hojeBtn) hojeBtn.onclick = () => irOffset(0);
+      if(homeView === "dia" && agendaDiaOffset === 0){
         const sc = wrap.querySelector(".ag-dia-scroll");
         const agoraMin = new Date().getHours()*60 + new Date().getMinutes();
         if(sc) agendaScrollTo = () => { sc.scrollTop = Math.max(0, (agoraMin - 60) * AG_PX_MIN_ZOOM); };
@@ -3198,8 +3287,12 @@ window.addEventListener("unhandledrejection", function(e){
       scroll.appendChild(list);
     }
     const fab = document.createElement("button");
-    fab.className = "fab"; fab.textContent = "+"; fab.title = "Nova rotina";
-    fab.onclick = () => openEditor(null);
+    fab.className = "fab"; fab.textContent = "+"; fab.title = "Novo";
+    fab.onclick = () => abrirPopupCriar("Criar novo", [
+      { label:"Rotina", icon:ICON_D.home, run:()=>openEditor(null) },
+      { label:"Compromisso", icon:ICON_D.clock, run:()=>abrirNovoCompromisso() },
+      { label:"Tarefa", icon:ICON_D.clipboard, run:()=>abrirPopupTarefa(localKey(), null) }
+    ]);
     el.appendChild(fab);
     el.appendChild(renderTabbar("home"));
     app.appendChild(el);
@@ -3214,6 +3307,7 @@ window.addEventListener("unhandledrejection", function(e){
     // botão da visão ativa volta para a lista de rotinas (toggle)
     const trocarHomeView = v => {
       homeView = homeView === v ? "rotinas" : v;
+      agendaDiaOffset = 0; agendaSemanaOffset = 0;
       save(K_HOMEVIEW, homeView);
       render();
     };
@@ -4206,6 +4300,7 @@ window.addEventListener("unhandledrejection", function(e){
             <button class="bell-btn" id="backupBtn" title="Exportar backup" aria-label="Exportar backup">${svgIcon(ICON_D.arrowDownTray,14)}</button>
             <button class="bell-btn" id="importBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
             <input type="file" id="importFile" accept="application/json" style="display:none">
+            ${cfgBtnHtml()}
           </div>
         </div>
         ${modelosTabPillHtml("notas")}
@@ -4216,12 +4311,13 @@ window.addEventListener("unhandledrejection", function(e){
     `;
 
     const fab = document.createElement("button");
-    fab.className = "fab"; fab.textContent = "+"; fab.title = "Nova nota";
-    fab.onclick = () => openNoteEditor(null);
+    fab.className = "fab"; fab.textContent = "+"; fab.title = "Novo";
+    fab.onclick = openNewTemplatePopup;
     el.appendChild(fab);
     el.appendChild(renderTabbar("notes"));
     app.appendChild(el);
     wireModelosTabPill(el);
+    wireCfgBtn(el);
     document.getElementById("notesBackBtn").onclick = () => { goTo({ tab:"templates", screen:"templates" }); };
 
     const listBox = document.getElementById("notesListBox");
@@ -4377,11 +4473,20 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* Visão "semana": os próximos 7 dias a partir de hoje. Cada dia tem um
      botão-ícone que cria uma tarefa naquele dia (mesmo popup do "dia"). */
-  function agendaSemanaHomeHtml(){
+  function agendaSemanaHomeHtml(baseISO){
     const hojeISO = localKey();
+    const inicioISO = baseISO || hojeISO;
+    const fimISO = addDaysISO(inicioISO, 6);
+    const rangeLabel = inicioISO===hojeISO ? "próximos 7 dias"
+      : `${inicioISO.slice(8,10)}/${inicioISO.slice(5,7)} – ${fimISO.slice(8,10)}/${fimISO.slice(5,7)}`;
     const snoozed = agendaSnoozed();
     let out = `<div class="ag-semana-topo">
-      <span class="dev-n">próximos 7 dias</span>
+      <button class="icon-btn borderless" id="agSemanaPrev" title="Semana anterior" aria-label="Semana anterior">${svgIcon(ICON_D.chevronLeft,15)}</button>
+      <span class="dev-n">${rangeLabel}</span>
+      <button class="icon-btn borderless" id="agSemanaNext" title="Próxima semana" aria-label="Próxima semana">${svgIcon(ICON_D.chevronRight,15)}</button>
+    </div>
+    <div style="display:flex; justify-content:flex-end; align-items:center; gap:14px; margin-bottom:10px;">
+      ${inicioISO!==hojeISO ? `<button class="link-btn" id="agSemanaHoje">hoje</button>` : ""}
       <button class="link-btn" id="snoozeBtn">${snoozed ? "retomar agenda" : "pausar agenda"}</button>
     </div>`;
     if(snoozed){
@@ -4390,16 +4495,17 @@ window.addEventListener("unhandledrejection", function(e){
       out += `<div class="notice-card" style="margin-bottom:14px;"><span>${svgIcon(ICON_D.exclamationTriangle,14)} Agenda pausada até ${String(dd.getDate()).padStart(2,"0")}/${String(dd.getMonth()+1).padStart(2,"0")} — sem alertas, e os dias pausados não contam no cumprimento.</span></div>`;
     }
     for(let d=0; d<7; d++){
-      const iso = addDaysISO(hojeISO, d);
+      const iso = addDaysISO(inicioISO, d);
+      const ehHoje = iso === hojeISO;
       const dow = isoToDate(iso).getDay();
       const itens = itensAgendaDoDia(iso);
       out += `
         <div class="ag-dia-head">
-          <span class="ag-dia-nome">${DIAS_PT[dow].charAt(0).toUpperCase()+DIAS_PT[dow].slice(1)}${d===0?' · hoje':''}</span>
+          <span class="ag-dia-nome">${DIAS_PT[dow].charAt(0).toUpperCase()+DIAS_PT[dow].slice(1)}${ehHoje?' · hoje':''}</span>
           <span class="dev-n">${iso.slice(8,10)}/${iso.slice(5,7)}</span>
           <button class="icon-btn borderless" data-agnovo="${iso}" title="Nova tarefa neste dia" aria-label="Nova tarefa neste dia">${svgIcon(ICON_D.plus,15)}</button>
         </div>
-        <div class="stat-card ${d===0?'agenda-today':''}">${
+        <div class="stat-card ${ehHoje?'agenda-today':''}">${
           itens.length ? itens.map(it=>agendaLinhaHtml(it, iso)).join("")
                        : `<div class="dev-n" style="padding:4px 0;">nada agendado</div>`
         }</div>`;
@@ -4421,12 +4527,17 @@ window.addEventListener("unhandledrejection", function(e){
     return blocos;
   }
   function agendaDiaHomeHtml(iso){
+    const hojeISO = localKey();
+    const ehHoje = iso === hojeISO;
     const dow = isoToDate(iso).getDay();
     return `<div class="ag-dia-head">
-        <span class="ag-dia-nome">${DIAS_PT[dow].charAt(0).toUpperCase()+DIAS_PT[dow].slice(1)} · hoje</span>
+        <button class="icon-btn borderless" id="agDiaPrev" title="Dia anterior" aria-label="Dia anterior">${svgIcon(ICON_D.chevronLeft,15)}</button>
+        <span class="ag-dia-nome">${DIAS_PT[dow].charAt(0).toUpperCase()+DIAS_PT[dow].slice(1)}${ehHoje?' · hoje':''}</span>
         <span class="dev-n">${iso.slice(8,10)}/${iso.slice(5,7)}</span>
-        <button class="icon-btn borderless" data-agnovo="${iso}" title="Nova tarefa hoje" aria-label="Nova tarefa hoje">${svgIcon(ICON_D.plus,15)}</button>
+        <button class="icon-btn borderless" id="agDiaNext" title="Próximo dia" aria-label="Próximo dia">${svgIcon(ICON_D.chevronRight,15)}</button>
+        <button class="icon-btn borderless" data-agnovo="${iso}" title="Nova tarefa" aria-label="Nova tarefa">${svgIcon(ICON_D.plus,15)}</button>
       </div>`
+      + (ehHoje ? "" : `<div style="text-align:right; margin:-4px 0 6px;"><button class="link-btn" id="agDiaHoje">hoje</button></div>`)
       + icalAllDayChipsHtml(iso)
       + `<div class="ag-dia-scroll">${agendaGradeHtml(blocosAgendaDia(iso), iso, { pxMin: AG_PX_MIN_ZOOM, passo:30, mIni:0, mFim:24*60, rotulo:false })}</div>`;
   }
@@ -4448,9 +4559,48 @@ window.addEventListener("unhandledrejection", function(e){
       alternarCartaoFeitoNaAgenda(row.dataset.agtarefa, "dia:" + row.dataset.agdia);
       render();
     });
-    scope.querySelectorAll("[data-agcard]").forEach(bl=> bl.onclick = () => {
-      alternarCartaoFeitoNaAgenda(bl.dataset.agcard, "dia:" + iso);
-      render();
+    // arrastar um bloco de cartão verticalmente na grade do dia reagenda o
+    // horário (mantém a duração) em vez de exigir abrir o popup — só existe
+    // aqui (dentro de .ag-dia-scroll), a lista da visão "semana" não tem grade
+    let agCardArrastou = false;
+    scope.querySelectorAll(".ag-dia-scroll [data-agcard]").forEach(bl=>{
+      bl.addEventListener("pointerdown", ev=>{
+        if(ev.pointerType === "mouse" && ev.button !== 0) return;
+        const card = diaKanban.find(c=>c.id===bl.dataset.agcard);
+        const iniOrig = card ? horaParaMin(card.hIni) : null;
+        if(iniOrig == null) return; // sem horário não tem posição na grade pra arrastar
+        const fimOrig = (card.hFim && horaParaMin(card.hFim) > iniOrig) ? horaParaMin(card.hFim) : iniOrig + 60;
+        const dur = fimOrig - iniOrig;
+        const startY = ev.clientY;
+        let moved = false;
+        try{ bl.setPointerCapture(ev.pointerId); }catch(e){}
+        const move = ev2 => {
+          const dy = ev2.clientY - startY;
+          if(!moved && Math.abs(dy) > 6){ moved = true; bl.classList.add("ag-bloco-dragging"); }
+          if(moved) bl.style.transform = `translateY(${dy}px)`;
+        };
+        const up = ev2 => {
+          bl.onpointermove = null; bl.onpointerup = null; bl.onpointercancel = null;
+          bl.classList.remove("ag-bloco-dragging");
+          bl.style.transform = "";
+          if(!moved) return;
+          agCardArrastou = true;
+          const dy = ev2.clientY - startY;
+          const deltaMin = Math.round(dy / AG_PX_MIN_ZOOM / 5) * 5;
+          const novoIni = Math.max(0, Math.min(24*60 - dur, iniOrig + deltaMin));
+          if(novoIni === iniOrig) return;
+          card.hIni = formatHM(novoIni);
+          card.hFim = formatHM(novoIni + dur);
+          saveDiaKanban();
+          render();
+        };
+        bl.onpointermove = move; bl.onpointerup = up; bl.onpointercancel = up;
+      });
+      bl.onclick = () => {
+        if(agCardArrastou){ agCardArrastou = false; return; } // o arrasto já resolveu
+        alternarCartaoFeitoNaAgenda(bl.dataset.agcard, "dia:" + iso);
+        render();
+      };
     });
     scope.querySelectorAll("[data-agcompr], [data-agcompromisso]").forEach(row=> row.onclick = () => {
       const id = row.dataset.agcompr || row.dataset.agcompromisso;
@@ -4486,14 +4636,14 @@ window.addEventListener("unhandledrejection", function(e){
         <input type="text" class="mk-e-name tf-text" style="width:100%;" placeholder="O que precisa ser feito?" value="${escapeHtml(it.text)}">
         <div class="section-label" style="margin:12px 0 4px;">Horário (opcional)</div>
         <div class="kb-e-horas"><div class="kb-horas-row">
-          <input type="time" class="tf-ini" value="${escapeHtml(it.hIni||"")}" aria-label="Hora de início">
+          ${timeKbInputHtml("tf-ini", it.hIni, "Hora de início")}
           <span class="dev-n">até</span>
-          <input type="time" class="tf-fim" value="${escapeHtml(it.hFim||"")}" aria-label="Hora de término">
+          ${timeKbInputHtml("tf-fim", it.hFim, "Hora de término")}
         </div></div>
-        <div class="dev-n" style="margin-top:5px;">Com hora de início a tarefa vira um bloco na agenda. Sem hora de término, vale 1h.</div>
-        <div class="section-label" style="margin:12px 0 4px;">Peso no boletim</div>
-        ${tagValorPillsHtml(it.tagValor || "nenhum", false)}
-        <div class="dev-n" style="margin-top:5px;">Vale um bloco de ${gam.config.divisorDuracao} min. Pontua ao ser concluída.</div>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap;">
+          <div class="section-label" style="margin:0;">Peso</div>
+          ${tagValorPillsHtml(it.tagValor || "nenhum", false)}
+        </div>
         ${rodaAtiva() ? `<div class="section-label" style="margin:12px 0 4px;">Área</div><div class="tf-area"></div>` : ""}
         <div class="confirm-actions" style="margin-top:16px; justify-content:space-between;">
           ${existente
@@ -4507,6 +4657,7 @@ window.addEventListener("unhandledrejection", function(e){
     const cancel = ov.querySelector("#tfCancel");
     if(cancel) cancel.onclick = () => ov.remove();
     wireTagValorPills(ov);
+    wireTimeKbInputs(ov);
     let areaSel = it.eixo || null;
     const areaWrap = ov.querySelector(".tf-area");
     if(areaWrap) pintarAreaChips(areaWrap, areaSel, v => { areaSel = v; });
@@ -4869,29 +5020,24 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen";
     /* Dados deixou de ser uma aba própria (só existe estatística de ROTINA
-       aqui — não faz mais sentido disputar espaço na tabbar com Metas/Diário/
+       aqui — não faz mais sentido disputar espaço na tabbar com Metas/
        Modelos, que cobrem outros dados). Vira um botão-ícone no cabeçalho de
        Rotinas, abrindo como subtela com "voltar" — mesmo padrão de
-       routineDetail/boletim, não mais renderTabbar("stats"). */
-    el.innerHTML = `<div class="topbar"><button class="link-btn muted" id="statsBack">&larr; Rotinas</button></div>`;
-    /* Cabeçalho e navegação ficam DENTRO da área que rola (em #statsHead, um
-       irmão do conteúdo): fixados no topo eles comiam a altura útil da tela.
-       O conteúdo mora em #statsBody porque as seções são montadas com
-       `innerHTML +=` — se o cabeçalho estivesse no mesmo nó, cada seção nova
-       recriaria os botões e derrubaria os handlers. */
+       routineDetail/boletim, não mais renderTabbar("stats"). O botão de voltar
+       virou ícone à esquerda do título, e essa linha (título + voltar + ações)
+       é fixa no topo — único cabeçalho de aba do app que fica fixo, por pedido
+       explícito do Pedro; o resto (roda da vida, toggle, filtro) continua
+       rolando dentro de #statsHead como antes. */
     const scroll = document.createElement("div");
     scroll.style.cssText = "overflow-y:auto; flex:1; min-height:0;";
     scroll.innerHTML = `
-      <div id="statsHead">
-        <div class="home-header">
-          <h1>Dados</h1>
-          <div class="header-right">
-            <button class="bell-btn" id="statsBackupBtn" title="Exportar backup completo" aria-label="Exportar backup completo">${svgIcon(ICON_D.arrowDownTray,14)}</button>
-            <button class="bell-btn" id="statsImportBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
-            <input type="file" id="statsImportFile" accept="application/json" style="display:none">
-            <button class="bell-btn" id="relatorioBtn" title="Relatório de fechamento (PDF)" aria-label="Relatório de fechamento">${svgIcon(ICON_D.clipboard,15)}</button>
-          </div>
+      <div class="home-header stats-sticky-head">
+        <h1><button class="icon-btn borderless" id="statsBack" title="Voltar para Rotinas" aria-label="Voltar para Rotinas" style="margin-right:6px; vertical-align:-8px;">${svgIcon(ICON_D.chevronLeft,18)}</button>Dados</h1>
+        <div class="header-right">
+          <button class="bell-btn" id="relatorioBtn" title="Relatório de fechamento (PDF)" aria-label="Relatório de fechamento">${svgIcon(ICON_D.clipboard,15)}</button>
         </div>
+      </div>
+      <div id="statsHead">
         ${rodaVidaResumoHtml()}
         <div class="stats-nav">
           <div class="type-toggle view-toggle">
@@ -4900,6 +5046,7 @@ window.addEventListener("unhandledrejection", function(e){
             <span data-sview="anual" class="${statsView==='anual'?'active':''}">anual</span>
           </div>
         </div>
+        ${routineFilterSelectHtml()}
       </div>
       <div id="statsBody"></div>
     `;
@@ -4912,11 +5059,8 @@ window.addEventListener("unhandledrejection", function(e){
       const { title, inner } = relatorioFechamentoHtml();
       exportPdfView(title, inner, "Relatórios");
     };
-    document.getElementById("statsBackupBtn").onclick = exportBackup;
-    const statsImpFile = document.getElementById("statsImportFile");
-    document.getElementById("statsImportBtn").onclick = () => statsImpFile.click();
-    statsImpFile.onchange = e => { if(e.target.files && e.target.files[0]){ importBackup(e.target.files[0]); e.target.value=""; } };
     el.querySelectorAll("[data-sview]").forEach(sp=> sp.onclick = () => { statsView = sp.dataset.sview; selectedDay = null; render(); });
+    wireRoutineFilterSelect(scroll);
 
     if(history.length === 0){
       body.innerHTML = `<div class="empty-state" style="min-height:50vh;"><h2>Sem dados ainda</h2><p>Conclua rotinas para ver seu histórico, desvios de tempo e pontualidade aqui.</p></div>`;
@@ -5190,8 +5334,7 @@ window.addEventListener("unhandledrejection", function(e){
     const rate = plannedTotal > 0 ? Math.round(doneTotal/plannedTotal*100) : null;
     const partes = [nav, `<div class="stat-card">${grid}
       <div class="stat-foot">&#9679; executada &nbsp; <span class="late" style="font-weight:600;">n</span> agendadas não feitas${rate!==null?` &nbsp;·&nbsp; cumprimento da semana: ${rate}% (${doneTotal}/${plannedTotal})`:""}</div></div>`];
-    partes.push(routineFilterSelectHtml());
-    if(selectedDay){
+        if(selectedDay){
       partes.push(dayDetailHtml(selectedDay));
     } else {
       // nenhum dia escolhido: mostra os dados de todos os dias da semana com
@@ -5210,7 +5353,6 @@ window.addEventListener("unhandledrejection", function(e){
 
     document.getElementById("prevWeek").onclick = () => { calWeek = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()-7); selectedDay = null; render(); };
     document.getElementById("nextWeek").onclick = () => { calWeek = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()+7); selectedDay = null; render(); };
-    wireRoutineFilterSelect(body);
     body.querySelectorAll("[data-day]").forEach(cell=>{
       cell.onclick = () => { selectedDay = selectedDay === cell.dataset.day ? null : cell.dataset.day; render(); };
     });
@@ -5271,15 +5413,13 @@ window.addEventListener("unhandledrejection", function(e){
     const rate = plannedTotal > 0 ? Math.round(doneTotal/plannedTotal*100) : null;
     const partes = [nav, `<div class="stat-card">${grid}
       <div class="stat-foot">&#9679; executada &nbsp; <span class="late" style="font-weight:600;">n</span> agendadas não feitas${rate!==null?` &nbsp;·&nbsp; cumprimento do mês: ${rate}% (${doneTotal}/${plannedTotal})`:""}</div></div>`];
-    partes.push(routineFilterSelectHtml());
-    if(selectedDay) partes.push(dayDetailHtml(selectedDay));
+        if(selectedDay) partes.push(dayDetailHtml(selectedDay));
     partes.push(...renderPeriodExtras("30d"));
     partes.push(`<div style="height:20px"></div>`);
     body.innerHTML = partes.join("");
 
     document.getElementById("prevMonth").onclick = () => { calMonth = new Date(y, mo-1, 1); selectedDay = null; render(); };
     document.getElementById("nextMonth").onclick = () => { calMonth = new Date(y, mo+1, 1); selectedDay = null; render(); };
-    wireRoutineFilterSelect(body);
     wirePeriodExtras(body);
     body.querySelectorAll("[data-day]").forEach(cell=>{
       cell.onclick = () => { selectedDay = selectedDay === cell.dataset.day ? null : cell.dataset.day; render(); };
@@ -5301,8 +5441,7 @@ window.addEventListener("unhandledrejection", function(e){
     to.setHours(12,0,0,0);
 
     const partes = [nav, `<div class="stat-card" id="yearHm">${heatmapHtml(from, to, byDateAll)}</div>`];
-    partes.push(routineFilterSelectHtml());
-    if(selectedDay) partes.push(dayDetailHtml(selectedDay));
+        if(selectedDay) partes.push(dayDetailHtml(selectedDay));
 
     /* horas por mês — abaixo do dropdown, então já respeita statsRoutineFilter */
     const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -5331,7 +5470,6 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("prevYear").onclick = () => { calYear--; selectedDay = null; render(); };
     document.getElementById("nextYear").onclick = () => { calYear++; selectedDay = null; render(); };
     wireHeatmapTaps(body, render);
-    wireRoutineFilterSelect(body);
     wirePeriodExtras(body);
   }
 
@@ -5606,7 +5744,7 @@ window.addEventListener("unhandledrejection", function(e){
   const TMPL_SECOES = [
     { key:"geral",     label:"Geral",     tipos:["notes","thoughtrecord","matrix"] },
     { key:"listas",    label:"Listas",    tipos:["market","travel","kanban"] },
-    { key:"registros", label:"Registros", tipos:["expense","diarioDias","scoreboard"] }
+    { key:"registros", label:"Registros", tipos:["expense","scoreboard"] }
   ];
 
   /* ---- helpers de exportação ---- */
@@ -5772,7 +5910,6 @@ window.addEventListener("unhandledrejection", function(e){
     const journalRoutineIds = [...new Set(templates.filter(t=>t.type==="journal").map(t=>t.routineId))];
     const todas = [
       { key:"notes", icon:svgIcon(ICON_D.notes), label:"Notas" },
-      { key:"diarioDias", icon:svgIcon(ICON_D.countdown), label:"Registros da agenda" },
       ...TMPL_TYPES.map(t=>({ key:t.type, icon:t.icon, label:t.label }))
     ];
     const porKey = key => todas.find(f=>f.key===key);
@@ -5844,7 +5981,6 @@ window.addEventListener("unhandledrejection", function(e){
       b.onclick = () => {
         const key = b.dataset.folder;
         if(key === "notes"){ goTo({ tab:"templates", screen:"notes" }); return; }
-        if(key === "diarioDias"){ goTo({ tab:"templates", screen:"diarioFolder" }); return; }
         if(key === "expense"){ goTo({ tab:"templates", screen:"expenseFolder" }); return; }
         if(key.startsWith("journal:")){ goTo({ tab:"templates", screen:"tmplFolder", folderKind:"routine", folderKey:key.slice(8) }); return; }
         goTo({ tab:"templates", screen:"tmplFolder", folderKind:"type", folderKey:key });
@@ -7321,19 +7457,57 @@ window.addEventListener("unhandledrejection", function(e){
     }
     save(K_GAMIFICACAO, gam);
   }
-  /* Remove todas as penalidades já creditadas por esta meta na semana corrente
-     — usado quando a meta recorrente é apagada. */
+  /* Remove todas as penalidades/créditos já lançados por esta meta na semana
+     corrente — usado quando a meta recorrente é apagada. Filtra os dois
+     prefixos sempre: mais barato que checar negativa/pontua e nunca deixa
+     resíduo se o campo mudou desde o último lançamento. */
   function estornarPenalidadesMetaRec(rec){
     if(!gam.semanaAtual) return;
-    const prefixo = "metarecneg:"+rec.id+":";
-    gam.semanaAtual.concluidos = gam.semanaAtual.concluidos.filter(c=>!c.itemId.startsWith(prefixo));
+    const prefNeg = "metarecneg:"+rec.id+":", prefPos = "metarecpos:"+rec.id+":";
+    gam.semanaAtual.concluidos = gam.semanaAtual.concluidos.filter(c=>!c.itemId.startsWith(prefNeg) && !c.itemId.startsWith(prefPos));
+    save(K_GAMIFICACAO, gam);
+  }
+  function metaRecItemIdPos(rec, per, n){ return "metarecpos:"+rec.id+":"+per+":"+n; }
+  /* Mesma "unidade de bloco" do peso de um cartão do kanban (pesoBruto com a
+     duração de referência), com o sinal positivo — meta recorrente positiva é
+     opt-in via rec.pontua, então hábitos que só servem de lembrete (a maioria)
+     continuam sem pontuar, como sempre foram. */
+  function metaRecPontosUnidade(rec){
+    return pesoBruto(rec.tagValor || "medio", gam.config.divisorDuracao);
+  }
+  /* Espelho de sincronizarPenalidadeMetaRec para o caso positivo: credita uma
+     ocorrência por vez, até o limite `vezes` (metaRecAjustar já trava p.feitas
+     nesse teto para metas não-negativas, então feitasAntes/Depois chegam aqui
+     sempre dentro da faixa 0..vezes). */
+  function sincronizarPontosMetaRec(rec, feitasAntes, feitasDepois){
+    if(feitasDepois === feitasAntes) return;
+    avancarGamificacaoAteAgora();
+    const per = metaRecPeriodoAtual(rec);
+    const pb = metaRecPontosUnidade(rec);
+    if(feitasDepois > feitasAntes){
+      if(pb <= 0) return; // peso "nenhum": não credita nada
+      for(let n = feitasAntes+1; n <= feitasDepois; n++){
+        gam.semanaAtual.concluidos.push({
+          itemId: metaRecItemIdPos(rec, per, n), tipo:"metaRec", dataISO: localKey(),
+          pontos: pb * fatorDaArea(rec.area||""), pb, agendado:false, area: rec.area||"", rotulo: rec.titulo
+        });
+      }
+    } else {
+      for(let n = feitasAntes; n > feitasDepois; n--){
+        const i = gam.semanaAtual.concluidos.findIndex(c=>c.itemId===metaRecItemIdPos(rec, per, n));
+        if(i>-1) gam.semanaAtual.concluidos.splice(i,1);
+      }
+    }
     save(K_GAMIFICACAO, gam);
   }
   function metaRecAjustar(doc, rec, delta){
     const p = metaRecProgresso(rec);
     const excessoAntes = metaRecExcesso(rec);
+    const feitasAntes = (!rec.negativa && rec.pontua) ? p.feitas : 0;
     p.feitas = Math.max(0, rec.negativa ? (p.feitas + delta) : Math.min(rec.vezes, p.feitas + delta));
     if(rec.negativa) sincronizarPenalidadeMetaRec(rec, excessoAntes, metaRecExcesso(rec));
+    const feitasDepois = (!rec.negativa && rec.pontua) ? p.feitas : 0;
+    sincronizarPontosMetaRec(rec, feitasAntes, feitasDepois);
     saveTemplates(doc);
   }
   /* horários igualmente espaçados dentro da janela de notificação — dividir
@@ -7551,10 +7725,11 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="section-label" style="margin:12px 0 6px;" id="mrVezesLabel">Quantas vezes</div>
         <input type="number" id="mrVezes" inputmode="numeric" min="1" max="20" style="width:110px;" value="${rec?rec.vezes:4}">
         <div class="dev-n" id="mrNegativaHint" style="margin-top:6px;"></div>
+        <label class="switch-row" id="mrPontuaRow" style="margin-top:12px;"><span>Pontua no boletim</span><input type="checkbox" id="mrPontua" ${rec&&rec.pontua?'checked':''}></label>
         <div id="mrPesoWrap" style="margin-top:12px;">
-          <div class="section-label" style="margin:0 0 6px;">Peso da penalidade</div>
+          <div class="section-label" style="margin:0 0 6px;" id="mrPesoLabel">Peso da penalidade</div>
           ${tagValorPillsHtml(rec ? (rec.tagValor||"medio") : "medio", false)}
-          <div class="dev-n" style="margin-top:6px;">Cada vez que passar do limite desconta pontos do boletim da semana.</div>
+          <div class="dev-n" id="mrPesoHint" style="margin-top:6px;">Cada vez que passar do limite desconta pontos do boletim da semana.</div>
         </div>
         ${rodaAtiva() ? `<div class="section-label" style="margin:12px 0 6px;">Área</div><div id="mrAreaWrap"></div>` : ""}
         <div class="section-label" style="margin:12px 0 6px;" id="mrNotifLabel">Notificar (só quando é ao dia)</div>
@@ -7579,13 +7754,22 @@ window.addEventListener("unhandledrejection", function(e){
     ov.querySelector("#mrCancel").onclick = () => ov.remove();
     function atualizarNegativaVisibilidade(){
       const neg = ov.querySelector("#mrNegativa").checked;
+      const pontua = ov.querySelector("#mrPontua").checked;
       ov.querySelector("#mrVezesLabel").textContent = neg ? "Limite (vezes)" : "Quantas vezes";
-      ov.querySelector("#mrPesoWrap").style.display = neg ? "" : "none";
+      // negativa sempre "pontua" (penaliza) — o toggle "pontua" só existe para
+      // decidir se a positiva também credita pontos, não faz sentido nos dois ao mesmo tempo
+      ov.querySelector("#mrPontuaRow").style.display = neg ? "none" : "";
+      ov.querySelector("#mrPesoWrap").style.display = (neg || pontua) ? "" : "none";
+      ov.querySelector("#mrPesoLabel").textContent = neg ? "Peso da penalidade" : "Peso";
+      ov.querySelector("#mrPesoHint").textContent = neg
+        ? "Cada vez que passar do limite desconta pontos do boletim da semana."
+        : "Cada vez marcada credita pontos no boletim da semana, até o limite de vezes.";
       ov.querySelector("#mrNegativaHint").textContent = neg
         ? "Marque cada vez que acontecer. Passar do limite desconta do boletim."
         : "";
     }
     ov.querySelector("#mrNegativa").onchange = atualizarNegativaVisibilidade;
+    ov.querySelector("#mrPontua").onchange = atualizarNegativaVisibilidade;
     atualizarNegativaVisibilidade();
     function atualizarNotifVisibilidade(){
       const ehDiaria = tipoSel === "diaria";
@@ -7626,18 +7810,23 @@ window.addEventListener("unhandledrejection", function(e){
       const notifOn = tipoSel === "diaria" && ov.querySelector("#mrNotifOn").checked;
       const notif = notifOn ? { inicio: ov.querySelector("#mrNotifIni").value, fim: ov.querySelector("#mrNotifFim").value } : null;
       const negativa = ov.querySelector("#mrNegativa").checked;
+      const pontua = ov.querySelector("#mrPontua").checked;
       const tagValor = readTagValorPills(ov) || "medio";
       if(rec){
-        // excesso ANTES considera o estado antigo de negativa/vezes; DEPOIS já
-        // com os campos novos — cobre tanto virar negativa quanto mudar o limite
+        // excesso/feitas ANTES consideram o estado antigo (negativa/pontua/vezes);
+        // DEPOIS já com os campos novos — cobre virar negativa, ligar/desligar
+        // "pontua", ou só mudar o limite/peso/área com o crédito já em curso
         const excessoAntes = rec.negativa ? metaRecExcesso(rec) : 0;
+        const feitasAntes = (!rec.negativa && rec.pontua) ? metaRecFeitas(rec) : 0;
         rec.titulo = titulo; rec.tipo = tipoSel; rec.vezes = vezes; rec.area = areaSel; rec.notif = notif;
-        rec.negativa = negativa; rec.tagValor = tagValor;
+        rec.negativa = negativa; rec.pontua = pontua; rec.tagValor = tagValor;
         metaRecProgresso(rec); // reencaixa o progresso se vezes/tipo mudou de período
         const excessoDepois = rec.negativa ? metaRecExcesso(rec) : 0;
         sincronizarPenalidadeMetaRec(rec, excessoAntes, excessoDepois);
+        const feitasDepois = (!rec.negativa && rec.pontua) ? metaRecFeitas(rec) : 0;
+        sincronizarPontosMetaRec(rec, feitasAntes, feitasDepois);
       } else {
-        doc.recorrentes.push({ id: uid(), titulo, tipo: tipoSel, vezes, area: areaSel, notif, negativa, tagValor, criadoEm: Date.now(), progresso: null });
+        doc.recorrentes.push({ id: uid(), titulo, tipo: tipoSel, vezes, area: areaSel, notif, negativa, pontua, tagValor, criadoEm: Date.now(), progresso: null });
       }
       saveTemplates(doc);
       ov.remove();
@@ -7672,7 +7861,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="area-chips area-filter-row" id="metasSubviewToggle" style="margin-bottom:14px;">
         <span class="area-chip ${mostraRecorrentes?'sel':''}" data-metasview="recorrentes" style="--chip:var(--accent);">Recorrentes</span>
         <span class="area-chip ${mostraPrazos?'sel':''}" data-metasview="prazos" style="--chip:var(--accent);">Prazos</span>
-        ${mostraPrazos ? `<button class="bell-btn di-hoje ${homeSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${homeSoHoje?'true':'false'}" style="flex:0 0 auto;">hoje</button>` : ""}
+        ${mostraPrazos ? `<button class="bell-btn di-hoje ${metasSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${metasSoHoje?'true':'false'}" style="flex:0 0 auto;">hoje</button>` : ""}
       </div>
       ${metasAreaFiltroChipsHtml()}
       <div id="metasBody" style="padding-bottom:20px;"></div>
@@ -7694,51 +7883,64 @@ window.addEventListener("unhandledrejection", function(e){
       };
     });
     if(mostraPrazos) el.querySelector("#metasSoHojeBtn").onclick = () => {
-      homeSoHoje = !homeSoHoje;
-      save(K_SOHOJE, homeSoHoje);
+      metasSoHoje = !metasSoHoje;
+      save(K_METASSOHOJE, metasSoHoje);
       render();
     };
     const body = el.querySelector("#metasBody");
     const fabMeta = document.createElement("button");
     fabMeta.className = "fab"; fabMeta.textContent = "+";
-    fabMeta.id = "cdNovaBtn"; fabMeta.title = mostraPrazos ? "Nova meta" : "Nova meta recorrente";
+    fabMeta.id = "cdNovaBtn"; fabMeta.title = "Novo";
     el.appendChild(fabMeta);
     el.appendChild(renderTabbar("metas"));
     app.appendChild(el);
     wireCfgBtn(el);
 
+    // % do prazo já decorrido desde a criação da meta até o vencimento — é o
+    // "esperado até agora" que o marcador da barra mostra, comparado ao feito
+    function metaPctEsperado(t){
+      const criado = t.createdAt || Date.now();
+      const prazo = isoToDate(t.date).getTime() + 86400000 - 1;
+      const total = Math.max(1, prazo - criado);
+      return Math.max(0, Math.min(100, (Date.now() - criado) / total * 100));
+    }
     function metaCardHtml(t, opts){
       opts = opts || {};
       const sub = !!opts.sub;
       const filhos = opts.filhos || [];
       const bloqueada = !!opts.bloqueada;
       const d = daysUntil(t.date);
-      const p = cdPace(t);
       const [y,m,dd] = t.date.split("-");
       const cls = d < 0 ? "late" : (d <= 7 ? "late" : d <= 30 ? "ontime" : "early");
       const esc = metaEscopo(t);
       const feita = metaConcluida(t);
       const areas = (t.areas||[]).map(metaAreaChipHtml).join("");
+      // barra: feito × esperado pelo prazo (marcador), no lugar do número
+      // gigante de dias + linha de "ritmo necessário" — a mesma informação
+      // (está no ritmo ou atrasada) fica visível de relance, sem duas frases
+      const donePct = t.topics ? Math.min(100, (t.done||0)/t.topics*100) : 0;
+      const expPct = t.topics ? metaPctEsperado(t) : 0;
+      const corBarra = feita ? "var(--good)" : (donePct+2 < expPct ? "var(--danger)" : "var(--accent)");
       return `
         <div class="stat-card" data-metaid="${t.id}" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--good);':''} ${bloqueada?'opacity:.55;':''}">
           <div class="dev-row" style="border:none; padding:0;">
             <span style="font-family:'Fraunces',serif; font-size:${sub?15:17}px; flex:1;">${sub?'&#8618; ':''}${bloqueada?'&#128274; ':''}${escapeHtml(t.title)}</span>
             <button class="icon-btn borderless" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">${svgIcon(ICON_D.notes,14)}</button>
-            <button class="del-exec" data-cddel="${t.id}" title="Remover meta" aria-label="Remover meta" style="display:none;">${svgIcon(ICON_D.xmark,14)}</button>
           </div>
           ${areas ? `<div class="meta-areas" style="margin:6px 0 2px;">${areas}</div>` : ""}
           ${metaDiasChipHtml(t)}
-          <div class="cd-big ${cls}">${d>=0 ? d : "+"+Math.abs(d)}<span> dia(s)${d<0?" atrás":""}</span></div>
-          <div class="dev-n">${dd}/${m}/${y} · escopo ${ESCOPO_META_LABEL[esc]} · peso ${TAG_LABELS[t.tagValor || "alto"].toLowerCase()}</div>
-          ${t.topics ? `<div class="dev-n" style="margin-top:2px;">boletim ${ESCOPO_META_LABEL[esc]}: <b style="color:var(--accent);">${metaCreditado(t).toFixed(1)}</b> de ${metaPontosTotais(t).toFixed(1)} pts · ${(metaPontosTotais(t)/t.topics).toFixed(2)} pts cada</div>` : ""}
+          <div class="dev-n" style="margin-top:4px;">${dd}/${m}/${y} · <b class="${cls}" style="color:${cls==='late'?'var(--danger)':cls==='ontime'?'var(--accent)':'var(--good)'};">${d>=0 ? d+" dia(s)" : "atrasada "+Math.abs(d)+"d"}</b> · ${ESCOPO_META_LABEL[esc]} · peso ${TAG_LABELS[t.tagValor || "alto"].toLowerCase()}</div>
           ${bloqueada ? `<div class="dev-n" style="margin-top:6px; color:var(--muted);">&#128274; desbloqueia ao concluir a sub-meta anterior</div>`
             : (t.topics != null ? `
-          <div class="cd-topics">
+          <div class="bar-row" style="margin-top:8px;">
+            <div class="bar-track goal-track"><div class="bar-fill" style="width:${Math.max(3,donePct)}%; background:${corBarra};"></div><span class="goal-marker" style="left:${expPct}%"></span></div>
+            <div class="bar-val" style="width:auto; white-space:nowrap; flex:0 0 auto;">${metaCreditado(t).toFixed(1)}/${metaPontosTotais(t).toFixed(1)} pts</div>
+          </div>
+          <div class="cd-topics" style="margin-top:8px;">
             <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdminus="${t.id}" title="Menos um" aria-label="Menos um">&minus;</button>
             <span><input type="number" class="cd-done-inp" data-cddone="${t.id}" value="${t.done||0}" inputmode="numeric" min="0" max="${t.topics}"> / <input type="number" class="cd-done-inp" data-cdtotal="${t.id}" value="${t.topics}" inputmode="numeric" min="1"> ${escapeHtml(cdUnit(t))}</span>
             <button class="ctrl-btn" style="width:36px;height:36px;font-size:15px;" data-cdplus="${t.id}" title="Mais um" aria-label="Mais um">+</button>
-          </div>
-          <div class="dev-n" style="margin-top:4px;">ritmo necessário: <b style="color:${feita?'var(--good)':'var(--accent)'};">${p.txt}</b>${feita?" "+svgIcon(ICON_D.check,13):""}</div>` : "")}
+          </div>` : "")}
           ${filhos.length ? `<div class="dev-n" style="margin-top:6px;">${filhos.filter(metaConcluida).length} de ${filhos.length} sub-meta(s) concluída(s)</div>` : ""}
           ${(t.nota||"").trim()
             ? `<div class="meta-nota" data-cdnotaview="${t.id}">${renderMdBlock(t.nota, "meta:"+t.id, "")}</div>
@@ -7756,7 +7958,7 @@ window.addEventListener("unhandledrejection", function(e){
       const linhaMeta = rec.area ? `${escapeHtml(areaInfoRoda(rec.area).label)} | ${freqTxt}` : freqTxt;
       const statusTxt = rec.negativa
         ? (excesso>0 ? `excedeu em ${excesso} · -${(excesso*-metaRecPenalidadeUnidade(rec)*fatorDaArea(rec.area||"")).toFixed(1)} pts` : "dentro do limite")
-        : (completa?'concluída ✓':'');
+        : (rec.pontua ? `+${(feitas*metaRecPontosUnidade(rec)*fatorDaArea(rec.area||"")).toFixed(1)} pts${completa?' · concluída ✓':''}` : (completa?'concluída ✓':''));
       return `
         <div class="stat-card rec-card" data-mrid="${rec.id}" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--danger);':'border-color:var(--good);') : (completa?'border-color:var(--good);':'')}">
           <span class="rec-drag drag-handle" data-mrdrag="${rec.id}" title="Arrastar para reordenar" aria-label="Arrastar para reordenar">${svgIcon(ICON_D.bars3,15)}</span>
@@ -7793,7 +7995,7 @@ window.addEventListener("unhandledrejection", function(e){
         Object.values(filhosPorPai).forEach(arr=>arr.sort((a,b)=>daysUntil(a.date)-daysUntil(b.date)));
         const sorted = filtradas
           .filter(t => !t.parentId)
-          .filter(t => !homeSoHoje || metaOcorreHoje(t))
+          .filter(t => !metasSoHoje || metaOcorreHoje(t))
           .sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
         if(ambos) partes.push(`<div class="section-label">Prazos</div>`);
         partes.push(sorted.map(t=>{
@@ -7819,20 +8021,22 @@ window.addEventListener("unhandledrejection", function(e){
       wireCards();
     }
 
+    // extraída para ser chamada tanto pelo botão de editar-e-excluir quanto
+    // diretamente pelo swipe (que não passa mais por um botão-proxy escondido)
+    function excluirMeta(id){
+      const filhos = doc.targets.filter(x=>x.parentId===id);
+      confirmModal("Remover esta meta?" + (filhos.length ? ` As ${filhos.length} sub-meta(s) viram metas independentes.` : ""), "Remover", ()=>{
+        const t = doc.targets.find(x=>x.id===id);
+        if(t) estornarMetaConcluida(t);
+        filhos.forEach(f=> f.parentId = null); // órfã vira meta de topo em vez de sumir da lista
+        doc.targets = doc.targets.filter(x=>x.id!==id);
+        saveTemplates(doc); pintarTudo();
+      });
+    }
     function wireCards(){
       if(mostraPrazos){
         body.querySelectorAll("[data-cdedit]").forEach(b=> b.onclick = () => {
           abrirFormMeta(doc, doc.targets.find(t=>t.id===b.dataset.cdedit));
-        });
-        body.querySelectorAll("[data-cddel]").forEach(b=> b.onclick = () => {
-          const filhos = doc.targets.filter(x=>x.parentId===b.dataset.cddel);
-          confirmModal("Remover esta meta?" + (filhos.length ? ` As ${filhos.length} sub-meta(s) viram metas independentes.` : ""), "Remover", ()=>{
-            const t = doc.targets.find(x=>x.id===b.dataset.cddel);
-            if(t) estornarMetaConcluida(t);
-            filhos.forEach(f=> f.parentId = null); // órfã vira meta de topo em vez de sumir da lista
-            doc.targets = doc.targets.filter(x=>x.id!==b.dataset.cddel);
-            saveTemplates(doc); pintarTudo();
-          });
         });
         body.querySelectorAll("[data-cdsubnova]").forEach(b=> b.onclick = () => {
           abrirFormMeta(doc, null, b.dataset.cdsubnova);
@@ -7863,7 +8067,7 @@ window.addEventListener("unhandledrejection", function(e){
         body.querySelectorAll("[data-mrdel]").forEach(b=> b.onclick = () => {
           confirmModal("Remover esta meta recorrente?", "Remover", ()=>{
             const rec = doc.recorrentes.find(r=>r.id===b.dataset.mrdel);
-            if(rec && rec.negativa) estornarPenalidadesMetaRec(rec);
+            if(rec) estornarPenalidadesMetaRec(rec);
             doc.recorrentes = doc.recorrentes.filter(r=>r.id!==b.dataset.mrdel);
             saveTemplates(doc); pintarTudo();
           });
@@ -7911,17 +8115,13 @@ window.addEventListener("unhandledrejection", function(e){
         });
       }
       // gesto de arrastar (direita revela duplicar, esquerda revela excluir),
-      // igual ao resto do app — envolve os cards já wireados acima; excluir
-      // aciona por proxy o botão que já existe (evita duplicar a lógica de
-      // confirmação/estorno de metaRecNeg/sub-metas).
+      // igual ao resto do app — envolve os cards já wireados acima.
       if(mostraPrazos){
         body.querySelectorAll(".stat-card[data-metaid]").forEach(card=>{
           const id = card.dataset.metaid;
-          const delBtn = card.querySelector("[data-cddel]");
-          if(!delBtn) return;
           const next = card.nextSibling, parent = card.parentNode;
           const wrap = wrapSwipeActions(card, {
-            onLeft: () => delBtn.click(), leftLabel: "Excluir",
+            onLeft: () => excluirMeta(id), leftLabel: "Excluir",
             onRight: () => { duplicarMeta(doc, id); pintarTudo(); }, rightLabel: "Duplicar"
           });
           moverMargemParaSwipeWrap(card, wrap);
@@ -7945,10 +8145,10 @@ window.addEventListener("unhandledrejection", function(e){
     }
 
     pintarTudo();
-    document.getElementById("cdNovaBtn").onclick = () => {
-      if(mostraPrazos) abrirFormMeta(doc, null);
-      else abrirFormMetaRec(doc, null);
-    };
+    document.getElementById("cdNovaBtn").onclick = () => abrirPopupCriar("Criar novo", [
+      { label:"Meta recorrente", icon:ICON_D.countdown, run:()=>abrirFormMetaRec(doc, null) },
+      { label:"Meta com prazo", icon:ICON_D.countdown, run:()=>abrirFormMeta(doc, null) }
+    ]);
     if(mostraPrazos){
       document.getElementById("cdPdf").onclick = () => {
         let inner = "<h1>Metas</h1><ul>";
@@ -12621,10 +12821,9 @@ window.addEventListener("unhandledrejection", function(e){
               </div>`;
             }).join("")}
           </div>
-          <div class="stat-foot">Nota de 0 a 100 por semana (da mais antiga à mais recente) — a última barra é a semana em curso, ainda parcial.</div>
         </div>` : ""}
         <div style="margin:10px 0 4px;">
-          <button class="${disp?'btn-cancel':'btn-danger-outline'}" id="blDispensar" style="width:100%;">${disp?'Reativar esta semana':'Dispensar esta semana (viagem, doença...)'}</button>
+          <button class="${disp?'btn-cancel':'btn-danger-outline'}" id="blDispensar" style="width:100%;">${disp?'Reativar esta semana':'Dispensar esta semana'}</button>
         </div>
         ${(!rodaAtiva() || !gam.config.habito.ativo) ? `<div class="stat-card" style="margin-bottom:10px;">
           <div class="section-label" style="margin-top:0;">Recursos avançados disponíveis</div>
@@ -12639,9 +12838,6 @@ window.addEventListener("unhandledrejection", function(e){
             <div class="bar-track"><div class="bar-fill" style="width:${roda.max ? Math.max(3, Math.round(l.pontos/roda.max*100)) : 0}%; background:${l.color};"></div></div>
             <div class="bar-val" style="width:auto; white-space:nowrap; flex:0 0 auto;">${l.pontos.toFixed(1)}${l.previsto ? " / " + l.previsto.toFixed(0) : ""}</div>
           </div>`).join("")}
-          <div class="stat-foot">${rodaAtiva()
-            ? "Cada área tem uma fatia própria dos 100 pontos (proporcional ao peso dela), então rotinas de áreas diferentes não disputam entre si. O segundo número é a fatia da área."
-            : "Só a soma por área — as rotinas ainda dividem o mesmo bolo. Ligue a repartição por área em Configurações para separá-las."}</div>
         </div>` : ""}
         ${tend.length ? `<div class="section-label">Roda da vida — últimas ${tend[0].valores.length} semanas</div>
         <div class="stat-card">
@@ -12877,7 +13073,7 @@ window.addEventListener("unhandledrejection", function(e){
     const ultBak = load(K_LASTBACKUP, null);
     el.innerHTML = `
       <div style="overflow-y:auto; flex:1; padding-bottom:24px;">
-        <div class="home-header" style="margin-bottom:6px;"><h1>Configurações</h1></div>
+        <div class="home-header" style="margin-bottom:6px;"><h1>Ajustes</h1></div>
 
         <div class="section-label">Aparência</div>
         <div class="stat-card">
@@ -12896,6 +13092,31 @@ window.addEventListener("unhandledrejection", function(e){
               <span data-fontscale="1.3" class="${fontScaleAtual===1.3?'active':''}">GG</span>
             </div>
           </div>
+        </div>
+
+        <div class="section-label">Roda da vida</div>
+        <div class="stat-card">
+          <label class="switch-row"><span>Repartir os pontos por área</span><input type="checkbox" id="cfgRodaAtiva" ${rodaAtiva()?'checked':''}></label>
+          <div id="cfgRodaLista"></div>
+          <div class="market-form-row" style="margin-top:10px;">
+            <input type="text" id="cfgRodaNova" placeholder="Nova área" style="flex:1; min-width:0;">
+            <button class="btn-cancel" id="cfgRodaAdd" style="flex:0 0 auto;">Adicionar</button>
+          </div>
+          <div class="sched-time-row" style="margin-top:12px;"><span style="flex:1;">Peso de "sem área"</span><input class="dur-input" type="number" min="1" max="10" id="cfgRodaSemArea" value="${gam.config.roda.pesoSemArea}"></div>
+        </div>
+
+        <div class="section-label">Hábito consolidado</div>
+        <div class="stat-card">
+          <label class="switch-row"><span>Descontar rotina que virou hábito</span><input type="checkbox" id="cfgHabAtivo" ${gam.config.habito.ativo?'checked':''}></label>
+          <div class="sched-time-row" style="margin-top:10px;"><span style="flex:1;">Dias seguidos para virar hábito</span><input class="dur-input" type="number" min="3" max="365" id="cfgHabStreak" value="${gam.config.habito.streakMin}"></div>
+          <div class="sched-time-row"><span style="flex:1;">Quanto ela passa a valer</span><input class="dur-input" type="number" min="0.1" max="1" step="0.05" id="cfgHabFator" value="${gam.config.habito.fator}"></div>
+        </div>
+
+        <div class="section-label">Vagas por nível de peso</div>
+        <div class="stat-card">
+          <div class="sched-time-row" style="margin-top:0;"><span style="flex:1;">Alto</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaAlto" value="${gam.config.vagas.alto}"></div>
+          <div class="sched-time-row"><span style="flex:1;">Médio</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaMedio" value="${gam.config.vagas.medio}"></div>
+          <div class="sched-time-row"><span style="flex:1;">Baixo</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaBaixo" value="${gam.config.vagas.baixo}"></div>
         </div>
 
         <div class="section-label">Privacidade</div>
@@ -12924,36 +13145,6 @@ window.addEventListener("unhandledrejection", function(e){
           <label class="switch-row"><span>Mostrar sobre outros apps</span><input type="checkbox" id="cfgOverlay" ${load(K_OVERLAY,false)?'checked':''}></label>
           <div class="stat-foot">Uma bolha flutuante com o tempo restante, visível fora do app. Exige a permissão "Sobrepor a outros apps".</div>
         </div>` : ""}
-
-        <div class="section-label">Backup</div>
-        <div class="stat-card">
-          ${supportsFileBackup() ? `
-            <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Backup automático em arquivo</div>
-              <div class="bar-val" style="width:auto; color:${bakLigado?'var(--good)':'var(--muted)'};">${bakLigado?'ativo':'desligado'}</div></div>
-            <button class="${bakLigado?'btn-cancel':'btn-primary'}" id="cfgBakToggle" style="width:100%; margin-top:8px;">${bakLigado?'Desativar':'Escolher arquivo de backup'}</button>
-            <div class="stat-foot">O app regrava esse arquivo sozinho ao sair. Sem isso, seus dados vivem só no armazenamento do navegador, que pode ser apagado.</div>
-            <div class="stat-foot">Escolha um arquivo dentro de uma pasta sincronizada pelo Google Drive ou Dropbox no computador para sincronizar com outro aparelho que grave no mesmo arquivo — ao voltar para a aba, o app avisa se achar uma versão mais recente.</div>
-          ` : `<div class="routine-meta">${isNative?'Backup automático a cada 3 dias em Documentos/'+escapeHtml(dataFolderName())+'/Backups.':'Este navegador não permite gravar em arquivo automaticamente — exporte manualmente.'}</div>`}
-          ${isNative ? `
-          <div class="section-label" style="margin:14px 0 4px;">Pasta em Documentos</div>
-          <div class="market-form-row">
-            <input type="text" id="cfgDataFolder" class="mk-e-name" style="flex:1; min-width:0;" value="${escapeHtml(dataFolderName())}" maxlength="60">
-            <button class="btn-cancel" id="cfgDataFolderSave" style="flex:0 0 auto;">Salvar</button>
-          </div>
-          <div class="stat-foot" id="cfgDataFolderFoot">Onde backups, exports e o espelho em markdown são gravados — Documentos/${escapeHtml(dataFolderName())}. Trocar move os arquivos já existentes para a pasta nova.</div>
-          ` : ""}
-          <div style="display:flex; gap:8px; margin-top:12px;">
-            <button class="btn-cancel" id="cfgExport" style="flex:1;">Exportar agora</button>
-            <button class="btn-cancel" id="cfgImport" style="flex:1;">Importar</button>
-          </div>
-          <input type="file" id="cfgImportFile" accept="application/json" style="display:none">
-          <div class="stat-foot">${ultBak ? "Último backup: " + new Date(ultBak).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
-          <button class="btn-cancel" id="cfgExportIcs" style="width:100%; margin-top:10px;">Exportar agenda (.ics)</button>
-          <div class="stat-foot">Rotinas com horário viram eventos recorrentes e compromissos avulsos viram eventos únicos — importe no Google Agenda, Apple Calendar etc.</div>
-        </div>
-
-        <div class="section-label">Calendário externo</div>
-        <div class="stat-card" id="cfgIcalCard">${icalCardHtml()}</div>
 
         ${(isDesktop || isNative) ? `<div class="section-label">Sincronização com nuvem</div>
         <div class="stat-card" id="cfgSyncCard"><div class="routine-meta">Carregando status…</div></div>` : ""}
@@ -12985,36 +13176,41 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="stat-foot" id="cfgSimPreview" style="white-space:pre-line;"></div>
         </div>
 
-        <div class="section-label">Roda da vida</div>
-        <div class="stat-card">
-          <label class="switch-row"><span>Repartir os pontos por área</span><input type="checkbox" id="cfgRodaAtiva" ${rodaAtiva()?'checked':''}></label>
-          <div id="cfgRodaLista"></div>
-          <div class="market-form-row" style="margin-top:10px;">
-            <input type="text" id="cfgRodaNova" placeholder="Nova área" style="flex:1; min-width:0;">
-            <button class="btn-cancel" id="cfgRodaAdd" style="flex:0 0 auto;">Adicionar</button>
-          </div>
-          <div class="sched-time-row" style="margin-top:12px;"><span style="flex:1;">Peso de "sem área"</span><input class="dur-input" type="number" min="1" max="10" id="cfgRodaSemArea" value="${gam.config.roda.pesoSemArea}"></div>
-        </div>
-
-        <div class="section-label">Hábito consolidado</div>
-        <div class="stat-card">
-          <label class="switch-row"><span>Descontar rotina que virou hábito</span><input type="checkbox" id="cfgHabAtivo" ${gam.config.habito.ativo?'checked':''}></label>
-          <div class="sched-time-row" style="margin-top:10px;"><span style="flex:1;">Dias seguidos para virar hábito</span><input class="dur-input" type="number" min="3" max="365" id="cfgHabStreak" value="${gam.config.habito.streakMin}"></div>
-          <div class="sched-time-row"><span style="flex:1;">Quanto ela passa a valer</span><input class="dur-input" type="number" min="0.1" max="1" step="0.05" id="cfgHabFator" value="${gam.config.habito.fator}"></div>
-        </div>
-
-        <div class="section-label">Vagas por nível de peso</div>
-        <div class="stat-card">
-          <div class="sched-time-row" style="margin-top:0;"><span style="flex:1;">Alto</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaAlto" value="${gam.config.vagas.alto}"></div>
-          <div class="sched-time-row"><span style="flex:1;">Médio</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaMedio" value="${gam.config.vagas.medio}"></div>
-          <div class="sched-time-row"><span style="flex:1;">Baixo</span><input class="dur-input" type="number" min="0" max="99" id="cfgVagaBaixo" value="${gam.config.vagas.baixo}"></div>
-        </div>
-
         <div class="section-label">Dados</div>
         <div class="stat-card">
           <div class="routine-meta">${routines.length} rotina(s) · ${notes.length} nota(s) · ${templates.length} modelo(s) · ${history.length} execução(ões)</div>
           <div class="stat-foot" style="margin-top:8px;">build ${BUILD_STAMP} · ${isNative?'app instalado':'PWA no navegador'}</div>
         </div>
+        <div class="section-label">Backup</div>
+        <div class="stat-card">
+          ${supportsFileBackup() ? `
+            <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Backup automático em arquivo</div>
+              <div class="bar-val" style="width:auto; color:${bakLigado?'var(--good)':'var(--muted)'};">${bakLigado?'ativo':'desligado'}</div></div>
+            <button class="${bakLigado?'btn-cancel':'btn-primary'}" id="cfgBakToggle" style="width:100%; margin-top:8px;">${bakLigado?'Desativar':'Escolher arquivo de backup'}</button>
+            <div class="stat-foot">O app regrava esse arquivo sozinho ao sair. Sem isso, seus dados vivem só no armazenamento do navegador, que pode ser apagado.</div>
+            <div class="stat-foot">Escolha um arquivo dentro de uma pasta sincronizada pelo Google Drive ou Dropbox no computador para sincronizar com outro aparelho que grave no mesmo arquivo — ao voltar para a aba, o app avisa se achar uma versão mais recente.</div>
+          ` : `<div class="routine-meta">${isNative?'Backup automático a cada 3 dias em Documentos/'+escapeHtml(dataFolderName())+'/Backups.':'Este navegador não permite gravar em arquivo automaticamente — exporte manualmente.'}</div>`}
+          ${isNative ? `
+          <div class="section-label" style="margin:14px 0 4px;">Pasta em Documentos</div>
+          <div class="market-form-row">
+            <input type="text" id="cfgDataFolder" class="mk-e-name" style="flex:1; min-width:0;" value="${escapeHtml(dataFolderName())}" maxlength="60">
+            <button class="btn-cancel" id="cfgDataFolderSave" style="flex:0 0 auto;">Salvar</button>
+          </div>
+          <div class="stat-foot" id="cfgDataFolderFoot">Onde backups, exports e o espelho em markdown são gravados — Documentos/${escapeHtml(dataFolderName())}. Trocar move os arquivos já existentes para a pasta nova.</div>
+          ` : ""}
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button class="btn-cancel" id="cfgExport" style="flex:1;">Exportar agora</button>
+            <button class="btn-cancel" id="cfgImport" style="flex:1;">Importar</button>
+          </div>
+          <input type="file" id="cfgImportFile" accept="application/json" style="display:none">
+          <div class="stat-foot">${ultBak ? "Último backup: " + new Date(ultBak).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
+          <button class="btn-cancel" id="cfgExportIcs" style="width:100%; margin-top:10px;">Exportar agenda (.ics)</button>
+          <div class="stat-foot">Rotinas com horário viram eventos recorrentes e compromissos avulsos viram eventos únicos — importe no Google Agenda, Apple Calendar etc.</div>
+        </div>
+
+        <div class="section-label">Calendário externo</div>
+        <div class="stat-card" id="cfgIcalCard">${icalCardHtml()}</div>
+
       </div>
     `;
     el.appendChild(renderTabbar("settings"));

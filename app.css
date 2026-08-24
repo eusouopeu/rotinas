@@ -150,6 +150,11 @@
   .icon-svg{ display:inline-block; vertical-align:-4px; flex-shrink:0; -webkit-user-drag:none; user-select:none; }
   .tabbar button.active{ color:var(--accent); }
   .tabbar button.active .ic{ background:var(--accent-soft); }
+  /* botão central "+" da tabbar: destacado das 4 abas (gradiente, sempre
+     branco), nunca fica "ativo" — abre popup, não navega para tela própria */
+  .tabbar button.tab-add-btn .ic{
+    background:var(--grad); color:#fff; padding:8px; border-radius:50%;
+  }
 
   /* ---------- DIÁRIO ---------- */
   .di-badge{ align-self:center; margin-bottom:10px; font-size:12px; }
@@ -195,9 +200,12 @@
     gap:0 6px; align-content:flex-start;
   }
   .ag-bloco{ touch-action:pan-y; } /* o arrasto horizontal é do gesto de adiar */
-  /* bloco que veio de um cartão do kanban, e não de uma linha da nota */
-  .ag-bloco.ag-kb{ border-left-color:var(--accent-2); background:var(--surface); }
+  /* bloco que veio de um cartão do kanban, e não de uma linha da nota — só ele
+     arrasta verticalmente (reagenda o horário), por isso captura o próprio
+     touch em vez de repassar pan-y pro scroll do container */
+  .ag-bloco.ag-kb{ border-left-color:var(--accent-2); background:var(--surface); touch-action:none; }
   .ag-bloco.ag-kb .ag-hh::after{ content:" · cartão"; }
+  .ag-bloco.ag-kb.ag-bloco-dragging{ z-index:5; opacity:.85; box-shadow:var(--shadow-2); cursor:grabbing; }
   /* bloco de compromisso avulso — mesma linguagem visual, cor própria */
   .ag-bloco.ag-cp{ border-left-color:var(--good); background:var(--surface); }
   .ag-bloco.ag-cp .ag-hh::after{ content:" · compromisso"; }
@@ -242,6 +250,14 @@
   /* ---------- HOME / HEADER ---------- */
   .home-header{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; gap:10px; }
   .home-header h1{ font-size:32px; }
+  /* única aba com cabeçalho fixo no mobile (pedido explícito, Dados) — as
+     outras deixam o título rolar junto pra não comer altura útil da tela */
+  .stats-sticky-head{
+    position:sticky; top:0; z-index:6; background:var(--bg);
+    margin-bottom:22px; padding-top:2px; padding-bottom:14px; border-bottom:1px solid var(--line);
+  }
+  .stats-sticky-head h1{ display:flex; align-items:center; }
+  .stats-sticky-head .icon-btn{ flex-shrink:0; }
   .header-right{ display:flex; align-items:center; gap:10px; }
   .bell-btn{
     width:34px; height:34px; border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--line);
@@ -798,7 +814,7 @@
   /* agenda inline da aba Rotinas (visões "semana" e "dia") */
   .ag-semana-topo{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
   .ag-dia-head{ display:flex; align-items:center; gap:8px; margin:16px 0 6px; }
-  .ag-dia-head .ag-dia-nome{ font-family:'Fraunces', serif; font-weight:600; font-size:15px; flex:1 1 auto; }
+  .ag-dia-head .ag-dia-nome{ font-family:'Fraunces', serif; font-weight:600; font-size:15px; flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   /* a grade do dia vai de 00:00 a 24:00 com o dobro do zoom: rola dentro da
      própria caixa, senão a aba inteira teria mais de 3000px */
   .ag-dia-scroll{ max-height:62vh; overflow-y:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 10px 0 4px; }
@@ -953,7 +969,10 @@
   }
   .shop-counter{ font-family:'Inter', sans-serif; font-size:44px; text-align:center; padding:8px 0 2px; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
   .shop-counter span{ font-size:14px; color:var(--muted); -webkit-text-fill-color:var(--muted); }
-  .tmpl-new-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:18px; }
+  /* minmax(0,1fr), não 1fr puro — sem o piso 0 a coluna não encolhe abaixo do
+     min-content do rótulo mais longo ("Compromisso/tarefa", do popup central
+     de criação) e o grid inteiro extrapola a largura da confirm-box. */
+  .tmpl-new-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-bottom:18px; }
   /* o nó que rola é o de fora (cabeçalho junto): aqui só o empilhamento */
   .tmpl-folders{ flex:0 0 auto; }
   /* divisor entre as pastas fixas e as que nascem das anotações de rotina */
@@ -1101,6 +1120,12 @@
   .kb-e-horas input[type=time], .kb-e-horas input[type=date]{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
     color:var(--text); font-family:'Inter', sans-serif; font-size:13px; padding:6px 8px; }
   .kb-e-horas input[type=date]{ flex:1; }
+  /* input de horário via teclado numérico (time-kb-input) — mesma pele do
+     input[type=time] que substitui, só que sem o seletor nativo */
+  .time-kb-input{ background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:14px; padding:7px 9px;
+    width:66px; text-align:center; }
+  .time-kb-input:focus{ outline:none; border-color:var(--accent); }
   /* segmentado de coluna do kanban do Diário (uma coluna por vez) */
   .kb-abas{ margin-bottom:8px; }
   .kb-abas span{ flex:1; text-align:center; white-space:nowrap; }
@@ -1194,7 +1219,7 @@
     .kb-card{ padding:7px 8px; }
 
     /* grades e formulários aproveitam a largura extra */
-    .tmpl-new-grid{ grid-template-columns:repeat(4, 1fr); }
+    .tmpl-new-grid{ grid-template-columns:repeat(4, minmax(0,1fr)); }
     .confirm-overlay{ padding:12px; align-items:flex-start; }
     .confirm-box{ max-height:94vh; overflow-y:auto; max-width:520px; }
     .confirm-overlay.search-overlay{ padding:12px; }
