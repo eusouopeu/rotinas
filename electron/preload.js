@@ -53,5 +53,36 @@ contextBridge.exposeInMainWorld("electronBridge", {
         ipcRenderer.send("mcp:result", { id, error: String((e && e.message) || e) });
       }
     });
+  },
+
+  // menu nativo (Arquivo/Ver, ver electron/main.js buildAppMenu) — cada item
+  // manda uma ação por aqui em vez de duplicar lógica de negócio no main process
+  onMenuAction(handler) {
+    ipcRenderer.on("menu:action", (_event, action) => handler(action));
+  },
+
+  // player: registrado pela janela PRINCIPAL, responde ao que a mini-player
+  // (janela separada, sempre-no-topo) pergunta via miniPlayer.getState/control
+  // abaixo. Mesmo padrão round-trip do onMcpCall, canal próprio pra não
+  // depender do modo (desligado/leitura/escrita) do servidor MCP.
+  onPlayerCall(handler) {
+    ipcRenderer.on("player:call", async (_event, { id, tool, args }) => {
+      try {
+        const result = await handler(tool, args);
+        ipcRenderer.send("player:result", { id, result });
+      } catch (e) {
+        ipcRenderer.send("player:result", { id, error: String((e && e.message) || e) });
+      }
+    });
+  },
+
+  // mini-player: chamado pela JANELA SEPARADA (electron/mini-player.html) —
+  // open/close pedem ao main process pra criar/fechar a janela; getState/
+  // control fazem o round-trip até a janela principal via onPlayerCall acima.
+  miniPlayer: {
+    open: () => ipcRenderer.send("miniplayer:open"),
+    close: () => ipcRenderer.send("miniplayer:close"),
+    getState: () => ipcRenderer.invoke("player:getState"),
+    control: (action) => ipcRenderer.invoke("player:control", action)
   }
 });

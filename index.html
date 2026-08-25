@@ -194,6 +194,10 @@ window.addEventListener("unhandledrejection", function(e){
   const mem = new Map();
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   const isDesktop = !!window.electronBridge;
+  // marca o body cedo (fora do IIFE async de boot, roda antes do primeiro
+  // render): habilita as regras -webkit-app-region da sidebar/topbar, que só
+  // fazem sentido dentro do Electron (janela sem título nativo).
+  if(isDesktop) document.body.classList.add("is-desktop-shell");
 
   const storageBackend = isDesktop ? (function(){
     const EB = window.electronBridge;
@@ -687,7 +691,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-23 (v29)";
+  const BUILD_STAMP = "2026-08-25 (v30)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2976,7 +2980,7 @@ window.addEventListener("unhandledrejection", function(e){
     else if(view.screen === "noteEditor") renderNoteEditor();
     else if(view.screen === "player") renderPlayer();
     else if(view.screen === "done") renderDone();
-    else if(view.screen === "routineDetail") renderRoutineDetail();
+    else if(view.screen === "routineDetail"){ if(ehDesktop()) renderHomeSplit(); else renderRoutineDetail(); }
     else if(view.screen === "boletim") renderBoletim();
     else if(view.screen === "settings") renderSettings();
     else if(view.screen === "semanaFechada") renderSemanaFechada();
@@ -3016,12 +3020,24 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   /* ---- Atalhos de teclado (desktop) ----
-     1..5 trocam de aba, "/" abre a busca global, Esc fecha overlay/volta.
+     1..4 trocam de aba, "/" abre a busca global, Esc fecha overlay/volta —
+     todos redefiníveis em Configurações → Atalhos de teclado (K_KEYBINDS).
      A guarda de digitação é o ponto crítico: o editor contínuo do Diário e das
      notas é um contenteditable, então sem ela um "1" no meio de uma frase
      trocaria de aba. Também respeita modificadores, para não roubar Cmd+1 do
      navegador. */
-  const TECLA_ABA = { "1":"home", "2":"metas", "3":"templates", "4":"settings" };
+  const K_KEYBINDS = "rotinas_v2_keybinds";
+  const DEFAULT_KEYBINDS = { tab1:"1", tab2:"2", tab3:"3", tab4:"4", search:"/", novo:"n", pausar:" ", concluir:"Enter" };
+  const KEYBIND_LABELS = {
+    tab1:"Ir para Rotinas", tab2:"Ir para Metas", tab3:"Ir para Modelos", tab4:"Ir para Ajustes",
+    search:"Busca global", novo:"Criar novo (rotina/tarefa/nota…)",
+    pausar:"Pausar/retomar (durante uma rotina)", concluir:"Concluir etapa (durante uma rotina)"
+  };
+  let keybinds = load(K_KEYBINDS, DEFAULT_KEYBINDS);
+  // futuro-prova: se uma ação nova entrar no default depois, instalações
+  // antigas com K_KEYBINDS já salvo não perdem essa ação — só ficam sem ela
+  // até o load() de cima, daí caem no fallback do próprio objeto default.
+  Object.keys(DEFAULT_KEYBINDS).forEach(k=>{ if(!(k in keybinds)) keybinds[k] = DEFAULT_KEYBINDS[k]; });
   function digitandoAgora(){
     const a = document.activeElement;
     if(!a) return false;
@@ -3031,21 +3047,31 @@ window.addEventListener("unhandledrejection", function(e){
     if(e.key === "Escape"){ goBack(); return; }
     if(e.metaKey || e.ctrlKey || e.altKey) return;
     if(digitandoAgora()) return;
-    if(e.key === "/"){ e.preventDefault(); openGlobalSearch(); return; }
-    const aba = TECLA_ABA[e.key];
+    if(e.key === keybinds.search){ e.preventDefault(); openGlobalSearch(); return; }
+    if(e.key === keybinds.novo){ e.preventDefault(); openGlobalCreatePopup(); return; }
+    // pausar/concluir etapa: só faz sentido com o player normal (não zen,
+    // que já tem seus próprios controles grandes) na tela
+    if(view.screen === "player" && playerState && !playerState.zen){
+      if(e.key === keybinds.pausar){ e.preventDefault(); const pb = document.getElementById("pauseBtn"); if(pb) pb.click(); return; }
+      if(e.key === keybinds.concluir){ e.preventDefault(); const nb = document.getElementById("nextStep"); if(nb) nb.click(); return; }
+    }
+    const abaMap = { [keybinds.tab1]:"home", [keybinds.tab2]:"metas", [keybinds.tab3]:"templates", [keybinds.tab4]:"settings" };
+    const aba = abaMap[e.key];
     // atalho de navegação de aba não faz sentido durante a execução de uma rotina
     if(aba && view.screen !== "player"){ e.preventDefault(); goTo({ tab:aba, screen:aba }); }
   });
+
+  const K_SIDEBARCOLLAPSED = "rotinas_v2_sidebarcollapsed";
 
   function renderTabbar(activeTab){
     const bar = document.createElement("div");
     bar.className = "tabbar";
     bar.innerHTML = `
-      <button data-tab="home" class="${activeTab==='home'?'active':''}"><span class="ic">${svgIcon(ICON_D.home)}</span>Rotinas</button>
-      <button data-tab="metas" class="${activeTab==='metas'?'active':''}"><span class="ic">${svgIcon(ICON_D.countdown)}</span>Metas</button>
+      <button data-tab="home" class="${activeTab==='home'?'active':''}"><span class="ic">${svgIcon(ICON_D.home)}</span><span>Rotinas</span></button>
+      <button data-tab="metas" class="${activeTab==='metas'?'active':''}"><span class="ic">${svgIcon(ICON_D.countdown)}</span><span>Metas</span></button>
       <button data-tab="__add" class="tab-add-btn" title="Criar novo" aria-label="Criar novo"><span class="ic">${svgIcon(ICON_D.plus,18)}</span></button>
-      <button data-tab="templates" class="${activeTab==='templates'||activeTab==='notes'?'active':''}"><span class="ic">${svgIcon(ICON_D.templates)}</span>Modelos</button>
-      <button data-tab="settings" class="${activeTab==='settings'?'active':''}" title="${syncConflictCount>0?'Ajustes — há conflito de sincronização pendente':''}"><span class="ic">${svgIcon(ICON_D.settings)}<span class="sync-conflict-dot" data-syncdot="1" style="${syncConflictCount>0?'':'display:none;'}"></span></span>Ajustes</button>
+      <button data-tab="templates" class="${activeTab==='templates'||activeTab==='notes'?'active':''}"><span class="ic">${svgIcon(ICON_D.templates)}</span><span>Modelos</span></button>
+      <button data-tab="settings" class="${activeTab==='settings'?'active':''}" title="${syncConflictCount>0?'Ajustes — há conflito de sincronização pendente':''}"><span class="ic">${svgIcon(ICON_D.settings)}<span class="sync-conflict-dot" data-syncdot="1" style="${syncConflictCount>0?'':'display:none;'}"></span></span><span>Ajustes</span></button>
     `;
     bar.querySelectorAll("[data-tab]").forEach(b=>{
       b.onclick = () => {
@@ -3056,7 +3082,57 @@ window.addEventListener("unhandledrejection", function(e){
         goTo({ tab:b.dataset.tab, screen });
       };
     });
+    // Desktop: a mesma chamada devolve a sidebar E a barra de busca fixa do
+    // topo, num fragment — os ~9 call sites de renderTabbar() não mudam nada,
+    // só ganham o segundo nó junto quando ehDesktop().
+    if(!ehDesktop()) return bar;
+    const frag = document.createDocumentFragment();
+    frag.appendChild(bar);
+    frag.appendChild(renderDesktopTopbar());
+    return frag;
+  }
+
+  /* Barra fixa no topo (desktop): busca global sempre visível (substitui a
+     lupa por aba, escondida via CSS em [data-searchbtn]), botão de recolher a
+     sidebar para "só ícones" e a ação principal "+ novo", que também some do
+     canto flutuante — ver attachFab(). */
+  function renderDesktopTopbar(){
+    const bar = document.createElement("div");
+    bar.className = "desktop-topbar";
+    const collapsed = load(K_SIDEBARCOLLAPSED, false);
+    bar.innerHTML = `
+      <button class="icon-btn borderless" id="dtbCollapse" title="${collapsed?'Expandir menu':'Recolher menu'}" aria-label="${collapsed?'Expandir menu':'Recolher menu'}">${svgIcon(ICON_D.bars3,16)}</button>
+      <button class="dtb-search" id="dtbSearch" title="Buscar em tudo (${keybinds.search==='/'?'/':keybinds.search})">
+        ${svgIcon(ICON_D.magnifyingGlass,14)}<span>Buscar rotinas, metas, notas, modelos...</span>
+      </button>
+      <span style="flex:1;"></span>
+      <button class="icon-btn borderless dtb-new" id="dtbNew" title="Criar novo" aria-label="Criar novo">${svgIcon(ICON_D.plus,18)}</button>
+    `;
+    bar.querySelector("#dtbCollapse").onclick = () => {
+      const now = !load(K_SIDEBARCOLLAPSED, false);
+      save(K_SIDEBARCOLLAPSED, now);
+      document.body.classList.toggle("sidebar-collapsed", now);
+      const btn = bar.querySelector("#dtbCollapse");
+      btn.title = now ? "Expandir menu" : "Recolher menu";
+      btn.setAttribute("aria-label", btn.title);
+    };
+    bar.querySelector("#dtbSearch").onclick = openGlobalSearch;
+    bar.querySelector("#dtbNew").onclick = openGlobalCreatePopup;
     return bar;
+  }
+
+  /* Reaproveitado por toda tela que cria um FAB "+": no mobile continua
+     flutuante (position:fixed, de sempre); no desktop reparenta o mesmo botão
+     pra dentro do .header-right da tela, virando a ação principal da barra do
+     topo em vez de um círculo solto no canto — ver .fab-inline em app.css.
+     Sem .header-right (telas sem cabeçalho próprio, ex. pasta de modelo), cai
+     no fallback de sempre. */
+  function attachFab(el, btn){
+    if(ehDesktop()){
+      const headerRight = el.querySelector(".home-header .header-right");
+      if(headerRight){ btn.classList.add("fab-inline"); headerRight.appendChild(btn); return; }
+    }
+    el.appendChild(btn);
   }
 
   /* Botão central da tabbar: popup com TODOS os tipos de item do app, de
@@ -3221,6 +3297,7 @@ window.addEventListener("unhandledrejection", function(e){
       wrap.innerHTML = homeView === "semana" ? agendaSemanaHomeHtml(semanaBaseISO) : agendaDiaHomeHtml(diaISO);
       scroll.appendChild(wrap);
       wireAgendaHome(wrap, homeView === "semana" ? semanaBaseISO : diaISO);
+      if(homeView === "semana" && ehDesktop()) wireAgendaSemanaGrade(wrap);
       const snz = wrap.querySelector("#snoozeBtn");
       if(snz) snz.onclick = abrirSnoozeModal;
       const irOffset = (v) => { if(homeView==="semana") agendaSemanaOffset = v; else agendaDiaOffset = v; render(); };
@@ -3293,7 +3370,7 @@ window.addEventListener("unhandledrejection", function(e){
       { label:"Compromisso", icon:ICON_D.clock, run:()=>abrirNovoCompromisso() },
       { label:"Tarefa", icon:ICON_D.clipboard, run:()=>abrirPopupTarefa(localKey(), null) }
     ]);
-    el.appendChild(fab);
+    attachFab(el, fab);
     el.appendChild(renderTabbar("home"));
     app.appendChild(el);
 
@@ -3429,14 +3506,55 @@ window.addEventListener("unhandledrejection", function(e){
     });
   }
 
-  function renderRoutineDetail(){
-    const r = routines.find(x=>x.id===view.id);
+  /* Desktop: "routineDetail" vira master-detail (lista de rotinas sempre
+     visível à esquerda, detalhe à direita) em vez de substituir a tela
+     inteira — a largura sobra pros dois lado a lado. A lista aqui é
+     deliberadamente enxuta (sem agenda/fab/header cheio de renderHome, que
+     não cabe bem numa coluna de 300px); o painel direito reaproveita
+     renderRoutineDetail(mountEl) inteiro, reordenação de etapas incluída. */
+  function renderHomeSplit(){
     const el = document.createElement("div");
-    el.className = "screen";
+    el.className = "screen with-tabbar home-split-screen";
+    const list = document.createElement("div");
+    list.className = "home-split-list";
+    const itens = rotinasOrdenadas();
+    list.innerHTML = `<div class="home-split-list-head">Rotinas</div>` + (itens.length
+      ? itens.map(r=>{
+          const sched = computeSchedule(r);
+          return `<div class="home-split-item ${r.id===view.id?'active':''}" data-splitr="${r.id}">
+            <span class="r-dot" style="background:${fillStyle(corDaRotina(r))}"></span>
+            <span class="home-split-item-name">${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</span>
+            ${sched ? `<span class="dev-n">${sched.startStr}</span>` : ""}
+          </div>`;
+        }).join("")
+      : `<div class="dev-n" style="padding:10px 8px;">Nenhuma rotina ainda.</div>`);
+    el.appendChild(list);
+    const detail = document.createElement("div");
+    detail.className = "home-split-detail";
+    el.appendChild(detail);
+    el.appendChild(renderTabbar("home"));
+    app.appendChild(el);
+    list.querySelectorAll("[data-splitr]").forEach(row=>{
+      // troca só o painel de detalhe — não empilha no navStack, é seleção
+      // dentro da mesma tela, não uma navegação nova
+      row.onclick = () => { view = { tab:"home", screen:"routineDetail", id: row.dataset.splitr }; render(); };
+    });
+    renderRoutineDetail(detail);
+  }
+
+  /* mountEl (opcional): usado pelo layout master-detail do desktop
+     (renderHomeSplit) para reaproveitar ESTA função inteira — reordenação de
+     etapas por arrasto incluída — dentro do painel direito, em vez de duplicar
+     a lógica. Sem mountEl, comportamento idêntico ao de sempre (tela própria,
+     apensada em `app`). */
+  function renderRoutineDetail(mountEl){
+    const r = routines.find(x=>x.id===view.id);
+    const el = mountEl || document.createElement("div");
+    if(!mountEl) el.className = "screen";
     if(!r){
       el.innerHTML = `<div class="topbar"><button class="link-btn muted" id="rdBack">&larr; Rotinas</button></div><div class="empty-state"><h2>Rotina não encontrada</h2></div>`;
-      app.appendChild(el);
-      document.getElementById("rdBack").onclick = () => { goTo({tab:"home",screen:"home"}); };
+      if(!mountEl) app.appendChild(el);
+      el.querySelector("#rdBack").onclick = () => { goTo({tab:"home",screen:"home"}); };
       return;
     }
     const dur = routineDuration(r);
@@ -3458,9 +3576,9 @@ window.addEventListener("unhandledrejection", function(e){
         <button class="btn-primary" id="rdStart">${svgIcon(ICON_D.play,16)} Começar</button>
       </div>
     `;
-    app.appendChild(el);
+    if(!mountEl) app.appendChild(el);
 
-    const stepsBox = document.getElementById("rdSteps");
+    const stepsBox = el.querySelector("#rdSteps");
     r.steps.forEach((s,i)=>{
       const card = document.createElement("div");
       card.className = "routine-card";
@@ -3838,7 +3956,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   function renderEditor(){
     const el = document.createElement("div");
-    el.className = "screen";
+    el.className = "screen screen-wide";
     const isNew = !routines.find(r=>r.id===editorDraft.id);
 
     const top = document.createElement("div");
@@ -4208,6 +4326,23 @@ window.addEventListener("unhandledrejection", function(e){
          <button class="btn-primary" id="saveEditBottom" style="flex:1;">Salvar</button>`;
     el.appendChild(bottom);
 
+    /* Desktop: separa metadados (peso, área, agendamento...) das etapas em
+       duas colunas — sem tocar na ordem de construção acima, que segue única
+       porque cada campo vive numa variável própria já criada e anexada em
+       sequência dentro de stepsWrap. Só reparenta o que já existe. */
+    if(ehDesktop()){
+      const stepsCol = document.createElement("div");
+      stepsCol.className = "ed-steps-col";
+      stepsCol.appendChild(stepsLabel);
+      stepsCol.appendChild(stepsList);
+      const metaCol = document.createElement("div");
+      metaCol.className = "ed-meta-col";
+      [...stepsWrap.children].forEach(child => metaCol.appendChild(child));
+      stepsWrap.appendChild(metaCol);
+      stepsWrap.appendChild(stepsCol);
+      stepsWrap.classList.add("ed-desktop-grid");
+    }
+
     app.appendChild(el);
 
     document.getElementById("cancelEdit").onclick = () => { goTo({ tab:"home", screen:"home" }); };
@@ -4313,7 +4448,7 @@ window.addEventListener("unhandledrejection", function(e){
     const fab = document.createElement("button");
     fab.className = "fab"; fab.textContent = "+"; fab.title = "Novo";
     fab.onclick = openNewTemplatePopup;
-    el.appendChild(fab);
+    attachFab(el, fab);
     el.appendChild(renderTabbar("notes"));
     app.appendChild(el);
     wireModelosTabPill(el);
@@ -4494,6 +4629,12 @@ window.addEventListener("unhandledrejection", function(e){
       const dd = new Date(s.to);
       out += `<div class="notice-card" style="margin-bottom:14px;"><span>${svgIcon(ICON_D.exclamationTriangle,14)} Agenda pausada até ${String(dd.getDate()).padStart(2,"0")}/${String(dd.getMonth()+1).padStart(2,"0")} — sem alertas, e os dias pausados não contam no cumprimento.</span></div>`;
     }
+    // Desktop: a largura sobra pra uma grade de 7 colunas (hora a hora, estilo
+    // agenda de calendário) em vez da lista empilhada do celular — mesma
+    // grade de minuto do dia único (agendaGradeHtml), uma vez por coluna.
+    if(ehDesktop()){
+      return `<div class="ag-semana">${out}${agendaSemanaGradeHtml(inicioISO)}</div>`;
+    }
     for(let d=0; d<7; d++){
       const iso = addDaysISO(inicioISO, d);
       const ehHoje = iso === hojeISO;
@@ -4511,6 +4652,56 @@ window.addEventListener("unhandledrejection", function(e){
         }</div>`;
     }
     return `<div class="ag-semana">${out}</div>`;
+  }
+
+  /* Grade de 7 colunas (desktop) — mesma agendaGradeHtml do dia único, uma vez
+     por dia, com a janela fixa 6h–23h (a maioria dos compromissos cabe aí; ver
+     AG_PX_MIN_ZOOM/AG_PX_MIN mais abaixo). O rótulo de hora só aparece na
+     primeira coluna (ver CSS .ag-week-day:not(:first-child) .ag-hora span) —
+     as linhas de marcação continuam em todas, só o texto repetido some. */
+  function agendaSemanaGradeHtml(inicioISO){
+    const hojeISO = localKey();
+    let cols = "";
+    for(let d=0; d<7; d++){
+      const iso = addDaysISO(inicioISO, d);
+      const ehHoje = iso === hojeISO;
+      const dow = isoToDate(iso).getDay();
+      cols += `<div class="ag-week-day ${ehHoje?'ag-week-today':''}" data-agiso="${iso}">
+        <div class="ag-week-daylbl">${DIAS_PT[dow].slice(0,3)}<span>${iso.slice(8,10)}/${iso.slice(5,7)}</span></div>
+        <div class="ag-dia-scroll">${agendaGradeHtml(blocosAgendaDia(iso), iso, { pxMin:0.85, passo:60, mIni:360, mFim:1380, rotulo:false })}</div>
+      </div>`;
+    }
+    return `<div class="ag-week-grid">${cols}</div>`;
+  }
+
+  /* Wiring próprio da grade de 7 colunas — wireAgendaHome (usada pela lista da
+     visão "semana" e pela grade da visão "dia") fecha sobre UM `iso` só, o que
+     não serve aqui: cada bloco pertence a um dia diferente, lido do
+     data-agiso do ancestral .ag-week-day em vez de um closure fixo. */
+  function wireAgendaSemanaGrade(scope){
+    scope.querySelectorAll(".ag-week-day [data-agnovo]").forEach(b=> b.onclick = () => abrirPopupTarefa(b.dataset.agnovo, null));
+    scope.querySelectorAll(".ag-week-day [data-agrotina]").forEach(row=> row.onclick = () => {
+      goTo({ tab:"home", screen:"routineDetail", id: row.dataset.agrotina });
+    });
+    scope.querySelectorAll(".ag-week-day [data-agcard]").forEach(bl=>{
+      bl.onclick = () => {
+        const iso = bl.closest(".ag-week-day").dataset.agiso;
+        alternarCartaoFeitoNaAgenda(bl.dataset.agcard, "dia:" + iso);
+        render();
+      };
+    });
+    scope.querySelectorAll(".ag-week-day [data-agcompromisso]").forEach(row=> row.onclick = () => {
+      const c = compromissos.find(x=>x.id===row.dataset.agcompromisso);
+      if(!c) return;
+      c.feito = !c.feito; saveCompromissos(); render();
+    });
+    scope.querySelectorAll(".ag-week-day [data-agline]").forEach(bl=> bl.onclick = () => {
+      const iso = bl.closest(".ag-week-day").dataset.agiso;
+      const k = "dia:" + iso;
+      const t = toggleCheckLineInText(diario[k] || "", +bl.dataset.agline);
+      if(t.trim()) diario[k] = t; else delete diario[k];
+      saveDiario(); render();
+    });
   }
 
   /* Blocos da grade do dia: os mesmos do Diário (nota, kanban, compromisso,
@@ -4563,7 +4754,12 @@ window.addEventListener("unhandledrejection", function(e){
     // horário (mantém a duração) em vez de exigir abrir o popup — só existe
     // aqui (dentro de .ag-dia-scroll), a lista da visão "semana" não tem grade
     let agCardArrastou = false;
-    scope.querySelectorAll(".ag-dia-scroll [data-agcard]").forEach(bl=>{
+    // .ag-week-day fica de fora do arrasto: essa grade tem uma coluna por
+    // dia, e o gesto abaixo assume o `iso` único do parâmetro (não o do
+    // ancestral .ag-week-day) — arrastar ali reagendaria pro dia errado.
+    // O clique simples continua coberto por wireAgendaSemanaGrade, chamada
+    // depois desta função (sobrescreve o .onclick, não o pointerdown).
+    scope.querySelectorAll(".ag-dia-scroll [data-agcard]:not(.ag-week-day [data-agcard])").forEach(bl=>{
       bl.addEventListener("pointerdown", ev=>{
         if(ev.pointerType === "mouse" && ev.button !== 0) return;
         const card = diaKanban.find(c=>c.id===bl.dataset.agcard);
@@ -5018,7 +5214,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   function renderStats(){
     const el = document.createElement("div");
-    el.className = "screen";
+    el.className = "screen screen-wide";
     /* Dados deixou de ser uma aba própria (só existe estatística de ROTINA
        aqui — não faz mais sentido disputar espaço na tabbar com Metas/
        Modelos, que cobrem outros dados). Vira um botão-ícone no cabeçalho de
@@ -5969,7 +6165,7 @@ window.addEventListener("unhandledrejection", function(e){
     const fab = document.createElement("button");
     fab.className = "fab"; fab.textContent = "+"; fab.title = "Novo modelo";
     fab.onclick = openNewTemplatePopup;
-    el.appendChild(fab);
+    attachFab(el, fab);
     app.appendChild(el);
     wireCfgBtn(el);
     wireModelosTabPill(el);
@@ -6099,7 +6295,7 @@ window.addEventListener("unhandledrejection", function(e){
       const fab = document.createElement("button");
       fab.className = "fab"; fab.textContent = "+";
       fab.id = "folderAddBtn"; fab.title = "Novo";
-      el.appendChild(fab);
+      attachFab(el, fab);
     }
     el.appendChild(renderTabbar("templates"));
     app.appendChild(el);
@@ -7891,7 +8087,7 @@ window.addEventListener("unhandledrejection", function(e){
     const fabMeta = document.createElement("button");
     fabMeta.className = "fab"; fabMeta.textContent = "+";
     fabMeta.id = "cdNovaBtn"; fabMeta.title = "Novo";
-    el.appendChild(fabMeta);
+    attachFab(el, fabMeta);
     el.appendChild(renderTabbar("metas"));
     app.appendChild(el);
     wireCfgBtn(el);
@@ -8335,7 +8531,7 @@ window.addEventListener("unhandledrejection", function(e){
     const fabExp = document.createElement("button");
     fabExp.className = "fab"; fabExp.textContent = "+";
     fabExp.id = "exNovaBtn"; fabExp.title = "Nova despesa";
-    el.appendChild(fabExp);
+    attachFab(el, fabExp);
     el.appendChild(renderTabbar("templates"));
     app.appendChild(el);
     document.getElementById("expBackBtn").onclick = () => { goTo({ tab:"templates", screen:"templates" }); };
@@ -11077,6 +11273,58 @@ window.addEventListener("unhandledrejection", function(e){
     paint();
   }
 
+  /* Painel lateral do player (desktop, ver renderPlayer/.player-steps-panel):
+     mesmo agrupamento tarefa+pausa e mesma regra de "esconde voltas de ciclo
+     repetidas" de openPlayerStepsOverlay, mas só leitura (o botão "reordenar"
+     abre o overlay de sempre pra isso — duplicar o mover()/drag ali dentro
+     não vale o risco pra uma tela que já cabe as etapas inteiras sem precisar
+     de overlay só pra ENXERGAR o que vem a seguir). */
+  function buildPlayerStepsPanel(){
+    const panel = document.createElement("div");
+    panel.className = "player-steps-panel";
+    function pintar(){
+      const steps = playerState.steps;
+      const idx = playerState.idx;
+      const grupos = [];
+      for(let i=0; i<steps.length; i++){
+        if(steps[i].isRest) continue;
+        const reais = [i];
+        if(steps[i+1] && steps[i+1].isRest) reais.push(i+1);
+        grupos.push({ reais, s: steps[i] });
+      }
+      const vistos = new Set();
+      grupos.forEach(g=>{
+        const baseId = g.s.id.replace(/-c\d+$/, "");
+        g.visivel = !vistos.has(baseId);
+        vistos.add(baseId);
+        g.nome = g.s.name.replace(/\s*·\s*volta\s+\d+\/\d+$/, "");
+      });
+      const grupoAtual = grupos.findIndex(g => g.reais.includes(idx));
+      const linhas = grupos.map((g,gi)=>{
+        if(!g.visivel) return "";
+        const primeiraReal = g.reais[0];
+        const estado = gi < grupoAtual ? "feita" : (gi === grupoAtual ? "atual" : "futura");
+        const s = g.s;
+        const dur = s.type === "timer" ? fmtTime(s.seconds) : (s.type === "exercicio" ? (s.sets||1)+"x"+(s.reps||"") : "livre");
+        return `<div class="pl-step ${estado}">
+          <span class="pl-step-i">${estado==="feita" ? svgIcon(ICON_D.check,14) : primeiraReal+1}</span>
+          <span class="pl-step-nome">${escapeHtml(g.nome)}</span>
+          <span class="pl-step-dur">${dur}</span>
+        </div>`;
+      }).join("");
+      panel.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+          <div class="section-label">Etapas</div>
+          <button class="icon-btn borderless" id="plPanelReorder" title="Reordenar próximas etapas" aria-label="Reordenar próximas etapas">${svgIcon(ICON_D.bars3,14)}</button>
+        </div>
+        <div class="pl-steps notes-list">${linhas}</div>
+      `;
+      panel.querySelector("#plPanelReorder").onclick = openPlayerStepsOverlay;
+    }
+    pintar();
+    return panel;
+  }
+
   function openPlayerStepsOverlay(){
     const ov = document.createElement("div");
     ov.className = "confirm-overlay search-overlay";
@@ -11658,6 +11906,7 @@ window.addEventListener("unhandledrejection", function(e){
   function renderPlayer(){
     const el = document.createElement("div");
     el.className = "screen"; el.style.paddingBottom = "0";
+    if(ehDesktop()) el.classList.add("player-screen"); // zen sobrescreve className abaixo, fica de fora de propósito
     const steps = playerState.steps;
     const step = currentStep();
     const rem = computeRemaining();
@@ -11896,6 +12145,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
 
     el.appendChild(wrap);
+    if(ehDesktop()) el.appendChild(buildPlayerStepsPanel());
     app.appendChild(el);
     updateEstimate();
 
@@ -13063,16 +13313,57 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   /* ---------------- CONFIGURAÇÕES ---------------- */
+  /* Cartão de atalhos redefiníveis (Configurações → desktop). Rebind por
+     "escuta o próximo keydown": mais simples que um <input> de captura e
+     funciona igual para teclas imprimíveis e especiais (Enter, espaço). Sem
+     checagem de conflito entre ações — se duas caírem na mesma tecla, o
+     handler do keydown resolve por ordem de checagem (ver o listener global). */
+  function keybindsCardHtml(){
+    return Object.keys(DEFAULT_KEYBINDS).map(k=>{
+      const disp = keybinds[k] === " " ? "espaço" : (keybinds[k] === "Enter" ? "enter" : keybinds[k]);
+      return `<div class="sched-time-row" style="margin-top:8px;">
+        <span style="flex:1;">${escapeHtml(KEYBIND_LABELS[k])}</span>
+        <span class="keybind-kbd" data-kbdisp="${k}">${escapeHtml(disp)}</span>
+        <button class="link-btn" data-kbedit="${k}">alterar</button>
+      </div>`;
+    }).join("") + `<button class="link-btn" id="cfgKbReset" style="margin-top:10px;">restaurar padrão</button>`;
+  }
+  function wireKeybindsCard(scope){
+    scope.querySelectorAll("[data-kbedit]").forEach(b=>{
+      b.onclick = () => {
+        const action = b.dataset.kbedit;
+        const kbd = scope.querySelector(`[data-kbdisp="${action}"]`);
+        const original = kbd.textContent;
+        kbd.textContent = "pressione uma tecla…";
+        kbd.classList.add("listening");
+        function onKey(ev){
+          ev.preventDefault(); ev.stopPropagation();
+          document.removeEventListener("keydown", onKey, true);
+          kbd.classList.remove("listening");
+          if(ev.key === "Escape"){ kbd.textContent = original; return; }
+          keybinds[action] = ev.key;
+          save(K_KEYBINDS, keybinds);
+          render();
+        }
+        document.addEventListener("keydown", onKey, true);
+      };
+    });
+    const kbReset = scope.querySelector("#cfgKbReset");
+    if(kbReset) kbReset.onclick = () => { keybinds = {...DEFAULT_KEYBINDS}; save(K_KEYBINDS, keybinds); render(); };
+  }
+
   function renderSettings(){
     const el = document.createElement("div");
-    el.className = "screen with-tabbar";
+    el.className = "screen with-tabbar screen-wide";
     const temaAtual = load(K_THEME, "auto");
     const fontScaleAtual = load(K_FONTSCALE, 1);
     const c = gam.config;
     const bakLigado = !!backupHandle();
     const ultBak = load(K_LASTBACKUP, null);
     el.innerHTML = `
-      <div style="overflow-y:auto; flex:1; padding-bottom:24px;">
+      <div class="settings-shell">
+      <nav class="settings-nav" id="cfgNav"></nav>
+      <div class="settings-scroll" style="overflow-y:auto; flex:1; padding-bottom:24px;">
         <div class="home-header" style="margin-bottom:6px;"><h1>Ajustes</h1></div>
 
         <div class="section-label">Aparência</div>
@@ -13211,10 +13502,34 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="section-label">Calendário externo</div>
         <div class="stat-card" id="cfgIcalCard">${icalCardHtml()}</div>
 
+        ${isDesktop ? `<div class="section-label">Mini player</div>
+        <div class="stat-card">
+          <div class="dev-n" style="margin-bottom:10px;">Uma janelinha sempre no topo com a etapa atual e o cronômetro, pra acompanhar a rotina enquanto usa outro app. Também abre pelo menu Ver → Mini player.</div>
+          <button class="btn-cancel" id="cfgMiniPlayer" style="width:100%;">Abrir mini player</button>
+        </div>` : ""}
+
+        ${isDesktop ? `<div class="section-label">Atalhos de teclado</div>
+        <div class="stat-card">${keybindsCardHtml()}</div>` : ""}
+
+      </div>
       </div>
     `;
     el.appendChild(renderTabbar("settings"));
     app.appendChild(el);
+
+    // Índice lateral (desktop): um link por seção de topo — as sub-seções
+    // dentro de cards (ex. "Simulação — próxima semana") têm style inline
+    // com margin próprio e ficam de fora do seletor ">" de propósito, senão o
+    // índice virava uma lista longa demais pra ser útil de relance.
+    const cfgNav = el.querySelector("#cfgNav");
+    if(cfgNav){
+      const secs = el.querySelectorAll(".settings-scroll > .section-label");
+      cfgNav.innerHTML = Array.from(secs).map((s,i)=>{
+        const id = "cfgsec" + i;
+        s.id = id;
+        return `<a href="#${id}">${s.textContent}</a>`;
+      }).join("");
+    }
 
     el.querySelectorAll("#cfgTema [data-tema]").forEach(sp=>{
       sp.onclick = () => { save(K_THEME, sp.dataset.tema); applyTheme(); render(); };
@@ -13416,6 +13731,9 @@ window.addEventListener("unhandledrejection", function(e){
     });
 
     wireIcalCard(document.getElementById("cfgIcalCard"));
+    if(isDesktop) wireKeybindsCard(el);
+    const miniBtn = document.getElementById("cfgMiniPlayer");
+    if(miniBtn) miniBtn.onclick = () => window.electronBridge.miniPlayer.open();
     if(isDesktop) refreshMcpCard();
     if(isDesktop || isNative) refreshSyncCard();
   }
@@ -13726,6 +14044,7 @@ window.addEventListener("unhandledrejection", function(e){
   if(CRYPTO_OK && load(K_PIN, null)) await showLockScreen();
   applyTheme();
   applyFontScale();
+  if(load(K_SIDEBARCOLLAPSED, false)) document.body.classList.add("sidebar-collapsed");
   render();
   window.__britaBooted = true; // boot ok: overlay de erro fatal não é mais necessário
   startScheduler();
@@ -13911,6 +14230,50 @@ window.addEventListener("unhandledrejection", function(e){
       showAlertBanner("⚠️ Conflito de sincronização — resolva em Configurações → Backup");
       if(document.getElementById("cfgSyncCard")) refreshSyncCard(); else refreshSyncConflictBadge();
     });
+
+    // Menu nativo (electron/main.js → buildAppMenu): cada item chega aqui como
+    // uma ação e reaproveita as mesmas funções que os botões da UI já chamam.
+    if(window.electronBridge.onMenuAction){
+      window.electronBridge.onMenuAction(action => {
+        if(action === "novaRotina") openEditor(null);
+        else if(action === "novaNota") openNoteEditor(null);
+        else if(action === "novaTarefa") abrirPopupTarefa(localKey(), null);
+        else if(action === "buscar") openGlobalSearch();
+        else if(action === "abaRotinas") goTo({ tab:"home", screen:"home" });
+        else if(action === "abaMetas") goTo({ tab:"metas", screen:"metas" });
+        else if(action === "abaModelos") goTo({ tab:"templates", screen:"notes" });
+        else if(action === "abaAjustes") goTo({ tab:"settings", screen:"settings" });
+      });
+    }
+
+    /* Bridge da mini-player (janela separada sempre-no-topo, ver
+       electron/mini-player.html): ela não conhece playerState — só pergunta
+       "getState" (poll de 1s) e manda "control" (pausar/concluir), sempre
+       através desta janela, que é quem tem o player de verdade. */
+    if(window.electronBridge.onPlayerCall){
+      window.electronBridge.onPlayerCall(async (tool, args) => {
+        if(tool === "getState"){
+          if(!playerState || view.screen !== "player" || playerState.zen) return null;
+          const step = currentStep();
+          return {
+            routineName: playerState.routine.name,
+            stepName: step.name,
+            idx: playerState.idx,
+            total: playerState.steps.length,
+            isTimer: step.type === "timer",
+            remaining: step.type === "timer" ? computeRemaining() : null,
+            paused: !!playerState.paused
+          };
+        }
+        if(tool === "control"){
+          if(!playerState) return null;
+          if(args === "pause") togglePause();
+          else if(args === "next") advanceStep(false);
+          return true;
+        }
+        return null;
+      });
+    }
   }
 
   (function handleStartParam(){

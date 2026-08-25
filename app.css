@@ -1375,3 +1375,178 @@
     .type-toggle{ align-self:flex-start; width:fit-content; font-size:12px; }
     .type-toggle span{ padding:5px 12px; }
   }
+
+  /* =====================================================================
+     REDESENHO DESKTOP (2026-08-25) — sidebar flutuante + barra superior fixa
+     de busca + telas em duas colunas onde a largura permite. Tudo dentro de
+     @media(min-width:900px), em blocos NOVOS depois do bloco original acima:
+     a cascata (mesma especificidade, ordem de declaração) deixa estas regras
+     sobrescreverem só as propriedades que mudam, sem precisar reescrever o
+     bloco antigo inteiro. Ver CLAUDE.md → pedido do Pedro de trazer a sidebar
+     flutuante e a busca fixa no topo (referência: apps tipo "Direction"). */
+  @media (min-width:900px){
+    :root{ --topbar-h: 60px; --sidebar-w: 216px; }
+
+    /* ---- Barra superior fixa: busca + ação principal, acima de tudo,
+       inclusive da sidebar (que passa a começar mais abaixo dela). */
+    .desktop-topbar{
+      position:fixed; top:0; left:0; right:0; height:var(--topbar-h); z-index:30;
+      display:flex; align-items:center; gap:12px; padding:0 22px;
+      background:var(--bg); border-bottom:1px solid var(--line);
+    }
+    .dtb-search{
+      display:flex; align-items:center; gap:8px; flex:0 1 420px; min-width:0;
+      height:38px; padding:0 14px; border-radius:20px; border:1px solid var(--line);
+      background:var(--surface); color:var(--muted); font-size:13.5px; cursor:pointer;
+      font-family:'Inter', sans-serif;
+    }
+    .dtb-search span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .dtb-search:hover{ border-color:var(--accent-dim); color:var(--text); }
+    .dtb-new{
+      width:38px; height:38px; border-radius:50%; background:var(--grad); color:var(--on-accent);
+      flex:0 0 auto;
+    }
+    .dtb-new:hover{ filter:brightness(1.08); }
+    #dtbCollapse{ flex:0 0 auto; }
+
+    /* esconde a lupa antiga de cada aba: a busca virou fixa no topo */
+    [data-searchbtn]{ display:none; }
+
+    /* ---- Sidebar flutuante: cartão com margem em vez de faixa encostada
+       nas bordas, começando abaixo da barra de busca. */
+    .tabbar{
+      left:14px; right:auto; top:calc(var(--topbar-h) + 14px); bottom:14px;
+      width:var(--sidebar-w); border-right:none; border:1px solid var(--line);
+      border-radius:var(--radius); box-shadow:var(--shadow-2); padding:16px 10px;
+      transition: width .16s ease;
+    }
+    .tabbar::before{ padding:0 10px 16px; }
+
+    /* conteúdo empurrado pra caber sidebar flutuante + topbar fixa */
+    #app{ padding-top:0; }
+    .screen{ margin-top:var(--topbar-h); margin-left:calc(var(--sidebar-w) + 28px); }
+    .home-header{ top:var(--topbar-h); }
+    .stats-sticky-head{ top:var(--topbar-h) !important; }
+
+    /* ---- Modo "só ícones": botão na barra superior recolhe a sidebar para
+       uma coluna estreita, texto escondido, título/label só por tooltip. */
+    body.sidebar-collapsed{ --sidebar-w: 60px; }
+    body.sidebar-collapsed .tabbar::before{ font-size:0; padding:0 0 12px; }
+    body.sidebar-collapsed .tabbar::before{ content:"R"; font-size:16px; text-align:center; }
+    body.sidebar-collapsed .tabbar button{ justify-content:center; padding:9px 0; }
+    body.sidebar-collapsed .tabbar button span:not(.ic){ display:none; }
+
+    /* ---- Larguras por tipo de tela: leitura continua estreita (1060px,
+       herdado do bloco base), telas tabulares/densas ganham mais fôlego. */
+    .screen.screen-wide{ max-width:1520px; }
+
+    /* ---- Ação principal na barra do topo em vez de FAB flutuante — ver
+       attachFab() no index.html, que reparenta o botão "+" de cada aba pra
+       dentro do .header-right quando existe; sem header-right (telas sem
+       cabeçalho próprio) o FAB continua flutuante como fallback. */
+    .header-right .fab.fab-inline{
+      position:static; width:auto; height:34px; border-radius:var(--radius-sm);
+      padding:0 14px; font-size:15px; box-shadow:none; gap:6px;
+    }
+    .header-right .fab.fab-inline::after{
+      content:attr(title); font-family:'Inter'; font-size:13px; font-weight:500;
+    }
+
+    /* =================== PLAYER: dial + lista de etapas lado a lado ======= */
+    .player-screen{
+      flex-direction:row; align-items:flex-start; gap:32px; max-width:980px;
+      padding-top:20px;
+    }
+    .player-screen .player{ flex:1 1 420px; max-width:440px; }
+    .player-steps-panel{
+      flex:1 1 300px; max-width:360px; margin-top:44px; display:flex; flex-direction:column;
+      background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+      padding:14px; max-height:min(72vh, 640px); overflow-y:auto;
+    }
+    .player-steps-panel .section-label{ margin:0 0 10px; }
+
+    /* =================== CONFIGURAÇÕES: índice lateral por âncora ========= */
+    .settings-shell{ display:flex; gap:32px; flex:1; min-height:0; align-items:flex-start; }
+    .settings-nav{
+      display:flex; flex-direction:column; gap:2px; flex:0 0 176px;
+      position:sticky; top:calc(var(--topbar-h) + 90px);
+    }
+    .settings-nav a{
+      padding:8px 12px; border-radius:var(--radius-sm); font-size:13px; color:var(--muted);
+      text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .settings-nav a:hover{ background:var(--surface-2); color:var(--text); }
+
+    /* =================== DADOS: cartões em fluxo tipo dashboard =========== */
+    #statsBody{ column-count:2; column-gap:16px; }
+    #statsBody > *{ break-inside:avoid; margin-bottom:14px; }
+    /* só a navegação do calendário (prev/título/next) vira faixa cheia acima
+       da grade — os .section-label (um por dia da semana, um por seção do
+       mensal/anual) NÃO entram aqui de propósito: são legenda + card logo
+       abaixo, um por vez, e precisam poder ficar lado a lado com o próximo
+       par pra render dar a sensação de dashboard em vez de lista única. */
+    #statsBody > .cal-nav{ column-span:all; margin-bottom:8px; }
+    @media (min-width:1400px){ #statsBody{ column-count:3; } }
+
+    /* =================== EDITOR DE ROTINA: metadados | etapas ============= */
+    .ed-desktop-grid{
+      display:grid !important; grid-template-columns: minmax(260px,300px) 1fr; gap:22px; align-items:start;
+      padding-bottom:40px !important;
+    }
+    .ed-meta-col{ display:flex; flex-direction:column; gap:2px; position:sticky; top:0; }
+    .ed-steps-col{ min-width:0; }
+    /* janela larga o bastante pra dar mais fôlego pros metadados sem apertar
+       a coluna de etapas (as pílulas tempo/check/exercício quebravam feio
+       numa coluna estreita numa janela perto do piso de 900px) */
+    @media (min-width:1200px){ .ed-desktop-grid{ grid-template-columns: 380px 1fr; gap:28px; } }
+
+    /* =================== ROTINAS: lista sempre visível + detalhe ao lado == */
+    .home-split-screen{ flex-direction:row; gap:0; align-items:stretch; }
+    .home-split-list{
+      flex:0 0 300px; overflow-y:auto; border-right:1px solid var(--line);
+      padding-right:16px; margin-right:24px;
+    }
+    .home-split-list-head{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin-bottom:12px; }
+    .home-split-item{
+      display:flex; align-items:center; gap:8px; padding:9px 8px; border-radius:var(--radius-sm);
+      cursor:pointer; font-size:13.5px; margin-bottom:2px;
+    }
+    .home-split-item:hover{ background:var(--surface-2); }
+    .home-split-item.active{ background:var(--accent-soft); color:var(--accent); }
+    .home-split-item .home-split-item-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .home-split-detail{ flex:1; min-width:0; overflow-y:auto; }
+    .home-split-detail > .topbar{ display:none; }
+    /* o painel de detalhe é estreito demais (lista + detalhe dividindo a
+       coluna de conteúdo) pra herdar a grade de 2 colunas de .routine-list —
+       essa regra é pra telas cheias (renderHome sem lista ao lado) */
+    .home-split-detail .routine-list{ display:flex; flex-direction:column; }
+
+    /* =================== AGENDA "semana": grade de 7 colunas ============== */
+    .ag-week-grid{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:8px; }
+    .ag-week-day{ min-width:0; }
+    .ag-week-day .ag-dia-scroll{ max-height:min(60vh, 620px); overflow-y:auto; }
+    .ag-week-daylbl{
+      display:flex; justify-content:space-between; align-items:baseline; font-size:12px;
+      color:var(--muted); font-weight:600; padding:0 0 4px 4px;
+    }
+    .ag-week-today .ag-week-daylbl{ color:var(--accent); }
+    .ag-week-day:not(:first-child) .ag-hora span{ display:none; }
+
+    /* =================== ATALHOS DE TECLADO (Configurações) =============== */
+    .keybind-kbd{
+      display:inline-block; min-width:64px; text-align:center; padding:4px 8px;
+      border-radius:8px; background:var(--surface-2); border:1px solid var(--line);
+      font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text);
+    }
+    .keybind-kbd.listening{ color:var(--accent); border-color:var(--accent-dim); }
+  }
+
+  /* Janela do Electron sem título nativo: a sidebar vira a área de arrasto —
+     qualquer espaço vazio dela move a janela, os botões continuam clicáveis.
+     Só entra em jogo dentro do Electron (body.is-desktop-shell, aplicado no
+     boot quando isDesktop), nunca no navegador/PWA/APK. */
+  body.is-desktop-shell .desktop-topbar{ -webkit-app-region: drag; }
+  body.is-desktop-shell .desktop-topbar button,
+  body.is-desktop-shell .desktop-topbar .dtb-search{ -webkit-app-region: no-drag; }
+  body.is-desktop-shell .tabbar{ -webkit-app-region: drag; }
+  body.is-desktop-shell .tabbar button{ -webkit-app-region: no-drag; }

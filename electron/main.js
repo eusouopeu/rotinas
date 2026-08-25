@@ -103,6 +103,35 @@ ipcMain.on("mcp:result", (_e, { id, result, error }) => {
   if (error) p.reject(new Error(error)); else p.resolve(result);
 });
 
+/* ---------------- Bridge da mini-player (janela separada, sempre-no-topo) ----------------
+   Mesmo padrão round-trip do bridge MCP acima, canal próprio ("player:*") pra
+   não depender do modo desligado/leitura/escrita do servidor MCP: a mini-
+   player pergunta o estado do player e manda pausar/concluir etapa através
+   do main process, que repassa pra janela PRINCIPAL (onde playerState de
+   verdade vive) e devolve a resposta. */
+const pendingPlayerCalls = new Map();
+let playerCallSeq = 0;
+function callRendererPlayer(tool, args) {
+  return new Promise((resolve, reject) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return reject(new Error("janela principal do Brita não está disponível"));
+    const id = String(++playerCallSeq);
+    const timer = setTimeout(() => {
+      if (pendingPlayerCalls.has(id)) { pendingPlayerCalls.delete(id); reject(new Error("tempo esgotado esperando o app")); }
+    }, 4000);
+    pendingPlayerCalls.set(id, { resolve, reject, timer });
+    mainWindow.webContents.send("player:call", { id, tool, args });
+  });
+}
+ipcMain.on("player:result", (_e, { id, result, error }) => {
+  const p = pendingPlayerCalls.get(id);
+  if (!p) return;
+  pendingPlayerCalls.delete(id);
+  clearTimeout(p.timer);
+  if (error) p.reject(new Error(error)); else p.resolve(result);
+});
+ipcMain.handle("player:getState", () => callRendererPlayer("getState", null));
+ipcMain.handle("player:control", (_e, action) => callRendererPlayer("control", action));
+
 /* ---------------- IPC para a tela de Configurações → Integrações ---------------- */
 
 ipcMain.handle("mcp:getStatus", () => ({
@@ -206,13 +235,35 @@ ipcMain.handle("ical:fetch", async (_e, url) => {
 
 /* ---------------- Janela + tray ---------------- */
 
+// Tamanho/posição lembrados entre aberturas — arquivo próprio (não passa pelo
+// storageBackend genérico, que é por CHAVE de app; isto é estado da janela do
+// SO, não dado do usuário, e não deve entrar em backup/sync).
+const BOUNDS_PATH = path.join(app.getPath("userData"), "window-bounds.json");
+function loadWindowBounds() {
+  try { return JSON.parse(fs.readFileSync(BOUNDS_PATH, "utf8")); } catch (e) { return null; }
+}
+function saveWindowBounds(win) {
+  try { fs.writeFileSync(BOUNDS_PATH, JSON.stringify(win.getBounds())); } catch (e) { /* não é crítico perder isso */ }
+}
+
 function createWindow() {
+  const bounds = loadWindowBounds();
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 860,
+    width: (bounds && bounds.width) || 1280,
+    height: (bounds && bounds.height) || 860,
+    x: bounds ? bounds.x : undefined,
+    y: bounds ? bounds.y : undefined,
     minWidth: 720,
     minHeight: 560,
     title: "Brita",
+    backgroundColor: "#1C1B1A",
+    // título nativo escondido: a sidebar flutuante (index.html/app.css, ver
+    // body.is-desktop-shell) vira a área de arrasto da janela no lugar dele —
+    // "hiddenInset" é macOS-only, no Windows/Linux cai pra "hidden" (Electron
+    // ignora trafficLightPosition fora do macOS, sem erro).
+    ...(process.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset", trafficLightPosition: { x: 16, y: 18 } }
+      : { titleBarStyle: "hidden" }),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -221,6 +272,14 @@ function createWindow() {
     }
   });
   mainWindow.loadFile(path.join(__dirname, "..", "www", "index.html"));
+
+  let boundsSaveTimer = null;
+  const scheduleBoundsSave = () => {
+    clearTimeout(boundsSaveTimer);
+    boundsSaveTimer = setTimeout(() => saveWindowBounds(mainWindow), 400);
+  };
+  mainWindow.on("resize", scheduleBoundsSave);
+  mainWindow.on("move", scheduleBoundsSave);
 
   // Fechar a janela só esconde — o sync (fase futura) e o servidor MCP continuam rodando em segundo plano.
   mainWindow.on("close", (e) => {
@@ -245,10 +304,103 @@ function createTray() {
   tray.on("click", () => { mainWindow.show(); mainWindow.focus(); });
 }
 
+/* ---------------- Mini player: janela pequena, sempre no topo ----------------
+   Página própria (electron/mini-player.html), NÃO o index.html do app — o
+   app inteiro é grande demais pra abrir de novo só pra mostrar um cronômetro;
+   a mini-player só fala com a janela principal pelo bridge player:* acima
+   (getState a cada 1s, control pra pausar/concluir etapa). */
+let miniWindow = null;
+function createMiniWindow() {
+  if (miniWindow && !miniWindow.isDestroyed()) { miniWindow.show(); miniWindow.focus(); return; }
+  miniWindow = new BrowserWindow({
+    width: 300,
+    height: 140,
+    minWidth: 260,
+    minHeight: 120,
+    alwaysOnTop: true,
+    frame: false,
+    resizable: true,
+    skipTaskbar: true,
+    title: "Brita — player",
+    backgroundColor: "#00000000",
+    transparent: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+  miniWindow.setAlwaysOnTop(true, "floating");
+  miniWindow.loadFile(path.join(__dirname, "mini-player.html"));
+  miniWindow.on("closed", () => { miniWindow = null; });
+}
+ipcMain.on("miniplayer:open", () => createMiniWindow());
+ipcMain.on("miniplayer:close", () => { if (miniWindow && !miniWindow.isDestroyed()) miniWindow.close(); });
+
+/* ---------------- Menu nativo ----------------
+   Cada item manda uma ação por IPC pro renderer da janela principal (ver
+   onMenuAction no preload.js) em vez de reimplementar qualquer lógica aqui —
+   mesmo princípio das tools do servidor MCP: o main process não conhece o
+   app, só encaminha. */
+function sendMenuAction(action) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.webContents.send("menu:action", action);
+  }
+}
+function buildAppMenu() {
+  const template = [
+    ...(process.platform === "darwin" ? [{
+      label: app.name,
+      submenu: [
+        { role: "about" }, { type: "separator" },
+        { role: "hide" }, { role: "hideOthers" }, { role: "unhide" }, { type: "separator" },
+        { role: "quit" }
+      ]
+    }] : []),
+    {
+      label: "Arquivo",
+      submenu: [
+        { label: "Nova rotina", accelerator: "CmdOrCtrl+Shift+R", click: () => sendMenuAction("novaRotina") },
+        { label: "Nova nota", accelerator: "CmdOrCtrl+N", click: () => sendMenuAction("novaNota") },
+        { label: "Nova tarefa", accelerator: "CmdOrCtrl+Shift+T", click: () => sendMenuAction("novaTarefa") },
+        { type: "separator" },
+        { label: "Buscar em tudo…", accelerator: "CmdOrCtrl+F", click: () => sendMenuAction("buscar") },
+        { type: "separator" },
+        process.platform === "darwin" ? { role: "close" } : { role: "quit" }
+      ]
+    },
+    {
+      label: "Editar",
+      submenu: [
+        { role: "undo" }, { role: "redo" }, { type: "separator" },
+        { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }
+      ]
+    },
+    {
+      label: "Ver",
+      submenu: [
+        { label: "Rotinas", accelerator: "CmdOrCtrl+1", click: () => sendMenuAction("abaRotinas") },
+        { label: "Metas", accelerator: "CmdOrCtrl+2", click: () => sendMenuAction("abaMetas") },
+        { label: "Modelos", accelerator: "CmdOrCtrl+3", click: () => sendMenuAction("abaModelos") },
+        { label: "Ajustes", accelerator: "CmdOrCtrl+4", click: () => sendMenuAction("abaAjustes") },
+        { type: "separator" },
+        { label: "Mini player sempre no topo", click: () => createMiniWindow() },
+        { type: "separator" },
+        { role: "reload" }, { role: "toggleDevTools" }
+      ]
+    },
+    { label: "Janela", role: "windowMenu" }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 app.whenReady().then(async () => {
   mcpConfig = loadMcpConfig();
   createWindow();
   createTray();
+  buildAppMenu();
   await applyMcpServerState();
   startSyncScheduler();
   if (syncEngine.isConnected()) {
