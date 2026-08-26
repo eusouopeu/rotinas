@@ -1,6 +1,6 @@
 const CACHE_NAME = "rotinas-cache-v21";
 const ASSETS = ["./", "./index.html", "./app.css", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png",
-  "./fonts/fonts.css", "./fonts/Fraunces.woff2", "./fonts/Inter.woff2"];
+  "./fonts/fonts.css", "./fonts/Montserrat-Variable.woff2", "./fonts/Lato-400.woff2", "./fonts/Lato-700.woff2", "./fonts/Lato-900.woff2"];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

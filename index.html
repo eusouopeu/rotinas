@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#1C1B1A">
+<meta name="theme-color" content="#F5F5F8">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
@@ -27,7 +27,7 @@ function __britaShowFatal(msg){
   if(!el){
     el = document.createElement("div");
     el.id = "bootError";
-    el.style.cssText = "position:fixed;inset:0;z-index:99999;background:#1C1B1A;color:#EDE7DD;padding:24px 20px;font:14px/1.5 monospace;overflow:auto;white-space:pre-wrap;word-break:break-word;";
+    el.style.cssText = "position:fixed;inset:0;z-index:99999;background:#F5F5F8;color:#1E1B26;padding:24px 20px;font:14px/1.5 monospace;overflow:auto;white-space:pre-wrap;word-break:break-word;";
     (document.body || document.documentElement).appendChild(el);
     el.textContent = "O app encontrou um erro ao iniciar. Tire um print desta tela.\n\n";
   }
@@ -84,17 +84,22 @@ window.addEventListener("unhandledrejection", function(e){
   const K_EXERCICIOS = "rotinas_v2_exercicios"; // biblioteca de exercícios (séries/reps/carga) reaproveitada por etapas de rotina
   const K_COMPROMISSOS = "rotinas_v2_compromissos"; // compromissos avulsos: dia+horário+notificação, independentes de rotina/kanban
 
-  const mqLight = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
+  // claro é o padrão (identidade visual unificada, 2026-08-26): "auto" só
+  // escurece quando o sistema pede EXPLICITAMENTE tema escuro — sem
+  // preferência nenhuma, cai em claro. Antes era o oposto (mqLight, escuro
+  // por padrão); só o sentido do matchMedia mudou, o resto do mecanismo (K_THEME
+  // auto/light/dark, applyTheme, o listener de mudança do sistema) é o mesmo.
+  const mqDark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
   function resolvedTheme(){
     const t = load(K_THEME, "auto");
-    if(t === "auto") return (mqLight && mqLight.matches) ? "light" : "dark";
+    if(t === "auto") return (mqDark && mqDark.matches) ? "dark" : "light";
     return t;
   }
   function applyTheme(){
     const eff = resolvedTheme();
-    document.body.classList.toggle("light", eff === "light");
+    document.body.classList.toggle("dark", eff === "dark");
     const meta = document.querySelector('meta[name="theme-color"]');
-    if(meta) meta.setAttribute("content", eff === "light" ? "#F3F5F8" : "#1C1B1A");
+    if(meta) meta.setAttribute("content", eff === "dark" ? "#14181C" : "#F5F5F8");
   }
   function themeIcon(){
     const t = load(K_THEME, "auto");
@@ -109,7 +114,7 @@ window.addEventListener("unhandledrejection", function(e){
     showAlertBanner("Tema: " + (next==="auto"?"automático (sistema)":next==="light"?"claro":"escuro"));
     render();
   }
-  if(mqLight && mqLight.addEventListener) mqLight.addEventListener("change", ()=>{ if(load(K_THEME,"auto")==="auto") applyTheme(); });
+  if(mqDark && mqDark.addEventListener) mqDark.addEventListener("change", ()=>{ if(load(K_THEME,"auto")==="auto") applyTheme(); });
 
   function applyFontScale(){
     document.documentElement.style.setProperty("--font-scale", load(K_FONTSCALE, 1));
@@ -130,13 +135,13 @@ window.addEventListener("unhandledrejection", function(e){
     return new Promise(resolve=>{
       const ov = document.createElement("div");
       ov.id = "pinLockScreen";
-      ov.style.cssText = "position:fixed; inset:0; background:var(--bg,#1C1B1A); color:var(--text,#EDE7DD); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:99999; font-family:'Inter',-apple-system,sans-serif; padding:20px;";
+      ov.style.cssText = "position:fixed; inset:0; background:var(--paper,#F5F5F8); color:var(--ink,#1E1B26); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:99999; font-family:'Montserrat',-apple-system,sans-serif; padding:20px;";
       ov.innerHTML = `
-        <div style="font-family:'Fraunces',serif; font-size:22px; font-weight:600;">Brita bloqueado</div>
+        <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:700;">Brita bloqueado</div>
         <input type="password" inputmode="numeric" id="pinLockInput" autocomplete="off"
-          style="font-size:24px; letter-spacing:8px; text-align:center; width:180px; padding:10px; border-radius:12px; border:1px solid var(--line,#3A3632); background:var(--surface,#262422); color:inherit;" maxlength="12">
-        <div id="pinLockErro" style="color:var(--danger,#B25B4C); min-height:18px; font-size:13px;"></div>
-        <button id="pinLockBtn" style="padding:10px 24px; border-radius:12px; border:none; background:var(--grad, linear-gradient(135deg,#EC6AA8,#5B8DEF)); color:#fff; font-size:15px; font-weight:600;">Entrar</button>
+          style="font-size:24px; letter-spacing:8px; text-align:center; width:180px; padding:10px; border-radius:8px; border:1.5px solid var(--line,#E3E2E8); background:var(--card,#FFFFFF); color:inherit;" maxlength="12">
+        <div id="pinLockErro" style="color:var(--erro,#B23A2F); min-height:18px; font-size:13px;"></div>
+        <button id="pinLockBtn" style="padding:10px 24px; border-radius:8px; border:none; background:var(--caneta,#6D28D9); color:var(--on-caneta,#fff); font-size:15px; font-weight:600;">Entrar</button>
       `;
       document.body.appendChild(ov);
       const input = ov.querySelector("#pinLockInput");
@@ -166,7 +171,7 @@ window.addEventListener("unhandledrejection", function(e){
       <p style="margin:0 0 10px;">Definir PIN de bloqueio</p>
       <input type="password" inputmode="numeric" id="pinNovo" class="note-title-input" placeholder="Novo PIN (mín. 4 dígitos)" style="margin-bottom:8px; width:100%;">
       <input type="password" inputmode="numeric" id="pinConfirma" class="note-title-input" placeholder="Confirme o PIN" style="width:100%;">
-      <div id="pinDefErro" style="color:var(--danger); font-size:13px; min-height:18px; margin-top:6px;"></div>
+      <div id="pinDefErro" style="color:var(--erro); font-size:13px; min-height:18px; margin-top:6px;"></div>
       <div class="confirm-actions" style="margin-top:10px;">
         <button class="btn-cancel" id="pinDefCancel">Cancelar</button>
         <button class="btn-confirm" id="pinDefOk">Salvar</button>
@@ -954,7 +959,7 @@ window.addEventListener("unhandledrejection", function(e){
   function metasAreaFiltroChipsHtml(){
     if(!rodaAtiva() || !rodaAreas().length) return "";
     return `<div class="area-chips area-filter-row" id="metasAreaFiltroRow">`
-      + `<span class="area-chip ${metasAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-mareaf="${FILTRO_SEM_AREA}" style="--chip:var(--muted);">sem área</span>`
+      + `<span class="area-chip ${metasAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-mareaf="${FILTRO_SEM_AREA}" style="--chip:var(--sub);">sem área</span>`
       + rodaAreas().map(a=>`<span class="area-chip ${metasAreaFiltro.includes(a.id)?'sel':''}" data-mareaf="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
       + `</div>`;
   }
@@ -986,7 +991,7 @@ window.addEventListener("unhandledrejection", function(e){
   function diKbAreaFiltroChipsHtml(){
     if(!rodaAtiva() || !rodaAreas().length) return "";
     return `<div class="area-chips area-filter-row" id="diKbAreaFiltroRow">`
-      + `<span class="area-chip ${diKbAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-dikbareaf="${FILTRO_SEM_AREA}" style="--chip:var(--muted);">sem área</span>`
+      + `<span class="area-chip ${diKbAreaFiltro.includes(FILTRO_SEM_AREA)?'sel':''}" data-dikbareaf="${FILTRO_SEM_AREA}" style="--chip:var(--sub);">sem área</span>`
       + rodaAreas().map(a=>`<span class="area-chip ${diKbAreaFiltro.includes(a.id)?'sel':''}" data-dikbareaf="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
       + `</div>`;
   }
@@ -1030,7 +1035,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-26 (v32)";
+  const BUILD_STAMP = "2026-08-26 (v33)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -1180,7 +1185,7 @@ window.addEventListener("unhandledrejection", function(e){
   function rodaAtiva(){ return !!gam.config.roda.ativa; }
   function rodaAreas(){ return gam.config.roda.areas || []; }
   function areaInfoRoda(id){
-    return rodaAreas().find(a=>a.id===id) || { id:"", label:"Sem área", color:"var(--muted)", peso:gam.config.roda.pesoSemArea };
+    return rodaAreas().find(a=>a.id===id) || { id:"", label:"Sem área", color:"var(--sub)", peso:gam.config.roda.pesoSemArea };
   }
   function pesoDaArea(id){
     const a = rodaAreas().find(x=>x.id===id);
@@ -1212,7 +1217,7 @@ window.addEventListener("unhandledrejection", function(e){
      onChange(idOuNull) roda a cada escolha. */
   function pintarAreaChips(wrap, atual, onChange){
     wrap.innerHTML = `<div class="area-chips">`
-      + `<span class="area-chip ${!atual?'sel':''}" data-rarea="" style="--chip:var(--muted);">sem área</span>`
+      + `<span class="area-chip ${!atual?'sel':''}" data-rarea="" style="--chip:var(--sub);">sem área</span>`
       + rodaAreas().map(a=>`<span class="area-chip ${atual===a.id?'sel':''}" data-rarea="${a.id}" style="--chip:${a.color};">${escapeHtml(a.label)}</span>`).join("")
       + `</div>`;
     wrap.querySelectorAll("[data-rarea]").forEach(ch=>{
@@ -1789,10 +1794,10 @@ window.addEventListener("unhandledrejection", function(e){
     const esperado = esperadoAte(diaIdx);
     const saldo = nota - esperado;
     let label, cor;
-    if(saldo >= 5){ label = "Adiantado"; cor = "var(--good)"; }
-    else if(saldo >= -5){ label = "No ritmo"; cor = "var(--muted)"; }
-    else if(saldo >= -15){ label = "Levemente atrasado"; cor = "var(--accent)"; }
-    else { label = "Atrasado"; cor = "var(--danger)"; }
+    if(saldo >= 5){ label = "Adiantado"; cor = "var(--ok)"; }
+    else if(saldo >= -5){ label = "No ritmo"; cor = "var(--sub)"; }
+    else if(saldo >= -15){ label = "Levemente atrasado"; cor = "var(--caneta)"; }
+    else { label = "Atrasado"; cor = "var(--erro)"; }
     const diasRestantes = 7 - diaIdx; // inclui hoje
     const faltaPara100 = Math.max(0, 100-nota);
     const faltaPara60 = Math.max(0, gam.config.notaMinima-nota);
@@ -1904,7 +1909,7 @@ window.addEventListener("unhandledrejection", function(e){
     const rotulo = "peso " + TAG_LABELS[nivel].toLowerCase() + " " + escopoVagaLabel(draft);
     const livres = limite - ocup.length;
     if(livres > 0) return `${limite} vaga(s) de ${rotulo} — ${livres} livre(s).`;
-    return `<span style="color:var(--accent);">Sem vaga de ${rotulo}: ocupada por ${ocup.map(r=>escapeHtml(r.name)).join(", ")}. Ao salvar, você escolhe quem cede.</span>`;
+    return `<span style="color:var(--caneta);">Sem vaga de ${rotulo}: ocupada por ${ocup.map(r=>escapeHtml(r.name)).join(", ")}. Ao salvar, você escolhe quem cede.</span>`;
   }
   /* Cobrado no salvar (e não no clique da pílula): rebaixar outra rotina por
      causa de uma edição que ainda pode ser cancelada deixaria o dado dela
@@ -1923,7 +1928,7 @@ window.addEventListener("unhandledrejection", function(e){
         <p style="margin-bottom:8px;">Só ${limite} rotina(s) pode(m) ter peso <b>${TAG_LABELS[nivel].toLowerCase()}</b> ${escopoVagaLabel(draft)}.</p>
         <div class="dev-n" style="margin-bottom:12px;">Escolha quem cede a vaga — ela passa para <b>${TAG_LABELS[abaixo].toLowerCase()}</b>.</div>
         <div style="display:flex; flex-direction:column; gap:8px; max-height:40vh; overflow-y:auto;">
-          ${ocup.map(r=>`<button class="btn-cancel" data-cede="${r.id}" style="width:100%; text-align:left; padding:12px 14px; border-radius:12px; font-size:15px; font-family:'Inter'; flex:0 0 auto;">${escapeHtml(r.name)} &rarr; ${TAG_LABELS[abaixo].toLowerCase()}</button>`).join("")}
+          ${ocup.map(r=>`<button class="btn-cancel" data-cede="${r.id}" style="width:100%; text-align:left; padding:12px 14px; border-radius:12px; font-size:15px; font-family:'Montserrat'; flex:0 0 auto;">${escapeHtml(r.name)} &rarr; ${TAG_LABELS[abaixo].toLowerCase()}</button>`).join("")}
         </div>
         <div class="confirm-actions" style="margin-top:14px;">
           <button class="btn-cancel" id="vagaCancel">Voltar e escolher outro peso</button>
@@ -2129,7 +2134,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="dev-n" style="margin-top:5px;">Sem horário, a notificação sai às 09:00.</div>
       <div class="confirm-actions" style="margin-top:14px;">
         <button class="btn-cancel" id="cpCancel">Cancelar</button>
-        <button class="btn-confirm" id="cpSave" style="background:var(--grad);">Criar</button>
+        <button class="btn-confirm" id="cpSave" style="background:var(--caneta);">Criar</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
@@ -2376,8 +2381,10 @@ window.addEventListener("unhandledrejection", function(e){
     el.addEventListener("pointercancel", finish);
   }
 
-  const GRAD_CSS = "linear-gradient(135deg,#EC6AA8,#5B8DEF)";
-  function fillStyle(c){ return (!c || c === "grad" || c === "#C98A3E") ? GRAD_CSS : c; }
+  // cor sólida de fallback quando a rotina não tem área/cor própria — era um
+  // gradiente (GRAD_CSS); design system atual não usa gradiente em lugar nenhum
+  const FALLBACK_COR = "#6D28D9";
+  function fillStyle(c){ return (!c || c === "grad" || c === "#C98A3E") ? FALLBACK_COR : c; }
   function solidColor(c){ return (!c || c === "grad" || c === "#C98A3E") ? "#B96BC4" : c; }
   /* A rotina não escolhe mais cor própria (editor perdeu o picker): a cor vem
      da área a que ela foi designada (configurável em Configurações → roda da
@@ -2985,14 +2992,14 @@ window.addEventListener("unhandledrejection", function(e){
     ov.innerHTML = `<div class="confirm-box search-box" role="dialog" aria-modal="true" aria-label="Busca" style="text-align:left;">
       <input type="search" id="globalSearch" class="note-search" style="margin-bottom:10px;" placeholder="Buscar rotinas, metas, notas, modelos, histórico, diário...">
       <div class="area-chips area-filter-row" id="gsTipos" style="margin-bottom:10px;">
-        ${GS_TIPOS.map(t=>`<span class="area-chip ${gsTipo===t.key?'sel':''}" data-gstipo="${t.key}" style="--chip:var(--accent);">${t.label}</span>`).join("")}
+        ${GS_TIPOS.map(t=>`<span class="area-chip ${gsTipo===t.key?'sel':''}" data-gstipo="${t.key}" style="--chip:var(--caneta);">${t.label}</span>`).join("")}
       </div>
       <div class="sched-time-row" style="margin:0 0 10px; gap:8px;">
-        <select id="gsPeso" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 6px; font-size:13px; color:var(--text);">
+        <select id="gsPeso" style="flex:1; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 6px; font-size:13px; color:var(--ink);">
           <option value="">peso: todos</option>
           ${Object.entries(TAG_LABELS).map(([k,v])=>`<option value="${k}">peso: ${v}</option>`).join("")}
         </select>
-        <select id="gsArea" style="flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 6px; font-size:13px; color:var(--text);">
+        <select id="gsArea" style="flex:1; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 6px; font-size:13px; color:var(--ink);">
           <option value="">área: todas</option>
           ${areaOpts.map(a=>`<option value="${escapeHtml(a.id)}">área: ${escapeHtml(a.label)}</option>`).join("")}
         </select>
@@ -3188,7 +3195,7 @@ window.addEventListener("unhandledrejection", function(e){
      nos demais casos, a lista abreviada de sempre ("seg/qua/sex"). */
   function diasChipHtml(r){
     if(r && r.schedule && r.schedule.mode === "intervalo"){
-      return `<div class="sched-chip chip-block" style="color:var(--muted);">a cada ${r.schedule.intervaloDias||1}d</div>`;
+      return `<div class="sched-chip chip-block" style="color:var(--sub);">a cada ${r.schedule.intervaloDias||1}d</div>`;
     }
     const dias = diasDaRotina(r).slice().sort((a,b)=>a-b);
     let label;
@@ -3196,7 +3203,7 @@ window.addEventListener("unhandledrejection", function(e){
     else if(dias.length === 5 && dias.every(d=>d>=1 && d<=5)) label = "dias úteis";
     else if(dias.length === 2 && dias[0]===0 && dias[1]===6) label = "fim de semana";
     else label = dias.map(d=>DIAS_ABREV[d]).join("/");
-    return `<div class="sched-chip chip-block" style="color:var(--muted);">${label}</div>`;
+    return `<div class="sched-chip chip-block" style="color:var(--sub);">${label}</div>`;
   }
   /* "Deve ser feita hoje" = tem agendamento ativo e hoje é uma ocorrência.
      Rotina sem agendamento não tem dia devido, então fica fora do filtro. */
@@ -3235,7 +3242,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function horarioRealChipHtml(h){
     const m = execucaoMinutos(h);
-    return `<div class="sched-chip" style="color:var(--good);">${svgIcon(ICON_D.check,13)} ${formatHM(m.ini)} &rarr; ${formatHM(m.fim)}</div>`;
+    return `<div class="sched-chip" style="color:var(--ok);">${svgIcon(ICON_D.check,13)} ${formatHM(m.ini)} &rarr; ${formatHM(m.fim)}</div>`;
   }
 
   /* A lista de rotinas fica sempre em ordem de horário de início. Rotina sem
@@ -3697,7 +3704,7 @@ window.addEventListener("unhandledrejection", function(e){
             <h3><span class="r-dot" style="background:${fillStyle(corDaRotina(r))}"></span>${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</h3>
             <div class="routine-meta">${r.steps.length} etapa${r.steps.length!==1?'s':''} · ${dur>0?fmtTime(dur).replace('+',''):"sem tempo fixo"}${rStreak>0?`<span class="streak-tag" title="${rStreak} dia${rStreak>1?'s':''} seguidos">${svgIcon(ICON_D.fire,12)}${rStreak}</span>`:""}${rotinaEhHabito(r)?`<span class="habito-chip" title="Hábito consolidado: vale ${Math.round((gam.config.habito.fator||0.6)*100)}% do peso, para abrir espaço ao que ainda não pegou">hábito</span>`:""}</div>
             ${rodaAtiva() && areaDaRotina(r) ? `<div class="sched-chip chip-block" style="color:${areaInfoRoda(areaDaRotina(r)).color};">${escapeHtml(areaInfoRoda(areaDaRotina(r)).label)}</div>` : ""}
-            ${rPend ? `<div class="sched-chip chip-block" style="color:var(--danger);">${svgIcon(ICON_D.arrowPath,15)} ${rPend} etapa${rPend>1?'s':''} não feita${rPend>1?'s':''} hoje</div>` : ""}
+            ${rPend ? `<div class="sched-chip chip-block" style="color:var(--erro);">${svgIcon(ICON_D.arrowPath,15)} ${rPend} etapa${rPend>1?'s':''} não feita${rPend>1?'s':''} hoje</div>` : ""}
             ${execHoje
                 ? horarioRealChipHtml(execHoje)
                 : (sched ? `<div class="sched-chip">${svgIcon(ICON_D.clock,13)} ${sched.startStr} &rarr; ${sched.endStr}</div>` : "")}
@@ -3923,7 +3930,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="section-label">Etapas</div>
       </div>
       <div class="bottom-actions">
-        <button class="btn-danger-outline" id="rdEdit" style="border-color:var(--line); color:var(--muted);">Editar</button>
+        <button class="btn-danger-outline" id="rdEdit" style="border-color:var(--line); color:var(--sub);">Editar</button>
         <button class="btn-primary" id="rdStart">${svgIcon(ICON_D.play,16)} Começar</button>
       </div>
     `;
@@ -3943,7 +3950,7 @@ window.addEventListener("unhandledrejection", function(e){
       card.innerHTML = `
         <span class="drag-handle" data-drag="${i}">${svgIcon(ICON_D.bars3,15)}</span>
         <div class="routine-info" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px;">
-          <span style="flex:0 0 auto; font-size:16px; color:var(--muted);">${i+1}.</span>
+          <span style="flex:0 0 auto; font-size:16px; color:var(--sub);">${i+1}.</span>
           <div style="flex:1; min-width:0;">
             <h3 style="font-size:15px;">${icon} ${escapeHtml(s.name || "sem nome")}</h3>
             <div class="routine-meta" style="margin-top:2px;">${metaTxt}</div>
@@ -4049,8 +4056,8 @@ window.addEventListener("unhandledrejection", function(e){
         <div id="seTimerWrap" style="${s.type==='timer'?'':'display:none;'}">
           <div class="section-label" style="margin:12px 0 6px;">Duração</div>
           <div class="sched-time-row" style="margin-top:0;">
-            <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="seMin" value="${Math.floor((s.seconds||0)/60)}"> min
-            <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" max="59" id="seSec" value="${(s.seconds||0)%60}"> seg
+            <input class="dur-input" style="width:60px; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--ink);" type="number" inputmode="numeric" min="0" id="seMin" value="${Math.floor((s.seconds||0)/60)}"> min
+            <input class="dur-input" style="width:60px; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--ink);" type="number" inputmode="numeric" min="0" max="59" id="seSec" value="${(s.seconds||0)%60}"> seg
           </div>
         </div>
         <div id="seExWrap" style="${s.type==='exercicio'?'':'display:none;'}">
@@ -4058,8 +4065,8 @@ window.addEventListener("unhandledrejection", function(e){
           <div id="seExPickWrap"></div>
           <div class="section-label" style="margin:12px 0 6px;">Séries / repetições</div>
           <div class="sched-time-row" style="margin-top:0; flex-wrap:wrap;">
-            <input class="dur-input" style="width:56px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="seSets" value="${s.sets||3}"> séries de
-            <input type="text" id="seReps" style="width:64px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" value="${escapeHtml(s.reps||'10')}"> reps
+            <input class="dur-input" style="width:56px; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--ink);" type="number" inputmode="numeric" min="1" id="seSets" value="${s.sets||3}"> séries de
+            <input type="text" id="seReps" style="width:64px; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--ink);" value="${escapeHtml(s.reps||'10')}"> reps
           </div>
           <div class="dev-n" style="margin-top:6px;">Descanso entre séries e entre exercícios: um único valor por rotina, na seção "Descanso entre etapas" do editor.</div>
         </div>
@@ -4075,7 +4082,7 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
         <div class="confirm-actions" style="margin-top:18px;">
           <button class="btn-cancel" id="seCancel">Cancelar</button>
-          <button class="btn-confirm" id="seSave" style="background:var(--grad);">Salvar</button>
+          <button class="btn-confirm" id="seSave" style="background:var(--caneta);">Salvar</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -4142,7 +4149,7 @@ window.addEventListener("unhandledrejection", function(e){
       const ex = stepExercicioId ? exercicios.find(x=>x.id===stepExercicioId) : null;
       if(ex){
         wrap.innerHTML = `<div class="qa-idea-row" style="flex-direction:row; align-items:center; justify-content:space-between;">
-          <span class="qa-idea-nome" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(ex.nome)}${(ex.grupos&&ex.grupos.length)?` <span style="color:var(--muted); font-size:12px;">· ${escapeHtml(ex.grupos.join(", "))}</span>`:''}</span>
+          <span class="qa-idea-nome" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(ex.nome)}${(ex.grupos&&ex.grupos.length)?` <span style="color:var(--sub); font-size:12px;">· ${escapeHtml(ex.grupos.join(", "))}</span>`:''}</span>
           <button class="icon-btn" id="seExRemove" title="Trocar exercício" aria-label="Trocar exercício">${svgIcon(ICON_D.xmark,14)}</button>
         </div>`;
         wrap.querySelector("#seExRemove").onclick = () => { stepExercicioId = null; pintarExercicioEtapa(); };
@@ -4219,11 +4226,11 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="section-label" style="margin:12px 0 6px;">Grupos musculares (opcional)</div>
         <div class="meta-areas" id="exGrupos">${GRUPOS_MUSCULARES.map(g=>`<span class="area-chip${gruposSel.has(g)?' sel':''}" data-grupo="${escapeHtml(g)}">${escapeHtml(g)}</span>`).join("")}</div>
         <div class="section-label" style="margin:12px 0 6px;">Carga atual (kg)</div>
-        <input class="dur-input" style="width:90px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="decimal" min="0" step="0.5" id="exPeso" value="${(ex&&ex.pesoAtual)||0}">
+        <input class="dur-input" style="width:90px; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--ink);" type="number" inputmode="decimal" min="0" step="0.5" id="exPeso" value="${(ex&&ex.pesoAtual)||0}">
         <div class="confirm-actions" style="margin-top:18px;">
           ${editing?'<button class="btn-danger-outline" id="exDelete">Excluir</button>':''}
           <button class="btn-cancel" id="exCancel">Cancelar</button>
-          <button class="btn-confirm" id="exSave" style="background:var(--grad);">Salvar</button>
+          <button class="btn-confirm" id="exSave" style="background:var(--caneta);">Salvar</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -4263,7 +4270,7 @@ window.addEventListener("unhandledrejection", function(e){
     const lista = exercicios.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
     const linhas = lista.map(ex=>`<div class="qa-idea-row" style="flex-direction:row; align-items:center; justify-content:space-between; gap:6px;">
         <button data-pickex="${ex.id}" style="flex:1; text-align:left; background:none; border:none; color:inherit; font:inherit; padding:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-          <span class="qa-idea-nome">${escapeHtml(ex.nome)}</span>${(ex.grupos&&ex.grupos.length)?`<span style="color:var(--muted); font-size:12px;"> · ${escapeHtml(ex.grupos.join(", "))}</span>`:''}
+          <span class="qa-idea-nome">${escapeHtml(ex.nome)}</span>${(ex.grupos&&ex.grupos.length)?`<span style="color:var(--sub); font-size:12px;"> · ${escapeHtml(ex.grupos.join(", "))}</span>`:''}
         </button>
         <button class="icon-btn" data-editex="${ex.id}" title="Editar" aria-label="Editar" style="width:28px; height:28px; flex:0 0 auto;">${svgIcon(ICON_D.notes,12)}</button>
       </div>`).join("");
@@ -4325,7 +4332,7 @@ window.addEventListener("unhandledrejection", function(e){
     const tagRow = document.createElement("div");
     tagRow.className = "ident-row";
     tagRow.style.marginTop = "-8px";
-    tagRow.innerHTML = `<span style="color:var(--muted); font-size:13px;">peso no boletim:</span>` + tagValorPillsHtml(editorDraft.tagValor, false);
+    tagRow.innerHTML = `<span style="color:var(--sub); font-size:13px;">peso no boletim:</span>` + tagValorPillsHtml(editorDraft.tagValor, false);
     tagRow.querySelectorAll("[data-tagval]").forEach(sp=>{
       sp.onclick = () => {
         editorDraft.tagValor = sp.dataset.tagval;
@@ -4348,7 +4355,7 @@ window.addEventListener("unhandledrejection", function(e){
     const areaRow = document.createElement("div");
     areaRow.className = "ident-row";
     areaRow.style.cssText = "margin-top:-4px; flex-wrap:wrap;";
-    areaRow.innerHTML = `<span style="color:var(--muted); font-size:13px;">área:</span><div id="edAreaWrap" style="flex:1;"></div>`;
+    areaRow.innerHTML = `<span style="color:var(--sub); font-size:13px;">área:</span><div id="edAreaWrap" style="flex:1;"></div>`;
     const areaPreviewRow = document.createElement("div");
     areaPreviewRow.className = "dev-n";
     areaPreviewRow.style.cssText = "margin:-4px 0 2px; padding:0 2px;";
@@ -4361,7 +4368,7 @@ window.addEventListener("unhandledrejection", function(e){
     habRow.className = "ident-row";
     habRow.style.cssText = "margin-top:-4px;";
     habRow.innerHTML = `<label class="switch-row" style="flex:1; padding:0;">
-        <span style="font-size:13px; color:var(--muted);">descontar quando virar hábito</span>
+        <span style="font-size:13px; color:var(--sub);">descontar quando virar hábito</span>
         <input type="checkbox" id="edHabito" ${editorDraft.semHabito?'':'checked'}>
       </label>`;
     habRow.querySelector("#edHabito").onchange = e => { editorDraft.semHabito = !e.target.checked; };
@@ -4380,7 +4387,7 @@ window.addEventListener("unhandledrejection", function(e){
         .slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))
         .map(n=>`<option value="${n.id}" ${existe && n.id===sel?'selected':''}>${escapeHtml(n.title || "(sem título)")}</option>`).join("");
     }
-    notaRow.innerHTML = `<span style="color:var(--muted); font-size:13px;">nota anexada:</span>
+    notaRow.innerHTML = `<span style="color:var(--sub); font-size:13px;">nota anexada:</span>
       <select id="edNota" class="ed-nota-sel">${opcoesNota()}</select>
       <button type="button" class="link-btn" id="edNotaNova">+ criar nota</button>`;
     notaRow.querySelector("#edNota").onchange = e => { editorDraft.notaId = e.target.value || null; };
@@ -4550,8 +4557,8 @@ window.addEventListener("unhandledrejection", function(e){
     restBox.className = "schedule-box";
     restBox.innerHTML = `
       <div class="sched-time-row" style="margin-top:0;">
-        <input class="dur-input" style="width:60px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="restSec" value="${editorDraft.restSeconds||0}"> segundos
-        <span style="color:var(--muted); font-size:12.5px;">(0 = sem descanso)</span>
+        <input class="dur-input" style="width:60px; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--ink);" type="number" inputmode="numeric" min="0" id="restSec" value="${editorDraft.restSeconds||0}"> segundos
+        <span style="color:var(--sub); font-size:12.5px;">(0 = sem descanso)</span>
       </div>
       <div class="dev-n" style="margin-top:5px;">Vale também para o descanso entre séries em etapas de exercício.</div>
     `;
@@ -4589,7 +4596,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="sched-intervalo-wrap" id="schedIntervaloWrap" style="${editorDraft.schedule.mode==='intervalo'?'':'display:none;'}">
           <div class="sched-time-row" style="margin-top:0;">
             <span>a cada</span>
-            <input class="dur-input" style="width:56px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="1" id="schedIntervaloN" value="${editorDraft.schedule.intervaloDias||2}">
+            <input class="dur-input" style="width:56px; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--ink);" type="number" inputmode="numeric" min="1" id="schedIntervaloN" value="${editorDraft.schedule.intervaloDias||2}">
             <span>dias</span>
           </div>
           <div class="sched-time-row" style="margin-top:0;">
@@ -4663,7 +4670,7 @@ window.addEventListener("unhandledrejection", function(e){
     goalBox.className = "schedule-box";
     goalBox.innerHTML = `
       <div class="sched-time-row" style="margin-top:0;">
-        <input class="dur-input" style="width:70px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--text);" type="number" inputmode="numeric" min="0" id="weeklyGoal" value="${editorDraft.weeklyGoalTimes||0}"> vezes/semana
+        <input class="dur-input" style="width:70px; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; font-size:16px; color:var(--ink);" type="number" inputmode="numeric" min="0" id="weeklyGoal" value="${editorDraft.weeklyGoalTimes||0}"> vezes/semana
       </div>
     `;
     stepsWrap.appendChild(goalBox);
@@ -4781,7 +4788,7 @@ window.addEventListener("unhandledrejection", function(e){
     el.innerHTML = `
       <div class="tab-scroll">
         <div class="home-header">
-          <h1><span id="notesBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> Notas</h1>
+          <h1><span id="notesBackBtn" style="cursor:pointer; color:var(--sub); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> Notas</h1>
           <div class="header-right">
             <button class="bell-btn" id="backupBtn" title="Exportar backup" aria-label="Exportar backup">${svgIcon(ICON_D.arrowDownTray,14)}</button>
             <button class="bell-btn" id="importBtn" title="Importar backup" aria-label="Importar backup">${svgIcon(ICON_D.arrowUpTray,14)}</button>
@@ -5194,9 +5201,9 @@ window.addEventListener("unhandledrejection", function(e){
         ${rodaAtiva() ? `<div class="section-label" style="margin:12px 0 4px;">Área</div><div class="tf-area"></div>` : ""}
         <div class="confirm-actions" style="margin-top:16px; justify-content:space-between;">
           ${existente
-            ? `<button class="ghost" id="tfDel" style="color:var(--danger);" title="Excluir tarefa" aria-label="Excluir tarefa">${svgIcon(ICON_D.trash,15)}</button>`
+            ? `<button class="ghost" id="tfDel" style="color:var(--erro);" title="Excluir tarefa" aria-label="Excluir tarefa">${svgIcon(ICON_D.trash,15)}</button>`
             : `<button class="btn-cancel" id="tfCancel">Cancelar</button>`}
-          <button class="btn-confirm" id="tfSave" style="background:var(--grad);">${existente?"Salvar":"Criar"}</button>
+          <button class="btn-confirm" id="tfSave" style="background:var(--caneta);">${existente?"Salvar":"Criar"}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -5262,7 +5269,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="confirm-box">
         <p>Pausar todos os alertas e o cumprimento por:</p>
         <div class="confirm-actions" style="flex-direction:column;">
-          ${[["1 dia",1],["3 dias",3],["7 dias",7],["30 dias",30]].map(([l,d])=>`<button class="btn-confirm" data-snooze="${d}" style="background:var(--grad);">${l}</button>`).join("")}
+          ${[["1 dia",1],["3 dias",3],["7 dias",7],["30 dias",30]].map(([l,d])=>`<button class="btn-confirm" data-snooze="${d}" style="background:var(--caneta);">${l}</button>`).join("")}
           <button class="btn-cancel" id="snCancel">Cancelar</button>
         </div>
       </div>`;
@@ -5638,7 +5645,7 @@ window.addEventListener("unhandledrejection", function(e){
     const insights = gerarInsights(rich);
     if(insights.length){
       partes.push(`<div class="section-label">Insights (${periodLbl})</div><div class="stat-card">
-        ${insights.map((txt,i)=>`<div style="display:flex; align-items:flex-start; gap:8px; ${i?'margin-top:10px; padding-top:10px; border-top:1px solid var(--line);':''}"><span style="flex:0 0 auto; color:var(--accent); margin-top:1px;">${svgIcon(ICON_D.exclamationTriangle,14)}</span><span class="routine-meta" style="font-size:13.5px; color:var(--text);">${txt}</span></div>`).join("")}
+        ${insights.map((txt,i)=>`<div style="display:flex; align-items:flex-start; gap:8px; ${i?'margin-top:10px; padding-top:10px; border-top:1.5px solid var(--line);':''}"><span style="flex:0 0 auto; color:var(--caneta); margin-top:1px;">${svgIcon(ICON_D.exclamationTriangle,14)}</span><span class="routine-meta" style="font-size:13.5px; color:var(--ink);">${txt}</span></div>`).join("")}
       </div>`);
     }
 
@@ -5658,7 +5665,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="bar-row tappable" data-rstats="${r.id}">
           <div class="bar-name">${r.icon?escapeHtml(r.icon)+" ":""}${escapeHtml(r.name)}</div>
           <div class="bar-track goal-track"><div class="bar-fill" style="width:${Math.max(3,pct)}%; background:${fillStyle(corDaRotina(r))}"></div><span class="goal-marker" style="left:${expPct}%"></span></div>
-          <div class="bar-val ${onPace?'early':'late'}" style="color:${onPace?'var(--good)':'var(--danger)'}">${doneCount}/${r.weeklyGoalTimes}x</div>
+          <div class="bar-val ${onPace?'early':'late'}" style="color:${onPace?'var(--ok)':'var(--erro)'}">${doneCount}/${r.weeklyGoalTimes}x</div>
         </div>`;
       }).join("");
       partes.push(`<div class="section-label">Metas da semana (${janelaSemanaLabel()}) · | = esperado até hoje</div><div class="stat-card">${goalsHtml}</div>`);
@@ -5868,7 +5875,7 @@ window.addEventListener("unhandledrejection", function(e){
         const r = routines.find(x=>x.id===id);
         return `<span class="mcal-dot" style="background:${solidColor(corDaRotina(r))}"></span>`;
       }).join("");
-      if(executed.length > 0 && execIds.size === 0) dots = `<span class="mcal-dot" style="background:var(--muted)"></span>`;
+      if(executed.length > 0 && execIds.size === 0) dots = `<span class="mcal-dot" style="background:var(--sub)"></span>`;
 
       grid += `<span class="mcal-cell ${key===todayK?'mcal-today':''} ${key===selectedDay?'mcal-sel':''}" data-day="${key}">
         <span class="mcal-num">${d.getDate()}</span>
@@ -5947,7 +5954,7 @@ window.addEventListener("unhandledrejection", function(e){
         const r = routines.find(x=>x.id===id);
         return `<span class="mcal-dot" style="background:${solidColor(corDaRotina(r))}"></span>`;
       }).join("");
-      if(executed.length > 0 && execIds.size === 0) dots = `<span class="mcal-dot" style="background:var(--muted)"></span>`;
+      if(executed.length > 0 && execIds.size === 0) dots = `<span class="mcal-dot" style="background:var(--sub)"></span>`;
 
       grid += `<span class="mcal-cell ${key===todayK?'mcal-today':''} ${key===selectedDay?'mcal-sel':''}" data-day="${key}">
         <span class="mcal-num">${day}</span>
@@ -6317,7 +6324,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(!w){ showAlertBanner("Permita pop-ups para gerar o PDF"); return; }
     w.document.write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>' + title + '</title><style>' +
       'body{font-family:Georgia,serif;color:#222;margin:28px;line-height:1.5;}' +
-      'h1{font-size:22px;margin:0 0 14px;} h2{font-size:15px;margin:16px 0 6px;border-bottom:1px solid #ccc;padding-bottom:3px;}' +
+      'h1{font-size:22px;margin:0 0 14px;} h2{font-size:15px;margin:16px 0 6px;border-bottom:1.5px solid #ccc;padding-bottom:3px;}' +
       'ul{margin:4px 0;padding-left:20px;} li{margin:2px 0;font-size:13px;}' +
       '.done{color:#888;text-decoration:line-through;} .meta{color:#666;font-size:12px;}' +
       '.mxgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}' +
@@ -6568,9 +6575,9 @@ window.addEventListener("unhandledrejection", function(e){
     ov.className = "confirm-overlay";
     ov.innerHTML = `<div class="confirm-box"><p>Começar a matriz como:</p>
       <div class="confirm-actions" style="flex-direction:column;">
-        <button class="btn-confirm" data-preset="eisenhower" style="background:var(--grad);">Matriz de Eisenhower</button>
-        <button class="btn-confirm" data-preset="swot" style="background:var(--grad);">Análise SWOT</button>
-        <button class="btn-confirm" data-preset="blank" style="background:var(--surface-2); color:var(--text);">Em branco</button>
+        <button class="btn-confirm" data-preset="eisenhower" style="background:var(--caneta);">Matriz de Eisenhower</button>
+        <button class="btn-confirm" data-preset="swot" style="background:var(--caneta);">Análise SWOT</button>
+        <button class="btn-confirm" data-preset="blank" style="background:var(--card-2); color:var(--ink);">Em branco</button>
         <button class="btn-cancel" id="mxCancel">Cancelar</button>
       </div></div>`;
     document.body.appendChild(ov);
@@ -6604,7 +6611,7 @@ window.addEventListener("unhandledrejection", function(e){
     const scroll = document.createElement("div");
     scroll.className = "tab-scroll";
     scroll.innerHTML = `<div class="home-header">
-      <h1 style="font-size:22px;"><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${titleHtml}</h1>
+      <h1 style="font-size:22px;"><span id="folderBackBtn" style="cursor:pointer; color:var(--sub); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${titleHtml}</h1>
     </div>`;
     el.appendChild(scroll);
 
@@ -6671,7 +6678,7 @@ window.addEventListener("unhandledrejection", function(e){
     const scroll = document.createElement("div");
     scroll.className = "tab-scroll";
     scroll.innerHTML = `<div class="home-header">
-      <h1 style="font-size:22px;"><span id="folderBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> Registros da agenda</h1>
+      <h1 style="font-size:22px;"><span id="folderBackBtn" style="cursor:pointer; color:var(--sub); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> Registros da agenda</h1>
     </div>`;
     el.appendChild(scroll);
 
@@ -7300,7 +7307,7 @@ window.addEventListener("unhandledrejection", function(e){
               </div>
               <div class="notice-actions">
                 <button data-esave="${it.id}">ok</button>
-                <button class="ghost" data-edel="${it.id}" style="color:var(--danger);">excluir</button>
+                <button class="ghost" data-edel="${it.id}" style="color:var(--erro);">excluir</button>
                 <button class="ghost" data-ecancel="1">cancelar</button>
               </div>
             </div>`;
@@ -7441,7 +7448,7 @@ window.addEventListener("unhandledrejection", function(e){
             </div>
             <div class="notice-actions">
               <button data-mxok="1">ok</button>
-              <button class="ghost" data-mxdel="1" style="color:var(--danger);">excluir</button>
+              <button class="ghost" data-mxdel="1" style="color:var(--erro);">excluir</button>
             </div>
           </div>`;
         }
@@ -7669,7 +7676,7 @@ window.addEventListener("unhandledrejection", function(e){
             ${kbEscopo === "dia" ? `<label class="switch-row" style="margin-top:10px;"><span>Repetir toda semana</span><input type="checkbox" class="kb-e-rec" ${it.recorrente?'checked':''}></label>
               <div class="dev-n" style="margin-top:2px;">Recria o cartão no mesmo dia da semana seguinte, em "A fazer". Desmarcar para nesta ocorrência interrompe a repetição.</div>` : ""}
             <div class="notice-actions kb-e-acoes" style="margin-top:10px; justify-content:space-between;">
-              <button class="ghost" data-kbdel="1" style="color:var(--danger);" title="Excluir cartão" aria-label="Excluir cartão">${svgIcon(ICON_D.trash,15)}</button>
+              <button class="ghost" data-kbdel="1" style="color:var(--erro);" title="Excluir cartão" aria-label="Excluir cartão">${svgIcon(ICON_D.trash,15)}</button>
               <button data-kbok="1">Salvar</button>
             </div></div>`;
         }
@@ -7937,7 +7944,7 @@ window.addEventListener("unhandledrejection", function(e){
   function metaDiasChipHtml(t){
     const dias = metaDias(t);
     if(dias.length >= 7) return "";
-    return `<div class="sched-chip chip-block" style="color:var(--muted);">${dias.slice().sort((a,b)=>a-b).map(d=>DIAS_ABREV[d]).join("/")}</div>`;
+    return `<div class="sched-chip chip-block" style="color:var(--sub);">${dias.slice().sort((a,b)=>a-b).map(d=>DIAS_ABREV[d]).join("/")}</div>`;
   }
   function metaOcorreHoje(t){
     return metaDias(t).includes(new Date().getDay());
@@ -8105,7 +8112,7 @@ window.addEventListener("unhandledrejection", function(e){
           placeholder="Como está indo, o que travou, o que fazer a seguir... (markdown: - lista, - [ ] tarefa, **negrito**)">${escapeHtml(t.nota||"")}</textarea>
         <div class="confirm-actions" style="margin-top:14px;">
           <button class="btn-cancel" id="cdNotaCancel">Cancelar</button>
-          <button class="btn-confirm" id="cdNotaSave" style="background:var(--grad);">Salvar</button>
+          <button class="btn-confirm" id="cdNotaSave" style="background:var(--caneta);">Salvar</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -8188,7 +8195,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="dev-n" id="cdEscopoHint" style="margin-top:12px;"></div>
         <div class="confirm-actions" style="margin-top:18px;">
           <button class="btn-cancel" id="cdFormCancel">Cancelar</button>
-          <button class="btn-confirm" id="cdAdd" style="background:var(--grad);">${t?"Salvar":"Adicionar"}</button>
+          <button class="btn-confirm" id="cdAdd" style="background:var(--caneta);">${t?"Salvar":"Adicionar"}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -8283,13 +8290,13 @@ window.addEventListener("unhandledrejection", function(e){
         <label class="switch-row"><span>Lembrar em horários fixos</span><input type="checkbox" id="mrNotifOn" ${rec&&rec.notif?'checked':''}></label>
         <div class="sched-time-row" id="mrNotifRow" style="${rec&&rec.notif?'':'display:none;'}">
           <input type="time" id="mrNotifIni" value="${rec&&rec.notif?rec.notif.inicio:'08:00'}">
-          <span style="align-self:center; color:var(--muted);">até</span>
+          <span style="align-self:center; color:var(--sub);">até</span>
           <input type="time" id="mrNotifFim" value="${rec&&rec.notif?rec.notif.fim:'18:00'}">
         </div>
         <div class="dev-n" id="mrNotifHint" style="margin-top:6px;"></div>
         <div class="confirm-actions" style="margin-top:18px;">
           <button class="btn-cancel" id="mrCancel">Cancelar</button>
-          <button class="btn-confirm" id="mrSalvar" style="background:var(--grad);">${rec?"Salvar":"Adicionar"}</button>
+          <button class="btn-confirm" id="mrSalvar" style="background:var(--caneta);">${rec?"Salvar":"Adicionar"}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -8406,8 +8413,8 @@ window.addEventListener("unhandledrejection", function(e){
       </div>
       ${rodaVidaResumoHtml()}
       <div class="area-chips area-filter-row" id="metasSubviewToggle" style="margin-bottom:14px;">
-        <span class="area-chip ${mostraRecorrentes?'sel':''}" data-metasview="recorrentes" style="--chip:var(--accent);">Recorrentes</span>
-        <span class="area-chip ${mostraPrazos?'sel':''}" data-metasview="prazos" style="--chip:var(--accent);">Prazos</span>
+        <span class="area-chip ${mostraRecorrentes?'sel':''}" data-metasview="recorrentes" style="--chip:var(--caneta);">Recorrentes</span>
+        <span class="area-chip ${mostraPrazos?'sel':''}" data-metasview="prazos" style="--chip:var(--caneta);">Prazos</span>
         ${mostraPrazos ? `<button class="bell-btn di-hoje ${metasSoHoje?'on':''}" id="metasSoHojeBtn" title="Mostrar só as metas de hoje" aria-pressed="${metasSoHoje?'true':'false'}" style="flex:0 0 auto;">hoje</button>` : ""}
       </div>
       ${metasAreaFiltroChipsHtml()}
@@ -8467,17 +8474,17 @@ window.addEventListener("unhandledrejection", function(e){
       // (está no ritmo ou atrasada) fica visível de relance, sem duas frases
       const donePct = t.topics ? Math.min(100, (t.done||0)/t.topics*100) : 0;
       const expPct = t.topics ? metaPctEsperado(t) : 0;
-      const corBarra = feita ? "var(--good)" : (donePct+2 < expPct ? "var(--danger)" : "var(--accent)");
+      const corBarra = feita ? "var(--ok)" : (donePct+2 < expPct ? "var(--erro)" : "var(--caneta)");
       return `
-        <div class="stat-card" data-metaid="${t.id}" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--good);':''} ${bloqueada?'opacity:.55;':''}">
+        <div class="stat-card" data-metaid="${t.id}" style="margin-bottom:10px; ${sub?'margin-left:20px; border-left:3px solid var(--line);':''} ${feita?'border-color:var(--ok);':''} ${bloqueada?'opacity:.55;':''}">
           <div class="dev-row" style="border:none; padding:0;">
-            <span style="font-family:'Fraunces',serif; font-size:${sub?15:17}px; flex:1;">${sub?'&#8618; ':''}${bloqueada?'&#128274; ':''}${escapeHtml(t.title)}</span>
+            <span style="font-family:'Lato',sans-serif; font-size:${sub?15:17}px; flex:1;">${sub?'&#8618; ':''}${bloqueada?'&#128274; ':''}${escapeHtml(t.title)}</span>
             <button class="icon-btn borderless" data-cdedit="${t.id}" title="Editar meta" aria-label="Editar meta">${svgIcon(ICON_D.notes,14)}</button>
           </div>
           ${areas ? `<div class="meta-areas" style="margin:6px 0 2px;">${areas}</div>` : ""}
           ${metaDiasChipHtml(t)}
-          <div class="dev-n" style="margin-top:4px;">${dd}/${m}/${y} · <b class="${cls}" style="color:${cls==='late'?'var(--danger)':cls==='ontime'?'var(--accent)':'var(--good)'};">${d>=0 ? d+" dia(s)" : "atrasada "+Math.abs(d)+"d"}</b> · ${ESCOPO_META_LABEL[esc]} · peso ${TAG_LABELS[t.tagValor || "alto"].toLowerCase()}</div>
-          ${bloqueada ? `<div class="dev-n" style="margin-top:6px; color:var(--muted);">&#128274; desbloqueia ao concluir a sub-meta anterior</div>`
+          <div class="dev-n" style="margin-top:4px;">${dd}/${m}/${y} · <b class="${cls}" style="color:${cls==='late'?'var(--erro)':cls==='ontime'?'var(--caneta)':'var(--ok)'};">${d>=0 ? d+" dia(s)" : "atrasada "+Math.abs(d)+"d"}</b> · ${ESCOPO_META_LABEL[esc]} · peso ${TAG_LABELS[t.tagValor || "alto"].toLowerCase()}</div>
+          ${bloqueada ? `<div class="dev-n" style="margin-top:6px; color:var(--sub);">&#128274; desbloqueia ao concluir a sub-meta anterior</div>`
             : (t.topics != null ? `
           <div class="bar-row" style="margin-top:8px;">
             <div class="bar-track goal-track"><div class="bar-fill" style="width:${Math.max(3,donePct)}%; background:${corBarra};"></div><span class="goal-marker" style="left:${expPct}%"></span></div>
@@ -8507,11 +8514,11 @@ window.addEventListener("unhandledrejection", function(e){
         ? (excesso>0 ? `excedeu em ${excesso} · -${(excesso*-metaRecPenalidadeUnidade(rec)*fatorDaArea(rec.area||"")).toFixed(1)} pts` : "dentro do limite")
         : (rec.pontua ? `+${(feitas*metaRecPontosUnidade(rec)*fatorDaArea(rec.area||"")).toFixed(1)} pts${completa?' · concluída ✓':''}` : (completa?'concluída ✓':''));
       return `
-        <div class="stat-card rec-card" data-mrid="${rec.id}" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--danger);':'border-color:var(--good);') : (completa?'border-color:var(--good);':'')}">
+        <div class="stat-card rec-card" data-mrid="${rec.id}" style="margin-bottom:10px; ${rec.negativa ? (excesso>0?'border-color:var(--erro);':'border-color:var(--ok);') : (completa?'border-color:var(--ok);':'')}">
           <span class="rec-drag drag-handle" data-mrdrag="${rec.id}" title="Arrastar para reordenar" aria-label="Arrastar para reordenar">${svgIcon(ICON_D.bars3,15)}</span>
           <div class="rec-card-body">
             <div class="dev-row" style="border:none; padding:0;">
-              <span style="font-family:'Fraunces',serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}${rec.negativa?' <span class="dev-n">(limite)</span>':''}</span>
+              <span style="font-family:'Lato',sans-serif; font-size:17px; flex:1;">${escapeHtml(rec.titulo)}${rec.negativa?' <span class="dev-n">(limite)</span>':''}</span>
             </div>
             <div class="dev-n" style="margin-top:2px;">${linhaMeta}</div>
             <div class="cd-topics">
@@ -8519,11 +8526,11 @@ window.addEventListener("unhandledrejection", function(e){
               <span>${feitas} / ${rec.vezes}</span>
               <button class="ctrl-btn ${rec.negativa ? (excesso>0?'':'ok') : (completa?'ok':'')}" style="width:36px;height:36px;font-size:15px;" data-mrplus="${rec.id}" title="Mais um" aria-label="Mais um">+</button>
             </div>
-            ${statusTxt ? `<div class="dev-n" style="margin-top:4px; color:${rec.negativa ? (excesso>0?'var(--danger)':'var(--good)') : 'var(--good)'};">${statusTxt}</div>` : ""}
+            ${statusTxt ? `<div class="dev-n" style="margin-top:4px; color:${rec.negativa ? (excesso>0?'var(--erro)':'var(--ok)') : 'var(--ok)'};">${statusTxt}</div>` : ""}
           </div>
           <div class="rec-actions">
             <button class="icon-btn" data-mredit="${rec.id}" title="Editar" aria-label="Editar">${svgIcon(ICON_D.notes,14)}</button>
-            <button class="icon-btn" data-mrdel="${rec.id}" title="Remover" aria-label="Remover" style="color:var(--danger);">${svgIcon(ICON_D.trash,14)}</button>
+            <button class="icon-btn" data-mrdel="${rec.id}" title="Remover" aria-label="Remover" style="color:var(--erro);">${svgIcon(ICON_D.trash,14)}</button>
           </div>
         </div>`;
     }
@@ -8845,7 +8852,7 @@ window.addEventListener("unhandledrejection", function(e){
       acc += frac;
       return seg;
     }).join("");
-    return `<svg viewBox="0 0 128 128" width="118" height="118" style="flex:0 0 auto;">${arcs}<circle cx="${cx}" cy="${cy}" r="${R-sw/2-1}" fill="var(--surface)"/></svg>`;
+    return `<svg viewBox="0 0 128 128" width="118" height="118" style="flex:0 0 auto;">${arcs}<circle cx="${cx}" cy="${cy}" r="${R-sw/2-1}" fill="var(--card)"/></svg>`;
   }
 
   /* ============ DESPESAS (pasta única — cada lançamento é a própria nota) ============ */
@@ -8869,7 +8876,7 @@ window.addEventListener("unhandledrejection", function(e){
     const el = document.createElement("div");
     el.className = "screen with-tabbar";
     el.innerHTML = `<div class="home-header">
-      <h1><span id="expBackBtn" style="cursor:pointer; color:var(--muted); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${svgIcon(ICON_D.expense)} Despesas</h1>
+      <h1><span id="expBackBtn" style="cursor:pointer; color:var(--sub); font-size:22px;">${svgIcon(ICON_D.chevronLeft,18)}</span> ${svgIcon(ICON_D.expense)} Despesas</h1>
       <div class="header-right">
         <button class="bell-btn" id="exImportBtn" title="Importar extrato CSV" aria-label="Importar extrato CSV">${svgIcon(ICON_D.arrowUpTray,14)}</button>
         <button class="bell-btn" id="exCsv" title="Exportar CSV" aria-label="Exportar CSV">CSV</button>
@@ -8950,8 +8957,8 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="stat-card" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
           <div style="position:relative; flex:0 0 auto;">${donutSvg(segs, total)}
             <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
-              <div style="font-size:11px; color:var(--muted);">total</div>
-              <div style="font-family:'Inter', sans-serif; font-size:13px;">${brl(total)}</div>
+              <div style="font-size:11px; color:var(--sub);">total</div>
+              <div style="font-family:'Montserrat', sans-serif; font-size:13px;">${brl(total)}</div>
             </div>
           </div>
           <div style="flex:1; min-width:140px;">${legend || '<div class="dev-n">sem dados</div>'}</div>
@@ -9048,7 +9055,7 @@ window.addEventListener("unhandledrejection", function(e){
           </div>
           <div class="confirm-actions" style="margin-top:18px;">
             <button class="btn-cancel" id="exFormCancel">Cancelar</button>
-            <button class="btn-confirm" id="exAdd" style="background:var(--grad);">Adicionar</button>
+            <button class="btn-confirm" id="exAdd" style="background:var(--caneta);">Adicionar</button>
           </div>
         </div>`;
       document.body.appendChild(ov);
@@ -9125,10 +9132,10 @@ window.addEventListener("unhandledrejection", function(e){
       body.innerHTML = `
         <div class="section-label">Importar extrato — conferir colunas</div>
         <div class="stat-card">
-          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Data</span><select id="impDate" style="flex:1;">${colOpts(exImport.map.date)}</select></div>
-          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Descrição</span><select id="impDesc" style="flex:1;">${colOpts(exImport.map.desc)}</select></div>
-          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Valor</span><select id="impVal" style="flex:1;">${colOpts(exImport.map.val)}</select></div>
-          <div class="market-form-row"><span style="width:80px; color:var(--muted); font-size:13px;">Importar</span>
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--sub); font-size:13px;">Data</span><select id="impDate" style="flex:1;">${colOpts(exImport.map.date)}</select></div>
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--sub); font-size:13px;">Descrição</span><select id="impDesc" style="flex:1;">${colOpts(exImport.map.desc)}</select></div>
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--sub); font-size:13px;">Valor</span><select id="impVal" style="flex:1;">${colOpts(exImport.map.val)}</select></div>
+          <div class="market-form-row"><span style="width:80px; color:var(--sub); font-size:13px;">Importar</span>
             <select id="impSign" style="flex:1;">
               <option value="neg" ${exImport.sign==='neg'?'selected':''}>Só saídas (valores negativos)</option>
               <option value="pos" ${exImport.sign==='pos'?'selected':''}>Só entradas (valores positivos)</option>
@@ -9239,8 +9246,8 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="stat-card" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
           <div style="position:relative; flex:0 0 auto;">${donutSvg(segs, total)}
             <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
-              <div style="font-size:11px; color:var(--muted);">total</div>
-              <div style="font-family:'Inter', sans-serif; font-size:13px;">${brl(total)}</div>
+              <div style="font-size:11px; color:var(--sub);">total</div>
+              <div style="font-family:'Montserrat', sans-serif; font-size:13px;">${brl(total)}</div>
             </div>
           </div>
           <div style="flex:1; min-width:140px;">${legend}</div>
@@ -9372,10 +9379,10 @@ window.addEventListener("unhandledrejection", function(e){
       body.innerHTML = `
         <div class="section-label">Importar extrato — conferir colunas</div>
         <div class="stat-card">
-          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Data</span><select id="impDate" style="flex:1;">${colOpts(exImport.map.date)}</select></div>
-          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Descrição</span><select id="impDesc" style="flex:1;">${colOpts(exImport.map.desc)}</select></div>
-          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--muted); font-size:13px;">Valor</span><select id="impVal" style="flex:1;">${colOpts(exImport.map.val)}</select></div>
-          <div class="market-form-row"><span style="width:80px; color:var(--muted); font-size:13px;">Importar</span>
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--sub); font-size:13px;">Data</span><select id="impDate" style="flex:1;">${colOpts(exImport.map.date)}</select></div>
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--sub); font-size:13px;">Descrição</span><select id="impDesc" style="flex:1;">${colOpts(exImport.map.desc)}</select></div>
+          <div class="market-form-row" style="margin-bottom:8px;"><span style="width:80px; color:var(--sub); font-size:13px;">Valor</span><select id="impVal" style="flex:1;">${colOpts(exImport.map.val)}</select></div>
+          <div class="market-form-row"><span style="width:80px; color:var(--sub); font-size:13px;">Importar</span>
             <select id="impSign" style="flex:1;">
               <option value="neg" ${exImport.sign==='neg'?'selected':''}>Só saídas (valores negativos)</option>
               <option value="pos" ${exImport.sign==='pos'?'selected':''}>Só entradas (valores positivos)</option>
@@ -9463,9 +9470,9 @@ window.addEventListener("unhandledrejection", function(e){
 
     function paint(){
       const ps = doc.pros.reduce((a,i)=>a+i.w,0), cs = doc.cons.reduce((a,i)=>a+i.w,0);
-      const verdict = ps>cs ? `<b class="early" style="color:var(--good);">prós vencem (+${ps-cs})</b>` : cs>ps ? `<b class="late">contras vencem (&minus;${cs-ps})</b>` : `<b class="ontime">empate</b>`;
+      const verdict = ps>cs ? `<b class="early" style="color:var(--ok);">prós vencem (+${ps-cs})</b>` : cs>ps ? `<b class="late">contras vencem (&minus;${cs-ps})</b>` : `<b class="ontime">empate</b>`;
       body.innerHTML = `<div class="stat-card" style="margin-bottom:12px; text-align:center;"><div class="cd-big ontime" style="font-size:34px;">${ps} &times; ${cs}</div><div>${verdict}</div></div>`;
-      [["pros","Prós","#6B8F71"],["cons","Contras","#B25B4C"]].forEach(([key,label,color])=>{
+      [["pros","Prós","var(--ok)"],["cons","Contras","var(--erro)"]].forEach(([key,label,color])=>{
         let rows = doc[key].map((i,ii)=> pcEditing===key+"-"+ii ? `
           <div class="dev-row">
             <textarea data-pcef="${key}-${ii}" class="mk-e-name" rows="1" style="flex:1; margin-bottom:0;">${escapeHtml(i.text)}</textarea>
@@ -9473,7 +9480,7 @@ window.addEventListener("unhandledrejection", function(e){
           </div>` : `
           <div class="dev-row">
             <span style="flex:1; cursor:pointer;" data-pcedit="${key}-${ii}" title="Tocar para editar">${escapeHtml(i.text)}</span>
-            <span class="pc-weights">${[1,2,3,4,5].map(w=>`<span class="pc-w ${i.w===w?'sel':''}" data-pcw="${key}-${ii}-${w}" style="${i.w===w?`background:${color}; color:#fff; border-color:transparent;`:""}">${w}</span>`).join("")}</span>
+            <span class="pc-weights">${[1,2,3,4,5].map(w=>`<span class="pc-w ${i.w===w?'sel':''}" data-pcw="${key}-${ii}-${w}" style="${i.w===w?`background:${color}; color:var(--on-caneta); border-color:transparent;`:""}">${w}</span>`).join("")}</span>
             <button class="del-exec" data-pcdel="${key}-${ii}">${svgIcon(ICON_D.xmark,14)}</button>
           </div>`).join("");
         body.innerHTML += `<div class="section-label" style="color:${color};">${label} · soma ${key==="pros"?ps:cs}</div>
@@ -9625,7 +9632,7 @@ window.addEventListener("unhandledrejection", function(e){
             </div>
             <div class="notice-actions">
               <button data-tvsave="${it.id}">ok</button>
-              <button class="ghost" data-tvdel="${it.id}" style="color:var(--danger);">excluir</button>
+              <button class="ghost" data-tvdel="${it.id}" style="color:var(--erro);">excluir</button>
               <button class="ghost" data-tvcancel="1">cancelar</button>
             </div>
           </div>` : `
@@ -9780,7 +9787,7 @@ window.addEventListener("unhandledrejection", function(e){
       const est_ = recuo ? ` style="margin-left:${recuo*18}px;"` : "";
       let m;
       if(t === ""){ out += '<div class="live-line empty">&nbsp;</div>'; return; }
-      if(t.match(RE_HR)){ out += '<div style="border-top:1px solid var(--border, rgba(128,128,128,.35)); margin:8px 0;"></div>'; return; }
+      if(t.match(RE_HR)){ out += '<div style="border-top:1.5px solid var(--border, rgba(128,128,128,.35)); margin:8px 0;"></div>'; return; }
       if((m = t.match(RE_TOGGLE))){
         const collapsed = isToggleCollapsed(keyId, i);
         out += `<div class="live-line li-line"${est_}><span class="li-marker" data-ovtoggle="${i}" style="cursor:pointer; user-select:none;">${collapsed?svgIcon(ICON_D.chevronRight,13):svgIcon(ICON_D.chevronDown,13)}</span> <strong>${mdInline(escapeHtml(m[1]))}</strong></div>`;
@@ -9796,7 +9803,7 @@ window.addEventListener("unhandledrejection", function(e){
       if((m = t.match(RE_UL))){ out += `<div class="live-line li-line"${est_}><span class="li-marker">&bull;</span> ${mdInline(escapeHtml(m[1]))}</div>`; return; }
       out += `<div class="live-line">${mdInline(escapeHtml(raw))}</div>`;
     });
-    return out || `<p style="color:var(--muted)">${emptyMsg||"Sem conteúdo."}</p>`;
+    return out || `<p style="color:var(--sub)">${emptyMsg||"Sem conteúdo."}</p>`;
   }
   function toggleCheckLineInText(text, idx){
     const lines = text && text.length ? text.split("\n") : [""];
@@ -10956,7 +10963,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div class="confirm-box">
         <p>Importar backup:<br><small>${(data.routines||[]).length} rotina(s), ${(data.notes||[]).length} nota(s), ${(data.history||[]).length} execução(ões).</small></p>
         <div class="confirm-actions" style="flex-direction:column;">
-          <button class="btn-confirm" id="impMerge" style="background:var(--grad);">Mesclar com os dados atuais</button>
+          <button class="btn-confirm" id="impMerge" style="background:var(--caneta);">Mesclar com os dados atuais</button>
           <button class="btn-confirm" id="impReplace">Substituir tudo</button>
           <button class="btn-cancel" id="impCancel">Cancelar</button>
         </div>
@@ -12043,7 +12050,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="dev-n" style="margin-top:6px;">${jaTem ? "Vai para o fim da nota de hoje." : "Começa a nota de hoje."} Markdown vale (- lista, - [ ] tarefa).</div>
         <div class="confirm-actions" style="margin-top:14px;">
           <button class="btn-cancel" id="qaCancel3">Cancelar</button>
-          <button class="btn-confirm" id="qaDiarioSave" style="background:var(--grad);">Salvar</button>
+          <button class="btn-confirm" id="qaDiarioSave" style="background:var(--caneta);">Salvar</button>
         </div>
       </div>`;
       const ta = ov.querySelector("#qaDiarioTxt");
@@ -12085,7 +12092,7 @@ window.addEventListener("unhandledrejection", function(e){
         ${rodaAtiva() ? `<div class="section-label" style="margin:12px 0 4px;">Área</div><div id="qaKbAreaWrap"></div>` : ""}
         <div class="confirm-actions" style="margin-top:14px;">
           <button class="btn-cancel" id="qaCancel4">Cancelar</button>
-          <button class="btn-confirm" id="qaKbSave" style="background:var(--grad);">Adicionar</button>
+          <button class="btn-confirm" id="qaKbSave" style="background:var(--caneta);">Adicionar</button>
         </div>
       </div>`;
       wireTagValorPills(ov);
@@ -12169,7 +12176,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="qa-mic-wrap"><textarea class="mk-e-name" id="qaContent" rows="5" style="line-height:1.5;" placeholder="Escreva em markdown…">${v("content")}</textarea></div>
         <div class="section-label">Assunto</div>
         <div id="qaSubjectsWrap"></div>
-        <div class="confirm-actions" style="margin-top:14px;"><button class="btn-confirm" id="qaDone" style="background:var(--grad);">Concluído</button></div>
+        <div class="confirm-actions" style="margin-top:14px;"><button class="btn-confirm" id="qaDone" style="background:var(--caneta);">Concluído</button></div>
       </div>`;
       mountTagInput(ov.querySelector("#qaSubjectsWrap"), (existente && existente.subjects) || [],
         noteSubjectsPool(existente ? existente.id : null), vals => { ensureDoc().subjects = vals; ensureDoc().updatedAt = Date.now(); save(K_NOTES, notes); });
@@ -12196,7 +12203,7 @@ window.addEventListener("unhandledrejection", function(e){
           <input type="date" id="qaDate" value="${localKey()}" style="flex:1; min-width:0;">
           <input type="time" id="qaTime" style="flex:0 0 auto; width:100px;" title="Hora (opcional)">
         </div>
-        <div class="confirm-actions"><button class="btn-cancel" id="qaCancel2">Cancelar</button><button class="btn-confirm" id="qaSave" style="background:var(--grad);">Salvar</button></div>
+        <div class="confirm-actions"><button class="btn-cancel" id="qaCancel2">Cancelar</button><button class="btn-confirm" id="qaSave" style="background:var(--caneta);">Salvar</button></div>
       </div>`;
       wireMicButton(ov.querySelector("#qaDesc"));
       ov.querySelector("#qaClose").onclick = () => ov.remove();
@@ -12270,11 +12277,11 @@ window.addEventListener("unhandledrejection", function(e){
           const defPeso = exLib ? exLib.pesoAtual : 0;
           bodyHtml = `<div class="dev-n">série ${ex.setIdx+1} de ${step.sets}</div>
             <div class="ex-inputs" style="display:flex; gap:10px; justify-content:center; margin-top:6px;">
-              <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted);">reps
-                <input type="number" id="exReps" inputmode="numeric" min="0" value="${defReps}" style="width:64px; text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--text);">
+              <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--sub);">reps
+                <input type="number" id="exReps" inputmode="numeric" min="0" value="${defReps}" style="width:64px; text-align:center; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--ink);">
               </label>
-              <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted);">kg
-                <input type="number" id="exPesoInput" inputmode="decimal" min="0" step="0.5" value="${defPeso}" style="width:72px; text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--text);">
+              <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--sub);">kg
+                <input type="number" id="exPesoInput" inputmode="decimal" min="0" step="0.5" value="${defPeso}" style="width:72px; text-align:center; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--ink);">
               </label>
             </div>`;
           mainCtrlHtml = `<button class="ctrl-btn big ok" id="exSetDone" title="Concluir série">${svgIcon(ICON_D.check,14)}</button><div style="width:56px"></div>`;
@@ -12342,16 +12349,10 @@ window.addEventListener("unhandledrejection", function(e){
       dial.className = "dial-wrap" + (rem<0 ? " overtime" : "") + (step.isRest ? " restdial" : "");
       const rad=116, c=2*Math.PI*rad;
       const frac = Math.max(rem,0)/step.seconds;
-      const useGrad = !rColor || rColor === "grad";
-      const strokeColor = step.isRest ? "#6B8F71" : (useGrad ? "url(#dialGrad)" : rColor);
+      const semCor = !rColor || rColor === "grad";
+      const strokeColor = step.isRest ? "var(--ok)" : (semCor ? "var(--caneta)" : rColor);
       dial.innerHTML = `
         <svg viewBox="0 0 260 260">
-          <defs>
-            <linearGradient id="dialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#EC6AA8"/>
-              <stop offset="100%" stop-color="#5B8DEF"/>
-            </linearGradient>
-          </defs>
           <circle class="dial-track" cx="130" cy="130" r="${rad}" fill="none" stroke-width="10"/>
           <circle id="dialArc" cx="130" cy="130" r="${rad}" fill="none" stroke="${strokeColor}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*frac}"/>
         </svg>
@@ -12370,7 +12371,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(ex.phase === "rest"){
         body.innerHTML = `
           <div class="step-title">Descanso</div>
-          <div class="t ex-rest-time" style="font-family:'IBM Plex Mono', monospace; font-size:48px; font-weight:600; margin:6px 0;">${fmtTime(Math.max(0,Math.round((ex.restEndTs-Date.now())/1000)))}</div>
+          <div class="t ex-rest-time" style="font-family:'Montserrat'; font-size:48px; font-weight:600; margin:6px 0;">${fmtTime(Math.max(0,Math.round((ex.restEndTs-Date.now())/1000)))}</div>
           <h2>${escapeHtml(step.name)}</h2>
           <div class="dev-n">série ${ex.setIdx} de ${step.sets} concluída</div>`;
       } else {
@@ -12382,11 +12383,11 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="check-circle" style="width:100px;height:100px;font-size:36px;">${svgIcon(ICON_D.trophy,32)}</div>
           <h2>${escapeHtml(step.name)}</h2>
           <div class="ex-inputs" style="display:flex; gap:10px; justify-content:center; margin-top:12px;">
-            <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted);">reps
-              <input type="number" id="exReps" inputmode="numeric" min="0" value="${defReps}" style="width:64px; text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--text);">
+            <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--sub);">reps
+              <input type="number" id="exReps" inputmode="numeric" min="0" value="${defReps}" style="width:64px; text-align:center; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--ink);">
             </label>
-            <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted);">kg
-              <input type="number" id="exPesoInput" inputmode="decimal" min="0" step="0.5" value="${defPeso}" style="width:72px; text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--text);">
+            <label style="display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--sub);">kg
+              <input type="number" id="exPesoInput" inputmode="decimal" min="0" step="0.5" value="${defPeso}" style="width:72px; text-align:center; background:var(--card-2); border:1.5px solid var(--line); border-radius:10px; padding:8px; font-size:18px; color:var(--ink);">
             </label>
           </div>`;
       }
@@ -12562,7 +12563,7 @@ window.addEventListener("unhandledrejection", function(e){
       if(last.pauses > 0) detail += `<p>${last.pauses} pausa(s) · ${fmtTime(last.pausedSec).replace("+","")} pausado</p>`;
       if(last.skippedCount > 0) detail += `<p>${last.skippedCount} etapa(s) pulada(s)</p>`;
     }
-    if(ultimosPontosGanhos > 0) detail += `<p style="color:var(--accent);">+${ultimosPontosGanhos.toFixed(1)} pontos no boletim da semana</p>`;
+    if(ultimosPontosGanhos > 0) detail += `<p style="color:var(--caneta);">+${ultimosPontosGanhos.toFixed(1)} pontos no boletim da semana</p>`;
     const MOODS = ["&#9733;&#9734;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9734;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9734;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9734;","&#9733;&#9733;&#9733;&#9733;&#9733;"];
     el.innerHTML = `
       <div class="done-screen">
@@ -13029,7 +13030,7 @@ window.addEventListener("unhandledrejection", function(e){
       grid += `<span class="mcal-cell ${key===todayK?'mcal-today':''}" data-mcaldia="${key}">
         <span class="mcal-num">${day}</span>
         <span class="mcal-dots">${dots}</span>
-        ${doneCartoes>0?`<span class="mcal-missed" style="color:var(--good);">${doneCartoes}</span>`:""}
+        ${doneCartoes>0?`<span class="mcal-missed" style="color:var(--ok);">${doneCartoes}</span>`:""}
       </span>`;
     }
     grid += `</div>`;
@@ -13331,7 +13332,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   /* ---------------- BOLETIM (gamificação) ---------------- */
   const BADGE_CHAR = { diamante:"&#9670;", ouro:"&#9679;", prata:"&#9675;", bronze:"&#9671;" };
-  const BADGE_COR  = { diamante:"var(--accent-2)", ouro:"#D4AF37", prata:"var(--muted)", bronze:"#B08D57" };
+  const BADGE_COR  = { diamante:"var(--caneta-2)", ouro:"#D4AF37", prata:"var(--sub)", bronze:"#B08D57" };
   const BADGE_NOME = { diamante:"Diamante", ouro:"Ouro", prata:"Prata", bronze:"Bronze" };
   function linhaBadgesHtml(cont){
     return ["diamante","ouro","prata","bronze"].map(t=>
@@ -13366,21 +13367,21 @@ window.addEventListener("unhandledrejection", function(e){
       <div style="overflow-y:auto; flex:1; padding-bottom:24px;">
         <div class="home-header" style="margin-bottom:6px;"><h1>Boletim</h1></div>
         <div class="stat-card" style="text-align:center;">
-          <div style="font-family:'Inter', sans-serif; font-size:48px; font-weight:600; color:${disp?'var(--muted)':r.cor};">${r.nota.toFixed(1)}</div>
+          <div style="font-family:'Montserrat', sans-serif; font-size:48px; font-weight:600; color:${disp?'var(--sub)':r.cor};">${r.nota.toFixed(1)}</div>
           <div class="routine-meta">de 100 · semana termina sábado ${String(fimSemana.getDate()).padStart(2,"0")}/${String(fimSemana.getMonth()+1).padStart(2,"0")}</div>
-          <div class="bar-track" style="margin:12px 0 6px;"><div class="bar-fill" style="width:${pctNota}%; background:${disp?'var(--muted)':r.cor};"></div></div>
+          <div class="bar-track" style="margin:12px 0 6px;"><div class="bar-fill" style="width:${pctNota}%; background:${disp?'var(--sub)':r.cor};"></div></div>
           ${disp
-            ? `<div style="color:var(--muted); font-weight:600;">Semana dispensada</div>
+            ? `<div style="color:var(--sub); font-weight:600;">Semana dispensada</div>
                <div class="dev-n" style="margin-top:4px;">não emite badge nem entra na média do mês</div>`
             : `<div style="color:${r.cor}; font-weight:600;">${r.label}</div>
                <div class="dev-n" style="margin-top:4px;">esperado até hoje: ${r.esperado.toFixed(1)} · saldo ${r.saldo>=0?'+':''}${r.saldo.toFixed(1)}</div>`}
-          ${!gam.semanaAtual.totalBrutoAgendado ? `<div class="stat-foot" style="color:var(--accent);">Nenhuma rotina agendada nesta semana — a escala padrão está valendo (${BLOCOS_SEMANA_PADRAO} blocos médios de 30 min = 100). Ative o agendamento de uma rotina para o boletim medir a sua agenda de verdade.</div>` : ""}
+          ${!gam.semanaAtual.totalBrutoAgendado ? `<div class="stat-foot" style="color:var(--caneta);">Nenhuma rotina agendada nesta semana — a escala padrão está valendo (${BLOCOS_SEMANA_PADRAO} blocos médios de 30 min = 100). Ative o agendamento de uma rotina para o boletim medir a sua agenda de verdade.</div>` : ""}
         </div>
         ${disp ? "" : (r.nota < 100 ? `<div class="stat-card">
           <div class="section-label" style="margin-top:0;">Para fechar a semana</div>
           <div class="routine-meta">${r.porDia100.toFixed(1)} pontos/dia até sábado para chegar a 100</div>
           ${r.nota < gam.config.notaMinima ? `<div class="routine-meta">${r.porDia60.toFixed(1)} pontos/dia para ao menos aprovar (${gam.config.notaMinima})</div>` : ""}
-        </div>` : `<div class="stat-card"><div class="routine-meta" style="color:var(--good);">Meta da semana batida — o que vier agora é estouro &#9733;</div></div>`)}
+        </div>` : `<div class="stat-card"><div class="routine-meta" style="color:var(--ok);">Meta da semana batida — o que vier agora é estouro &#9733;</div></div>`)}
         <div class="section-label">Orçamento de tempo da semana</div>
         <div class="stat-card">
           ${(() => {
@@ -13391,12 +13392,12 @@ window.addEventListener("unhandledrejection", function(e){
             const h = Math.floor(planMin/60), m = planMin%60;
             return `<div class="bar-row">
               <div class="bar-name">Planejado</div>
-              <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,Math.max(3,pct))}%; background:${estourou?'var(--danger)':'var(--grad)'};"></div></div>
+              <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,Math.max(3,pct))}%; background:${estourou?'var(--erro)':'var(--caneta)'};"></div></div>
               <div class="bar-val" style="width:auto; white-space:nowrap; flex:0 0 auto;">${h}h${m>0?m+'min':''}</div>
             </div>
             <div class="stat-foot" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-              de <input type="number" id="blHorasBudget" min="1" value="${horasBudget}" style="width:52px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:2px 6px; font-size:13px; color:var(--text);"> horas/semana disponíveis para rotinas
-              ${estourou ? ` · <span style="color:var(--danger);">${pct}% do orçamento — planejado estoura o disponível</span>` : ""}
+              de <input type="number" id="blHorasBudget" min="1" value="${horasBudget}" style="width:52px; background:var(--card-2); border:1.5px solid var(--line); border-radius:8px; padding:2px 6px; font-size:13px; color:var(--ink);"> horas/semana disponíveis para rotinas
+              ${estourou ? ` · <span style="color:var(--erro);">${pct}% do orçamento — planejado estoura o disponível</span>` : ""}
             </div>`;
           })()}
         </div>
@@ -13405,7 +13406,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="hour-chart">
             ${evolucao.map((s,i)=>{
               const h = Math.max(2, Math.round(Math.min(100, Math.max(0, s.nota))/100*70));
-              const cor = s.dispensada ? "var(--muted)" : "var(--grad)";
+              const cor = s.dispensada ? "var(--sub)" : "var(--caneta)";
               const opacidade = s.emCurso ? "0.55" : "1";
               const mostraLabel = i===0 || i===evolucao.length-1 || s.emCurso;
               const dm = isoToDate(s.inicioISO);
@@ -13435,7 +13436,7 @@ window.addEventListener("unhandledrejection", function(e){
         </div>` : ""}
         ${tend.length ? `<div class="section-label">Roda da vida — últimas ${tend[0].valores.length} semanas</div>
         <div class="stat-card">
-          ${tend.map(t=>`<div class="bar-row"><div class="bar-name" style="color:${t.color};">${escapeHtml(t.label)}</div><div class="bar-val" style="width:auto; flex:1; text-align:right; font-family:'IBM Plex Mono', monospace; font-size:12px;">${t.valores.join(' · ')}</div></div>`).join("")}
+          ${tend.map(t=>`<div class="bar-row"><div class="bar-name" style="color:${t.color};">${escapeHtml(t.label)}</div><div class="bar-val" style="width:auto; flex:1; text-align:right; font-family:'Montserrat'; font-size:12px;">${t.valores.join(' · ')}</div></div>`).join("")}
           <div class="stat-foot">Pontos por semana, da mais antiga à mais recente (esquerda → direita).</div>
         </div>` : ""}
         ${correlacoes.length ? `<div class="section-label">Correlação entre áreas — últimas ${tend[0].valores.length} semanas</div>
@@ -13445,7 +13446,7 @@ window.addEventListener("unhandledrejection", function(e){
             const sentido = p.r >= 0 ? "junto" : "em direções opostas";
             return `<div class="bar-row">
               <div class="bar-name" style="width:auto; flex:1;"><span style="color:${p.a.color};">${escapeHtml(p.a.label)}</span> &harr; <span style="color:${p.b.color};">${escapeHtml(p.b.label)}</span></div>
-              <div class="bar-val" style="width:auto; color:${Math.abs(p.r)>=0.8?'var(--accent)':'var(--muted)'};">${p.r>=0?'+':''}${p.r.toFixed(2)}</div>
+              <div class="bar-val" style="width:auto; color:${Math.abs(p.r)>=0.8?'var(--caneta)':'var(--sub)'};">${p.r>=0?'+':''}${p.r.toFixed(2)}</div>
             </div>
             <div class="dev-n" style="margin:-2px 0 6px;">correlação ${intensidade}, andam ${sentido}</div>`;
           }).join("")}
@@ -13454,10 +13455,10 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="section-label">Distribuição de pesos</div>
         <div class="stat-card">
           ${tags.total ? `
-          <div class="bar-row"><div class="bar-name">Alto</div><div class="bar-track"><div class="bar-fill" style="width:${larguraTag("alto")}%; background:var(--accent);"></div></div><div class="bar-val">${tags.alto} · ${pctTag("alto")}%</div></div>
-          <div class="bar-row"><div class="bar-name">Médio</div><div class="bar-track"><div class="bar-fill" style="width:${larguraTag("medio")}%; background:var(--accent-2);"></div></div><div class="bar-val">${tags.medio} · ${pctTag("medio")}%</div></div>
-          <div class="bar-row"><div class="bar-name">Baixo</div><div class="bar-track"><div class="bar-fill" style="width:${larguraTag("baixo")}%; background:var(--muted);"></div></div><div class="bar-val">${tags.baixo} · ${pctTag("baixo")}%</div></div>
-          ${tagAlerta ? `<div class="stat-foot" style="color:var(--accent);">${pctTag("alto")}% das etapas estão como "alto" — a tag está perdendo poder de distinguir. Vale rebaixar parte delas ou ajustar os multiplicadores em Configurações.</div>` : ""}
+          <div class="bar-row"><div class="bar-name">Alto</div><div class="bar-track"><div class="bar-fill" style="width:${larguraTag("alto")}%; background:var(--caneta);"></div></div><div class="bar-val">${tags.alto} · ${pctTag("alto")}%</div></div>
+          <div class="bar-row"><div class="bar-name">Médio</div><div class="bar-track"><div class="bar-fill" style="width:${larguraTag("medio")}%; background:var(--caneta-2);"></div></div><div class="bar-val">${tags.medio} · ${pctTag("medio")}%</div></div>
+          <div class="bar-row"><div class="bar-name">Baixo</div><div class="bar-track"><div class="bar-fill" style="width:${larguraTag("baixo")}%; background:var(--sub);"></div></div><div class="bar-val">${tags.baixo} · ${pctTag("baixo")}%</div></div>
+          ${tagAlerta ? `<div class="stat-foot" style="color:var(--caneta);">${pctTag("alto")}% das etapas estão como "alto" — a tag está perdendo poder de distinguir. Vale rebaixar parte delas ou ajustar os multiplicadores em Configurações.</div>` : ""}
           ` : `<div class="dev-n">Nenhuma etapa com tempo ainda.</div>`}
           ${tags.nenhum ? `<div class="stat-foot">${tags.nenhum} etapa(s) com peso "nenhum" — rodam normalmente, mas ficam fora do boletim.</div>` : ""}
         </div>
@@ -13470,9 +13471,9 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
         ${(bonusMes+bonusTri+bonusAno) > 0 ? `<div class="section-label">Bônus de metas concluídas</div>
         <div class="stat-card">
-          ${bonusMes ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Neste mês</div><div class="bar-val" style="color:var(--good);">+${bonusMes}</div></div>` : ""}
-          ${bonusTri ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Neste trimestre</div><div class="bar-val" style="color:var(--good);">+${bonusTri}</div></div>` : ""}
-          ${bonusAno ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Neste ano</div><div class="bar-val" style="color:var(--good);">+${bonusAno}</div></div>` : ""}
+          ${bonusMes ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Neste mês</div><div class="bar-val" style="color:var(--ok);">+${bonusMes}</div></div>` : ""}
+          ${bonusTri ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Neste trimestre</div><div class="bar-val" style="color:var(--ok);">+${bonusTri}</div></div>` : ""}
+          ${bonusAno ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Neste ano</div><div class="bar-val" style="color:var(--ok);">+${bonusAno}</div></div>` : ""}
           <div class="stat-foot">Entram na nota do período ao fechar, não na semanal.</div>
         </div>` : ""}
         ${ultimasBadges.length ? `<div class="section-label">Últimas conquistas</div>
@@ -13520,7 +13521,7 @@ window.addEventListener("unhandledrejection", function(e){
     const delta = anterior ? sem.nota - anterior.nota : null;
     const ini = isoToDate(sem.inicioISO), fim = isoToDate(addDaysISO(sem.inicioISO, 6));
     const dd = d => String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
-    const cor = sem.dispensada ? "var(--muted)" : (sem.nota >= gam.config.notaMinima ? "var(--good)" : "var(--danger)");
+    const cor = sem.dispensada ? "var(--sub)" : (sem.nota >= gam.config.notaMinima ? "var(--ok)" : "var(--erro)");
     const el = document.createElement("div");
     el.className = "screen";
     el.innerHTML = `
@@ -13529,7 +13530,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="home-header" style="margin-bottom:2px;"><h1>Semana fechada</h1></div>
         <div class="routine-meta" style="margin-bottom:12px;">${dd(ini)} a ${dd(fim)}</div>
         <div class="stat-card" style="text-align:center;">
-          <div style="font-family:'Inter', sans-serif; font-size:48px; font-weight:600; color:${cor};">${sem.nota.toFixed(1)}</div>
+          <div style="font-family:'Montserrat', sans-serif; font-size:48px; font-weight:600; color:${cor};">${sem.nota.toFixed(1)}</div>
           ${sem.dispensada
             ? `<div class="routine-meta">semana dispensada — não entra na média do mês</div>`
             : `<div class="routine-meta">${sem.nota >= gam.config.notaMinima ? "aprovado" : "abaixo da nota mínima ("+gam.config.notaMinima+")"}</div>`}
@@ -13850,7 +13851,7 @@ window.addEventListener("unhandledrejection", function(e){
         <div class="stat-card">
           ${supportsFileBackup() ? `
             <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Backup automático em arquivo</div>
-              <div class="bar-val" style="width:auto; color:${bakLigado?'var(--good)':'var(--muted)'};">${bakLigado?'ativo':'desligado'}</div></div>
+              <div class="bar-val" style="width:auto; color:${bakLigado?'var(--ok)':'var(--sub)'};">${bakLigado?'ativo':'desligado'}</div></div>
             <button class="${bakLigado?'btn-cancel':'btn-primary'}" id="cfgBakToggle" style="width:100%; margin-top:8px;">${bakLigado?'Desativar':'Escolher arquivo de backup'}</button>
             <div class="stat-foot">O app regrava esse arquivo sozinho ao sair. Sem isso, seus dados vivem só no armazenamento do navegador, que pode ser apagado.</div>
             <div class="stat-foot">Escolha um arquivo dentro de uma pasta sincronizada pelo Google Drive ou Dropbox no computador para sincronizar com outro aparelho que grave no mesmo arquivo — ao voltar para a aba, o app avisa se achar uma versão mais recente.</div>
@@ -14068,7 +14069,7 @@ window.addEventListener("unhandledrejection", function(e){
           <input type="color" class="area-color-swatch" data-rodacolor="${a.id}" value="${a.color}" title="Cor da área" aria-label="Cor da área — usada também nas rotinas dessa área">
           <input type="text" class="roda-area-nome" data-rodalabel="${a.id}" value="${escapeHtml(a.label)}" style="color:${a.color};" aria-label="Nome da área">
           <input class="dur-input roda-area-peso" type="number" min="1" max="10" data-rodapeso="${a.id}" value="${a.peso}">
-          <button class="icon-btn borderless" data-rodadel="${a.id}" title="Remover área" aria-label="Remover área" style="color:var(--danger);">${svgIcon(ICON_D.trash,15)}</button>
+          <button class="icon-btn borderless" data-rodadel="${a.id}" title="Remover área" aria-label="Remover área" style="color:var(--erro);">${svgIcon(ICON_D.trash,15)}</button>
         </div>`).join("") || `<div class="dev-n">Nenhuma área — adicione abaixo.</div>`;
       lista.querySelectorAll("[data-rodapeso]").forEach(inp=> inp.onchange = () => {
         const a = rodaAreas().find(x=>x.id===inp.dataset.rodapeso);
@@ -14151,12 +14152,12 @@ window.addEventListener("unhandledrejection", function(e){
     const modos = [["off","desligado"],["read","somente leitura"],["write","leitura e escrita"]];
     const logRows = (status.log||[]).slice(0,20).map(l=>{
       const hora = new Date(l.ts).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-      const cor = l.kind==="write" ? "var(--accent)" : "var(--muted)";
-      return `<div class="bar-row" style="padding:4px 0;"><span style="flex:1; color:${cor};">${escapeHtml(l.tool)}</span><span style="color:var(--muted); font-size:12px;">${hora}</span></div>`;
+      const cor = l.kind==="write" ? "var(--caneta)" : "var(--sub)";
+      return `<div class="bar-row" style="padding:4px 0;"><span style="flex:1; color:${cor};">${escapeHtml(l.tool)}</span><span style="color:var(--sub); font-size:12px;">${hora}</span></div>`;
     }).join("") || `<div class="routine-meta">Nenhuma chamada ainda.</div>`;
     return `
       <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Servidor MCP</div>
-        <div class="bar-val" style="width:auto; color:${status.running?'var(--good)':'var(--muted)'};">${status.running?'ativo':'desligado'}</div></div>
+        <div class="bar-val" style="width:auto; color:${status.running?'var(--ok)':'var(--sub)'};">${status.running?'ativo':'desligado'}</div></div>
       <div class="type-toggle" id="mcpModeToggle" style="margin-top:8px;">
         ${modos.map(([v,l])=>`<span data-mcpmode="${v}" class="${status.mode===v?'active':''}">${l}</span>`).join("")}
       </div>
@@ -14166,7 +14167,7 @@ window.addEventListener("unhandledrejection", function(e){
       <button class="btn-cancel" id="mcpPortSave" style="width:100%; margin-top:8px;">Salvar porta</button>
 
       <div class="section-label" style="margin:14px 0 4px;">Conexão</div>
-      <textarea class="mk-e-name" id="mcpConfigJson" rows="6" readonly style="width:100%; font-family:'Inter', sans-serif; font-size:11.5px; line-height:1.4;">${escapeHtml(mcpConfigJson(status))}</textarea>
+      <textarea class="mk-e-name" id="mcpConfigJson" rows="6" readonly style="width:100%; font-family:'Montserrat', sans-serif; font-size:11.5px; line-height:1.4;">${escapeHtml(mcpConfigJson(status))}</textarea>
       <div style="display:flex; gap:8px; margin-top:8px;">
         <button class="btn-cancel" id="mcpCopyConfig" style="flex:1;">Copiar config MCP</button>
         <button class="btn-cancel" id="mcpNewToken" style="flex:1;">Gerar novo token</button>
@@ -14218,7 +14219,7 @@ window.addEventListener("unhandledrejection", function(e){
      card de sync do Drive logo abaixo, que só existe em desktop/Android. */
   function icalCardHtml(){
     const statusHtml = icalUrl
-      ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Status</div><div class="bar-val" style="width:auto; color:var(--good);">configurado</div></div>
+      ? `<div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Status</div><div class="bar-val" style="width:auto; color:var(--ok);">configurado</div></div>
          <div class="stat-foot" style="margin-top:6px;">${icalCache ? `Última busca: ${new Date(icalCache.fetchedAt).toLocaleString("pt-BR")} · ${icalCache.eventos.length} evento(s).` : "Ainda não buscou — toque em \"Salvar e atualizar\"."}</div>`
       : "";
     return `
@@ -14230,7 +14231,7 @@ window.addEventListener("unhandledrejection", function(e){
         <button class="btn-primary" id="icalSave" style="flex:1;">Salvar${icalUrl?' e atualizar':''}</button>
         ${icalUrl ? `<button class="btn-cancel" id="icalRefresh" style="flex:0 0 auto; padding:0 14px;">Atualizar agora</button>` : ""}
       </div>
-      ${icalUrl ? `<button class="link-btn" id="icalRemove" style="margin-top:10px; color:var(--danger);">Remover calendário</button>` : ""}
+      ${icalUrl ? `<button class="link-btn" id="icalRemove" style="margin-top:10px; color:var(--erro);">Remover calendário</button>` : ""}
     `;
   }
   function wireIcalCard(card){
@@ -14312,7 +14313,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(!status.hasClientCreds || syncForceEditCreds){
       return `
         <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Google Drive</div>
-          <div class="bar-val" style="width:auto; color:var(--muted);">não configurado</div></div>
+          <div class="bar-val" style="width:auto; color:var(--sub);">não configurado</div></div>
         <div class="stat-foot" style="margin-top:8px;">Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a Drive API ativada. Fica guardado só neste computador, nunca no repositório.</div>
         <div class="section-label" style="margin:14px 0 4px;">Client ID</div>
         <input type="text" id="syncClientId" class="mk-e-name" placeholder="xxxxxxxx.apps.googleusercontent.com">
@@ -14324,7 +14325,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(!status.connected){
       return `
         <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Google Drive</div>
-          <div class="bar-val" style="width:auto; color:var(--muted);">desconectado</div></div>
+          <div class="bar-val" style="width:auto; color:var(--sub);">desconectado</div></div>
         <div class="stat-foot" style="margin-top:8px;">Cria uma pasta "brita-sync" no seu Drive. ${isDesktop ? "Sincroniza a cada 10 minutos com o app aberto." : "Sincroniza sozinho ao abrir o app (se fizer um tempo desde o último) e quando você tocar em \"sincronizar agora\"."} Escopo mínimo (drive.file): o app só enxerga o que ele mesmo criar.</div>
         <button class="btn-primary" id="syncConnect" style="width:100%; margin-top:12px;">Conectar ao Google Drive</button>
         ${isDesktop ? `<button class="btn-cancel" id="syncEditCreds" style="width:100%; margin-top:8px;">Trocar credenciais</button>` : ""}
@@ -14340,7 +14341,7 @@ window.addEventListener("unhandledrejection", function(e){
       </div>`).join("") : "";
     return `
       <div class="bar-row"><div class="bar-name" style="width:auto; flex:1;">Google Drive</div>
-        <div class="bar-val" style="width:auto; color:var(--good);">conectado</div></div>
+        <div class="bar-val" style="width:auto; color:var(--ok);">conectado</div></div>
       <div class="stat-foot" style="margin-top:6px;">Último sync: ${ultimo}.</div>
       <div style="display:flex; gap:8px; margin-top:12px;">
         <button class="btn-primary" id="syncNow" style="flex:1;">Sincronizar agora</button>
@@ -14362,7 +14363,7 @@ window.addEventListener("unhandledrejection", function(e){
     const linhas = keys.map(k=>{
       const quando = k.conflito ? "conflito"
         : (k.syncedAt ? new Date(k.syncedAt).toLocaleString("pt-BR") : "nunca");
-      const cor = k.conflito ? "var(--danger)" : (k.syncedAt ? "var(--muted)" : "var(--accent)");
+      const cor = k.conflito ? "var(--erro)" : (k.syncedAt ? "var(--sub)" : "var(--caneta)");
       return `<div class="dev-row"><span>${escapeHtml(k.key.replace("rotinas_v2_",""))}</span>
         <b class="dev-n wide" style="color:${cor};">${escapeHtml(quando)}</b></div>`;
     }).join("");

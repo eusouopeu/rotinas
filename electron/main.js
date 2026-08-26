@@ -256,7 +256,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 560,
     title: "Brita",
-    backgroundColor: "#1C1B1A",
+    backgroundColor: "#F5F5F8",
     // título nativo escondido: a sidebar flutuante (index.html/app.css, ver
     // body.is-desktop-shell) vira a área de arrasto da janela no lugar dele —
     // "hiddenInset" é macOS-only, no Windows/Linux cai pra "hidden" (Electron

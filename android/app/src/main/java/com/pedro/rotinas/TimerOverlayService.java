@@ -183,22 +183,29 @@ public class TimerOverlayService extends Service {
         box.setGravity(Gravity.CENTER);
         box.setPadding(dp(14), dp(9), dp(14), dp(9));
 
+        // Bolha fica sempre escura, mesmo com o app no tema claro (padrão desde
+        // 2026-08-26): ela flutua sobre QUALQUER app, não só o rotinas, e um
+        // fundo translúcido escuro com texto claro é o que segue legível sobre
+        // conteúdo arbitrário — a mesma razão pela qual overlays desse tipo
+        // (chat heads, PIP) tendem a não seguir o tema do app anfitrião. As
+        // cores vêm do --card/--line/--ink/--sub/--erro do tema ESCURO
+        // (app.css, body.dark), não do claro que é o padrão do app agora.
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#F2262422"));   // surface do app, quase opaco
+        bg.setColor(Color.parseColor("#F21D2226"));   // var(--card), escuro, quase opaco
         bg.setCornerRadius(dp(18));
-        bg.setStroke(dp(1), Color.parseColor("#3A3632")); // var(--line)
+        bg.setStroke(dp(1), Color.parseColor("#33383D")); // var(--line), escuro
         box.setBackground(bg);
         box.setElevation(dp(8));
 
         clock = new TextView(this);
-        clock.setTextColor(Color.parseColor("#EDE7DD"));  // var(--text)
+        clock.setTextColor(Color.parseColor("#E9EAE5"));  // var(--ink), escuro
         clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         clock.setTypeface(android.graphics.Typeface.MONOSPACE);
         clock.setGravity(Gravity.CENTER);
         box.addView(clock);
 
         caption = new TextView(this);
-        caption.setTextColor(Color.parseColor("#8A8478"));  // var(--muted)
+        caption.setTextColor(Color.parseColor("#98A0A6"));  // var(--sub), escuro
         caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         caption.setGravity(Gravity.CENTER);
         caption.setMaxWidth(dp(150));
@@ -285,7 +292,7 @@ public class TimerOverlayService extends Service {
         if (clock == null) return;
         if (exhausted) {
             clock.setText("00:00");
-            clock.setTextColor(Color.parseColor("#EDE7DD"));
+            clock.setTextColor(Color.parseColor("#E9EAE5"));
             caption.setText("toque para continuar");
             return;
         }
@@ -294,7 +301,7 @@ public class TimerOverlayService extends Service {
         long totalSec = Math.abs(remaining) / 1000;
         long mm = totalSec / 60, ss = totalSec % 60;
         clock.setText((over ? "+" : "") + String.format("%02d:%02d", mm, ss));
-        clock.setTextColor(over ? Color.parseColor("#B25B4C") : Color.parseColor("#EDE7DD"));
+        clock.setTextColor(over ? Color.parseColor("#E2776A") : Color.parseColor("#E9EAE5"));
         caption.setText(paused ? "pausado" : label);
     }
 

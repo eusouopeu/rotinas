@@ -1,16 +1,31 @@
-/* Fontes locais (subset latin) — baixadas do Google Fonts para uso 100% offline.
-   Fraunces e Inter são variable fonts (um arquivo cobre a faixa de pesos). */
+/* Fontes locais (identidade visual unificada, 2026-08-26) — 100% offline.
+   Montserrat é variable font (um arquivo cobre 400-800); Lato não tem versão
+   variável, por isso são 3 arquivos estáticos (400/700/900). */
 @font-face {
-  font-family: 'Fraunces';
+  font-family: 'Montserrat';
   font-style: normal;
-  font-weight: 400 600;
+  font-weight: 400 800;
   font-display: swap;
-  src: url(Fraunces.woff2) format('woff2');
+  src: url(Montserrat-Variable.woff2) format('woff2');
 }
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Lato';
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
   font-display: swap;
-  src: url(Inter.woff2) format('woff2');
+  src: url(Lato-400.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Lato';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(Lato-700.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Lato';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(Lato-900.woff2) format('woff2');
 }
