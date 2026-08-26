@@ -1226,6 +1226,16 @@
     .search-box{ max-height:94vh; }
   }
 
+  /* Ajustes (renderSettings): .settings-nav é o índice lateral, só faz
+     sentido em tela larga (ver bloco desktop abaixo, que o liga com
+     display:flex). Sem esta regra base, no celular ele herdava o <nav>/<a>
+     sem estilo nenhum (lista de links crus no topo da tela) E .settings-scroll
+     nunca ganhava uma altura definida pra rolar (flex:1 inline só funciona
+     com o pai em display:flex) — o conteúdo abaixo ficava cortado por
+     #app{overflow:hidden}, sem nenhuma barra de rolagem pra alcançar. */
+  .settings-nav{ display:none; }
+  .settings-shell{ display:flex; flex:1; min-height:0; align-items:stretch; }
+
   /* ---------- DESKTOP (tela larga) ----------
      Mesmo DOM/JS do celular (renderTabbar, .home-header) — só a CSS muda: a
      tabbar vira uma sidebar fixa à esquerda (coluna em vez de linha) e cada

@@ -1030,7 +1030,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-26 (v31)";
+  const BUILD_STAMP = "2026-08-26 (v32)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -11250,7 +11250,12 @@ window.addEventListener("unhandledrejection", function(e){
   function activeCountdown(){
     const step = currentStep();
     if(!step) return null;
-    if(step.type === "timer" && playerState.stepEndTs) return { endTs: playerState.stepEndTs, auto: !!step.isRest, isRest: !!step.isRest, label: step.name || "" };
+    // auto SEMPRE false aqui: nem tarefa nem pausa avançam sozinhas (mesma regra
+    // de filaOverlay) — só o descanso ENTRE SÉRIES de exercício, abaixo, avança
+    // sozinho. Era `!!step.isRest` antes: fazia a bolha, ao zerar uma pausa
+    // comum, pular pra próxima etapa da fila sozinha (reiniciando o relógio) em
+    // vez de contar negativo até o toque, igual ao cronômetro de tarefa.
+    if(step.type === "timer" && playerState.stepEndTs) return { endTs: playerState.stepEndTs, auto: false, isRest: !!step.isRest, label: step.name || "" };
     if(step.type === "exercicio" && playerState.ex && playerState.ex.phase === "rest" && playerState.ex.restEndTs) return { endTs: playerState.ex.restEndTs, auto: true, isRest: true, label: "Descanso" + (step.name ? " — " + step.name : "") };
     return null;
   }
@@ -11383,6 +11388,22 @@ window.addEventListener("unhandledrejection", function(e){
     savePlayerSnapshot(true);
     sincronizarPlayerBackground();
   }
+  /* Desfaz a última série registrada (reps/peso salvos por engano, dedo
+     escorregou em "concluir série") e volta pra tela de registrar aquela
+     série de novo — funciona tanto no descanso logo depois quanto já numa
+     série seguinte. Não mexe em pontuação: séries de exercício só pontuam no
+     fechamento da etapa inteira (pontuarEtapaConcluida), não uma a uma. */
+  function voltarSerieExercicio(){
+    if(!playerState || !playerState.ex || !playerState.ex.results.length) return;
+    clearExRestTicking();
+    playerState.ex.results.pop();
+    playerState.ex.setIdx = Math.max(0, playerState.ex.setIdx - 1);
+    playerState.ex.phase = "set";
+    playerState.ex.restEndTs = null;
+    render();
+    savePlayerSnapshot(true);
+    sincronizarPlayerBackground();
+  }
 
   /* Etapas de tempo (tarefa OU pausa) nunca avançam sozinhas — as duas exigem
      o toque em "concluir"/"avançar". Zerou o tempo: só o aviso sonoro dispara
@@ -11445,42 +11466,6 @@ window.addEventListener("unhandledrejection", function(e){
     }
   }
 
-  /* Sugestão de progressão de carga: se a execução atual e a anterior (já no
-     histórico) bateram o topo da faixa de reps em TODAS as séries planejadas,
-     sugere subir 2,5kg no pesoAtual do exercício na biblioteca. Não aplica
-     nada sozinho — só um toast com um botão "Aplicar". */
-  function sugerirProgressaoExercicio(actual){
-    if(!actual || !actual.exercicioId || !actual.series || !actual.series.length) return;
-    const range = parseRepsRange(currentStep().reps);
-    const alvo = range.max || range.min || 0;
-    if(!alvo) return;
-    const bateuTopo = (series, setsPlanejados) => series.length >= (setsPlanejados||1) && series.every(s => s.reps >= alvo);
-    if(!bateuTopo(actual.series, actual.setsPlanejados)) return;
-    let anterior = null;
-    for(let i=history.length-1; i>=0 && !anterior; i--){
-      const s = (history[i].steps||[]).find(s=> s.exercicioId === actual.exercicioId);
-      if(s) anterior = s;
-    }
-    if(!anterior || !bateuTopo(anterior.series||[], anterior.setsPlanejados)) return;
-    const ex = exercicios.find(x=>x.id===actual.exercicioId);
-    if(!ex) return;
-    const sugestao = Math.round((ex.pesoAtual + 2.5)*2)/2;
-    mostrarSugestaoProgressao(ex, sugestao);
-  }
-  function mostrarSugestaoProgressao(ex, sugestao){
-    const banner = document.createElement("div");
-    banner.className = "alert-banner undo-banner";
-    banner.innerHTML = `<span>${escapeHtml(ex.nome)} bateu o topo da faixa de novo — subir para ${sugestao}kg?</span><button class="undo-btn" id="aplicarProgressao">Aplicar</button>`;
-    document.body.appendChild(banner);
-    banner.querySelector("#aplicarProgressao").onclick = () => {
-      ex.pesoAtual = sugestao;
-      saveExercicios();
-      banner.remove();
-      showAlertBanner("Carga de " + ex.nome + " atualizada para " + sugestao + "kg ✓");
-    };
-    attachSwipeDismiss(banner, ()=>{});
-  }
-
   function recordStepActual(skipped, naoFeita){
     const step = currentStep();
     const endRef = (playerState.paused && playerState.pausedAt) ? playerState.pausedAt : Date.now();
@@ -11513,7 +11498,6 @@ window.addEventListener("unhandledrejection", function(e){
     // concluir de verdade tira a etapa da repescagem do dia
     if(!skipped && !step.isRest) limparNaoFeita(playerState.routine.id, step.id);
     pontuarEtapaConcluida(actual);
-    if(step.type === "exercicio" && !skipped) sugerirProgressaoExercicio(actual);
   }
 
   function advanceStep(skipped, naoFeita){
@@ -12309,6 +12293,7 @@ window.addEventListener("unhandledrejection", function(e){
             ${mainCtrlHtml}
           </div>
           <div class="skip-row" style="margin-top:14px;">
+            ${isEx && ex.results.length ? `<button class="skip-btn" id="voltarSerie">${svgIcon(ICON_D.arrowLeft,13)} voltar série</button>` : ""}
             ${skipRowHtml(step)}
             ${step.noteId && notes.some(n=>n.id===step.noteId) ? `<button class="skip-btn note-link-btn" id="viewStepNote">${svgIcon(ICON_D.arrowUpRight,13)} nota</button>` : ""}
             <button class="skip-btn" id="zenExit">${svgIcon(ICON_D.arrowsPointingIn,14)} sair do zen</button>
@@ -12328,6 +12313,7 @@ window.addEventListener("unhandledrejection", function(e){
       const esd = document.getElementById("exSetDone");
       if(esd) esd.onclick = () => concluirSerieExercicio(document.getElementById("exReps").value, document.getElementById("exPesoInput").value);
       const esr = document.getElementById("exSkipRest"); if(esr) esr.onclick = pularDescansoExercicio;
+      const vs = document.getElementById("voltarSerie"); if(vs) vs.onclick = voltarSerieExercicio;
       wireSkipRow(el);
       const nb = document.getElementById("viewStepNote"); if(nb) nb.onclick = () => openNoteOverlay(step.noteId);
       wireJournalInput(step);
@@ -12417,9 +12403,13 @@ window.addEventListener("unhandledrejection", function(e){
     const infoBlock = document.createElement("div");
     infoBlock.style.cssText = "width:100%;";
     const nextStepObj = playerState.steps[playerState.idx+1];
+    // etapa seguinte de exercício: mostra a carga prevista já na pausa
+    // anterior a ela, pra quem carrega peso poder se preparar antes de chegar lá
+    const nextExLib = nextStepObj && nextStepObj.type === "exercicio" ? exercicios.find(x=>x.id===nextStepObj.exercicioId) : null;
+    const nextPesoTxt = nextExLib && nextExLib.pesoAtual ? ` — ${nextExLib.pesoAtual}kg` : "";
     const nextRow = document.createElement("div");
     nextRow.className = "next-task-row";
-    nextRow.innerHTML = nextStepObj ? `próxima tarefa: ${escapeHtml(nextStepObj.name)}` : `última etapa`;
+    nextRow.innerHTML = nextStepObj ? `próxima tarefa: ${escapeHtml(nextStepObj.name)}${nextPesoTxt}` : `última etapa`;
     infoBlock.appendChild(nextRow);
 
     const estRow = document.createElement("div");
@@ -12471,12 +12461,14 @@ window.addEventListener("unhandledrejection", function(e){
       wrap.appendChild(controls);
     }
 
+    const voltarSerieHtml = step.type === "exercicio" && playerState.ex && playerState.ex.results.length
+      ? `<button class="skip-btn" id="voltarSerie">${svgIcon(ICON_D.arrowLeft,13)} voltar série</button>` : "";
     const skipHtml = skipRowHtml(step);
-    if(skipHtml){
+    if(voltarSerieHtml || skipHtml){
       const skipRow = document.createElement("div");
       skipRow.className = "skip-row";
       skipRow.style.padding = "10px 0 4px";
-      skipRow.innerHTML = skipHtml;
+      skipRow.innerHTML = voltarSerieHtml + skipHtml;
       wrap.appendChild(skipRow);
     }
 
@@ -12511,6 +12503,7 @@ window.addEventListener("unhandledrejection", function(e){
     const exSetDone = document.getElementById("exSetDone");
     if(exSetDone) exSetDone.onclick = () => concluirSerieExercicio(document.getElementById("exReps").value, document.getElementById("exPesoInput").value);
     const exSkipRest = document.getElementById("exSkipRest"); if(exSkipRest) exSkipRest.onclick = pularDescansoExercicio;
+    const voltarSerieBtn = document.getElementById("voltarSerie"); if(voltarSerieBtn) voltarSerieBtn.onclick = voltarSerieExercicio;
     wireSkipRow(el);
     const postponeBtn = document.getElementById("postponeStep"); if(postponeBtn) postponeBtn.onclick = adiarEtapa;
     const restartBtn2 = document.getElementById("restartTimer"); if(restartBtn2) restartBtn2.onclick = reiniciarTimerEtapa;
