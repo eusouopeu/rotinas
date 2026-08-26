@@ -68,6 +68,10 @@ window.addEventListener("unhandledrejection", function(e){
   const K_SOHOJE   = "rotinas_v2_so_hoje";    // filtro "só as rotinas de hoje" na aba Rotinas
   const K_METASSOHOJE = "rotinas_v2_metas_so_hoje"; // filtro "só as metas de hoje" na aba Metas — recorte diferente do de Rotinas, não pode compartilhar a chave
   const K_HOMEVIEW = "rotinas_v2_homeview";   // o que a aba Rotinas mostra: lista | semana | dia
+  const K_MOTIVAKEY  = "rotinas_v2_motiva_key";   // chave da API de IA, digitada em Ajustes — nunca no código, nunca no backup/sync
+  const K_MOTIVACFG   = "rotinas_v2_motiva_cfg";  // {ativo, cadenciaSemana, modelo, apenasNumeros}
+  const K_MOTIVA       = "rotinas_v2_motiva_hist"; // histórico de mensagens geradas (últimas 30) — só local, não entra no backup
+  const K_MOTIVADONE  = "rotinas_v2_motiva_done"; // localKey do último dia em que se tentou gerar (1 tentativa/dia)
   const FILTRO_SEM_AREA = "__sem_area__";     // sentinela do filtro de área: rotinas/metas sem área (distinto de "" = todas)
   const K_DATAFOLDER = "rotinas_v2_datafolder"; // nome da subpasta em Documentos onde backup/exports/markdown são gravados (nativo)
   const K_WEEKSTART = "rotinas_v2_weekstart"; // dia (0=domingo..6=sábado) em que a semana começa a contar
@@ -572,6 +576,341 @@ window.addEventListener("unhandledrejection", function(e){
     { id:"sistemico",   label:"Conhecimento Sistêmico",area:"Medicina",      color:"#B25B4C" }
   ];
 
+  /* ---------------- MENSAGENS MOTIVACIONAIS ---------------- */
+  /* Corpus de evidência curado manualmente — cada cartão é uma afirmação sobre
+     o MUNDO (o que pessoas em geral sentem/alcançam numa etapa), nunca sobre
+     ESTE usuário. O motor (motivaEstagio/motivaCandidatos) decide ONDE o
+     usuário está, a partir dos dados do app; o corpus decide O QUE dizer sobre
+     esse ponto. Números na mensagem final vêm só daqui — nunca do modelo de
+     IA em runtime, que é proibido de calcular ou inventar (ver
+     motivaValidarTexto). `forca` qualifica a confiabilidade: "achado clássico"
+     (replicado/muito citado), "consenso de campo" (aceito, sem uma fonte única
+     canônica) ou "relato agregado" (observação comum, mais frouxa). Corpus
+     inicial, pensado para crescer — não é revisão sistemática; expandir por
+     domínio conforme o Pedro pedir. `dominio` ausente = vale para qualquer um
+     (cartões de sentimento, que são fenomenológicos, não empíricos por área). */
+  const MOTIVA_CORPUS = [
+    { id:"sent-atrito", tipo:"sentimento", estagios:[1],
+      afirmacao:"É comum, na fase em que o esforço já pesa e o resultado ainda não apareceu, sentir que o progresso estagnou — mesmo quando a métrica de fundo está subindo.",
+      forca:"consenso de campo", fonte:"psicologia de formação de hábitos" },
+    { id:"sent-plato", tipo:"sentimento", estagios:[2],
+      afirmacao:"O platô aparente costuma ser o período de maior desânimo relatado: adaptações reais estão em curso, mas ainda não geram nada visível de fora.",
+      forca:"consenso de campo", fonte:"psicologia de formação de hábitos" },
+    { id:"sent-consolidacao", tipo:"sentimento", estagios:[3],
+      afirmacao:"A partir daqui a maioria relata o esforço percebido caindo mesmo com o volume igual ou maior — a tarefa deixou de exigir decisão consciente a cada vez.",
+      forca:"consenso de campo", fonte:"psicologia de formação de hábitos" },
+    { id:"sent-ruptura", tipo:"sentimento", estagios:["R"],
+      afirmacao:"Uma sequência quebrada tende a ser vivida como fracasso total, mas o que os dados de recomeço mostram é degrau, não zero: quem já passou por aqui uma vez costuma voltar mais rápido da segunda vez.",
+      forca:"relato agregado", fonte:"literatura de recaída e recomeço de hábitos" },
+    { id:"tempo-habito-formacao", tipo:"tempo_ate_resultado", estagios:[1,2],
+      afirmacao:"O tempo até uma rotina parar de exigir força de vontade e virar automática varia muito de pessoa para pessoa e de tarefa para tarefa, com uma média observada perto de 66 dias.",
+      faixa:[18,254], unidade:"dias",
+      qualificacao:"faixa observada de 18 a mais de 250 dias; varia com a complexidade do hábito e a consistência da repetição, não com força de vontade",
+      forca:"achado clássico", fonte:"Lally et al., estudo de rastreamento de formação de hábitos (University College London)" },
+
+    { id:"exe-tempo-hipertrofia", dominio:"exercicios", tipo:"tempo_ate_resultado", estagios:[1,2],
+      afirmacao:"Para quem começa destreinado, hipertrofia mensurável (não apenas percebida) costuma aparecer entre 8 e 12 semanas de treino resistido consistente.",
+      faixa:[8,12], unidade:"semanas",
+      qualificacao:"iniciante destreinado; varia com sono, ingestão de proteína e volume de treino",
+      forca:"consenso de campo", fonte:"fisiologia do exercício, literatura de treinamento de força" },
+    { id:"exe-ganho-visivel", dominio:"exercicios", tipo:"ganho_visivel", estagios:[2,3],
+      afirmacao:"Mudança de composição corporal perceptível a olho nu (roupa, postura, definição) costuma vir depois da força — a força sobe primeiro, sobretudo por adaptação neural, semanas antes de qualquer mudança visível de volume muscular.",
+      forca:"consenso de campo", fonte:"fisiologia do exercício" },
+    { id:"exe-ganho-invisivel", dominio:"exercicios", tipo:"ganho_invisivel", estagios:[0,1,2],
+      afirmacao:"Antes de qualquer resultado visível, já costumam ocorrer melhoras mensuráveis de sensibilidade à insulina, perfil lipídico e capacidade cardiorrespiratória — o tipo de mudança que só aparece em exame, não no espelho.",
+      forca:"consenso de campo", fonte:"medicina do exercício" },
+    { id:"exe-forca-precoce", dominio:"exercicios", tipo:"ganho_invisivel", estagios:[1],
+      afirmacao:"Ganho de força nas primeiras semanas de treino é, em boa parte, o sistema nervoso aprendendo a recrutar mais fibra do músculo que já existe — ainda não é crescimento de tecido novo.",
+      forca:"consenso de campo", fonte:"fisiologia do exercício" },
+
+    { id:"idi-tempo-fluencia", dominio:"idiomas", tipo:"tempo_ate_resultado", estagios:[1,2,3],
+      afirmacao:"Para falantes de português aprendendo um idioma classificado como de alta dificuldade (caso do mandarim), estimativas de fluência profissional giram em torno de 2200 horas de estudo — bem mais do que um idioma próximo do português exigiria.",
+      faixa:[2200,2200], unidade:"horas",
+      qualificacao:"estimativa para fluência profissional, não conversação básica; pressupõe estudo estruturado e alguma imersão",
+      forca:"achado clássico", fonte:"Foreign Service Institute (FSI), tabela de categorias de dificuldade de idiomas" },
+    { id:"idi-plato-intermediario", dominio:"idiomas", tipo:"sentimento", estagios:[2],
+      afirmacao:"O platô do nível intermediário é o ponto mais citado de desistência no aprendizado de idiomas: o básico já automatizou, mas o material autêntico ainda soa rápido demais.",
+      forca:"consenso de campo", fonte:"linguística aplicada, aquisição de segunda língua" },
+    { id:"idi-ganho-invisivel", dominio:"idiomas", tipo:"ganho_invisivel", estagios:[1,2],
+      afirmacao:"Antes de a fala fluir, a compreensão auditiva já costuma estar bem à frente — reconhecer muito mais do que se consegue produzir é a ordem normal de aquisição, não um sinal de atraso.",
+      forca:"consenso de campo", fonte:"linguística aplicada, aquisição de segunda língua" },
+
+    { id:"con-tempo-aprovacao", dominio:"concursos", tipo:"tempo_ate_resultado", estagios:[1,2,3],
+      afirmacao:"Preparações bem-sucedidas para concursos e certificações técnicas costumam somar entre 6 e 18 meses de estudo consistente antes da aprovação.",
+      faixa:[6,18], unidade:"meses",
+      qualificacao:"varia fortemente com a concorrência do cargo/prova e a familiaridade prévia com a matéria",
+      forca:"relato agregado", fonte:"observação agregada de trajetórias de aprovação em concursos" },
+    { id:"con-sentimento-revisao", dominio:"concursos", tipo:"sentimento", estagios:[2],
+      afirmacao:"A sensação de estar 'esquecendo tudo' costuma bater justo na fase de revisão — é o efeito normal de reencontrar conteúdo antigo antes de ele estar consolidado, não perda real de conhecimento.",
+      forca:"consenso de campo", fonte:"psicologia cognitiva, curva de esquecimento e revisão espaçada" },
+    { id:"con-ganho-invisivel", dominio:"concursos", tipo:"ganho_invisivel", estagios:[1,2],
+      afirmacao:"Velocidade de leitura e interpretação de enunciado técnico costuma subir de forma mensurável bem antes de a nota em simulados acompanhar — o ganho aparece primeiro no processo, depois no resultado.",
+      forca:"relato agregado", fonte:"observação agregada de preparação para provas técnicas" },
+
+    { id:"sis-tempo-dominio", dominio:"sistemico", tipo:"tempo_ate_resultado", estagios:[2,3],
+      afirmacao:"Construir um mapa mental integrado de uma área técnica ampla — em vez de fatos soltos — costuma levar bem mais tempo do que memorizar tópicos isolados, com o salto de percepção geralmente relatado depois de vários meses de exposição regular.",
+      faixa:[4,9], unidade:"meses",
+      qualificacao:"estimativa aproximada; depende muito da complexidade da área e da frequência de revisão",
+      forca:"relato agregado", fonte:"observação agregada de aprendizado autodirigido em áreas técnicas" },
+    { id:"sis-sentimento-fragmentado", dominio:"sistemico", tipo:"sentimento", estagios:[1,2],
+      afirmacao:"A sensação de que os tópicos 'não conversam entre si' é a queixa mais comum de quem estuda um campo amplo antes de ter os conceitos centrais consolidados — a integração normalmente vem depois, de uma vez, não peça por peça.",
+      forca:"consenso de campo", fonte:"psicologia cognitiva, formação de esquemas de conhecimento" },
+    { id:"sis-ganho-invisivel", dominio:"sistemico", tipo:"ganho_invisivel", estagios:[1,2],
+      afirmacao:"Antes de conseguir explicar o assunto com clareza, a capacidade de perceber quando uma fonte está errada ou incompleta já costuma estar mais desenvolvida — o senso crítico chega antes da síntese.",
+      forca:"consenso de campo", fonte:"psicologia cognitiva da expertise" },
+
+    { id:"cul-tempo-autonomia", dominio:"autonomia", tipo:"tempo_ate_resultado", estagios:[1,2],
+      afirmacao:"A transição de 'seguir receita ao pé da letra' para 'cozinhar por sensação e ajustar de cabeça' costuma acontecer depois de dezenas de repetições — geralmente entre 2 e 4 meses de prática regular.",
+      faixa:[2,4], unidade:"meses",
+      qualificacao:"varia com a frequência de prática e a variedade de técnicas exercitadas",
+      forca:"relato agregado", fonte:"observação agregada de aprendizado culinário" },
+    { id:"cul-ganho-invisivel", dominio:"autonomia", tipo:"ganho_invisivel", estagios:[1,2],
+      afirmacao:"Antes de qualquer prato sair visivelmente melhor, o paladar já costuma ficar mais apurado para identificar o que está desequilibrado — o diagnóstico melhora antes da execução.",
+      forca:"consenso de campo", fonte:"observação agregada de aprendizado culinário" },
+  ];
+  /* Fronteiras de estágio em dias corridos: [fim do 0, fim do 1, fim do 2] —
+     estágio 3 é tudo depois do 3º valor. Por domínio porque a curva de
+     musculação e a de fluência num idioma não são a mesma coisa; "geral" é o
+     fallback para rotina/meta sem eixo mapeado. */
+  const MOTIVA_JANELAS = {
+    geral:      [14, 42, 84],
+    exercicios: [14, 42, 84],
+    idiomas:    [14, 45, 120],
+    concursos:  [21, 60, 150],
+    sistemico:  [21, 60, 150],
+    autonomia:  [14, 45, 100],
+  };
+  function motivaJanela(dominio){ return MOTIVA_JANELAS[dominio] || MOTIVA_JANELAS.geral; }
+  function motivaEstagioPorDias(dominio, dias){
+    const [a,b,c] = motivaJanela(dominio);
+    if(dias < a) return 0;
+    if(dias < b) return 1;
+    if(dias < c) return 2;
+    return 3;
+  }
+  /* Adesão baixa "trava" o estágio em 1 (atrito) mesmo com muito tempo
+     decorrido — 9 semanas com 40% de adesão não é consolidação, é atrito
+     arrastado, e a mensagem certa nesse ponto é outra. */
+  function motivaEstagio(dominio, dias, adesao){
+    const base = motivaEstagioPorDias(dominio, dias);
+    if(adesao != null && adesao < 0.5 && base > 1) return 1;
+    return base;
+  }
+  function motivaDominioRotina(r){ return (r && r.eixo) ? r.eixo : "geral"; }
+  function motivaDominioMeta(t){
+    const a = (t.areas||[])[0];
+    if(!a) return "geral";
+    const info = EIXOS.find(e=>e.id===a || e.label===a);
+    return info ? info.id : "geral";
+  }
+  // proporção de dias devidos, nas últimas 4 semanas, em que a rotina foi executada
+  function motivaAdesaoRotina(r){
+    const dias = [];
+    const hoje = new Date();
+    for(let i=0;i<28;i++){ const d=new Date(hoje); d.setDate(d.getDate()-i); dias.push(d); }
+    const devidos = dias.filter(d=>rotinaAgendadaEm(r,d));
+    if(!devidos.length) return 1;
+    const feitos = devidos.filter(d=>history.some(h=>h.routineId===r.id && h.date===localKey(d)));
+    return feitos.length / devidos.length;
+  }
+  function motivaCandidatosRotinas(){
+    const hoje = Date.now();
+    return routines.map(r=>{
+      if(!r.createdAt) return null;
+      const dias = Math.floor((hoje - r.createdAt) / 86400000);
+      if(dias < 3) return null; // cedo demais pra dizer qualquer coisa
+      const streak = computeStreakFor(r.id);
+      const adesao = motivaAdesaoRotina(r);
+      const ultimaFeita = history.filter(h=>h.routineId===r.id).sort((a,b)=>b.ts-a.ts)[0];
+      const diasSemFazer = ultimaFeita ? Math.floor((hoje - ultimaFeita.ts) / 86400000) : dias;
+      const dominio = motivaDominioRotina(r);
+      let gatilho, prioridade;
+      if(rotinaOcorreHoje(r) && diasSemFazer >= 4){ gatilho = "ruptura"; prioridade = 3; }
+      else if(streak >= (gam.config.habito.streakMin||21)){ gatilho = "sequencia"; prioridade = 2; }
+      else { gatilho = "marco"; prioridade = 1; }
+      const estagio = gatilho === "ruptura" ? "R" : motivaEstagio(dominio, dias, adesao);
+      return { entidade:"rotina", id:r.id, nome:r.name, dominio, dias, adesao, streak, gatilho, prioridade, estagio };
+    }).filter(Boolean);
+  }
+  function motivaCandidatosMetas(){
+    const hoje = Date.now();
+    const doc = metaDoc();
+    return (doc.targets||[]).map(t=>{
+      if(metaConcluida(t)) return null;
+      const criado = t.criadoEm || t.createdAt;
+      if(!criado) return null;
+      const dias = Math.floor((hoje - criado) / 86400000);
+      if(dias < 3) return null;
+      const progresso = t.topics ? (t.done||0)/t.topics : 0;
+      const dominio = motivaDominioMeta(t);
+      const estagio = motivaEstagio(dominio, dias, progresso > 0 ? Math.min(1, progresso*2) : 0.3);
+      const prazoTotal = new Date(t.date).getTime() - criado;
+      const prazoDecorrido = prazoTotal > 0 ? (hoje - criado) / prazoTotal : 0;
+      let gatilho, prioridade;
+      if(prazoDecorrido > 0.4 && progresso < 0.15){ gatilho = "estagnada"; prioridade = 3; }
+      else { gatilho = "marco"; prioridade = 1; }
+      return { entidade:"meta", id:t.id, nome:t.title, dominio, dias, adesao:progresso, streak:0, gatilho, prioridade, estagio };
+    }).filter(Boolean);
+  }
+  /* Prioriza ruptura/estagnação > sequência longa > marco de tempo; evita
+     repetir o mesmo domínio das últimas 3 mensagens, pra não bater sempre na
+     mesma rotina/meta enquanto houver outra candidata. */
+  function motivaMelhorCandidato(historicoRecente){
+    const todos = [...motivaCandidatosRotinas(), ...motivaCandidatosMetas()];
+    if(!todos.length) return null;
+    const dominiosRecentes = new Set((historicoRecente||[]).slice(-3).map(m=>m.dominio));
+    const filtrados = todos.filter(c => !dominiosRecentes.has(c.dominio));
+    const pool = filtrados.length ? filtrados : todos;
+    pool.sort((a,b)=> b.prioridade - a.prioridade || b.dias - a.dias);
+    return pool[0];
+  }
+  // um cartão por tipo (sentimento/tempo/ganho visível/ganho invisível), preferindo o específico do domínio ao genérico
+  function motivaSelecionarCartoes(dominio, estagio){
+    const porTipo = {};
+    MOTIVA_CORPUS.forEach(c=>{
+      if(c.dominio && c.dominio !== dominio) return;
+      if(!c.estagios.includes(estagio)) return;
+      if(!porTipo[c.tipo] || (c.dominio && !porTipo[c.tipo].dominio)) porTipo[c.tipo] = c;
+    });
+    return Object.values(porTipo);
+  }
+  function motivaCabecalho(cand){
+    if(cand.gatilho === "ruptura") return "Um tempo sem " + cand.nome;
+    if(cand.gatilho === "sequencia") return cand.streak + " dias seguidos com " + cand.nome;
+    if(cand.gatilho === "estagnada") return cand.nome + " — prazo apertando";
+    return cand.dias + " dias com " + cand.nome;
+  }
+  // fallback local, sem rede: monta a mensagem só concatenando os cartões, sem redação — usado quando a IA está desligada, sem chave, ou a resposta falhou na validação
+  function motivaMensagemTemplate(cand){
+    const cartoes = motivaSelecionarCartoes(cand.dominio, cand.estagio);
+    const ordem = ["sentimento","tempo_ate_resultado","ganho_visivel","ganho_invisivel"];
+    const partes = ordem.map(tipo=>{
+      const c = cartoes.find(x=>x.tipo===tipo);
+      if(!c) return null;
+      return c.afirmacao + (c.qualificacao ? " (" + c.qualificacao + ")" : "");
+    }).filter(Boolean);
+    const corpo = partes.join("\n\n") || "Sem evidência cadastrada para essa etapa ainda — siga no seu ritmo.";
+    return { titulo: motivaCabecalho(cand), corpo, cartoesUsados: cartoes.map(c=>c.id), gerador:"template" };
+  }
+  /* Barreira contra número inventado pelo modelo: todo numeral do texto tem
+     de aparecer literalmente em algum cartão enviado (afirmação ou faixa).
+     Se algum não aparecer, a resposta é descartada inteira — cai no
+     template local, nunca é "corrigida" ou editada. */
+  function motivaValidarTexto(texto, cartoes){
+    const numeros = (texto.match(/\d+(?:[.,]\d+)?/g) || []).map(n=>n.replace(",","."));
+    if(!numeros.length) return true;
+    const permitidos = new Set();
+    (cartoes||[]).forEach(c=>{
+      (c.afirmacao.match(/\d+(?:[.,]\d+)?/g) || []).forEach(n=>permitidos.add(n.replace(",",".")));
+      if(c.faixa) c.faixa.forEach(f=>permitidos.add(String(f)));
+    });
+    return numeros.every(n => permitidos.has(n));
+  }
+  function motivaCfg(){
+    return Object.assign({ ativo:false, cadenciaSemana:3, modelo:"sonnet-medio", apenasNumeros:false }, load(K_MOTIVACFG, {}));
+  }
+  function motivaSalvarCfg(cfg){ save(K_MOTIVACFG, cfg); }
+  function motivaModeloParams(modelo){
+    if(modelo === "sonnet-pensa") return { model:"claude-sonnet-5", thinking:{type:"adaptive"} };
+    if(modelo === "opus-medio") return { model:"claude-opus-5", thinking:{type:"disabled"} };
+    return { model:"claude-sonnet-5", thinking:{type:"disabled"} }; // sonnet-medio, padrão
+  }
+  function motivaHistorico(){ return load(K_MOTIVA, []); }
+  function motivaSalvarMsg(msg){
+    const h = motivaHistorico();
+    h.push(msg);
+    save(K_MOTIVA, h.slice(-30));
+  }
+  function motivaContagemSemana(){
+    const hist = motivaHistorico();
+    const inicio = isoToDate(gam.semanaAtual.inicioISO).getTime();
+    return hist.filter(m=>m.ts >= inicio).length;
+  }
+  /* Chamada direta à API da Anthropic (sem SDK, sem passar por main process):
+     o header anthropic-dangerous-direct-browser-access existe justamente pra
+     habilitar fetch direto do navegador/webview, então funciona igual nas
+     três cascas — diferente do iCal (fetchIcalText), que precisa de proxy por
+     CORS de provedores de terceiros que não esperam ser chamados por JS de
+     página. Restrito a desktop/nativo (ver checarNudgeMotiva): no PWA a chave
+     ficaria legível por qualquer script da página via IndexedDB. Resposta é
+     texto simples com um JSON (não output_config.format estruturado) — mais
+     simples de auditar e de degradar com segurança se vier mal formada. */
+  async function motivaGerarViaAPI(cand, cartoes){
+    const key = load(K_MOTIVAKEY, "");
+    if(!key) return null;
+    const cfg = motivaCfg();
+    const { model, thinking } = motivaModeloParams(cfg.modelo);
+    const cartoesTxt = cartoes.map(c=>"- [" + c.id + "] (" + c.tipo + ") " + c.afirmacao +
+      (c.qualificacao ? " — " + c.qualificacao : "") + " [confiança: " + c.forca + "; fonte: " + c.fonte + "]").join("\n");
+    const nomeEntidade = cfg.apenasNumeros ? (cand.entidade === "rotina" ? "esta rotina" : "esta meta") : cand.nome;
+    const sistema = "Você escreve uma mensagem motivacional curta para um app de hábitos e metas pessoais.\n" +
+      "Você NÃO possui conhecimento próprio sobre prazos, fisiologia ou aprendizado para esta tarefa — todo número e toda afirmação empírica devem vir EXATAMENTE dos cartões de evidência fornecidos, preservando a qualificação de cada um. Nunca invente, arredonde criativamente ou calcule um número novo. Se nenhum cartão sustentar um dos blocos (o que a pessoa costuma sentir, quanto tempo costuma faltar, ganhos visíveis, ganhos invisíveis), omita esse bloco em silêncio, sem mencionar que ele falta.\n" +
+      "Nunca afirme algo sobre o corpo ou a mente do LEITOR especificamente — fale sempre de 'quem passa por isso' ou 'costuma acontecer', nunca 'seu/sua X está...'.\n" +
+      "Responda em português do Brasil, tom direto e respeitoso, sem emojis, sem clichê de coach.\n" +
+      "Responda APENAS com um JSON válido, sem markdown, no formato exato: {\"titulo\":\"até 60 caracteres\",\"corpo\":\"2 a 4 frases\",\"cartoes_usados\":[\"id1\",\"id2\"]}.";
+    const usuario = "Situação: " + nomeEntidade + ", " + cand.dias + " dias desde o início, gatilho: " + cand.gatilho + ", estágio: " + cand.estagio + ".\n" +
+      "Cartões de evidência disponíveis:\n" + cartoesTxt + "\n" +
+      "Não repita o ângulo destas mensagens recentes: " + (motivaHistorico().slice(-5).map(m=>m.titulo).join(" | ") || "(nenhuma)") + ".";
+    try{
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model, max_tokens: 4096, thinking,
+          output_config: { effort: "medium" },
+          system: sistema,
+          messages: [{ role:"user", content: usuario }]
+        })
+      });
+      if(!res.ok){ const t = await res.text().catch(()=>""); throw new Error("HTTP " + res.status + " " + t.slice(0,200)); }
+      const data = await res.json();
+      const textBlock = (data.content||[]).find(b=>b.type==="text");
+      if(!textBlock) throw new Error("resposta sem bloco de texto");
+      let bruto = textBlock.text.trim();
+      const m = bruto.match(/\{[\s\S]*\}/);
+      if(m) bruto = m[0];
+      const parsed = JSON.parse(bruto);
+      if(!parsed.titulo || !parsed.corpo) throw new Error("resposta incompleta");
+      const cartoesUsados = cartoes.filter(c => (parsed.cartoes_usados||[]).includes(c.id));
+      if(!motivaValidarTexto(parsed.titulo + " " + parsed.corpo, cartoesUsados.length ? cartoesUsados : cartoes)){
+        throw new Error("número fora dos cartões enviados — descartando resposta");
+      }
+      return { titulo: String(parsed.titulo).slice(0,80), corpo: String(parsed.corpo), cartoesUsados: cartoesUsados.map(c=>c.id), gerador:"ia" };
+    }catch(e){
+      console.error("Geração de mensagem motivacional via IA falhou, usando modelo local:", e);
+      return null;
+    }
+  }
+  /* Orquestrador: no máximo 1 tentativa por dia (marcada mesmo sem candidato,
+     pra não bater toda hora numa lista vazia) e respeita a cadência semanal
+     configurada. Chamado de checkSchedules() — mesmo ponto dos outros avisos
+     proativos (ritmo/metas/streak). */
+  async function checarNudgeMotiva(){
+    const cfg = motivaCfg();
+    if(!cfg.ativo) return;
+    const hojeKey = localKey();
+    if(load(K_MOTIVADONE, "") === hojeKey) return;
+    if(new Date().getHours() < 10) return; // não gerar de madrugada
+    if(motivaContagemSemana() >= (cfg.cadenciaSemana || 3)) return;
+    save(K_MOTIVADONE, hojeKey);
+    const cand = motivaMelhorCandidato(motivaHistorico());
+    if(!cand) return;
+    const cartoes = motivaSelecionarCartoes(cand.dominio, cand.estagio);
+    if(!cartoes.length) return; // sem evidência pra essa combinação — melhor calar que inventar
+    let msg = null;
+    if((isDesktop || isNative) && load(K_MOTIVAKEY, "")) msg = await motivaGerarViaAPI(cand, cartoes);
+    if(!msg) msg = motivaMensagemTemplate(cand);
+    const registro = Object.assign({ ts: Date.now(), dominio: cand.dominio, estagio: cand.estagio, entidade: cand.entidade, entidadeNome: cand.nome }, msg);
+    motivaSalvarMsg(registro);
+    dispararNudge(registro.titulo, registro.corpo.slice(0,140), "nudge-motiva");
+    render();
+  }
+
   let view = { tab: "home", screen: "home" };
   let navStack = [];
   let homeSoHoje = load(K_SOHOJE, false);
@@ -691,7 +1030,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-08-25 (v30)";
+  const BUILD_STAMP = "2026-08-26 (v31)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2918,6 +3257,7 @@ window.addEventListener("unhandledrejection", function(e){
     checarNudgeRitmo();
     checarNudgeMetas();
     checarNudgeStreak();
+    checarNudgeMotiva().catch(e=>console.error("checarNudgeMotiva:", e));
     if(agendaSnoozed()) return;
     const now = new Date();
     const nowMin = now.getHours()*60 + now.getMinutes();
@@ -3244,6 +3584,17 @@ window.addEventListener("unhandledrejection", function(e){
       fc.onclick = () => { goTo({ tab:"home", screen:"semanaFechada" }); };
       // slot logo acima da linha "hoje / agenda", não no fim do cabeçalho
       scroll.querySelector("#homeSemanaFechada").appendChild(fc);
+    }
+
+    const motivaUltima = motivaCfg().ativo ? motivaHistorico().slice(-1)[0] : null;
+    if(motivaUltima){
+      const mc = document.createElement("div");
+      mc.className = "stat-card pinned-card";
+      mc.innerHTML = `
+        <b>${escapeHtml(motivaUltima.titulo||"")}</b>
+        <div class="routine-meta" style="white-space:pre-line; margin-top:6px;">${escapeHtml(motivaUltima.corpo||"")}</div>
+      `;
+      scroll.querySelector("#homeSemanaFechada").appendChild(mc);
     }
 
     const snap = getPlayerSnapshot();
@@ -13360,6 +13711,8 @@ window.addEventListener("unhandledrejection", function(e){
     const c = gam.config;
     const bakLigado = !!backupHandle();
     const ultBak = load(K_LASTBACKUP, null);
+    const motivaCfgAtual = motivaCfg();
+    const motivaHist = motivaHistorico();
     el.innerHTML = `
       <div class="settings-shell">
       <nav class="settings-nav" id="cfgNav"></nav>
@@ -13429,6 +13782,34 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="day-chips" id="cfgNudgeDias" style="margin-top:10px;">
             ${["D","S","T","Q","Q","S","S"].map((l,d)=>`<span class="day-chip ${nudgeDias().includes(d)?'active':''}" data-nudgeday="${d}">${l}</span>`).join("")}
           </div>
+        </div>
+
+        <div class="section-label">Mensagens motivacionais</div>
+        <div class="stat-card">
+          <label class="switch-row"><span>Gerar mensagens sobre suas rotinas e metas</span><input type="checkbox" id="cfgMotivaAtivo" ${motivaCfgAtual.ativo?'checked':''}></label>
+          <div class="stat-foot">A partir de sequências, ausências ou tempo desde a criação de uma rotina/meta, gera uma mensagem embasada em evidências gerais sobre aquele estágio — não analisa nem inventa dado sobre você.</div>
+          <div class="market-form-row" style="margin-top:12px;">
+            <input type="password" id="cfgMotivaKey" placeholder="Chave da API (Anthropic)" style="flex:1; min-width:0;" value="${escapeHtml(load(K_MOTIVAKEY,''))}">
+            <button class="btn-cancel" id="cfgMotivaKeySave" style="flex:0 0 auto;">Salvar</button>
+          </div>
+          <div class="stat-foot">Fica só neste dispositivo — nunca é incluída em backup ou sincronização. ${(isDesktop||isNative)?'':'Este navegador não gera mensagens novas (exporia a chave); mostra as já geradas em outro dispositivo.'}</div>
+          <div class="bar-row" style="margin-top:14px;"><div class="bar-name" style="width:auto; flex:1;">Modelo</div></div>
+          <div class="type-toggle" id="cfgMotivaModelo" style="width:100%; margin-top:4px;">
+            <span data-modelo="sonnet-medio" class="${motivaCfgAtual.modelo==='sonnet-medio'?'active':''}">Sonnet 5</span>
+            <span data-modelo="sonnet-pensa" class="${motivaCfgAtual.modelo==='sonnet-pensa'?'active':''}">Sonnet 5 + pensa</span>
+            <span data-modelo="opus-medio" class="${motivaCfgAtual.modelo==='opus-medio'?'active':''}">Opus 5</span>
+          </div>
+          <div class="sched-time-row" style="margin-top:14px;"><span style="flex:1;">Mensagens por semana</span><input class="dur-input" type="number" min="1" max="14" id="cfgMotivaCadencia" value="${motivaCfgAtual.cadenciaSemana}"></div>
+          <label class="switch-row" style="margin-top:12px;"><span>Não enviar nomes de rotinas/metas (só domínio)</span><input type="checkbox" id="cfgMotivaAnon" ${motivaCfgAtual.apenasNumeros?'checked':''}></label>
+          ${motivaHist.length ? `
+          <div class="section-label" style="margin:16px 0 4px;">Últimas mensagens</div>
+          ${motivaHist.slice().reverse().slice(0,10).map((m,i)=>`
+            <div class="dev-row tappable" data-motivamsg="${motivaHist.length-1-i}" style="align-items:flex-start; flex-direction:column; gap:2px; cursor:pointer;">
+              <b style="width:100%;">${escapeHtml(m.titulo||"")}</b>
+              <span class="routine-meta">${new Date(m.ts).toLocaleDateString("pt-BR")} · ${escapeHtml(m.entidadeNome||"")} · ${m.gerador==='ia'?'IA':'local'}</span>
+              <div class="motiva-msg-body" style="display:none; white-space:pre-line;">${escapeHtml(m.corpo||"")}${(m.cartoesUsados&&m.cartoesUsados.length)?`<div class="stat-foot" style="margin-top:6px;">Fontes: ${m.cartoesUsados.map(id=>{const c=MOTIVA_CORPUS.find(x=>x.id===id); return c?escapeHtml(c.fonte):id;}).join("; ")}</div>`:""}</div>
+            </div>`).join("")}
+          ` : ""}
         </div>
 
         ${isNative ? `<div class="section-label">Cronômetro</div>
@@ -13558,6 +13939,32 @@ window.addEventListener("unhandledrejection", function(e){
         dias.sort((a,b)=>a-b);
         save(K_NUDGEDAYS, dias);
         chip.classList.toggle("active");
+      };
+    });
+    document.getElementById("cfgMotivaAtivo").onchange = e => {
+      const cfg = motivaCfg(); cfg.ativo = e.target.checked; motivaSalvarCfg(cfg);
+      if(cfg.ativo) removeKey(K_MOTIVADONE); // liga hoje: permite tentar já no próximo checkSchedules
+    };
+    document.getElementById("cfgMotivaKeySave").onclick = () => {
+      save(K_MOTIVAKEY, document.getElementById("cfgMotivaKey").value.trim());
+      showAlertBanner("Chave salva ✓");
+    };
+    el.querySelectorAll("#cfgMotivaModelo [data-modelo]").forEach(sp=>{
+      sp.onclick = () => {
+        const cfg = motivaCfg(); cfg.modelo = sp.dataset.modelo; motivaSalvarCfg(cfg);
+        el.querySelectorAll("#cfgMotivaModelo [data-modelo]").forEach(x=>x.classList.toggle("active", x===sp));
+      };
+    });
+    document.getElementById("cfgMotivaCadencia").onchange = e => {
+      const cfg = motivaCfg(); cfg.cadenciaSemana = Math.max(1, Math.min(14, Math.round(+e.target.value || 3))); motivaSalvarCfg(cfg);
+    };
+    document.getElementById("cfgMotivaAnon").onchange = e => {
+      const cfg = motivaCfg(); cfg.apenasNumeros = e.target.checked; motivaSalvarCfg(cfg);
+    };
+    el.querySelectorAll("[data-motivamsg]").forEach(row=>{
+      row.onclick = () => {
+        const body = row.querySelector(".motiva-msg-body");
+        if(body) body.style.display = body.style.display === "none" ? "block" : "none";
       };
     });
     const ovChk = document.getElementById("cfgOverlay");
