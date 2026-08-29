@@ -8,10 +8,13 @@ import { useAppStore } from "../store/useAppStore";
 import { Icon } from "./Icon";
 import { DesktopTopbar } from "./DesktopTopbar";
 import { useIsDesktop } from "../lib/useIsDesktop";
+import type { IconName } from "../lib/icons";
 import type { ScreenName } from "../lib/types";
 
-const TABS: Array<{ tab: string; screen: ScreenName; label: string; icon: "home" | "countdown" | "templates" | "settings" }> = [
+const TABS: Array<{ tab: string; screen: ScreenName; label: string; icon: IconName }> = [
   { tab: "home", screen: "home", label: "Rotinas", icon: "home" },
+  { tab: "metas", screen: "metas", label: "Metas", icon: "countdown" },
+  { tab: "diario", screen: "diario", label: "Diário", icon: "notes" },
   { tab: "settings", screen: "settings", label: "Ajustes", icon: "settings" },
 ];
 

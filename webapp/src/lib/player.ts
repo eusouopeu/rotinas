@@ -1,10 +1,22 @@
 // Porta parcial do player (index.html:11140-11828) — só o caminho de etapas
 // tipo "tempo", que é tudo que o RoutineEditor cria hoje. Fica para depois:
 // etapa "exercicio"/"checklist", modo zen, anotações (journaling), nota
-// vinculada, adiar/não-fazer etapa, registro em K_HISTORY e pontuação
-// (pontuarEtapaConcluida) — dependem de módulos que ainda não existem no
-// React (exercícios, gamificação ligada a rotinas, streak).
-import type { Routine, RoutineStep } from "./types";
+// vinculada, adiar/não-fazer etapa — dependem de módulos que ainda não
+// existem no React (exercícios, streak). Registro de histórico (K_HISTORY) e
+// pontuação (registrarConclusaoStep) JÁ estão ligados — ver lib/scoring.ts e
+// as ações startPlayer/advanceStep/goPrevStep na store.
+import type { Routine, RoutineStep, Tag } from "./types";
+
+export interface StepActual {
+  id: string;
+  tag: Tag;
+  name: string;
+  isRest: boolean;
+  planned: number | null;
+  actual: number;
+  skipped: boolean;
+  gamItemId?: string;
+}
 
 /** Porta de expandSteps+playbackSteps (index.html:11140-11165), sem o tipo
  * "routine" (sub-rotina referenciada) — não existe no editor atual. */
@@ -33,6 +45,9 @@ export interface PlayerState {
   stepStart: number;
   stepEndTs: number | null;
   startedAt: number;
+  pauseCount: number;
+  stepActuals: Array<StepActual | undefined>;
+  pontosGanhos: number;
 }
 
 export function novoPlayerState(routine: Routine): PlayerState | null {
@@ -51,6 +66,9 @@ export function novoPlayerState(routine: Routine): PlayerState | null {
     stepStart: now,
     stepEndTs: first.type === "timer" ? now + (first.seconds || 0) * 1000 : null,
     startedAt: now,
+    pauseCount: 0,
+    stepActuals: [],
+    pontosGanhos: 0,
   };
 }
 

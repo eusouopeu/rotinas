@@ -45,3 +45,23 @@ export function computeSchedule(routine: Routine): ComputedSchedule | null {
 export function novoDraftSchedule(): Routine["schedule"] {
   return { enabled: false, anchor: "start", time: "07:00", days: [0, 1, 2, 3, 4, 5, 6] };
 }
+
+/** Porta de rotinaAgendadaEm (index.html:3166-3176) — decide se a rotina
+ * ocorre num dia específico (modo "dias" ou "a cada N dias"). */
+export function rotinaAgendadaEm(r: Routine, date: Date): boolean {
+  if (!r.schedule || !r.schedule.enabled) return false;
+  if (r.schedule.mode === "intervalo") {
+    const n = Math.max(1, r.schedule.intervaloDias || 1);
+    const [y, m, dd] = (r.schedule.intervaloInicio || isoOf(date)).split("-").map(Number);
+    const ref = new Date(y, m - 1, dd);
+    const alvo = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDias = Math.round((alvo.getTime() - ref.getTime()) / 86400000);
+    return diffDias >= 0 && diffDias % n === 0;
+  }
+  return (r.schedule.days || []).includes(date.getDay());
+}
+
+function isoOf(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}

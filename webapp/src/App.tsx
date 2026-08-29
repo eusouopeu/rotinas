@@ -9,6 +9,8 @@ import { Settings } from "./screens/Settings";
 import { RoutineEditor } from "./screens/RoutineEditor";
 import { Player } from "./screens/Player";
 import { Done } from "./screens/Done";
+import { Metas } from "./screens/Metas";
+import { Diario } from "./screens/Diario";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
 // se o sistema pedir tema escuro explicitamente — sem preferência, cai claro.
@@ -70,6 +72,10 @@ export function App() {
       return <Player />;
     case "done":
       return <Done />;
+    case "metas":
+      return <Metas />;
+    case "diario":
+      return <Diario />;
     case "home":
     default:
       return <Home />;

@@ -90,7 +90,35 @@ export interface GamificacaoState {
   badges: Array<{ escopo: string; tipo: string; periodo: string; nota: number; emitidaEm: number }>;
 }
 
-export type ScreenName = "home" | "settings" | "editor" | "player" | "done";
+export type MetaEscopo = "mensal" | "trimestral" | "anual";
+
+export interface MetaTarget {
+  id: string;
+  title: string;
+  date: string; // ISO, prazo
+  createdAt: number;
+  topics?: number | null;
+  done?: number;
+  tagValor?: Tag;
+  nota?: string;
+  creditos?: Record<string, number>; // período (ver periodoDeEscopo) -> pontos já creditados
+}
+
+export interface CountdownDoc {
+  id: string;
+  type: "countdown";
+  title: string;
+  targets: MetaTarget[];
+  updatedAt: number;
+  createdAt: number;
+}
+
+// Diário: um texto markdown por período, chaveado por "dia:<ISO>" |
+// "semana:<início ISO>" | "mes:AAAA-MM" | "ano:AAAA" (index.html K_DIARIO).
+export type DiarioScope = "dia" | "semana" | "mes" | "ano";
+export type DiarioMap = Record<string, string>;
+
+export type ScreenName = "home" | "settings" | "editor" | "player" | "done" | "metas" | "diario";
 
 export interface AppView {
   tab: string;
