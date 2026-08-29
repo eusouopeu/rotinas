@@ -18,6 +18,7 @@ import {
 } from "../lib/constants";
 import { criarEstadoGamificacaoInicial } from "../lib/gamificacao";
 import { novoDraftSchedule } from "../lib/schedule";
+import { novoPlayerState, type PlayerState } from "../lib/player";
 import type { AppView, GamificacaoConfig, GamificacaoState, RodaArea, Routine } from "../lib/types";
 
 type Theme = "auto" | "light" | "dark";
@@ -47,6 +48,7 @@ interface AppState {
   sidebarCollapsed: boolean;
   gam: GamificacaoState;
   editorDraft: Routine | null;
+  playerState: PlayerState | null;
 
   boot: () => Promise<void>;
   goTo: (view: AppView) => void;
@@ -72,6 +74,12 @@ interface AppState {
   addRodaArea: (label: string) => void;
   updateRodaArea: (id: string, patch: Partial<RodaArea>) => void;
   removeRodaArea: (id: string) => void;
+
+  startPlayer: (routineId: string) => void;
+  togglePause: () => void;
+  advanceStep: () => void;
+  goPrevStep: () => void;
+  exitPlayer: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -87,6 +95,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarCollapsed: false,
   gam: criarEstadoGamificacaoInicial(),
   editorDraft: null,
+  playerState: null,
 
   boot: async () => {
     await bootStorage();
@@ -216,6 +225,73 @@ export const useAppStore = create<AppState>((set, get) => ({
     save(K_GAMIFICACAO, novo);
     set({ gam: novo });
   },
+
+  // index.html:11279-11829 (startPlayer/togglePause/advanceStep/goPrevStep/
+  // finishRoutine) — só o caminho de etapas "timer", sem pontuação/histórico
+  // ainda (ver comentário no topo de lib/player.ts).
+  startPlayer: (routineId) => {
+    const routine = get().routines.find((r) => r.id === routineId);
+    if (!routine) return;
+    const playerState = novoPlayerState(routine);
+    if (!playerState) return;
+    set({ playerState, view: { tab: "home", screen: "player" } });
+  },
+  togglePause: () => {
+    const p = get().playerState;
+    if (!p) return;
+    if (!p.paused) {
+      set({ playerState: { ...p, paused: true, pausedAt: Date.now() } });
+    } else {
+      const delta = Date.now() - (p.pausedAt || Date.now());
+      set({
+        playerState: {
+          ...p,
+          paused: false,
+          pausedAt: null,
+          pausedTotalMs: p.pausedTotalMs + delta,
+          stepEndTs: p.stepEndTs != null ? p.stepEndTs + delta : null,
+          stepStart: p.stepStart + delta,
+        },
+      });
+    }
+  },
+  advanceStep: () => {
+    const p = get().playerState;
+    if (!p) return;
+    if (p.idx >= p.steps.length - 1) {
+      set({ playerState: null, view: { tab: "home", screen: "done" } });
+      return;
+    }
+    const idx = p.idx + 1;
+    const step = p.steps[idx];
+    const now = Date.now();
+    set({
+      playerState: {
+        ...p,
+        idx,
+        stepStart: now,
+        stepEndTs: step.type === "timer" ? now + (step.seconds || 0) * 1000 : null,
+      },
+    });
+  },
+  goPrevStep: () => {
+    const p = get().playerState;
+    if (!p || p.idx <= 0) return;
+    const idx = p.idx - 1;
+    const step = p.steps[idx];
+    const now = Date.now();
+    set({
+      playerState: {
+        ...p,
+        idx,
+        paused: false,
+        pausedAt: null,
+        stepStart: now,
+        stepEndTs: step.type === "timer" ? now + (step.seconds || 0) * 1000 : null,
+      },
+    });
+  },
+  exitPlayer: () => set({ playerState: null, view: { tab: "home", screen: "home" } }),
 }));
 
 function uid(): string {

@@ -90,7 +90,7 @@ export interface GamificacaoState {
   badges: Array<{ escopo: string; tipo: string; periodo: string; nota: number; emitidaEm: number }>;
 }
 
-export type ScreenName = "home" | "settings" | "editor";
+export type ScreenName = "home" | "settings" | "editor" | "player" | "done";
 
 export interface AppView {
   tab: string;

@@ -1,10 +1,10 @@
 // Porta parcial de renderHome (index.html:3531-3762) — o piloto desta fase
-// cobre header + lista de rotinas + criar/editar/excluir (agora via o editor
-// de verdade, RoutineEditor). Fica para uma fase seguinte: aviso de
-// backup/carga da semana, card de "semana fechada", card motivacional,
-// retomar rotina em andamento, agenda inline (semana/dia), swipe-to-delete
-// (vira um hook de gesto compartilhado quando o drag-and-drop for
-// consolidado) e o player em si (play ainda não navega para lugar nenhum).
+// cobre header + lista de rotinas + criar/editar/excluir (via o editor de
+// verdade, RoutineEditor) + iniciar (via Player). Fica para uma fase
+// seguinte: aviso de backup/carga da semana, card de "semana fechada", card
+// motivacional, retomar rotina em andamento, agenda inline (semana/dia),
+// swipe-to-delete (vira um hook de gesto compartilhado quando o
+// drag-and-drop for consolidado).
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
@@ -15,6 +15,7 @@ export function Home() {
   const routines = useAppStore((s) => s.routines);
   const deleteRoutine = useAppStore((s) => s.deleteRoutine);
   const openEditor = useAppStore((s) => s.openEditor);
+  const startPlayer = useAppStore((s) => s.startPlayer);
 
   return (
     <div className="screen with-tabbar">
@@ -56,7 +57,13 @@ export function Home() {
                     >
                       <Icon name="trash" size={16} />
                     </button>
-                    <button className="play-btn" title="Player ainda não migrado" disabled>
+                    <button
+                      className="play-btn"
+                      title="Iniciar rotina"
+                      aria-label="Iniciar rotina"
+                      disabled={r.steps.length === 0}
+                      onClick={() => startPlayer(r.id)}
+                    >
                       <Icon name="play" size={16} />
                     </button>
                   </div>
