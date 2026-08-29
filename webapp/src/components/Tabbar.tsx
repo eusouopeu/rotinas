@@ -15,6 +15,7 @@ const TABS: Array<{ tab: string; screen: ScreenName; label: string; icon: IconNa
   { tab: "home", screen: "home", label: "Rotinas", icon: "home" },
   { tab: "metas", screen: "metas", label: "Metas", icon: "countdown" },
   { tab: "diario", screen: "diario", label: "Diário", icon: "notes" },
+  { tab: "templates", screen: "notes", label: "Modelos", icon: "templates" },
   { tab: "settings", screen: "settings", label: "Ajustes", icon: "settings" },
 ];
 

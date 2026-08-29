@@ -118,7 +118,19 @@ export interface CountdownDoc {
 export type DiarioScope = "dia" | "semana" | "mes" | "ano";
 export type DiarioMap = Record<string, string>;
 
-export type ScreenName = "home" | "settings" | "editor" | "player" | "done" | "metas" | "diario";
+// Nota simples (K_NOTES, index.html:51). `subjects` (assuntos) fica como
+// array de string livre, sem o mountTagInput de sugestões ainda.
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  subjects?: string[];
+  pinned?: boolean;
+  createdAt?: number;
+  updatedAt: number;
+}
+
+export type ScreenName = "home" | "settings" | "editor" | "player" | "done" | "metas" | "diario" | "notes" | "noteEditor";
 
 export interface AppView {
   tab: string;

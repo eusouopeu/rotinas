@@ -11,6 +11,8 @@ import { Player } from "./screens/Player";
 import { Done } from "./screens/Done";
 import { Metas } from "./screens/Metas";
 import { Diario } from "./screens/Diario";
+import { Notes } from "./screens/Notes";
+import { NoteEditor } from "./screens/NoteEditor";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
 // se o sistema pedir tema escuro explicitamente — sem preferência, cai claro.
@@ -76,6 +78,10 @@ export function App() {
       return <Metas />;
     case "diario":
       return <Diario />;
+    case "notes":
+      return <Notes />;
+    case "noteEditor":
+      return <NoteEditor />;
     case "home":
     default:
       return <Home />;

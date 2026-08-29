@@ -11,6 +11,7 @@ import {
   K_FONTSCALE,
   K_GAMIFICACAO,
   K_HISTORY,
+  K_NOTES,
   K_NUDGE,
   K_NUDGEDAYS,
   K_ROUTINES,
@@ -19,6 +20,7 @@ import {
   K_THEME,
   K_WEEKSTART,
 } from "../lib/constants";
+import { nomeAutoDoc } from "../lib/notes";
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import { novoDraftSchedule } from "../lib/schedule";
 import { novoPlayerState, type PlayerState, type StepActual } from "../lib/player";
@@ -32,6 +34,7 @@ import type {
   GamificacaoConfig,
   GamificacaoState,
   MetaTarget,
+  Note,
   RodaArea,
   Routine,
   Tag,
@@ -82,6 +85,7 @@ interface AppState {
   templates: AnyTemplateDoc[];
   diario: DiarioMap;
   history: HistoryEntry[];
+  notes: Note[];
 
   boot: () => Promise<void>;
   goTo: (view: AppView) => void;
@@ -121,6 +125,13 @@ interface AppState {
   deleteMeta: (id: string) => void;
 
   setDiarioTexto: (chave: string, texto: string) => void;
+
+  // Notas simples (index.html K_NOTES, openNoteEditor/renderNoteEditor).
+  openNote: (id: string | null) => void;
+  closeNoteEditor: () => void;
+  updateNote: (id: string, patch: Partial<Note>) => void;
+  toggleNotePinned: (id: string) => void;
+  deleteNote: (id: string) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -140,6 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   templates: [],
   diario: {},
   history: [],
+  notes: [],
 
   boot: async () => {
     await bootStorage();
@@ -163,6 +175,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       templates: load<AnyTemplateDoc[]>(K_TEMPLATES, []),
       diario: load<DiarioMap>(K_DIARIO, {}),
       history: load<HistoryEntry[]>(K_HISTORY, []),
+      notes: load<Note[]>(K_NOTES, []),
       booted: true,
     });
   },
@@ -499,6 +512,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     const diario = { ...get().diario, [chave]: texto };
     save(K_DIARIO, diario);
     set({ diario });
+  },
+
+  // Notas simples (index.html:9685-9847, 11038-11137). Sem editor contínuo
+  // (live preview), backlinks nem sinkChecked ainda — textarea simples.
+  openNote: (id) => {
+    if (id) {
+      set({ view: { tab: "templates", screen: "noteEditor", id } });
+      return;
+    }
+    const nota: Note = { id: uid(), title: nomeAutoDoc(), content: "", subjects: [], createdAt: Date.now(), updatedAt: Date.now() };
+    const notes = [...get().notes, nota];
+    save(K_NOTES, notes);
+    set({ notes, view: { tab: "templates", screen: "noteEditor", id: nota.id } });
+  },
+  closeNoteEditor: () => set({ view: { tab: "templates", screen: "notes" } }),
+  updateNote: (id, patch) => {
+    const notes = get().notes.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n));
+    save(K_NOTES, notes);
+    set({ notes });
+  },
+  toggleNotePinned: (id) => {
+    const notes = get().notes.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n));
+    save(K_NOTES, notes);
+    set({ notes });
+  },
+  deleteNote: (id) => {
+    const notes = get().notes.filter((n) => n.id !== id);
+    save(K_NOTES, notes);
+    set({ notes });
   },
 }));
 
