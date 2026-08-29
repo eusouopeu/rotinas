@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useAppStore } from "./store/useAppStore";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
+import { RoutineEditor } from "./screens/RoutineEditor";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
 // se o sistema pedir tema escuro explicitamente — sem preferência, cai claro.
@@ -32,12 +33,21 @@ function useFontScaleEffect(fontScale: number) {
   }, [fontScale]);
 }
 
+// index.html:14447 (boot) + o toggle em DesktopTopbar — classe lida só pelo
+// CSS de desktop (sidebar vira "só ícones").
+function useSidebarCollapsedEffect(collapsed: boolean) {
+  useEffect(() => {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+  }, [collapsed]);
+}
+
 export function App() {
   const booted = useAppStore((s) => s.booted);
   const boot = useAppStore((s) => s.boot);
   const view = useAppStore((s) => s.view);
   const theme = useAppStore((s) => s.theme);
   const fontScale = useAppStore((s) => s.fontScale);
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
 
   useEffect(() => {
     boot();
@@ -45,12 +55,15 @@ export function App() {
 
   useThemeEffect(theme);
   useFontScaleEffect(fontScale);
+  useSidebarCollapsedEffect(sidebarCollapsed);
 
   if (!booted) return null;
 
   switch (view.screen) {
     case "settings":
       return <Settings />;
+    case "editor":
+      return <RoutineEditor />;
     case "home":
     default:
       return <Home />;

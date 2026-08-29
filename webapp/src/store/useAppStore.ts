@@ -12,13 +12,27 @@ import {
   K_NUDGE,
   K_NUDGEDAYS,
   K_ROUTINES,
+  K_SIDEBARCOLLAPSED,
   K_THEME,
   K_WEEKSTART,
 } from "../lib/constants";
 import { criarEstadoGamificacaoInicial } from "../lib/gamificacao";
+import { novoDraftSchedule } from "../lib/schedule";
 import type { AppView, GamificacaoState, Routine } from "../lib/types";
 
 type Theme = "auto" | "light" | "dark";
+
+function novoDraft(): Routine {
+  return {
+    id: uid(),
+    name: "",
+    sound: "mudo",
+    steps: [{ id: uid(), name: "", seconds: 60, type: "timer" }],
+    schedule: novoDraftSchedule(),
+    restSeconds: 0,
+    tagValor: "medio",
+  };
+}
 
 interface AppState {
   booted: boolean;
@@ -30,13 +44,21 @@ interface AppState {
   digestSemanal: boolean;
   nudge: boolean;
   nudgeDias: number[];
+  sidebarCollapsed: boolean;
   gam: GamificacaoState;
+  editorDraft: Routine | null;
 
   boot: () => Promise<void>;
   goTo: (view: AppView) => void;
 
-  addRoutine: (name: string) => void;
   deleteRoutine: (id: string) => void;
+
+  openEditor: (id?: string | null) => void;
+  updateDraft: (patch: Partial<Routine>) => void;
+  cancelEdit: () => void;
+  /** Mesma validação de doSaveEdit (index.html:4707-4720): nome e etapas
+   * sem nome vazio são descartados; sem nenhuma etapa restante, não salva. */
+  saveDraft: () => boolean;
 
   setTheme: (t: Theme) => void;
   setFontScale: (n: number) => void;
@@ -44,6 +66,7 @@ interface AppState {
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
   toggleNudgeDia: (d: number) => void;
+  toggleSidebarCollapsed: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -56,7 +79,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   digestSemanal: true,
   nudge: true,
   nudgeDias: [5],
+  sidebarCollapsed: false,
   gam: criarEstadoGamificacaoInicial(),
+  editorDraft: null,
 
   boot: async () => {
     await bootStorage();
@@ -70,6 +95,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
       nudgeDias: load<number[]>(K_NUDGEDAYS, [5]),
+      sidebarCollapsed: load<boolean>(K_SIDEBARCOLLAPSED, false),
       gam,
       booted: true,
     });
@@ -77,16 +103,46 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   goTo: (view) => set({ view }),
 
-  addRoutine: (name) => {
-    const r: Routine = { id: uid(), name, steps: [] };
-    const routines = [...get().routines, r];
-    save(K_ROUTINES, routines);
-    set({ routines });
-  },
   deleteRoutine: (id) => {
     const routines = get().routines.filter((r) => r.id !== id);
     save(K_ROUTINES, routines);
     set({ routines });
+  },
+
+  openEditor: (id) => {
+    const existente = id ? get().routines.find((r) => r.id === id) : null;
+    const editorDraft: Routine = existente ? JSON.parse(JSON.stringify(existente)) : novoDraft();
+    // Rotina salva por uma versão anterior do editor (ou pela store antiga,
+    // antes deste editor existir) pode não ter `schedule`/`steps` — mesmo
+    // preenchimento defensivo de index.html:4308-4311.
+    const schedule = editorDraft.schedule || novoDraftSchedule()!;
+    if (!schedule.days?.length) schedule.days = [0, 1, 2, 3, 4, 5, 6];
+    editorDraft.schedule = schedule;
+    if (!editorDraft.steps?.length) editorDraft.steps = [{ id: uid(), name: "", seconds: 60, type: "timer" }];
+    if (editorDraft.restSeconds === undefined) editorDraft.restSeconds = 0;
+    if (editorDraft.tagValor === undefined) editorDraft.tagValor = "medio";
+    set({ editorDraft, view: { tab: "home", screen: "editor" } });
+  },
+  updateDraft: (patch) => {
+    const atual = get().editorDraft;
+    if (!atual) return;
+    set({ editorDraft: { ...atual, ...patch } });
+  },
+  cancelEdit: () => set({ editorDraft: null, view: { tab: "home", screen: "home" } }),
+  saveDraft: () => {
+    const draft = get().editorDraft;
+    if (!draft) return false;
+    const nome = draft.name.trim();
+    if (!nome) return false;
+    const steps = draft.steps.filter((s) => s.name.trim().length > 0);
+    if (steps.length === 0) return false;
+    const limpo: Routine = { ...draft, name: nome, steps };
+    const routines = get().routines;
+    const idx = routines.findIndex((r) => r.id === limpo.id);
+    const novasRoutines = idx >= 0 ? routines.map((r, i) => (i === idx ? limpo : r)) : [...routines, limpo];
+    save(K_ROUTINES, novasRoutines);
+    set({ routines: novasRoutines, editorDraft: null, view: { tab: "home", screen: "home" } });
+    return true;
   },
 
   setTheme: (theme) => {
@@ -116,6 +172,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!nudgeDias.length) return; // lista vazia = usar o toggle "nudge" acima para desligar
     save(K_NUDGEDAYS, nudgeDias);
     set({ nudgeDias });
+  },
+  toggleSidebarCollapsed: () => {
+    const sidebarCollapsed = !get().sidebarCollapsed;
+    save(K_SIDEBARCOLLAPSED, sidebarCollapsed);
+    set({ sidebarCollapsed });
   },
 }));
 

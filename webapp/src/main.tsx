@@ -5,10 +5,13 @@ import { App } from "./App";
 // CSS Modules nesta fase (ver CLAUDE.md > "webapp/").
 import "../../app.css";
 
-const root = document.getElementById("root");
-if (!root) throw new Error("Elemento #root não encontrado");
+// id "app", não "root": app.css tem regras de layout (altura 100vh, flex
+// column, escala de fonte) escritas para #app especificamente — ver
+// CLAUDE.md > "webapp/".
+const container = document.getElementById("app");
+if (!container) throw new Error("Elemento #app não encontrado");
 
-createRoot(root).render(
+createRoot(container).render(
   <StrictMode>
     <App />
   </StrictMode>

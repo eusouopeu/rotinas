@@ -1,11 +1,10 @@
 // Porta parcial de renderHome (index.html:3531-3762) — o piloto desta fase
-// cobre header + lista de rotinas + criar/excluir. Fica para uma fase
-// seguinte: aviso de backup/carga da semana, card de "semana fechada", card
-// motivacional, retomar rotina em andamento, agenda inline (semana/dia),
-// swipe-to-delete (vira um hook de gesto compartilhado quando o
-// drag-and-drop for consolidado) e o player em si (play ainda não navega
-// para lugar nenhum).
-import { useState } from "react";
+// cobre header + lista de rotinas + criar/editar/excluir (agora via o editor
+// de verdade, RoutineEditor). Fica para uma fase seguinte: aviso de
+// backup/carga da semana, card de "semana fechada", card motivacional,
+// retomar rotina em andamento, agenda inline (semana/dia), swipe-to-delete
+// (vira um hook de gesto compartilhado quando o drag-and-drop for
+// consolidado) e o player em si (play ainda não navega para lugar nenhum).
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
@@ -14,18 +13,8 @@ import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
 
 export function Home() {
   const routines = useAppStore((s) => s.routines);
-  const addRoutine = useAppStore((s) => s.addRoutine);
   const deleteRoutine = useAppStore((s) => s.deleteRoutine);
-  const [criando, setCriando] = useState(false);
-  const [nome, setNome] = useState("");
-
-  function confirmarCriacao() {
-    const nomeLimpo = nome.trim();
-    if (!nomeLimpo) return;
-    addRoutine(nomeLimpo);
-    setNome("");
-    setCriando(false);
-  }
+  const openEditor = useAppStore((s) => s.openEditor);
 
   return (
     <div className="screen with-tabbar">
@@ -38,7 +27,7 @@ export function Home() {
           <div className="empty-state">
             <h2>Nenhuma rotina ainda</h2>
             <p>Crie sua primeira sequência de etapas com tempo — igual um ritual de prática.</p>
-            <button className="btn-primary" style={{ marginTop: 14 }} onClick={() => setCriando(true)}>
+            <button className="btn-primary" style={{ marginTop: 14 }} onClick={() => openEditor(null)}>
               + Nova rotina
             </button>
           </div>
@@ -48,7 +37,7 @@ export function Home() {
               const dur = routineDurationRaw(r, EXERCICIO_SET_SEG);
               return (
                 <div className="routine-card" key={r.id}>
-                  <div className="routine-info">
+                  <div className="routine-info" style={{ cursor: "pointer" }} onClick={() => openEditor(r.id)}>
                     <h3>
                       {r.icon ? r.icon + " " : ""}
                       {r.name}
@@ -78,32 +67,7 @@ export function Home() {
         )}
       </div>
 
-      {criando && (
-        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setCriando(false)}>
-          <div className="confirm-box" style={{ textAlign: "left" }}>
-            <p style={{ margin: "0 0 10px" }}>Nova rotina</p>
-            <input
-              className="note-title-input"
-              style={{ width: "100%" }}
-              autoFocus
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && confirmarCriacao()}
-              placeholder="Nome da rotina"
-            />
-            <div className="confirm-actions" style={{ marginTop: 10 }}>
-              <button className="btn-cancel" onClick={() => setCriando(false)}>
-                Cancelar
-              </button>
-              <button className="btn-confirm" onClick={confirmarCriacao}>
-                Criar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <button className="fab" title="Novo" onClick={() => setCriando(true)}>
+      <button className="fab" title="Novo" onClick={() => openEditor(null)}>
         +
       </button>
       <Tabbar />

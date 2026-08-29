@@ -7,17 +7,24 @@ export type Tag = "nenhum" | "baixo" | "medio" | "alto";
 
 export interface RoutineStep {
   id: string;
-  type: "timer" | "exercicio" | string;
+  name: string;
+  type: "timer" | "exercicio" | "checklist" | string;
   seconds?: number;
   sets?: number;
   isRest?: boolean;
   tagValor?: Tag;
   noteId?: string | null;
+  journaling?: boolean;
 }
 
 export interface RoutineSchedule {
-  days?: number[]; // 0=domingo..6=sábado (literal, casa com Date.getDay())
-  startMin?: number;
+  enabled: boolean;
+  anchor: "start" | "end";
+  time: string; // "HH:MM"
+  mode?: "dias" | "intervalo";
+  days: number[]; // 0=domingo..6=sábado (literal, casa com Date.getDay())
+  intervaloDias?: number;
+  intervaloInicio?: string; // ISO
 }
 
 export interface Routine {
@@ -83,7 +90,7 @@ export interface GamificacaoState {
   badges: Array<{ escopo: string; tipo: string; periodo: string; nota: number; emitidaEm: number }>;
 }
 
-export type ScreenName = "home" | "settings";
+export type ScreenName = "home" | "settings" | "editor";
 
 export interface AppView {
   tab: string;
