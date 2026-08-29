@@ -13,6 +13,7 @@ import { Metas } from "./screens/Metas";
 import { Diario } from "./screens/Diario";
 import { Notes } from "./screens/Notes";
 import { NoteEditor } from "./screens/NoteEditor";
+import { GlobalSearch } from "./components/GlobalSearch";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
 // se o sistema pedir tema escuro explicitamente — sem preferência, cai claro.
@@ -47,25 +48,26 @@ function useSidebarCollapsedEffect(collapsed: boolean) {
   }, [collapsed]);
 }
 
-export function App() {
-  const booted = useAppStore((s) => s.booted);
-  const boot = useAppStore((s) => s.boot);
-  const view = useAppStore((s) => s.view);
-  const theme = useAppStore((s) => s.theme);
-  const fontScale = useAppStore((s) => s.fontScale);
-  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
-
+// Atalho "/" abre a busca global (index.html TECLA_ABA) — só os outros
+// atalhos de tela (1..5, Esc) ainda não foram portados. `digitandoAgora()`:
+// não rouba "/" de quem está digitando num input/textarea/contenteditable.
+function useGlobalSearchShortcut(openSearch: () => void) {
   useEffect(() => {
-    boot();
-  }, [boot]);
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = document.activeElement as HTMLElement | null;
+      const digitando = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (digitando) return;
+      e.preventDefault();
+      openSearch();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openSearch]);
+}
 
-  useThemeEffect(theme);
-  useFontScaleEffect(fontScale);
-  useSidebarCollapsedEffect(sidebarCollapsed);
-
-  if (!booted) return null;
-
-  switch (view.screen) {
+function Screen({ screen }: { screen: string }) {
+  switch (screen) {
     case "settings":
       return <Settings />;
     case "editor":
@@ -86,4 +88,32 @@ export function App() {
     default:
       return <Home />;
   }
+}
+
+export function App() {
+  const booted = useAppStore((s) => s.booted);
+  const boot = useAppStore((s) => s.boot);
+  const view = useAppStore((s) => s.view);
+  const theme = useAppStore((s) => s.theme);
+  const fontScale = useAppStore((s) => s.fontScale);
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+  const openSearch = useAppStore((s) => s.openSearch);
+
+  useEffect(() => {
+    boot();
+  }, [boot]);
+
+  useThemeEffect(theme);
+  useFontScaleEffect(fontScale);
+  useSidebarCollapsedEffect(sidebarCollapsed);
+  useGlobalSearchShortcut(openSearch);
+
+  if (!booted) return null;
+
+  return (
+    <>
+      <Screen screen={view.screen} />
+      <GlobalSearch />
+    </>
+  );
 }

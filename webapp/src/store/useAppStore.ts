@@ -86,6 +86,7 @@ interface AppState {
   diario: DiarioMap;
   history: HistoryEntry[];
   notes: Note[];
+  searchOpen: boolean;
 
   boot: () => Promise<void>;
   goTo: (view: AppView) => void;
@@ -132,6 +133,13 @@ interface AppState {
   updateNote: (id: string, patch: Partial<Note>) => void;
   toggleNotePinned: (id: string) => void;
   deleteNote: (id: string) => void;
+
+  // Busca global (index.html:2978-3151) — só estado de aberto/fechado; a
+  // varredura em si mora em components/GlobalSearch.tsx (a mesma "receita" do
+  // app antigo, sem extrair para lib/ porque depende diretamente das ações
+  // da store, igual openGlobalSearch depende dos globais).
+  openSearch: () => void;
+  closeSearch: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -152,6 +160,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   diario: {},
   history: [],
   notes: [],
+  searchOpen: false,
 
   boot: async () => {
     await bootStorage();
@@ -542,6 +551,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     save(K_NOTES, notes);
     set({ notes });
   },
+
+  openSearch: () => set({ searchOpen: true }),
+  closeSearch: () => set({ searchOpen: false }),
 }));
 
 function uid(): string {
