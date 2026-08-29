@@ -8,9 +8,13 @@
     "copy:www": "rm -rf www && mkdir www && cp index.html app.css manifest.json sw.js icon-192.png icon-512.png icon-512-maskable.png www/ && cp -R fonts www/fonts",
     "sync": "npm run copy:www && cap sync",
     "apk": "npm run sync && cd android && ./gradlew assembleDebug && echo 'APK em android/app/build/outputs/apk/debug/app-debug.apk'",
-    "test": "node test/gamificacao.cjs && node test/metas.cjs && node test/kanban.cjs && node test/diario.cjs && node test/insights.cjs && node test/editor.cjs && node test/datafolder.cjs && node test/sync.cjs && node test/sync-merge.cjs && node test/sync-keys.cjs && node test/streak.cjs && node test/agendamento-intervalo.cjs && node test/motivacional.cjs && node test/smoke.cjs",
+    "test": "node test/gamificacao.cjs && node test/metas.cjs && node test/kanban.cjs && node test/diario.cjs && node test/insights.cjs && node test/editor.cjs && node test/datafolder.cjs && node test/sync.cjs && node test/sync-merge.cjs && node test/sync-keys.cjs && node test/streak.cjs && node test/agendamento-intervalo.cjs && node test/motivacional.cjs && node test/smoke.cjs && npm run test:react",
     "desktop:start": "npm run copy:www && electron .",
-    "desktop:build": "npm run copy:www && electron-builder"
+    "desktop:build": "npm run copy:www && electron-builder",
+    "dev:react": "vite",
+    "build:react": "vite build",
+    "test:react": "vitest run",
+    "typecheck:react": "tsc --noEmit"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
@@ -20,14 +24,25 @@
     "@capacitor/local-notifications": "^8.2.0",
     "@capacitor/share": "^8.0.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^3.25.0"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^3.25.0",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
     "electron": "^32.0.0",
     "electron-builder": "^25.0.0",
     "fake-indexeddb": "^6.2.5",
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "build": {
     "appId": "com.pedro.rotinas.desktop",
@@ -47,8 +62,20 @@
       "category": "public.app-category.productivity",
       "icon": "icon-512.png",
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] },
-        { "target": "zip", "arch": ["arm64", "x64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ]
     }
   }

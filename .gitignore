@@ -4,3 +4,4 @@ www/
 .claude/
 android/brita.keystore
 dist-desktop/
+webapp-dist/

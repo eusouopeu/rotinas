@@ -1,0 +1,52 @@
+name: Deploy webapp (React) to GitHub Pages
+
+# Publica só a reescrita em React/TypeScript (webapp/) — o app antigo
+# (index.html) não é tocado por este workflow. Precisa do GitHub Pages
+# habilitado em Settings → Pages → Source: "GitHub Actions" antes do
+# primeiro deploy funcionar (ver CLAUDE.md > "webapp/").
+on:
+  push:
+    branches: [main]
+    paths:
+      - "webapp/**"
+      - "app.css"
+      - "fonts/**"
+      - "vite.config.mts"
+      - "tsconfig.json"
+      - "package.json"
+      - ".github/workflows/deploy-react.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:react
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: webapp-dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
