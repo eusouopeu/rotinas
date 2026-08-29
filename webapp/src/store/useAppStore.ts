@@ -18,7 +18,7 @@ import {
 } from "../lib/constants";
 import { criarEstadoGamificacaoInicial } from "../lib/gamificacao";
 import { novoDraftSchedule } from "../lib/schedule";
-import type { AppView, GamificacaoState, Routine } from "../lib/types";
+import type { AppView, GamificacaoConfig, GamificacaoState, RodaArea, Routine } from "../lib/types";
 
 type Theme = "auto" | "light" | "dark";
 
@@ -67,6 +67,11 @@ interface AppState {
   setNudge: (v: boolean) => void;
   toggleNudgeDia: (d: number) => void;
   toggleSidebarCollapsed: () => void;
+
+  updateGamConfig: (patch: Partial<GamificacaoConfig>) => void;
+  addRodaArea: (label: string) => void;
+  updateRodaArea: (id: string, patch: Partial<RodaArea>) => void;
+  removeRodaArea: (id: string) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -177,6 +182,39 @@ export const useAppStore = create<AppState>((set, get) => ({
     const sidebarCollapsed = !get().sidebarCollapsed;
     save(K_SIDEBARCOLLAPSED, sidebarCollapsed);
     set({ sidebarCollapsed });
+  },
+
+  updateGamConfig: (patch) => {
+    const gam = get().gam;
+    const novo: GamificacaoState = { ...gam, config: { ...gam.config, ...patch } };
+    save(K_GAMIFICACAO, novo);
+    set({ gam: novo });
+  },
+  addRodaArea: (label) => {
+    const gam = get().gam;
+    const nome = label.trim();
+    if (!nome) return;
+    const area: RodaArea = { id: uid(), label: nome, color: "var(--caneta)", peso: 5 };
+    const novo: GamificacaoState = {
+      ...gam,
+      config: { ...gam.config, roda: { ...gam.config.roda, areas: [...gam.config.roda.areas, area] } },
+    };
+    save(K_GAMIFICACAO, novo);
+    set({ gam: novo });
+  },
+  updateRodaArea: (id, patch) => {
+    const gam = get().gam;
+    const areas = gam.config.roda.areas.map((a) => (a.id === id ? { ...a, ...patch } : a));
+    const novo: GamificacaoState = { ...gam, config: { ...gam.config, roda: { ...gam.config.roda, areas } } };
+    save(K_GAMIFICACAO, novo);
+    set({ gam: novo });
+  },
+  removeRodaArea: (id) => {
+    const gam = get().gam;
+    const areas = gam.config.roda.areas.filter((a) => a.id !== id);
+    const novo: GamificacaoState = { ...gam, config: { ...gam.config, roda: { ...gam.config.roda, areas } } };
+    save(K_GAMIFICACAO, novo);
+    set({ gam: novo });
   },
 }));
 
