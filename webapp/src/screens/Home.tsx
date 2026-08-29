@@ -1,9 +1,10 @@
 // Porta parcial de renderHome (index.html:3531-3762) — o piloto desta fase
 // cobre header + lista de rotinas + criar/editar/excluir (via o editor de
-// verdade, RoutineEditor) + iniciar (via Player). Fica para uma fase
-// seguinte: aviso de backup/carga da semana, card de "semana fechada", card
-// motivacional, retomar rotina em andamento, agenda inline (semana/dia),
-// swipe-to-delete (vira um hook de gesto compartilhado quando o
+// verdade, RoutineEditor) + ver detalhe (RoutineDetail, de onde "Começar"
+// fica a um toque, mesmo padrão do app antigo) + iniciar (via Player). Fica
+// para uma fase seguinte: aviso de backup/carga da semana, card de "semana
+// fechada", card motivacional, retomar rotina em andamento, agenda inline
+// (semana/dia), swipe-to-delete (vira um hook de gesto compartilhado quando o
 // drag-and-drop for consolidado).
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
@@ -16,6 +17,7 @@ export function Home() {
   const deleteRoutine = useAppStore((s) => s.deleteRoutine);
   const openEditor = useAppStore((s) => s.openEditor);
   const startPlayer = useAppStore((s) => s.startPlayer);
+  const goTo = useAppStore((s) => s.goTo);
 
   return (
     <div className="screen with-tabbar">
@@ -38,7 +40,11 @@ export function Home() {
               const dur = routineDurationRaw(r, EXERCICIO_SET_SEG);
               return (
                 <div className="routine-card" key={r.id}>
-                  <div className="routine-info" style={{ cursor: "pointer" }} onClick={() => openEditor(r.id)}>
+                  <div
+                    className="routine-info"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => goTo({ tab: "home", screen: "routineDetail", id: r.id })}
+                  >
                     <h3>
                       {r.icon ? r.icon + " " : ""}
                       {r.name}
@@ -49,6 +55,14 @@ export function Home() {
                     </div>
                   </div>
                   <div className="routine-actions">
+                    <button
+                      className="icon-btn borderless"
+                      title="Editar rotina"
+                      aria-label="Editar rotina"
+                      onClick={() => openEditor(r.id)}
+                    >
+                      <Icon name="notes" size={16} />
+                    </button>
                     <button
                       className="icon-btn borderless"
                       title="Excluir rotina"

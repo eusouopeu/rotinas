@@ -61,6 +61,25 @@ export function rotinaAgendadaEm(r: Routine, date: Date): boolean {
   return (r.schedule.days || []).includes(date.getDay());
 }
 
+const DIAS_ABREV = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
+export function diasDaRotina(r: Routine): number[] {
+  const d = r.schedule && r.schedule.days;
+  return d && d.length ? d : [0, 1, 2, 3, 4, 5, 6];
+}
+
+/** Porta de diasChipHtml (index.html:3196-3207), sem o `<div>` — a tela decide o wrapper. */
+export function diasChipLabel(r: Routine): string {
+  if (r.schedule && r.schedule.mode === "intervalo") {
+    return `a cada ${r.schedule.intervaloDias || 1}d`;
+  }
+  const dias = diasDaRotina(r).slice().sort((a, b) => a - b);
+  if (dias.length === 7) return "todos os dias";
+  if (dias.length === 5 && dias.every((d) => d >= 1 && d <= 5)) return "dias úteis";
+  if (dias.length === 2 && dias[0] === 0 && dias[1] === 6) return "fim de semana";
+  return dias.map((d) => DIAS_ABREV[d]).join("/");
+}
+
 function isoOf(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;

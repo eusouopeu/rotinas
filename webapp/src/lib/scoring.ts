@@ -33,6 +33,18 @@ export function areaDaRotina(r: Routine, gam: GamificacaoState): string {
   return gam.config.roda.areas.some((a) => a.id === id) ? id : "";
 }
 
+// Porta de fillStyle/corDaRotina (index.html:2386-2395) — cor sólida de
+// fallback quando a rotina não tem área própria (era gradiente).
+export const FALLBACK_COR = "#6D28D9";
+export function fillStyle(c: string | undefined | null): string {
+  return !c || c === "grad" || c === "#C98A3E" ? FALLBACK_COR : c;
+}
+export function corDaRotina(r: Routine, gam: GamificacaoState): string {
+  const area = areaDaRotina(r, gam);
+  const a = area ? gam.config.roda.areas.find((x) => x.id === area) : null;
+  return a ? a.color : "grad";
+}
+
 function stepTagEfetiva(s: RoutineStep, r: Routine): Tag {
   return (s.tagValor || r.tagValor || "medio") as Tag;
 }

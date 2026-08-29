@@ -130,7 +130,17 @@ export interface Note {
   updatedAt: number;
 }
 
-export type ScreenName = "home" | "settings" | "editor" | "player" | "done" | "metas" | "diario" | "notes" | "noteEditor";
+export type ScreenName =
+  | "home"
+  | "settings"
+  | "editor"
+  | "routineDetail"
+  | "player"
+  | "done"
+  | "metas"
+  | "diario"
+  | "notes"
+  | "noteEditor";
 
 export interface AppView {
   tab: string;

@@ -7,6 +7,7 @@ import { useAppStore } from "./store/useAppStore";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
 import { RoutineEditor } from "./screens/RoutineEditor";
+import { RoutineDetail } from "./screens/RoutineDetail";
 import { Player } from "./screens/Player";
 import { Done } from "./screens/Done";
 import { Metas } from "./screens/Metas";
@@ -72,6 +73,8 @@ function Screen({ screen }: { screen: string }) {
       return <Settings />;
     case "editor":
       return <RoutineEditor />;
+    case "routineDetail":
+      return <RoutineDetail />;
     case "player":
       return <Player />;
     case "done":
