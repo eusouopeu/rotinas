@@ -113,6 +113,47 @@ export interface CountdownDoc {
   createdAt: number;
 }
 
+// Porta de renderScoreboardDoc (index.html:6856-6985) — placar por turno,
+// colunas = jogadores. `scores` só tem entrada para quem já jogou naquele
+// turno (célula vazia = "ainda não jogou", diferente de zero).
+export interface ScoreboardDoc {
+  id: string;
+  type: "scoreboard";
+  title: string;
+  players: Array<{ id: string; name: string }>;
+  rounds: Array<{ id: string; scores: Record<string, number> }>;
+  higherWins: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Porta de renderThoughtRecordDoc (index.html:7002-7032) — RPD (registro de
+// pensamentos disfuncionais), formulário fixo de 5 campos.
+export interface ThoughtRecordDoc {
+  id: string;
+  type: "thoughtrecord";
+  title: string;
+  trigger: string;
+  emotions: string;
+  distortion: string;
+  altThoughts: string;
+  results: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Porta de renderProsConsDoc (index.html:9460-9519) — prós/contras com peso
+// 1-5 por item, placar é a soma dos pesos de cada lado.
+export interface ProsConsDoc {
+  id: string;
+  type: "proscons";
+  title: string;
+  pros: Array<{ id: string; text: string; w: number }>;
+  cons: Array<{ id: string; text: string; w: number }>;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Diário: um texto markdown por período, chaveado por "dia:<ISO>" |
 // "semana:<início ISO>" | "mes:AAAA-MM" | "ano:AAAA" (index.html K_DIARIO).
 export type DiarioScope = "dia" | "semana" | "mes" | "ano";
@@ -140,10 +181,26 @@ export type ScreenName =
   | "metas"
   | "diario"
   | "notes"
-  | "noteEditor";
+  | "noteEditor"
+  | "templateFolders"
+  | "tmplFolder"
+  | "templateDoc";
+
+// Templates é um array de docs de vários tipos (mercado, kanban, matriz...)
+// no app antigo — o React só edita de verdade countdown/scoreboard/
+// thoughtrecord/proscons; o resto passa por como está (unknown), pra nunca
+// perder o que o app antigo já tiver salvo em K_TEMPLATES.
+export type AnyTemplateDoc =
+  | CountdownDoc
+  | ScoreboardDoc
+  | ThoughtRecordDoc
+  | ProsConsDoc
+  | (Record<string, unknown> & { id: string; type: string });
 
 export interface AppView {
   tab: string;
   screen: ScreenName;
   id?: string;
+  folderKind?: "type" | "routine";
+  folderKey?: string;
 }

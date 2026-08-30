@@ -14,6 +14,9 @@ import { Metas } from "./screens/Metas";
 import { Diario } from "./screens/Diario";
 import { Notes } from "./screens/Notes";
 import { NoteEditor } from "./screens/NoteEditor";
+import { TemplateFolders } from "./screens/TemplateFolders";
+import { TmplFolder } from "./screens/TmplFolder";
+import { TemplateDoc } from "./screens/TemplateDoc";
 import { GlobalSearch } from "./components/GlobalSearch";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
@@ -87,6 +90,12 @@ function Screen({ screen }: { screen: string }) {
       return <Notes />;
     case "noteEditor":
       return <NoteEditor />;
+    case "templateFolders":
+      return <TemplateFolders />;
+    case "tmplFolder":
+      return <TmplFolder />;
+    case "templateDoc":
+      return <TemplateDoc />;
     case "home":
     default:
       return <Home />;

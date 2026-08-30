@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
+import { ModelosTabPill } from "../components/ModelosTabPill";
 import { allTags, extractTags, relativeTime, stripMdForSnippet } from "../lib/notes";
 
 export function Notes() {
@@ -27,6 +28,7 @@ export function Notes() {
         <div className="home-header" style={{ marginBottom: 10 }}>
           <h1>Notas</h1>
         </div>
+        <ModelosTabPill active="notes" />
 
         <input
           type="search"

@@ -27,7 +27,9 @@ import { novoPlayerState, type PlayerState, type StepActual } from "../lib/playe
 import { estornarMeta, sincronizarPontosMeta } from "../lib/metas";
 import { areaDaRotina, avancarGamificacaoAteAgora, desfazerConclusao, registrarConclusaoStep, totalPlanejadoSegundos } from "../lib/scoring";
 import type { HistoryEntry } from "../lib/history";
+import { newTemplateDoc } from "../lib/templates";
 import type {
+  AnyTemplateDoc,
   AppView,
   CountdownDoc,
   DiarioMap,
@@ -39,12 +41,6 @@ import type {
   Routine,
   Tag,
 } from "../lib/types";
-
-// Templates é um array de docs de vários tipos (mercado, kanban, matriz...)
-// no app antigo — aqui só sabemos ler/escrever o tipo "countdown" (Metas), o
-// resto passa por como está (unknown), pra nunca perder o que o app antigo
-// já tiver salvo em K_TEMPLATES quando isto um dia convergir com ele.
-type AnyTemplateDoc = CountdownDoc | (Record<string, unknown> & { id: string; type: string });
 
 function isCountdownDoc(d: AnyTemplateDoc): d is CountdownDoc {
   return d.type === "countdown";
@@ -133,6 +129,14 @@ interface AppState {
   updateNote: (id: string, patch: Partial<Note>) => void;
   toggleNotePinned: (id: string) => void;
   deleteNote: (id: string) => void;
+
+  // Modelos genéricos (index.html:6339-6669) — pastas por tipo, um doc por
+  // vez. Só scoreboard/thoughtrecord/proscons têm editor de verdade; os
+  // outros tipos (market/matrix/kanban/expense/travel) ficam navegáveis
+  // (pasta + criar/excluir) mas TemplateDoc.tsx mostra "não portado" ainda.
+  createTemplateDoc: (type: string, folderKind?: "type" | "routine", folderKey?: string) => void;
+  updateTemplateDoc: (doc: AnyTemplateDoc) => void;
+  deleteTemplateDoc: (id: string) => void;
 
   // Busca global (index.html:2978-3151) — só estado de aberto/fechado; a
   // varredura em si mora em components/GlobalSearch.tsx (a mesma "receita" do
@@ -550,6 +554,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     const notes = get().notes.filter((n) => n.id !== id);
     save(K_NOTES, notes);
     set({ notes });
+  },
+
+  createTemplateDoc: (type, folderKind, folderKey) => {
+    const doc = newTemplateDoc(type);
+    const templates = [...get().templates, doc];
+    save(K_TEMPLATES, templates);
+    set({ templates, view: { tab: "templates", screen: "templateDoc", id: doc.id, folderKind, folderKey } });
+  },
+  updateTemplateDoc: (doc) => {
+    const docNovo = { ...doc, updatedAt: Date.now() };
+    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
+    save(K_TEMPLATES, templates);
+    set({ templates });
+  },
+  deleteTemplateDoc: (id) => {
+    const templates = get().templates.filter((t) => t.id !== id);
+    save(K_TEMPLATES, templates);
+    set({ templates });
   },
 
   openSearch: () => set({ searchOpen: true }),
