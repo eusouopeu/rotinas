@@ -15,7 +15,7 @@ const MESES_PT = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
-const DIAS_PT = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+export const DIAS_PT = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
 /** Chave de storage do período: "dia:<ISO>" | "semana:<início ISO>" | "mes:AAAA-MM" | "ano:AAAA". */
 export function diarioChave(escopo: DiarioScope, iso: string): string {

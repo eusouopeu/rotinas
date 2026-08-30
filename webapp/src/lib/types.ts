@@ -154,6 +154,60 @@ export interface ProsConsDoc {
   updatedAt: number;
 }
 
+// Porta de renderMarketDoc (index.html:7148-7390), sem chips de frequência
+// (K_MKFREQ) nem reordenar gôndola/compartilhar — ver templates.ts.
+export interface MarketDoc {
+  id: string;
+  type: "market";
+  title: string;
+  items: Array<{ id: string; name: string; qty: number; unit: string; price: number; aisle: string; checked: boolean }>;
+  aisleOrder: string[];
+  shopMode: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Porta de renderMatrixDoc (index.html:7421-7420ss) — 4 quadrantes com cor,
+// modo (check/ul/ol) e itens com indentação; sem exportar PDF.
+export interface MatrixDoc {
+  id: string;
+  type: "matrix";
+  title: string;
+  axisX: string;
+  axisY: string;
+  quadrants: Array<{
+    title: string;
+    color: string;
+    mode: "check" | "ul" | "ol";
+    items: Array<{ text: string; checked?: boolean; indent?: number }>;
+  }>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Porta de renderKanbanDoc (index.html:7877-7893), chamando pintarKanban sem
+// opts — sem horário/peso/abas nem arrastar (só mover com botões).
+export interface KanbanDoc {
+  id: string;
+  type: "kanban";
+  title: string;
+  cols: Array<{ title: string; items: Array<{ id: string; text: string }> }>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Porta de renderTravelDoc (index.html:9564-9877) — itens de mala por
+// categoria, sem exportar PDF nem "desmarcar tudo".
+export interface TravelDoc {
+  id: string;
+  type: "travel";
+  title: string;
+  items: Array<{ id: string; name: string; cat: string; qty: number; checked: boolean }>;
+  catOrder: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Diário: um texto markdown por período, chaveado por "dia:<ISO>" |
 // "semana:<início ISO>" | "mes:AAAA-MM" | "ano:AAAA" (index.html K_DIARIO).
 export type DiarioScope = "dia" | "semana" | "mes" | "ano";
@@ -195,6 +249,10 @@ export type AnyTemplateDoc =
   | ScoreboardDoc
   | ThoughtRecordDoc
   | ProsConsDoc
+  | MarketDoc
+  | MatrixDoc
+  | KanbanDoc
+  | TravelDoc
   | (Record<string, unknown> & { id: string; type: string });
 
 export interface AppView {
