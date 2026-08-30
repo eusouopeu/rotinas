@@ -50,7 +50,7 @@ export function TmplFolder() {
                   className="note-info"
                   onClick={() => goTo({ tab: "templates", screen: "templateDoc", id: t.id, folderKind: "type", folderKey: key })}
                 >
-                  <h3>{(t.title as string) || "Sem título"}</h3>
+                  <h3>{("title" in t && typeof t.title === "string" && t.title) || "Sem título"}</h3>
                   <div className="routine-meta" style={{ marginTop: 4 }}>
                     {tmplMeta(t)} · {relativeTime(typeof t.updatedAt === "number" ? t.updatedAt : 0)}
                   </div>
@@ -61,7 +61,8 @@ export function TmplFolder() {
                   aria-label="Excluir"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (window.confirm(`Excluir "${t.title || "sem título"}"?`)) deleteTemplateDoc(t.id);
+                    const titulo = ("title" in t && typeof t.title === "string" && t.title) || "sem título";
+                    if (window.confirm(`Excluir "${titulo}"?`)) deleteTemplateDoc(t.id);
                   }}
                 >
                   <Icon name="trash" size={14} />

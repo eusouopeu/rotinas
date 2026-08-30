@@ -17,6 +17,7 @@ import { NoteEditor } from "./screens/NoteEditor";
 import { TemplateFolders } from "./screens/TemplateFolders";
 import { TmplFolder } from "./screens/TmplFolder";
 import { TemplateDoc } from "./screens/TemplateDoc";
+import { ExpenseFolder } from "./screens/ExpenseFolder";
 import { GlobalSearch } from "./components/GlobalSearch";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
@@ -96,6 +97,8 @@ function Screen({ screen }: { screen: string }) {
       return <TmplFolder />;
     case "templateDoc":
       return <TemplateDoc />;
+    case "expenseFolder":
+      return <ExpenseFolder />;
     case "home":
     default:
       return <Home />;

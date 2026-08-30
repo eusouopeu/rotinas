@@ -208,6 +208,21 @@ export interface TravelDoc {
   updatedAt: number;
 }
 
+// Porta de renderExpenseFolder (index.html:8858-9203) — cada lançamento é a
+// própria "nota" (sem `entries[]` nem `title`), diferente dos outros tipos
+// de Modelos. Sem import/export CSV — ver expense.ts.
+export interface ExpenseDoc {
+  id: string;
+  type: "expense";
+  desc: string;
+  value: number;
+  cat: string;
+  date: string; // ISO (AAAA-MM-DD)
+  time?: string; // "HH:MM"
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Diário: um texto markdown por período, chaveado por "dia:<ISO>" |
 // "semana:<início ISO>" | "mes:AAAA-MM" | "ano:AAAA" (index.html K_DIARIO).
 export type DiarioScope = "dia" | "semana" | "mes" | "ano";
@@ -238,7 +253,8 @@ export type ScreenName =
   | "noteEditor"
   | "templateFolders"
   | "tmplFolder"
-  | "templateDoc";
+  | "templateDoc"
+  | "expenseFolder";
 
 // Templates é um array de docs de vários tipos (mercado, kanban, matriz...)
 // no app antigo — o React só edita de verdade countdown/scoreboard/
@@ -253,6 +269,7 @@ export type AnyTemplateDoc =
   | MatrixDoc
   | KanbanDoc
   | TravelDoc
+  | ExpenseDoc
   | (Record<string, unknown> & { id: string; type: string });
 
 export interface AppView {

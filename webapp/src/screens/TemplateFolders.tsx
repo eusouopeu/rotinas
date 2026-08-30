@@ -24,7 +24,11 @@ export function TemplateFolders() {
               <button
                 key={f.type}
                 className="tmpl-new"
-                onClick={() => goTo({ tab: "templates", screen: "tmplFolder", folderKind: "type", folderKey: f.type })}
+                onClick={() =>
+                  f.type === "expense"
+                    ? goTo({ tab: "templates", screen: "expenseFolder" })
+                    : goTo({ tab: "templates", screen: "tmplFolder", folderKind: "type", folderKey: f.type })
+                }
               >
                 <span className="tmpl-ic">
                   <Icon name={f.icon} size={22} />

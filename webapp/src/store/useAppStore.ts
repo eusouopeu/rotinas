@@ -131,12 +131,14 @@ interface AppState {
   deleteNote: (id: string) => void;
 
   // Modelos genéricos (index.html:6339-6669) — pastas por tipo, um doc por
-  // vez. Só scoreboard/thoughtrecord/proscons têm editor de verdade; os
-  // outros tipos (market/matrix/kanban/expense/travel) ficam navegáveis
-  // (pasta + criar/excluir) mas TemplateDoc.tsx mostra "não portado" ainda.
+  // vez. "expense" (registro de gastos) foge desse molde: cada lançamento é
+  // a própria "nota", sem tela de doc — ver addExpense/ExpenseFolder.tsx.
   createTemplateDoc: (type: string, folderKind?: "type" | "routine", folderKey?: string) => void;
   updateTemplateDoc: (doc: AnyTemplateDoc) => void;
   deleteTemplateDoc: (id: string) => void;
+  // Porta de abrirFormDespesa (index.html:9041-9078) sem o formulário em si
+  // (fica no modal da tela) — só o push no array de templates.
+  addExpense: (fields: { desc: string; value: number; cat: string; date: string; time?: string }) => void;
 
   // Busca global (index.html:2978-3151) — só estado de aberto/fechado; a
   // varredura em si mora em components/GlobalSearch.tsx (a mesma "receita" do
@@ -570,6 +572,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   deleteTemplateDoc: (id) => {
     const templates = get().templates.filter((t) => t.id !== id);
+    save(K_TEMPLATES, templates);
+    set({ templates });
+  },
+  addExpense: (fields) => {
+    const now = Date.now();
+    const doc = { id: uid(), type: "expense" as const, ...fields, createdAt: now, updatedAt: now };
+    const templates = [...get().templates, doc];
     save(K_TEMPLATES, templates);
     set({ templates });
   },
