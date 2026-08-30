@@ -1,0 +1,102 @@
+// Tipos + acesso às pontes nativas de Drive/MCP (index.html:14142-14311) —
+// SEM reimplementar nada: cada método aqui só chama a mesma ponte que o app
+// legado já usa (window.electronBridge no Electron, plugin Capacitor
+// DriveSync no Android). Hoje o Electron carrega www/index.html, não o
+// build do React, então window.electronBridge não existe no runtime do
+// React ainda — os cards ficam prontos e corretos, mas inertes até o dia em
+// que o Electron passar a carregar webapp-dist (ver docs/react-migration.md).
+import { isDesktop, isNative } from "./storage";
+
+export interface SyncKeyHealth {
+  key: string;
+  syncedAt?: number | null;
+  conflito?: boolean;
+}
+
+export interface SyncStatus {
+  hasClientCreds: boolean;
+  connected: boolean;
+  lastSyncAt?: number | null;
+  pendingConflicts?: string[];
+  keys?: SyncKeyHealth[];
+}
+
+export interface SyncResult {
+  uploaded: string[];
+  downloaded: string[];
+  merged?: string[];
+  conflicts: string[];
+}
+
+export interface SyncBridge {
+  saveClientCreds(id: string, secret: string): Promise<void>;
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  syncNow(): Promise<SyncResult>;
+  getStatus(): Promise<SyncStatus>;
+  resolveConflict(key: string, choice: "local" | "remote"): Promise<void>;
+}
+
+export interface McpLogEntry {
+  tool: string;
+  ts: number;
+  kind?: "read" | "write";
+}
+
+export interface McpStatus {
+  running: boolean;
+  mode: "off" | "read" | "write";
+  port: number;
+  token: string;
+  log?: McpLogEntry[];
+}
+
+export interface McpBridge {
+  getStatus(): Promise<McpStatus>;
+  setMode(mode: "off" | "read" | "write"): Promise<void>;
+  setPort(port: number): Promise<void>;
+  regenerateToken(): Promise<void>;
+}
+
+export interface DriveSyncPlugin {
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  syncNow(): Promise<SyncResult>;
+  getStatus(): Promise<SyncStatus>;
+  resolveConflict(args: { key: string; choice: "local" | "remote" }): Promise<void>;
+}
+
+/** Porta de syncBridge (index.html:14283-14297) — mesma ponte comum entre
+ * desktop (IPC) e Android (Capacitor), métodos idênticos. */
+export function getSyncBridge(): SyncBridge | null {
+  if (isDesktop && window.electronBridge?.sync) return window.electronBridge.sync;
+  if (isNative && window.Capacitor?.Plugins.DriveSync) {
+    const P = window.Capacitor.Plugins.DriveSync;
+    return {
+      saveClientCreds: () => Promise.resolve(),
+      connect: () => P.connect(),
+      disconnect: () => P.disconnect(),
+      syncNow: () => P.syncNow(),
+      getStatus: () => P.getStatus(),
+      resolveConflict: (key, choice) => P.resolveConflict({ key, choice }),
+    };
+  }
+  return null;
+}
+
+/** MCP só existe no desktop (servidor local no main process do Electron). */
+export function getMcpBridge(): McpBridge | null {
+  if (isDesktop && window.electronBridge?.mcp) return window.electronBridge.mcp;
+  return null;
+}
+
+/** Porta de mcpConfigJson (index.html:14146-14150). */
+export function mcpConfigJson(status: McpStatus): string {
+  return JSON.stringify(
+    {
+      mcpServers: { brita: { url: `http://127.0.0.1:${status.port}/mcp`, headers: { Authorization: `Bearer ${status.token}` } } },
+    },
+    null,
+    2,
+  );
+}

@@ -1,17 +1,21 @@
 // Porta parcial de renderSettings (index.html:13700-14142) — esta fase soma
-// Roda da vida, Hábito consolidado, Vagas e Pontuação do boletim (reaproveita
-// lib/gamificacao.ts, já portado) às seções anteriores (Aparência, Início da
-// semana, Notificações). Fica para fases seguintes: privacidade/PIN,
-// mensagens motivacionais, cronômetro (overlay nativo), sincronização com
-// nuvem, integrações MCP, backup/exportação, calendário externo, mini player,
-// atalhos de teclado e a simulação "e se" da pontuação (depende de
-// routines+agenda, ainda não portado) — a maioria depende de módulos (notas,
-// backup) que ainda não existem no React.
+// Roda da vida, Hábito consolidado, Vagas, Pontuação do boletim, Backup
+// (exportar/importar JSON), Sincronização com nuvem (Drive) e Integrações
+// (MCP) às seções anteriores (Aparência, Início da semana, Notificações).
+// PIN e atalhos de teclado ficam de fora por decisão de escopo (não entram
+// na migração — CLAUDE.md). Fica para fases seguintes: mensagens
+// motivacionais, cronômetro (overlay nativo), calendário externo, mini
+// player e a simulação "e se" da pontuação (depende de routines+agenda,
+// ainda não portado).
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Tabbar } from "../components/Tabbar";
 import { Icon } from "../components/Icon";
+import { BackupCard } from "../components/BackupCard";
+import { SyncCard } from "../components/SyncCard";
+import { McpCard } from "../components/McpCard";
 import { DIAS_ABREV } from "../lib/constants";
+import { isDesktop, isNative } from "../lib/storage";
 
 const NUDGE_DIA_LABEL = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -303,6 +307,26 @@ export function Settings() {
           ))}
           <div className="stat-foot">Vale para as próximas semanas — a semana atual já está com o fator congelado.</div>
         </div>
+
+        <BackupCard />
+
+        {(isDesktop || isNative) && (
+          <>
+            <div className="section-label">Sincronização com nuvem</div>
+            <div className="stat-card">
+              <SyncCard />
+            </div>
+          </>
+        )}
+
+        {isDesktop && (
+          <>
+            <div className="section-label">Integrações (MCP)</div>
+            <div className="stat-card">
+              <McpCard />
+            </div>
+          </>
+        )}
       </div>
       <Tabbar />
     </div>

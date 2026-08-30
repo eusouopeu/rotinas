@@ -12,10 +12,15 @@ interface StorageBackend {
   del(key: string): Promise<void>;
 }
 
-interface ElectronBridge {
+// `sync`/`mcp` são só assinatura de tipo aqui — a implementação de verdade
+// mora no processo Electron (preload.js/main.js); ver lib/nativeBridge.ts
+// para quem consome. Opcionais porque nem toda instalação expõe as duas.
+export interface ElectronBridge {
   getAll(): Promise<Array<[string, unknown]>>;
   set(key: string, val: unknown): Promise<unknown>;
   del(key: string): Promise<unknown>;
+  sync?: import("./nativeBridge").SyncBridge;
+  mcp?: import("./nativeBridge").McpBridge;
 }
 
 interface CapacitorFilesystem {
@@ -25,12 +30,17 @@ interface CapacitorFilesystem {
   deleteFile(opts: { path: string; directory: string }): Promise<unknown>;
 }
 
+export interface CapacitorPlugins {
+  Filesystem: CapacitorFilesystem;
+  DriveSync?: import("./nativeBridge").DriveSyncPlugin;
+}
+
 declare global {
   interface Window {
     electronBridge?: ElectronBridge;
     Capacitor?: {
       isNativePlatform?: () => boolean;
-      Plugins: { Filesystem: CapacitorFilesystem };
+      Plugins: CapacitorPlugins;
     };
   }
 }

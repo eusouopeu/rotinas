@@ -6,20 +6,26 @@
 import { create } from "zustand";
 import { bootStorage, load, save } from "../lib/storage";
 import {
+  K_COMPROMISSOS,
+  K_DIAKANBAN,
   K_DIARIO,
   K_DIGESTSEMANAL,
+  K_EXERCICIOS,
   K_FONTSCALE,
   K_GAMIFICACAO,
   K_HISTORY,
+  K_LASTBACKUP,
   K_NOTES,
   K_NUDGE,
   K_NUDGEDAYS,
   K_ROUTINES,
   K_SIDEBARCOLLAPSED,
+  K_SNOOZES,
   K_TEMPLATES,
   K_THEME,
   K_WEEKSTART,
 } from "../lib/constants";
+import { BACKUP_VERSION, mergeById, mergeByIdLoose, mergeDiario, mergeHistory, sanitizeBackup, type BackupPayload } from "../lib/backup";
 import { nomeAutoDoc } from "../lib/notes";
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import { novoDraftSchedule } from "../lib/schedule";
@@ -83,6 +89,7 @@ interface AppState {
   history: HistoryEntry[];
   notes: Note[];
   searchOpen: boolean;
+  lastBackupAt: number | null;
 
   boot: () => Promise<void>;
   goTo: (view: AppView) => void;
@@ -146,6 +153,14 @@ interface AppState {
   // da store, igual openGlobalSearch depende dos globais).
   openSearch: () => void;
   closeSearch: () => void;
+
+  // Backup completo (index.html:10769-11005) — export lê TODAS as coleções
+  // direto do storage (inclusive as sem estado no React: snoozes/diaKanban/
+  // exercicios/compromissos), pra não perder dado de quem também usa o app
+  // legado no mesmo perfil. Import oferece mesclar ou substituir tudo.
+  backupSnapshot: () => BackupPayload;
+  markBackupExported: () => void;
+  importBackup: (data: BackupPayload, mode: "merge" | "replace") => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -167,6 +182,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   history: [],
   notes: [],
   searchOpen: false,
+  lastBackupAt: null,
 
   boot: async () => {
     await bootStorage();
@@ -191,6 +207,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       diario: load<DiarioMap>(K_DIARIO, {}),
       history: load<HistoryEntry[]>(K_HISTORY, []),
       notes: load<Note[]>(K_NOTES, []),
+      lastBackupAt: load<number | null>(K_LASTBACKUP, null),
       booted: true,
     });
   },
@@ -585,6 +602,75 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   openSearch: () => set({ searchOpen: true }),
   closeSearch: () => set({ searchOpen: false }),
+
+  backupSnapshot: () => {
+    const s = get();
+    return {
+      version: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      routines: s.routines,
+      notes: s.notes,
+      history: s.history,
+      templates: s.templates,
+      diario: s.diario,
+      // sem estado no React — load() já devolve o que estiver no storage,
+      // inclusive dado gravado pelo app legado no mesmo perfil.
+      snoozes: load<unknown[]>(K_SNOOZES, []),
+      diaKanban: load<unknown[]>(K_DIAKANBAN, []),
+      exercicios: load<unknown[]>(K_EXERCICIOS, []),
+      compromissos: load<unknown[]>(K_COMPROMISSOS, []),
+    };
+  },
+  markBackupExported: () => {
+    const ts = Date.now();
+    save(K_LASTBACKUP, ts);
+    set({ lastBackupAt: ts });
+  },
+  importBackup: (dataRaw, mode) => {
+    const data = sanitizeBackup(dataRaw);
+    const s = get();
+    if (mode === "replace") {
+      const routines = Array.isArray(data.routines) ? (data.routines as Routine[]) : s.routines;
+      const notes = Array.isArray(data.notes) ? (data.notes as Note[]) : s.notes;
+      const history = Array.isArray(data.history) ? (data.history as HistoryEntry[]) : s.history;
+      const templates = Array.isArray(data.templates) ? (data.templates as AnyTemplateDoc[]) : s.templates;
+      const diario = data.diario && typeof data.diario === "object" ? data.diario : s.diario;
+      save(K_ROUTINES, routines);
+      save(K_NOTES, notes);
+      save(K_HISTORY, history);
+      save(K_TEMPLATES, templates);
+      save(K_DIARIO, diario);
+      if (Array.isArray(data.snoozes)) save(K_SNOOZES, data.snoozes);
+      if (Array.isArray(data.diaKanban)) save(K_DIAKANBAN, data.diaKanban);
+      if (Array.isArray(data.exercicios)) save(K_EXERCICIOS, data.exercicios);
+      if (Array.isArray(data.compromissos)) save(K_COMPROMISSOS, data.compromissos);
+      set({ routines, notes, history, templates, diario });
+      return;
+    }
+    const routines = mergeById(s.routines, data.routines as Routine[] | undefined);
+    const notes = mergeById(s.notes, data.notes as Note[] | undefined);
+    const templates = mergeById(s.templates, data.templates as AnyTemplateDoc[] | undefined);
+    const history = mergeHistory(s.history, data.history as HistoryEntry[] | undefined);
+    const diario = mergeDiario(s.diario, data.diario);
+    save(K_ROUTINES, routines);
+    save(K_NOTES, notes);
+    save(K_HISTORY, history);
+    save(K_TEMPLATES, templates);
+    save(K_DIARIO, diario);
+    if (Array.isArray(data.snoozes) && data.snoozes.length) {
+      save(K_SNOOZES, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_SNOOZES, []), data.snoozes as Array<{ id?: unknown }>));
+    }
+    if (Array.isArray(data.diaKanban) && data.diaKanban.length) {
+      save(K_DIAKANBAN, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_DIAKANBAN, []), data.diaKanban as Array<{ id?: unknown }>));
+    }
+    if (Array.isArray(data.exercicios) && data.exercicios.length) {
+      save(K_EXERCICIOS, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_EXERCICIOS, []), data.exercicios as Array<{ id?: unknown }>));
+    }
+    if (Array.isArray(data.compromissos) && data.compromissos.length) {
+      save(K_COMPROMISSOS, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_COMPROMISSOS, []), data.compromissos as Array<{ id?: unknown }>));
+    }
+    set({ routines, notes, history, templates, diario });
+  },
 }));
 
 function uid(): string {
