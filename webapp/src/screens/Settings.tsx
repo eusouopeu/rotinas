@@ -1,21 +1,24 @@
 // Porta parcial de renderSettings (index.html:13700-14142) — esta fase soma
-// Roda da vida, Hábito consolidado, Vagas, Pontuação do boletim, Backup
-// (exportar/importar JSON), Sincronização com nuvem (Drive) e Integrações
-// (MCP) às seções anteriores (Aparência, Início da semana, Notificações).
-// PIN e atalhos de teclado ficam de fora por decisão de escopo (não entram
-// na migração — CLAUDE.md). Fica para fases seguintes: mensagens
-// motivacionais, cronômetro (overlay nativo), calendário externo, mini
-// player e a simulação "e se" da pontuação (depende de routines+agenda,
-// ainda não portado).
-import { useState } from "react";
+// Roda da vida, Hábito consolidado, Vagas, Pontuação do boletim (com
+// simulação "e se" da semana), Backup (exportar/importar JSON), Calendário
+// externo (iCal), Mini player (ponte, desktop), Sincronização com nuvem
+// (Drive) e Integrações (MCP) às seções anteriores (Aparência, Início da
+// semana, Notificações). PIN e atalhos de teclado ficam de fora por decisão
+// de escopo (não entram na migração — CLAUDE.md). Fica para fases
+// seguintes: mensagens motivacionais e cronômetro (overlay nativo Android).
+import { useMemo, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Tabbar } from "../components/Tabbar";
 import { Icon } from "../components/Icon";
 import { BackupCard } from "../components/BackupCard";
+import { IcalCard } from "../components/IcalCard";
 import { SyncCard } from "../components/SyncCard";
 import { McpCard } from "../components/McpCard";
+import { getMiniPlayerBridge } from "../lib/nativeBridge";
 import { DIAS_ABREV } from "../lib/constants";
 import { isDesktop, isNative } from "../lib/storage";
+import { inicioSemanaISO } from "../lib/gamificacao";
+import { simularDistribuicaoSemana } from "../lib/scoring";
 
 const NUDGE_DIA_LABEL = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -35,11 +38,13 @@ export function Settings() {
 
   const gam = useAppStore((s) => s.gam);
   const updateGamConfig = useAppStore((s) => s.updateGamConfig);
+  const routines = useAppStore((s) => s.routines);
   const addRodaArea = useAppStore((s) => s.addRodaArea);
   const updateRodaArea = useAppStore((s) => s.updateRodaArea);
   const removeRodaArea = useAppStore((s) => s.removeRodaArea);
   const [novaArea, setNovaArea] = useState("");
   const c = gam.config;
+  const simulacao = useMemo(() => simularDistribuicaoSemana(routines, gam, inicioSemanaISO(new Date())), [routines, gam]);
 
   return (
     <div className="screen with-tabbar screen-wide">
@@ -306,9 +311,43 @@ export function Settings() {
             </div>
           ))}
           <div className="stat-foot">Vale para as próximas semanas — a semana atual já está com o fator congelado.</div>
+
+          <div className="section-label" style={{ margin: "14px 0 4px" }}>
+            Simulação — próxima semana
+          </div>
+          {simulacao.length === 0 ? (
+            <div className="stat-foot">Nada agendado esta semana — a escala padrão vale 100 pts.</div>
+          ) : (
+            <div className="stat-foot">
+              {simulacao.slice(0, 6).map((s) => (
+                <div key={s.routineId}>
+                  {s.routineName} — {s.pontos.toFixed(1)} pts
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <BackupCard />
+
+        <div className="section-label">Calendário externo</div>
+        <div className="stat-card">
+          <IcalCard />
+        </div>
+
+        {isDesktop && (
+          <>
+            <div className="section-label">Mini player</div>
+            <div className="stat-card">
+              <div className="dev-n" style={{ marginBottom: 10 }}>
+                Uma janelinha sempre no topo com a etapa atual e o cronômetro, pra acompanhar a rotina enquanto usa outro app. Também abre pelo menu Ver → Mini player.
+              </div>
+              <button className="btn-cancel" style={{ width: "100%" }} onClick={() => getMiniPlayerBridge()?.open()}>
+                Abrir mini player
+              </button>
+            </div>
+          </>
+        )}
 
         {(isDesktop || isNative) && (
           <>

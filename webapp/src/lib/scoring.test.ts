@@ -5,6 +5,7 @@ import {
   congelarSemana,
   desfazerConclusao,
   registrarConclusaoStep,
+  simularDistribuicaoSemana,
   totalPlanejadoSegundos,
 } from "./scoring";
 import type { Routine } from "./types";
@@ -128,6 +129,35 @@ describe("totalPlanejadoSegundos", () => {
       ],
     };
     expect(totalPlanejadoSegundos(routine)).toBe(60 + 10 + 60);
+  });
+});
+
+describe("simularDistribuicaoSemana", () => {
+  it("agrupa pontos por rotina e ordena do maior pro menor, sem congelar a semana", () => {
+    const gam = criarEstadoGamificacaoInicial();
+    const inicio = inicioSemanaISO(new Date(), 0);
+    const grande = rotinaDiariaTimer(60);
+    const pequena: Routine = { ...rotinaDiariaTimer(10), id: "r2", name: "Rotina 2", steps: [{ id: "s2", name: "Etapa", type: "timer", seconds: 600 }] };
+    const sim = simularDistribuicaoSemana([grande, pequena], gam, inicio);
+    expect(sim.map((s) => s.routineId)).toEqual(["r1", "r2"]);
+    expect(sim[0].pontos).toBeGreaterThan(sim[1].pontos);
+    expect(gam.semanaAtual).toBeNull();
+  });
+
+  it("sem rotina agendada devolve lista vazia", () => {
+    const gam = criarEstadoGamificacaoInicial();
+    expect(simularDistribuicaoSemana([], gam, inicioSemanaISO(new Date(), 0))).toEqual([]);
+  });
+
+  it("multiplicador maior aumenta a FATIA da rotina (a semana inteira é normalizada pra ~100, não a rotina isolada)", () => {
+    const gam = criarEstadoGamificacaoInicial();
+    const inicio = inicioSemanaISO(new Date(), 0);
+    const rotinaMedio = rotinaDiariaTimer(30);
+    const rotinaBaixo: Routine = { ...rotinaDiariaTimer(30), id: "r2", name: "Rotina 2", tagValor: "baixo", steps: [{ id: "s2", name: "Etapa", type: "timer", seconds: 1800 }] };
+    const base = simularDistribuicaoSemana([rotinaMedio, rotinaBaixo], gam, inicio).find((s) => s.routineId === "r1")!.pontos;
+    const gamHipotetico = { ...gam, config: { ...gam.config, multiplicadores: { ...gam.config.multiplicadores, medio: gam.config.multiplicadores.medio * 3 } } };
+    const maior = simularDistribuicaoSemana([rotinaMedio, rotinaBaixo], gamHipotetico, inicio).find((s) => s.routineId === "r1")!.pontos;
+    expect(maior).toBeGreaterThan(base);
   });
 });
 

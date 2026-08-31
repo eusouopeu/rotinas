@@ -58,6 +58,44 @@ export interface McpBridge {
   regenerateToken(): Promise<void>;
 }
 
+/** Ponte de Calendário externo (index.html:380-385) — só no desktop; browser
+ * e Android usam fetch direto (Android via CapacitorHttp, transparente). */
+export interface IcalBridge {
+  fetch(url: string): Promise<string>;
+}
+
+export interface MiniPlayerState {
+  routineName: string;
+  stepName: string;
+  idx: number;
+  total: number;
+  isTimer: boolean;
+  remaining: number | null;
+  paused: boolean;
+}
+
+/** Ponte da mini-player (index.html:14650-14674, electron/preload.js:64-87)
+ * — janela separada sempre-no-topo (electron/mini-player.html), só desktop.
+ * Ela não conhece playerState: pergunta "getState" (poll de 1s) e manda
+ * "control" (pausar/concluir), sempre através da janela principal, que é
+ * quem tem o player de verdade — por isso o handler é registrado aqui
+ * (janela principal) via onPlayerCall, não chamado pela mini-player
+ * diretamente. */
+export interface MiniPlayerBridge {
+  open(): void;
+  close(): void;
+}
+
+export type PlayerCallHandler = (tool: "getState" | "control", args?: unknown) => Promise<MiniPlayerState | boolean | null>;
+
+/** Registra, na janela principal, o handler que responde ao round-trip da
+ * mini-player. `null` se a ponte não existir (browser, Android, ou Electron
+ * ainda carregando o app legado — ver docs/react-migration.md). */
+export function getMiniPlayerBridge(): MiniPlayerBridge | null {
+  if (isDesktop && window.electronBridge?.miniPlayer) return window.electronBridge.miniPlayer;
+  return null;
+}
+
 export interface DriveSyncPlugin {
   connect(): Promise<void>;
   disconnect(): Promise<void>;

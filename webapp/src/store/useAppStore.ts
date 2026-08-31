@@ -14,6 +14,7 @@ import {
   K_FONTSCALE,
   K_GAMIFICACAO,
   K_HISTORY,
+  K_HOMEVIEW,
   K_LASTBACKUP,
   K_NOTES,
   K_NUDGE,
@@ -37,7 +38,9 @@ import { newTemplateDoc } from "../lib/templates";
 import type {
   AnyTemplateDoc,
   AppView,
+  Compromisso,
   CountdownDoc,
+  DiaKanbanCard,
   DiarioMap,
   GamificacaoConfig,
   GamificacaoState,
@@ -77,6 +80,7 @@ interface AppState {
   theme: Theme;
   fontScale: number;
   weekStart: number;
+  homeView: "rotinas" | "semana";
   digestSemanal: boolean;
   nudge: boolean;
   nudgeDias: number[];
@@ -88,6 +92,8 @@ interface AppState {
   diario: DiarioMap;
   history: HistoryEntry[];
   notes: Note[];
+  diaKanban: DiaKanbanCard[];
+  compromissos: Compromisso[];
   searchOpen: boolean;
   lastBackupAt: number | null;
 
@@ -106,6 +112,7 @@ interface AppState {
   setTheme: (t: Theme) => void;
   setFontScale: (n: number) => void;
   setWeekStart: (d: number) => void;
+  setHomeView: (v: "rotinas" | "semana") => void;
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
   toggleNudgeDia: (d: number) => void;
@@ -129,6 +136,18 @@ interface AppState {
   deleteMeta: (id: string) => void;
 
   setDiarioTexto: (chave: string, texto: string) => void;
+
+  // Agenda inline da Home (index.html:2114-2161, 12113/12684) — CRUD mínimo
+  // de compromisso avulso e cartão do kanban do dia, o suficiente pra
+  // itensAgendaDoDia (lib/agenda.ts) ter dado de verdade. Fora do escopo
+  // desta fase: reordenar/arrastar cartão entre colunas, notificação de
+  // compromisso e o popup completo de edição (abrirPopupTarefa).
+  addCompromisso: (title: string, date: string, time: string) => void;
+  toggleCompromisso: (id: string) => void;
+  deleteCompromisso: (id: string) => void;
+  addDiaKanbanCard: (iso: string, text: string, hIni?: string, hFim?: string) => void;
+  toggleDiaKanbanCard: (id: string) => void;
+  deleteDiaKanbanCard: (id: string) => void;
 
   // Notas simples (index.html K_NOTES, openNoteEditor/renderNoteEditor).
   openNote: (id: string | null) => void;
@@ -154,10 +173,10 @@ interface AppState {
   openSearch: () => void;
   closeSearch: () => void;
 
-  // Backup completo (index.html:10769-11005) — export lê TODAS as coleções
-  // direto do storage (inclusive as sem estado no React: snoozes/diaKanban/
-  // exercicios/compromissos), pra não perder dado de quem também usa o app
-  // legado no mesmo perfil. Import oferece mesclar ou substituir tudo.
+  // Backup completo (index.html:10769-11005) — export lê TODAS as coleções,
+  // inclusive as sem estado próprio no React (snoozes/exercicios, direto do
+  // storage), pra não perder dado de quem também usa o app legado no mesmo
+  // perfil. Import oferece mesclar ou substituir tudo.
   backupSnapshot: () => BackupPayload;
   markBackupExported: () => void;
   importBackup: (data: BackupPayload, mode: "merge" | "replace") => void;
@@ -170,6 +189,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   theme: "auto",
   fontScale: 1,
   weekStart: 0,
+  homeView: "rotinas",
   digestSemanal: true,
   nudge: true,
   nudgeDias: [5],
@@ -181,6 +201,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   diario: {},
   history: [],
   notes: [],
+  diaKanban: [],
+  compromissos: [],
   searchOpen: false,
   lastBackupAt: null,
 
@@ -198,6 +220,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       theme: load<Theme>(K_THEME, "auto"),
       fontScale: load<number>(K_FONTSCALE, 1),
       weekStart: load<number>(K_WEEKSTART, 0),
+      homeView: load<"rotinas" | "semana">(K_HOMEVIEW, "rotinas"),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
       nudgeDias: load<number[]>(K_NUDGEDAYS, [5]),
@@ -207,6 +230,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       diario: load<DiarioMap>(K_DIARIO, {}),
       history: load<HistoryEntry[]>(K_HISTORY, []),
       notes: load<Note[]>(K_NOTES, []),
+      diaKanban: load<DiaKanbanCard[]>(K_DIAKANBAN, []),
+      compromissos: load<Compromisso[]>(K_COMPROMISSOS, []),
       lastBackupAt: load<number | null>(K_LASTBACKUP, null),
       booted: true,
     });
@@ -267,6 +292,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setWeekStart: (weekStart) => {
     save(K_WEEKSTART, weekStart);
     set({ weekStart });
+  },
+  setHomeView: (homeView) => {
+    save(K_HOMEVIEW, homeView);
+    set({ homeView });
   },
   setDigestSemanal: (digestSemanal) => {
     save(K_DIGESTSEMANAL, digestSemanal);
@@ -538,12 +567,49 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Diário (index.html K_DIARIO) — um texto por chave "escopo:período"
-  // (diarioChave). Só o texto simples nesta fase; agenda/kanban ficam para
-  // depois (ver CLAUDE.md > "webapp/").
+  // (diarioChave). Só o texto simples nesta fase.
   setDiarioTexto: (chave, texto) => {
     const diario = { ...get().diario, [chave]: texto };
     save(K_DIARIO, diario);
     set({ diario });
+  },
+
+  addCompromisso: (title, date, time) => {
+    const t = title.trim();
+    if (!t) return;
+    const compromissos = [...get().compromissos, { id: uid(), title: t, date, time, notify: "nenhuma" as const, createdAt: Date.now() }];
+    save(K_COMPROMISSOS, compromissos);
+    set({ compromissos });
+  },
+  toggleCompromisso: (id) => {
+    const compromissos = get().compromissos.map((c) => (c.id === id ? { ...c, feito: !c.feito } : c));
+    save(K_COMPROMISSOS, compromissos);
+    set({ compromissos });
+  },
+  deleteCompromisso: (id) => {
+    const compromissos = get().compromissos.filter((c) => c.id !== id);
+    save(K_COMPROMISSOS, compromissos);
+    set({ compromissos });
+  },
+
+  addDiaKanbanCard: (iso, text, hIni, hFim) => {
+    const t = text.trim();
+    if (!t) return;
+    const per = "dia:" + iso;
+    const ord = get().diaKanban.filter((c) => c.per === per).length;
+    const diaKanban = [...get().diaKanban, { id: uid(), text: t, col: "todo" as const, per, ord, hIni, hFim }];
+    save(K_DIAKANBAN, diaKanban);
+    set({ diaKanban });
+  },
+  toggleDiaKanbanCard: (id) => {
+    const diaKanban = get().diaKanban.map((c) => (c.id === id ? { ...c, col: c.col === "done" ? ("todo" as const) : ("done" as const) } : c));
+    save(K_DIAKANBAN, diaKanban);
+    set({ diaKanban });
+  },
+  deleteDiaKanbanCard: (id) => {
+    const diaKanban = get().diaKanban.filter((c) => c.id !== id);
+    save(K_DIAKANBAN, diaKanban);
+    set({ diaKanban });
   },
 
   // Notas simples (index.html:9685-9847, 11038-11137). Sem editor contínuo
@@ -613,12 +679,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       history: s.history,
       templates: s.templates,
       diario: s.diario,
+      diaKanban: s.diaKanban,
+      compromissos: s.compromissos,
       // sem estado no React — load() já devolve o que estiver no storage,
       // inclusive dado gravado pelo app legado no mesmo perfil.
       snoozes: load<unknown[]>(K_SNOOZES, []),
-      diaKanban: load<unknown[]>(K_DIAKANBAN, []),
       exercicios: load<unknown[]>(K_EXERCICIOS, []),
-      compromissos: load<unknown[]>(K_COMPROMISSOS, []),
     };
   },
   markBackupExported: () => {
@@ -635,16 +701,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       const history = Array.isArray(data.history) ? (data.history as HistoryEntry[]) : s.history;
       const templates = Array.isArray(data.templates) ? (data.templates as AnyTemplateDoc[]) : s.templates;
       const diario = data.diario && typeof data.diario === "object" ? data.diario : s.diario;
+      const diaKanban = Array.isArray(data.diaKanban) ? (data.diaKanban as DiaKanbanCard[]) : s.diaKanban;
+      const compromissos = Array.isArray(data.compromissos) ? (data.compromissos as Compromisso[]) : s.compromissos;
       save(K_ROUTINES, routines);
       save(K_NOTES, notes);
       save(K_HISTORY, history);
       save(K_TEMPLATES, templates);
       save(K_DIARIO, diario);
+      save(K_DIAKANBAN, diaKanban);
+      save(K_COMPROMISSOS, compromissos);
       if (Array.isArray(data.snoozes)) save(K_SNOOZES, data.snoozes);
-      if (Array.isArray(data.diaKanban)) save(K_DIAKANBAN, data.diaKanban);
       if (Array.isArray(data.exercicios)) save(K_EXERCICIOS, data.exercicios);
-      if (Array.isArray(data.compromissos)) save(K_COMPROMISSOS, data.compromissos);
-      set({ routines, notes, history, templates, diario });
+      set({ routines, notes, history, templates, diario, diaKanban, compromissos });
       return;
     }
     const routines = mergeById(s.routines, data.routines as Routine[] | undefined);
@@ -652,24 +720,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     const templates = mergeById(s.templates, data.templates as AnyTemplateDoc[] | undefined);
     const history = mergeHistory(s.history, data.history as HistoryEntry[] | undefined);
     const diario = mergeDiario(s.diario, data.diario);
+    const diaKanban = mergeByIdLoose(s.diaKanban, data.diaKanban as DiaKanbanCard[] | undefined);
+    const compromissos = mergeByIdLoose(s.compromissos, data.compromissos as Compromisso[] | undefined);
     save(K_ROUTINES, routines);
     save(K_NOTES, notes);
     save(K_HISTORY, history);
     save(K_TEMPLATES, templates);
     save(K_DIARIO, diario);
+    save(K_DIAKANBAN, diaKanban);
+    save(K_COMPROMISSOS, compromissos);
     if (Array.isArray(data.snoozes) && data.snoozes.length) {
       save(K_SNOOZES, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_SNOOZES, []), data.snoozes as Array<{ id?: unknown }>));
-    }
-    if (Array.isArray(data.diaKanban) && data.diaKanban.length) {
-      save(K_DIAKANBAN, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_DIAKANBAN, []), data.diaKanban as Array<{ id?: unknown }>));
     }
     if (Array.isArray(data.exercicios) && data.exercicios.length) {
       save(K_EXERCICIOS, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_EXERCICIOS, []), data.exercicios as Array<{ id?: unknown }>));
     }
-    if (Array.isArray(data.compromissos) && data.compromissos.length) {
-      save(K_COMPROMISSOS, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_COMPROMISSOS, []), data.compromissos as Array<{ id?: unknown }>));
-    }
-    set({ routines, notes, history, templates, diario });
+    set({ routines, notes, history, templates, diario, diaKanban, compromissos });
   },
 }));
 

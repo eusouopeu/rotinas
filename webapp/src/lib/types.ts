@@ -223,6 +223,34 @@ export interface ExpenseDoc {
   updatedAt: number;
 }
 
+// Compromisso avulso (K_COMPROMISSOS, index.html:2114-2161) — evento único
+// num dia, sem repetição nem etapas. `time` vazio = sem horário fixo (some
+// da agenda por horário, mas continua listado no dia).
+export interface Compromisso {
+  id: string;
+  title: string;
+  date: string; // ISO (AAAA-MM-DD)
+  time: string; // "HH:MM" | ""
+  notify: "nenhuma" | "nodia" | "diaanterior";
+  createdAt: number;
+  feito?: boolean;
+}
+
+// Cartão do kanban do dia (K_DIAKANBAN, index.html: criado em 12113/12684/
+// 14604) — igual ao kanban de nota-modelo (KanbanDoc), mas com `per` (chave
+// de período "dia:<ISO>") e horário opcional em vez de coluna livre por doc.
+export interface DiaKanbanCard {
+  id: string;
+  text: string;
+  col: "todo" | "doing" | "done";
+  per: string; // "dia:"+iso
+  ord: number;
+  tagValor?: Tag;
+  eixo?: string | null;
+  hIni?: string; // "HH:MM" | ""
+  hFim?: string; // "HH:MM" | ""
+}
+
 // Diário: um texto markdown por período, chaveado por "dia:<ISO>" |
 // "semana:<início ISO>" | "mes:AAAA-MM" | "ano:AAAA" (index.html K_DIARIO).
 export type DiarioScope = "dia" | "semana" | "mes" | "ano";

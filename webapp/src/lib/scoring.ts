@@ -256,6 +256,35 @@ export function desfazerConclusao(gam: GamificacaoState, itemId: string | undefi
   return { ...gam, semanaAtual: { ...gam.semanaAtual, concluidos } };
 }
 
+export interface SimulacaoRotina {
+  routineId: string;
+  routineName: string;
+  pontos: number;
+}
+
+/** Porta de simularDistribuicaoSemana (index.html:1368-1409) — prévia
+ * somente leitura de como a semana atual redistribuiria pontos por rotina
+ * com a config vigente em `gam` (não mexe em `gam.semanaAtual`, que fica
+ * congelado). Diferente do legado, não precisa duplicar o loop de
+ * construirAgendaSemana para simular multiplicador/divisor hipotéticos: como
+ * updateGamConfig já salva a cada edição no React (sem estágio "rascunho"
+ * como no DOM do app antigo), `gam` passado aqui já é a config hipotética. */
+export function simularDistribuicaoSemana(routines: Routine[], gam: GamificacaoState, inicioISO: string): SimulacaoRotina[] {
+  const { itens, totalBruto, porArea } = construirAgendaSemana(routines, gam, inicioISO);
+  const fator = fatorNormalizacaoPara(totalBruto, gam.config);
+  const fatoresArea = fatoresPorArea(porArea, gam.config);
+  const porRotina = new Map<string, number>();
+  itens.forEach((it) => {
+    const routineId = it.itemId.slice(0, it.itemId.indexOf(":"));
+    const pontos = it.pesoBruto * fatorParaArea(it.area, fatoresArea, fator);
+    porRotina.set(routineId, (porRotina.get(routineId) || 0) + pontos);
+  });
+  const nomes = new Map(routines.map((r) => [r.id, r.name]));
+  return [...porRotina.entries()]
+    .map(([routineId, pontos]) => ({ routineId, routineName: nomes.get(routineId) || "?", pontos }))
+    .sort((a, b) => b.pontos - a.pontos);
+}
+
 /** Duração planejada da rotina em segundos, incluindo descansos entre etapas
  * — mesma conta de finishRoutine (index.html:11836): soma dos segundos de
  * playbackSteps (que já intercala os descansos), usada pro registro de

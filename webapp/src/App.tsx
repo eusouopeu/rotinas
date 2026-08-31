@@ -4,6 +4,8 @@
 // em memória que o app antigo usa, sem depender de URL.
 import { useEffect } from "react";
 import { useAppStore } from "./store/useAppStore";
+import { computeRemaining } from "./lib/player";
+import { isDesktop } from "./lib/storage";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
 import { RoutineEditor } from "./screens/RoutineEditor";
@@ -70,6 +72,41 @@ function useGlobalSearchShortcut(openSearch: () => void) {
   }, [openSearch]);
 }
 
+// Registra, na janela principal, o handler que responde ao round-trip da
+// mini-player (index.html:14650-14674) — janela separada sempre-no-topo que
+// só pergunta "getState" (poll de 1s) e manda "control". Inerte hoje: o
+// Electron ainda carrega o app legado, não este build (ver
+// docs/react-migration.md), então window.electronBridge.onPlayerCall nunca
+// dispara no runtime atual — fica pronto pro dia em que o Electron trocar.
+function useMiniPlayerBridge() {
+  useEffect(() => {
+    if (!isDesktop || !window.electronBridge?.onPlayerCall) return;
+    window.electronBridge.onPlayerCall(async (tool, args) => {
+      const { playerState, view, togglePause, advanceStep } = useAppStore.getState();
+      if (tool === "getState") {
+        if (!playerState || view.screen !== "player") return null;
+        const step = playerState.steps[playerState.idx];
+        return {
+          routineName: playerState.routineName,
+          stepName: step.name,
+          idx: playerState.idx,
+          total: playerState.steps.length,
+          isTimer: step.type === "timer",
+          remaining: step.type === "timer" ? computeRemaining(playerState) : null,
+          paused: !!playerState.paused,
+        };
+      }
+      if (tool === "control") {
+        if (!playerState) return null;
+        if (args === "pause") togglePause();
+        else if (args === "next") advanceStep();
+        return true;
+      }
+      return null;
+    });
+  }, []);
+}
+
 function Screen({ screen }: { screen: string }) {
   switch (screen) {
     case "settings":
@@ -119,6 +156,7 @@ export function App() {
   useFontScaleEffect(fontScale);
   useSidebarCollapsedEffect(sidebarCollapsed);
   useGlobalSearchShortcut(openSearch);
+  useMiniPlayerBridge();
 
   if (!booted) return null;
 

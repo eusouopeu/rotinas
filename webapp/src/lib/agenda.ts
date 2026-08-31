@@ -1,10 +1,15 @@
 // Porta parcial da agenda do Diário (index.html:12802-13066) — só o
 // time-blocking da nota Markdown (RE_TIMEBLOCK/RE_WEEKBLOCK/RE_MONTHBLOCK/
-// RE_YEARBLOCK, distribuirColunas, agendaGradeHtml/agendaGrupoHtml). Cartões
-// do kanban do Diário, compromissos avulsos e eventos iCal ainda não têm
-// dados no React, então não entram na agenda aqui — só a nota. Adiar por
+// RE_YEARBLOCK, distribuirColunas, agendaGradeHtml/agendaGrupoHtml). Eventos
+// iCal ainda não entram na grade/blocos por dia (blocosAgendaDia, superset
+// que a versão desktop/dia usa) — só a lista simples da Home
+// (itensAgendaDoDia, abaixo) já cobre rotina+cartão+compromisso. Adiar por
 // swipe/arrastar também fica de fora; o clique alterna feito/pendente.
 import { DIAS_ABREV } from "./constants";
+import { execucaoDoDia, execucaoMinutos, type HistoryEntry } from "./history";
+import { computeSchedule, rotinaAgendadaEm } from "./schedule";
+import { corDaRotina } from "./scoring";
+import type { Compromisso, DiaKanbanCard, GamificacaoState, Routine } from "./types";
 
 const MESES_PT = [
   "jan", "fev", "mar", "abr", "mai", "jun",
@@ -199,4 +204,72 @@ export function agendaGruposAno(texto: string): GrupoAgenda[] {
       label: MESES_PT[mes].charAt(0).toUpperCase() + MESES_PT[mes].slice(1),
       itens: porMes[mes].sort((a, b) => a.linha - b.linha).map((b) => ({ ...b, hora: null })),
     }));
+}
+
+/** "HH:MM" -> minutos desde meia-noite, ou null se vazio/inválido — porta de
+ * horaParaMin (index.html:7609-7614). */
+export function horaParaMin(h: string | undefined | null): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(h || ""));
+  if (!m) return null;
+  const v = Number(m[1]) * 60 + Number(m[2]);
+  return v >= 0 && v < 24 * 60 ? v : null;
+}
+
+export interface AgendaItemDia {
+  tipo: "rotina" | "cartao" | "compromisso";
+  id: string;
+  texto: string;
+  cor?: string;
+  ini: number | null;
+  fim: number | null;
+  feito: boolean;
+}
+
+/** Porta de itensAgendaDoDia (index.html:4915-4939) — fonte única da agenda
+ * inline da Home: mescla rotinas agendadas (com horário real se já
+ * executadas hoje), cartões do kanban do dia e compromissos avulsos, tudo
+ * ordenado por horário (sem horário vai por último). Não inclui eventos iCal
+ * nem blocos de nota Markdown — esses só entram na grade completa
+ * (blocosAgendaDia), fora do escopo desta fase (ver comentário no topo). */
+export function itensAgendaDoDia(
+  iso: string,
+  data: Date,
+  routines: Routine[],
+  gam: GamificacaoState,
+  history: HistoryEntry[],
+  diaKanban: DiaKanbanCard[],
+  compromissos: Compromisso[]
+): AgendaItemDia[] {
+  const out: AgendaItemDia[] = [];
+  routines.forEach((r) => {
+    if (!rotinaAgendadaEm(r, data)) return;
+    const sched = computeSchedule(r);
+    if (!sched) return;
+    const exec = execucaoDoDia(history, r.id, iso);
+    const real = exec ? execucaoMinutos(exec) : null;
+    out.push({
+      tipo: "rotina",
+      id: r.id,
+      texto: (r.icon ? r.icon + " " : "") + r.name,
+      cor: corDaRotina(r, gam),
+      ini: real ? real.ini : sched.startMin,
+      fim: real ? real.fim : sched.endMin,
+      feito: !!exec,
+    });
+  });
+  diaKanban
+    .filter((c) => c.per === "dia:" + iso)
+    .forEach((c) => {
+      const ini = horaParaMin(c.hIni);
+      let fim = horaParaMin(c.hFim);
+      if (ini != null && (fim == null || fim <= ini)) fim = ini + 60;
+      out.push({ tipo: "cartao", id: c.id, texto: c.text, ini, fim: ini == null ? null : fim, feito: c.col === "done" });
+    });
+  compromissos
+    .filter((c) => c.date === iso)
+    .forEach((c) => {
+      const ini = horaParaMin(c.time);
+      out.push({ tipo: "compromisso", id: c.id, texto: c.title, ini, fim: ini == null ? null : ini + 30, feito: !!c.feito });
+    });
+  return out.sort((a, b) => (a.ini == null ? 1 : 0) - (b.ini == null ? 1 : 0) || (a.ini || 0) - (b.ini || 0));
 }

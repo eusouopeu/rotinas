@@ -21,6 +21,9 @@ export interface ElectronBridge {
   del(key: string): Promise<unknown>;
   sync?: import("./nativeBridge").SyncBridge;
   mcp?: import("./nativeBridge").McpBridge;
+  ical?: import("./nativeBridge").IcalBridge;
+  miniPlayer?: import("./nativeBridge").MiniPlayerBridge;
+  onPlayerCall?: (handler: import("./nativeBridge").PlayerCallHandler) => void;
 }
 
 interface CapacitorFilesystem {
