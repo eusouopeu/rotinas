@@ -248,7 +248,6 @@ export type ScreenName =
   | "player"
   | "done"
   | "metas"
-  | "diario"
   | "notes"
   | "noteEditor"
   | "templateFolders"

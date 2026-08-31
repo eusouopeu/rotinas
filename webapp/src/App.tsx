@@ -11,7 +11,6 @@ import { RoutineDetail } from "./screens/RoutineDetail";
 import { Player } from "./screens/Player";
 import { Done } from "./screens/Done";
 import { Metas } from "./screens/Metas";
-import { Diario } from "./screens/Diario";
 import { Notes } from "./screens/Notes";
 import { NoteEditor } from "./screens/NoteEditor";
 import { TemplateFolders } from "./screens/TemplateFolders";
@@ -85,8 +84,6 @@ function Screen({ screen }: { screen: string }) {
       return <Done />;
     case "metas":
       return <Metas />;
-    case "diario":
-      return <Diario />;
     case "notes":
       return <Notes />;
     case "noteEditor":
