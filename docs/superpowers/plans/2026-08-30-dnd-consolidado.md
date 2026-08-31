@@ -419,7 +419,7 @@ describe("RoutineEditor — reordenar etapas por arraste", () => {
     handle.setPointerCapture = () => {};
     handle.releasePointerCapture = () => {};
     fireEvent.pointerDown(handle, { pointerId: 1, clientX: 0, clientY: 10 });
-    fireEvent(handle, new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 200 }));
+    fireEvent(handle, new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 210 }));
     fireEvent(handle, new PointerEvent("pointerup", { pointerId: 1 }));
 
     const names = Array.from(document.querySelectorAll(".step-fields input[type='text']")).map((i) => (i as HTMLInputElement).value);

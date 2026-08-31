@@ -1,12 +1,14 @@
 // Porta parcial de renderEditor (index.html:4315-4740). Cobre nome, etapas
 // (só tipo "tempo" — "checklist"/"exercício" ficam para quando os editores
-// deles existirem no React) e agendamento (dias + horário). Fica para depois:
-// peso no boletim, área da roda da vida, hábito, nota anexada, meta semanal,
-// modo "a cada N dias", reordenar etapas por arrastar (drag-and-drop é uma
-// fase própria, não uma cópia a mais da mesma lógica de Pointer Events).
+// deles existirem no React), reordenar etapa por arrastar (useDragReorder,
+// ver webapp/src/lib/dnd.ts) e agendamento (dias + horário). Fica para
+// depois: peso no boletim, área da roda da vida, hábito, nota anexada, meta
+// semanal, modo "a cada N dias".
+import { useRef } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { computeSchedule, DAY_LETTERS } from "../lib/schedule";
+import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
 import type { RoutineStep } from "../lib/types";
 
 function uid(): string {
@@ -60,6 +62,15 @@ export function RoutineEditor() {
     cancelEdit();
   }
 
+  const stepRefs = useRef<Array<HTMLDivElement | null>>([]);
+  function reorderSteps(fromIndex: number, toIndex: number) {
+    const steps = [...draft!.steps];
+    const [moved] = steps.splice(fromIndex, 1);
+    steps.splice(toIndex, 0, moved);
+    updateDraft({ steps });
+  }
+  const { dragFrom, dragOver, dragHandleProps } = useDragReorder((from, to) => reorderSteps(from.index, to.index));
+
   return (
     <div className="screen screen-wide">
       <div className="topbar">
@@ -80,7 +91,34 @@ export function RoutineEditor() {
         <div className="section-label">Etapas</div>
         <div className="steps-list">
           {draft.steps.map((s, i) => (
-            <div className="step-row" key={s.id}>
+            <div
+              className={
+                "step-row" +
+                (dragFrom?.index === i ? " dragging" : "") +
+                (dragOver && dragFrom && dragOver.index === i && dragOver.index !== dragFrom.index
+                  ? dragOver.index < dragFrom.index
+                    ? " drop-above"
+                    : " drop-below"
+                  : "")
+              }
+              key={s.id}
+              ref={(el) => {
+                stepRefs.current[i] = el;
+              }}
+            >
+              <span
+                className="drag-handle"
+                {...dragHandleProps({ container: 0, index: i }, (_x, y) => ({
+                  container: 0,
+                  index: computeStepDragTarget(
+                    stepRefs.current.map((el) => el!.getBoundingClientRect()),
+                    i,
+                    y,
+                  ),
+                }))}
+              >
+                <Icon name="bars3" size={15} />
+              </span>
               <div className="step-num">{i + 1}</div>
               <div className="step-fields">
                 <input
