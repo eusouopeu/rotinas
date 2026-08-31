@@ -1,7 +1,9 @@
 // Porta parcial de renderNoteEditor (index.html:11038-11137) — título,
 // assuntos (input livre, sem sugestões/chips ainda), conteúdo, excluir.
-// Sem editor contínuo (live preview), backlinks, sinkChecked nem espelho
-// markdown nativo ainda (ver CLAUDE.md > "webapp/" — riscos conhecidos).
+// Sem backlinks nem sinkChecked ainda. Editor contínuo (live preview,
+// renderLiveEditor/liveAplicar do legado) é decisão definitiva de NÃO
+// portar — ver docs/react-migration.md, 30/08/2026. Este textarea simples
+// é o editor de nota permanente no React.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { criadoEmLabel } from "../lib/notes";
