@@ -65,7 +65,7 @@ describe("computeStepDragTarget", () => {
 
   it("move pra baixo quando o pointer passa do meio de um item posterior", () => {
     const rects = [rect(0, 40), rect(40, 40), rect(80, 40)];
-    expect(computeStepDragTarget(rects, 0, 100)).toBe(2);
+    expect(computeStepDragTarget(rects, 0, 110)).toBe(2);
   });
 });
 
