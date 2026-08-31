@@ -53,11 +53,11 @@ function useDragReorder(opts: UseDragReorderOptions): {
 - `dragState` é exposto pro consumidor aplicar classes de highlight (`dragging` no item de origem, `drop-above`/`drop-below` no item mais próximo, `kb-drop` no container-alvo) — são classes já existentes em `app.css`, reaproveitadas.
 - `onDrop` só dispara no `pointerup`, com a posição final. O consumidor decide o reorder real no estado (Zustand `updateRoutine`/`updateTemplateDoc`) — o hook não muta dados, só calcula from/to.
 - `pointercancel` (ex: notificação do SO interrompe o gesto) reseta `dragState` sem chamar `onDrop` — mesmo comportamento do legado.
-- Fallback por botão continua existindo nos dois consumidores (`‹ ›` no Kanban, subir/descer nas etapas) — arraste é adicional, nunca a única forma de reordenar.
+- Fallback por botão continua existindo onde já existe hoje: `kb-move-btn` (`‹ ›`) no Kanban. **Correção pós-checagem do legado:** o editor de etapas (index.html:4506-4547) nunca teve botão subir/descer — só arraste — então `RoutineEditor.tsx` replica isso fielmente (arraste como única forma de reordenar etapas, igual ao legado); não inventar um botão que a versão de produção não tem.
 
 ## Consumidores — mudanças
 
-**`RoutineEditor.tsx`**: hoje não tem lista de etapas reordenável (por isso o comentário "fica pra quando o hook existir"). Esta fase adiciona a lista de etapas com alça de arraste + botões subir/descer como fallback, usando `useDragReorder` em modo single-container.
+**`RoutineEditor.tsx`**: hoje não tem lista de etapas reordenável (por isso o comentário "fica pra quando o hook existir"). Esta fase adiciona a alça de arraste na lista de etapas, sem botão subir/descer (o legado nunca teve esse botão ali — só arraste), usando `useDragReorder` em modo single-container.
 
 **`KanbanDoc.tsx`**: `moveCard(ci, ii, dir)` já existe para os botões. Esta fase adiciona a alça de arraste (`kb-drag`, ícone `bars3` já em `Icon.tsx`) chamando `useDragReorder` em modo multi-container, com `onDrop` fazendo o mesmo splice/insert que os botões já fazem.
 
