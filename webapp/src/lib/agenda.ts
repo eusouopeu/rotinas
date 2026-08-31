@@ -1,12 +1,13 @@
-// Porta parcial da agenda do Diário (index.html:12802-13066) — só o
+// Porta da agenda do Diário/Home (index.html:12802-13066 e 5065-5092) — o
 // time-blocking da nota Markdown (RE_TIMEBLOCK/RE_WEEKBLOCK/RE_MONTHBLOCK/
-// RE_YEARBLOCK, distribuirColunas, agendaGradeHtml/agendaGrupoHtml). Eventos
-// iCal ainda não entram na grade/blocos por dia (blocosAgendaDia, superset
-// que a versão desktop/dia usa) — só a lista simples da Home
-// (itensAgendaDoDia, abaixo) já cobre rotina+cartão+compromisso. Adiar por
-// swipe/arrastar também fica de fora; o clique alterna feito/pendente.
+// RE_YEARBLOCK, distribuirColunas, computeGradeLayout) e a composição de
+// blocos do dia (blocosAgendaDia: nota + kanban + compromisso + iCal +
+// rotinas agendadas). Adiar por swipe/arrastar fica de fora; o clique
+// alterna feito/pendente.
 import { DIAS_ABREV } from "./constants";
+import { isoToDate } from "./gamificacao";
 import { execucaoDoDia, execucaoMinutos, type HistoryEntry } from "./history";
+import { icalEventosDoDia, type IcalCache } from "./ical";
 import { computeSchedule, rotinaAgendadaEm } from "./schedule";
 import { corDaRotina } from "./scoring";
 import type { Compromisso, DiaKanbanCard, GamificacaoState, Routine } from "./types";
@@ -25,6 +26,13 @@ export interface TimeBlock {
   texto: string;
   col: number;
   cols: number;
+  // refs de origem quando o bloco não vem da nota do dia (index.html:
+  // 12846-12875 e 5068-5077) — decidem o clique na grade: rotina abre o
+  // detalhe, cartão/compromisso alternam feito, iCal é read-only.
+  rotinaId?: string;
+  cardId?: string;
+  compromissoId?: string;
+  ical?: boolean;
 }
 
 const RE_TIMEBLOCK = /^\s*[-*]\s*\[([ xX>])\]\s*(\d{1,2}):(\d{2})(?:\s*[-–—]\s*(\d{1,2}):(\d{2}))?\s*(.*)$/;
@@ -76,6 +84,9 @@ export function distribuirColunas(blocos: TimeBlock[]): void {
 }
 
 export const AG_PX_MIN = 1.15;
+/* Dobro do zoom para a agenda do dia da aba Rotinas (index.html:12886) —
+   meia hora ocupa o espaço de uma hora do Diário. */
+export const AG_PX_MIN_ZOOM = AG_PX_MIN * 2;
 
 export interface GradeLayout {
   alturaPx: number;
@@ -86,8 +97,9 @@ export interface GradeLayout {
 
 /** Porta de agendaGradeHtml (index.html:12891-12931), separando o layout
  * (topo/altura/coluna em px/%) do desenho — quem chama decide o markup. */
-export function computeGradeLayout(blocos: TimeBlock[], nowMin: number | null, opts: { mIni?: number; mFim?: number; pxMin?: number } = {}): GradeLayout {
+export function computeGradeLayout(blocos: TimeBlock[], nowMin: number | null, opts: { mIni?: number; mFim?: number; pxMin?: number; passo?: number } = {}): GradeLayout {
   const pxMin = opts.pxMin || AG_PX_MIN;
+  const passo = opts.passo || 60;
   const ordenados = [...blocos].sort((a, b) => a.ini - b.ini || a.linha - b.linha);
   distribuirColunas(ordenados);
   const mIni = opts.mIni != null ? opts.mIni : Math.max(0, Math.floor(Math.min(...ordenados.map((b) => b.ini)) / 60) - 1) * 60;
@@ -95,7 +107,7 @@ export function computeGradeLayout(blocos: TimeBlock[], nowMin: number | null, o
   const topo = (min: number) => (min - mIni) * pxMin;
   const hhmm = (min: number) => String(Math.floor(min / 60)).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0");
   const horas: GradeLayout["horas"] = [];
-  for (let m = mIni; m <= mFim; m += 60) {
+  for (let m = mIni; m <= mFim; m += passo) {
     horas.push({ min: m, label: hhmm(m), topPx: topo(m), meia: m % 60 !== 0 });
   }
   const blocosLayout = ordenados.map((b) => ({
@@ -272,4 +284,60 @@ export function itensAgendaDoDia(
       out.push({ tipo: "compromisso", id: c.id, texto: c.title, ini, fim: ini == null ? null : ini + 30, feito: !!c.feito });
     });
   return out.sort((a, b) => (a.ini == null ? 1 : 0) - (b.ini == null ? 1 : 0) || (a.ini || 0) - (b.ini || 0));
+}
+
+/** Porta de blocosAgendaDia (index.html:5068-5077) + blocosDoKanban/
+ * blocosDoCompromisso/blocosDoIcal (index.html:12846-12875): os blocos da
+ * grade de minuto do dia — time-blocking da nota, cartões do kanban com
+ * horário, compromissos avulsos (30min), eventos iCal com horário
+ * (read-only) e rotinas agendadas (mínimo 15min). */
+export function blocosAgendaDia(
+  iso: string,
+  data: Date,
+  notaDoDia: string,
+  routines: Routine[],
+  gam: GamificacaoState,
+  history: HistoryEntry[],
+  diaKanban: DiaKanbanCard[],
+  compromissos: Compromisso[],
+  icalCache: IcalCache | null
+): TimeBlock[] {
+  const blocos: TimeBlock[] = parseTimeBlocks(notaDoDia);
+  diaKanban
+    .filter((c) => c.per === "dia:" + iso && horaParaMin(c.hIni) != null)
+    .forEach((c) => {
+      const ini = horaParaMin(c.hIni)!;
+      let fim = c.hFim ? horaParaMin(c.hFim) : null;
+      if (fim == null || fim <= ini) fim = ini + 60; // mesma regra da nota: sem fim = 1h
+      blocos.push({ linha: -1, cardId: c.id, ini, fim, feito: c.col === "done", adiado: false, texto: c.text, col: 0, cols: 1 });
+    });
+  compromissos
+    .filter((c) => c.date === iso && horaParaMin(c.time) != null)
+    .forEach((c) => {
+      const ini = horaParaMin(c.time)!;
+      blocos.push({ linha: -1, compromissoId: c.id, ini, fim: ini + 30, feito: !!c.feito, adiado: false, texto: c.title, col: 0, cols: 1 });
+    });
+  const d0 = isoToDate(iso).getTime();
+  icalEventosDoDia(icalCache, iso)
+    .filter((e) => !e.allDay)
+    .forEach((e) => {
+      const ini = Math.max(0, Math.round((e.startMs - d0) / 60000));
+      const fim = Math.min(24 * 60, Math.max(ini + 15, Math.round((e.endMs - d0) / 60000)));
+      blocos.push({ linha: -1, ical: true, ini, fim, feito: false, adiado: false, texto: e.title, col: 0, cols: 1 });
+    });
+  itensAgendaDoDia(iso, data, routines, gam, history, diaKanban, compromissos).forEach((it) => {
+    if (it.tipo !== "rotina" || it.ini == null) return;
+    blocos.push({
+      linha: -1,
+      rotinaId: it.id,
+      ini: it.ini,
+      fim: Math.max(it.ini + 15, it.fim ?? it.ini),
+      feito: it.feito,
+      adiado: false,
+      texto: it.texto,
+      col: 0,
+      cols: 1,
+    });
+  });
+  return blocos;
 }

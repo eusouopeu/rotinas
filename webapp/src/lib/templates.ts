@@ -49,6 +49,52 @@ export function brl(v: number): string {
   return "R$ " + (v || 0).toFixed(2).replace(".", ",");
 }
 
+/* Frequência de compra (K_MKFREQ, index.html:6204-6205 e 7212-7218) — itens
+   mais adicionados viram chips de "frequentes" no formulário do mercado. */
+export interface MkFreqEntry {
+  name: string;
+  count: number;
+  unit?: string;
+  qty?: number;
+  price?: number;
+  aisle?: string;
+}
+export type MkFreqMap = Record<string, MkFreqEntry>;
+
+export function bumpMkFreq(mkFreq: MkFreqMap, item: { name: string; unit: string; qty: number; price: number; aisle: string }): MkFreqMap {
+  const k = item.name.toLowerCase();
+  const f = { ...(mkFreq[k] || { name: item.name, count: 0 }) };
+  f.count++;
+  f.unit = item.unit;
+  f.qty = item.qty;
+  f.aisle = item.aisle;
+  if (item.price) f.price = item.price;
+  return { ...mkFreq, [k]: f };
+}
+
+/** Top 8 por contagem, escondendo o que já está na lista (index.html:7170-7172). */
+export function topMkFreq(mkFreq: MkFreqMap, items: Array<{ name: string }>): MkFreqEntry[] {
+  return Object.values(mkFreq)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
+    .filter((f) => !items.some((i) => i.name.toLowerCase() === f.name.toLowerCase()));
+}
+
+/** Texto de compartilhamento da lista de mercado (index.html:7379-7386) —
+ * só pendentes, agrupados por gôndola na ordem do doc. */
+export function marketShareText(doc: { title: string; items: Array<{ name: string; qty: number; unit: string; price?: number; aisle?: string; checked?: boolean }>; aisleOrder: string[] }): string {
+  const byAisle: Record<string, typeof doc.items> = {};
+  doc.items.filter((i) => !i.checked).forEach((it) => {
+    (byAisle[it.aisle || "Outros"] = byAisle[it.aisle || "Outros"] || []).push(it);
+  });
+  let txt = doc.title + "\n";
+  doc.aisleOrder.concat(Object.keys(byAisle).filter((a) => !doc.aisleOrder.includes(a))).forEach((a) => {
+    if (!byAisle[a] || !byAisle[a].length) return;
+    txt += "\n" + a + "\n" + byAisle[a].map((it) => "• " + it.name + " — " + it.qty + (it.unit === "un" ? " un" : it.unit) + (it.price ? " — " + brl(it.price) : "")).join("\n") + "\n";
+  });
+  return txt;
+}
+
 export const MATRIX_COLORS = ["#EC6AA8", "#5B8DEF", "#6B8F71", "#C9B23E", "#B25B4C", "#9C7BB8"];
 
 // Porta de TRAVEL_DB/TRAVEL_CATS/guessTravelCat (index.html:9524-9540).

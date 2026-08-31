@@ -2,21 +2,21 @@
 // cobre header + lista de rotinas + criar/editar/excluir (via o editor de
 // verdade, RoutineEditor) + ver detalhe (RoutineDetail, de onde "Começar"
 // fica a um toque, mesmo padrão do app antigo) + iniciar (via Player) + a
-// agenda inline (visão "semana", lista simples via itensAgendaDoDia — ver
-// AgendaSemana abaixo). Fica para uma fase seguinte: aviso de backup/carga
-// da semana, card de "semana fechada", card motivacional, retomar rotina em
-// andamento, a visão "dia" (grade de minuto, desktop e mobile — reusaria
-// computeGradeLayout mas com blocosAgendaDia, um caminho de dados diferente
-// de itensAgendaDoDia, ver comentário em lib/agenda.ts), agenda pausada
-// (snoozes), arrastar cartão pra outro dia/coluna, e swipe-to-delete (vira
-// um hook de gesto compartilhado quando o drag-and-drop for consolidado).
+// agenda inline (visões "semana" — lista via itensAgendaDoDia — e "dia" —
+// grade de minuto via blocosAgendaDia/computeGradeLayout, com nota, kanban,
+// compromissos, iCal e rotinas; ver AgendaSemana/AgendaDia abaixo). Fica
+// para uma fase seguinte: aviso de backup/carga da semana, card de "semana
+// fechada", card motivacional, retomar rotina em andamento, grade de 7
+// colunas no desktop, agenda pausada (snoozes), arrastar bloco/cartão pra
+// reagendar, e swipe-to-delete.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
-import { itensAgendaDoDia, type AgendaItemDia } from "../lib/agenda";
+import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
+import { getIcalCache, icalEventosDoDia } from "../lib/ical";
 import { fillStyle } from "../lib/scoring";
 import { addDaysISO, isoToDate, localKey } from "../lib/gamificacao";
 import { formatHM } from "../lib/schedule";
@@ -163,6 +163,146 @@ function AgendaSemana() {
   );
 }
 
+/* Porta de agendaDiaHomeHtml (index.html:5078-5092) — grade de minuto de um
+   dia (00:00–24:00, marcação de 30 em 30, zoom dobrado), com blocos da nota,
+   kanban, compromissos, iCal e rotinas agendadas. Fora do escopo: arrastar
+   bloco pra reagendar e a grade de 7 colunas do desktop. */
+function AgendaDia() {
+  const routines = useAppStore((s) => s.routines);
+  const gam = useAppStore((s) => s.gam);
+  const history = useAppStore((s) => s.history);
+  const diaKanban = useAppStore((s) => s.diaKanban);
+  const compromissos = useAppStore((s) => s.compromissos);
+  const diario = useAppStore((s) => s.diario);
+  const goTo = useAppStore((s) => s.goTo);
+  const toggleDiaKanbanCard = useAppStore((s) => s.toggleDiaKanbanCard);
+  const toggleCompromisso = useAppStore((s) => s.toggleCompromisso);
+  const addDiaKanbanCard = useAppStore((s) => s.addDiaKanbanCard);
+  const setDiarioTexto = useAppStore((s) => s.setDiarioTexto);
+
+  const hojeISO = localKey();
+  const [iso, setIso] = useState(hojeISO);
+  const [adding, setAdding] = useState(false);
+  const [novaTarefa, setNovaTarefa] = useState("");
+
+  const icalCache = getIcalCache();
+  const ehHoje = iso === hojeISO;
+  const dow = isoToDate(iso).getDay();
+  const blocos = blocosAgendaDia(iso, isoToDate(iso), diario["dia:" + iso] || "", routines, gam, history, diaKanban, compromissos, icalCache);
+  const agora = new Date();
+  const layout = computeGradeLayout(blocos, ehHoje ? agora.getHours() * 60 + agora.getMinutes() : null, {
+    pxMin: AG_PX_MIN_ZOOM,
+    passo: 30,
+    mIni: 0,
+    mFim: 24 * 60,
+  });
+  const allDay = icalEventosDoDia(icalCache, iso).filter((e) => e.allDay);
+
+  function clique(b: (typeof layout.blocos)[number]) {
+    if (b.rotinaId) goTo({ tab: "home", screen: "routineDetail", id: b.rotinaId });
+    else if (b.cardId) toggleDiaKanbanCard(b.cardId);
+    else if (b.compromissoId) toggleCompromisso(b.compromissoId);
+    else if (!b.ical && b.linha >= 0) {
+      const k = "dia:" + iso;
+      const t = toggleLinhaFeita(diario[k] || "", b.linha);
+      setDiarioTexto(k, t);
+    }
+  }
+
+  return (
+    <div>
+      <div className="ag-dia-head">
+        <button className="icon-btn borderless" title="Dia anterior" aria-label="Dia anterior" onClick={() => setIso(addDaysISO(iso, -1))}>
+          <Icon name="chevronLeft" size={15} />
+        </button>
+        <span className="ag-dia-nome">
+          {DIAS_ABREV[dow].charAt(0).toUpperCase() + DIAS_ABREV[dow].slice(1)}
+          {ehHoje ? " · hoje" : ""}
+        </span>
+        <span className="dev-n">
+          {iso.slice(8, 10)}/{iso.slice(5, 7)}
+        </span>
+        <button className="icon-btn borderless" title="Próximo dia" aria-label="Próximo dia" onClick={() => setIso(addDaysISO(iso, 1))}>
+          <Icon name="chevronRight" size={15} />
+        </button>
+        <button className="icon-btn borderless" title="Nova tarefa" aria-label="Nova tarefa" onClick={() => setAdding(!adding)}>
+          <Icon name="plus" size={15} />
+        </button>
+      </div>
+      {!ehHoje && (
+        <div style={{ textAlign: "right", margin: "-4px 0 6px" }}>
+          <button className="link-btn" onClick={() => setIso(hojeISO)}>
+            hoje
+          </button>
+        </div>
+      )}
+      {adding && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <input
+            className="mk-e-name"
+            placeholder="Nova tarefa..."
+            autoFocus
+            value={novaTarefa}
+            onChange={(e) => setNovaTarefa(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              const texto = novaTarefa.trim();
+              if (texto) addDiaKanbanCard(iso, texto);
+              setNovaTarefa("");
+              setAdding(false);
+            }}
+          />
+        </div>
+      )}
+      {allDay.length > 0 && (
+        <div className="ag-allday-row">
+          {allDay.map((e, i) => (
+            <span key={i} className="ag-allday-chip">
+              {e.title}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="ag-dia-scroll">
+        <div className="ag-wrap" style={{ height: layout.alturaPx }}>
+          {layout.horas.map((h) => (
+            <div key={h.min} className={"ag-hora" + (h.min % 60 ? " ag-meia" : "")} style={{ top: h.topPx }}>
+              <span>{h.label}</span>
+            </div>
+          ))}
+          {layout.linhaAgoraPx != null && <div className="ag-agora" style={{ top: layout.linhaAgoraPx }} />}
+          <div className="ag-blocos">
+            {layout.blocos.map((b, i) => (
+              <div
+                key={i}
+                className={
+                  "ag-bloco" +
+                  (b.rotinaId ? " ag-rot" : "") +
+                  (b.cardId ? " ag-kb" : "") +
+                  (b.compromissoId ? " ag-cp" : "") +
+                  (b.ical ? " ag-ical" : "") +
+                  (b.feito ? " feito" : "") +
+                  (b.adiado ? " adiado" : "")
+                }
+                style={{
+                  top: b.topPx,
+                  height: b.alturaBlocoPx,
+                  left: `calc(${b.leftPct}% + 2px)`,
+                  width: `calc(${b.larguraPct}% - 4px)`,
+                  cursor: b.ical ? undefined : "pointer",
+                }}
+                onClick={() => clique(b)}
+              >
+                <span className="ag-txt">{b.texto}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Home() {
   const routines = useAppStore((s) => s.routines);
   const deleteRoutine = useAppStore((s) => s.deleteRoutine);
@@ -186,10 +326,15 @@ export function Home() {
           <span className={homeView === "semana" ? "active" : ""} onClick={() => setHomeView("semana")}>
             Semana
           </span>
+          <span className={homeView === "dia" ? "active" : ""} onClick={() => setHomeView("dia")}>
+            Dia
+          </span>
         </div>
 
         {homeView === "semana" ? (
           <AgendaSemana />
+        ) : homeView === "dia" ? (
+          <AgendaDia />
         ) : routines.length === 0 ? (
           <div className="empty-state">
             <h2>Nenhuma rotina ainda</h2>

@@ -1,8 +1,8 @@
 // Porta de renderExpenseFolder (index.html:8875-9203) — pasta única de
 // despesas (cada lançamento é a própria "nota"), com busca/filtro, lista
-// agrupada por mês e gráficos (tendência + donut por categoria). Sem
-// import/export CSV — gap documentado em CLAUDE.md > "webapp/".
-import { useState } from "react";
+// agrupada por mês, gráficos (tendência + donut por categoria) e
+// import/export de extrato CSV (mapeamento de colunas com prévia).
+import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
@@ -13,11 +13,105 @@ import {
   catColor,
   chartsPeriodUnit,
   computeDonutArcs,
+  computeImportPreview,
+  despesasCsv,
   filtrarDespesas,
+  guessExpenseColumns,
+  parseBRNumber,
+  parseCsvText,
   resumoPorPeriodo,
+  sugerirCategoriaDespesa,
   type ChartsPeriod,
+  type ImportSign,
+  type ImportState,
 } from "../lib/expense";
 import type { ExpenseDoc } from "../lib/types";
+
+function downloadText(filename: string, text: string, mime: string) {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* Porta de paintImport (index.html:9126-9171) — conferência de colunas do
+   extrato com prévia antes de importar. */
+function ImportView({ initial, onCancel, onConfirm }: { initial: ImportState; onCancel: () => void; onConfirm: (st: ImportState) => void }) {
+  const [st, setSt] = useState(initial);
+  const g = st.guess;
+  const { parsed, skipped } = computeImportPreview(st);
+  const totalPrev = parsed.reduce((a, e) => a + e.value, 0);
+  const colSelect = (value: number, onChange: (i: number) => void) => (
+    <select style={{ flex: 1 }} value={value} onChange={(ev) => onChange(+ev.target.value)}>
+      {Array.from({ length: g.ncol }, (_, i) => (
+        <option key={i} value={i}>
+          coluna {i + 1}
+          {g.header && g.header[i] ? " · " + g.header[i].slice(0, 16) : ""}
+        </option>
+      ))}
+    </select>
+  );
+  const rotulo = (t: string) => <span style={{ width: 80, color: "var(--sub)", fontSize: 13 }}>{t}</span>;
+  return (
+    <>
+      <div className="section-label">Importar extrato — conferir colunas</div>
+      <div className="stat-card">
+        <div className="market-form-row" style={{ marginBottom: 8 }}>
+          {rotulo("Data")}
+          {colSelect(st.map.date, (i) => setSt({ ...st, map: { ...st.map, date: i } }))}
+        </div>
+        <div className="market-form-row" style={{ marginBottom: 8 }}>
+          {rotulo("Descrição")}
+          {colSelect(st.map.desc, (i) => setSt({ ...st, map: { ...st.map, desc: i } }))}
+        </div>
+        <div className="market-form-row" style={{ marginBottom: 8 }}>
+          {rotulo("Valor")}
+          {colSelect(st.map.val, (i) => setSt({ ...st, map: { ...st.map, val: i } }))}
+        </div>
+        <div className="market-form-row">
+          {rotulo("Importar")}
+          <select style={{ flex: 1 }} value={st.sign} onChange={(ev) => setSt({ ...st, sign: ev.target.value as ImportSign })}>
+            <option value="neg">Só saídas (valores negativos)</option>
+            <option value="pos">Só entradas (valores positivos)</option>
+            <option value="abs">Tudo (valor absoluto)</option>
+          </select>
+        </div>
+      </div>
+      <div className="section-label">
+        Prévia — {parsed.length} lançamento(s) · total {brl(totalPrev)}
+        {skipped ? ` · ${skipped} linha(s) ignorada(s)` : ""}
+      </div>
+      <div className="stat-card">
+        {parsed.length === 0 ? (
+          <div className="dev-n">Nenhum lançamento reconhecido com esse mapeamento.</div>
+        ) : (
+          parsed.slice(0, 5).map((e, i) => (
+            <div className="dev-row" key={i}>
+              <span className="dev-n" style={{ width: 44 }}>
+                {e.date.slice(8, 10)}/{e.date.slice(5, 7)}
+              </span>
+              <span style={{ flex: 1 }}>{e.desc.slice(0, 40)}</span>
+              <b className="ontime">{brl(e.value)}</b>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="bottom-actions" style={{ position: "static", background: "none", padding: "14px 0 0" }}>
+        <button className="btn-cancel" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button className="btn-primary" disabled={!parsed.length} onClick={() => onConfirm(st)}>
+          Importar {parsed.length}
+        </button>
+      </div>
+    </>
+  );
+}
 
 function Donut({ segs, total }: { segs: Array<{ label: string; valor: number; color: string }>; total: number }) {
   const arcs = computeDonutArcs(
@@ -241,6 +335,7 @@ export function ExpenseFolder() {
   const templates = useAppStore((s) => s.templates);
   const goTo = useAppStore((s) => s.goTo);
   const addExpense = useAppStore((s) => s.addExpense);
+  const addExpenses = useAppStore((s) => s.addExpenses);
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
   const deleteTemplateDoc = useAppStore((s) => s.deleteTemplateDoc);
 
@@ -250,9 +345,45 @@ export function ExpenseFolder() {
   const [to, setTo] = useState("");
   const [cat, setCat] = useState("");
   const [novo, setNovo] = useState(false);
+  const [importState, setImportState] = useState<ImportState | null>(null);
+  const [aviso, setAviso] = useState("");
+  const csvFileRef = useRef<HTMLInputElement>(null);
 
   const allDocs = templates.filter((t): t is ExpenseDoc => t.type === "expense");
   const docs = filtrarDespesas(allDocs, { query, from, to, cat });
+
+  function onCsvFile(file: File) {
+    setAviso("");
+    const reader = new FileReader();
+    reader.onload = () => {
+      const { rows } = parseCsvText(String(reader.result));
+      if (!rows.length) { setAviso("CSV vazio ou ilegível"); return; }
+      const g = guessExpenseColumns(rows);
+      if (g.dateCol < 0 || g.valCol < 0) { setAviso("Não reconheci colunas de data e valor — confira o arquivo"); return; }
+      const anyNeg = g.dataRows.some((r) => parseBRNumber(r[g.valCol]) < 0);
+      setImportState({ dataRows: g.dataRows, guess: g, map: { date: g.dateCol, val: g.valCol, desc: g.descCol >= 0 ? g.descCol : 0 }, sign: anyNeg ? "neg" : "abs" });
+    };
+    reader.readAsText(file, "utf-8");
+  }
+
+  function confirmarImport(st: ImportState) {
+    const res = computeImportPreview(st);
+    addExpenses(
+      res.parsed.map((e) => ({
+        desc: e.desc,
+        value: +e.value.toFixed(2),
+        cat: sugerirCategoriaDespesa(e.desc, allDocs) || "Outros",
+        date: e.date,
+      })),
+    );
+    setImportState(null);
+    setAviso(res.parsed.length + " lançamento(s) importado(s) ✓");
+  }
+
+  function exportarCsv() {
+    downloadText("despesas.csv", despesasCsv(allDocs), "text/csv;charset=utf-8");
+    setAviso("CSV exportado ✓");
+  }
 
   return (
     <div className="screen with-tabbar">
@@ -264,35 +395,62 @@ export function ExpenseFolder() {
             </span>{" "}
             <Icon name="expense" size={18} /> Despesas
           </h1>
-        </div>
-
-        <div className="market-form" style={{ marginBottom: 12 }}>
-          <input type="text" placeholder="Buscar por descrição ou categoria" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <div className="market-form-row" style={{ marginTop: 8 }}>
-            <input type="date" style={{ flex: 1, minWidth: 0 }} value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
-            <input type="date" style={{ flex: 1, minWidth: 0 }} value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
-            <select style={{ flex: 1, minWidth: 0 }} value={cat} onChange={(e) => setCat(e.target.value)}>
-              <option value="">Todas categorias</option>
-              {EXP_CATS.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className="bell-btn" title="Importar extrato CSV" aria-label="Importar extrato CSV" onClick={() => csvFileRef.current?.click()}>
+              <Icon name="arrowUpTray" size={14} />
+            </button>
+            <button className="bell-btn" title="Exportar CSV" aria-label="Exportar CSV" onClick={exportarCsv}>
+              CSV
+            </button>
           </div>
+          <input
+            ref={csvFileRef}
+            type="file"
+            accept=".csv,text/csv,text/plain"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) onCsvFile(f);
+            }}
+          />
         </div>
 
-        <div className="type-toggle" style={{ marginBottom: 12 }}>
-          <span className={view === "lista" ? "active" : ""} onClick={() => setView("lista")}>
-            lista
-          </span>
-          <span className={view === "graficos" ? "active" : ""} onClick={() => setView("graficos")}>
-            gráficos
-          </span>
-        </div>
+        {aviso && <div className="stat-foot" style={{ marginBottom: 8 }}>{aviso}</div>}
 
-        {view === "lista" ? (
-          <Lista docs={docs} onDelete={(id) => deleteTemplateDoc(id)} onSave={(id, patch) => updateTemplateDoc({ ...(allDocs.find((d) => d.id === id) as ExpenseDoc), ...patch })} />
+        {importState ? (
+          <ImportView initial={importState} onCancel={() => setImportState(null)} onConfirm={confirmarImport} />
         ) : (
-          <Graficos docs={docs} />
+          <>
+            <div className="market-form" style={{ marginBottom: 12 }}>
+              <input type="text" placeholder="Buscar por descrição ou categoria" value={query} onChange={(e) => setQuery(e.target.value)} />
+              <div className="market-form-row" style={{ marginTop: 8 }}>
+                <input type="date" style={{ flex: 1, minWidth: 0 }} value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
+                <input type="date" style={{ flex: 1, minWidth: 0 }} value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
+                <select style={{ flex: 1, minWidth: 0 }} value={cat} onChange={(e) => setCat(e.target.value)}>
+                  <option value="">Todas categorias</option>
+                  {EXP_CATS.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="type-toggle" style={{ marginBottom: 12 }}>
+              <span className={view === "lista" ? "active" : ""} onClick={() => setView("lista")}>
+                lista
+              </span>
+              <span className={view === "graficos" ? "active" : ""} onClick={() => setView("graficos")}>
+                gráficos
+              </span>
+            </div>
+
+            {view === "lista" ? (
+              <Lista docs={docs} onDelete={(id) => deleteTemplateDoc(id)} onSave={(id, patch) => updateTemplateDoc({ ...(allDocs.find((d) => d.id === id) as ExpenseDoc), ...patch })} />
+            ) : (
+              <Graficos docs={docs} />
+            )}
+          </>
         )}
       </div>
 
@@ -302,9 +460,11 @@ export function ExpenseFolder() {
         </div>
       )}
 
-      <button className="fab" title="Nova despesa" onClick={() => setNovo(true)}>
-        +
-      </button>
+      {!importState && (
+        <button className="fab" title="Nova despesa" onClick={() => setNovo(true)}>
+          +
+        </button>
+      )}
       <Tabbar />
     </div>
   );

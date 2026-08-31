@@ -37,6 +37,7 @@ export const K_DIGESTSEMANAL = "rotinas_v2_digest_semanal";
 export const K_PIN = "rotinas_v2_pin";
 export const K_EXERCICIOS = "rotinas_v2_exercicios";
 export const K_COMPROMISSOS = "rotinas_v2_compromissos";
+export const K_MKFREQ = "rotinas_v2_mkfreq";
 export const K_PREFIX = "rotinas_v2_";
 export const K_SIDEBARCOLLAPSED = "rotinas_v2_sidebar_collapsed";
 

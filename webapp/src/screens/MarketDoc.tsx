@@ -1,12 +1,14 @@
 // Porta de renderMarketDoc (index.html:7148-7390) — lista de mercado
-// agrupada por gôndola, com sugestão de gôndola por nome do item e modo
-// compra. Sem chips de frequência (K_MKFREQ), reordenar gôndola nem
-// compartilhar como texto — gaps documentados em CLAUDE.md > "webapp/".
+// agrupada por gôndola, com sugestão de gôndola por nome do item, modo
+// compra, chips de frequência (K_MKFREQ), reordenação de gôndolas e
+// compartilhar como texto.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { TmplDocHeader } from "../components/TmplDocHeader";
-import { GROCERY_DB, brl, guessAisle } from "../lib/templates";
+import { GROCERY_DB, brl, bumpMkFreq, guessAisle, marketShareText, topMkFreq, type MkFreqMap } from "../lib/templates";
+import { K_MKFREQ } from "../lib/constants";
+import { load, save as saveKey } from "../lib/storage";
 import type { MarketDoc as MarketDocType } from "../lib/types";
 
 type Item = MarketDocType["items"][number];
@@ -30,30 +32,48 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
   const [price, setPrice] = useState("");
   const [aisle, setAisle] = useState(doc.aisleOrder[0] || "Outros");
   const [editId, setEditId] = useState<string | null>(null);
+  const [mkFreq, setMkFreq] = useState<MkFreqMap>(() => load<MkFreqMap>(K_MKFREQ, {}));
+  const [reorderAisles, setReorderAisles] = useState(false);
 
   function save(patch: Partial<MarketDocType>) {
     updateTemplateDoc({ ...doc, ...patch });
   }
 
-  function addItem() {
-    const n = name.trim();
+  function addItem(prefill?: { name: string; qty?: number; unit?: string; price?: number; aisle?: string }) {
+    const n = prefill ? prefill.name : name.trim();
     if (!n) return;
-    const q = +qty || 1;
-    const u = unit;
-    const p = +price || 0;
-    const a = aisle || guessAisle(n);
+    const q = prefill ? prefill.qty || 1 : +qty || 1;
+    const u = prefill ? prefill.unit || "un" : unit;
+    const p = prefill ? prefill.price || 0 : +price || 0;
+    const a = prefill ? prefill.aisle || guessAisle(n) : aisle || guessAisle(n);
     const dup = doc.items.find((i) => i.name.toLowerCase() === n.toLowerCase() && i.unit === u);
     const items = dup
       ? doc.items.map((i) => (i === dup ? { ...i, qty: i.qty + q, price: p ? (i.price || 0) + p : i.price } : i))
       : [...doc.items, { id: uid(), name: n, qty: q, unit: u, price: p, aisle: a, checked: false }];
     save({ items });
-    setName("");
-    setQty("1");
-    setPrice("");
+    const novoFreq = bumpMkFreq(mkFreq, { name: n, unit: u, qty: q, price: p, aisle: a });
+    saveKey(K_MKFREQ, novoFreq);
+    setMkFreq(novoFreq);
+    if (!prefill) {
+      setName("");
+      setQty("1");
+      setPrice("");
+    }
   }
 
+  function compartilhar() {
+    const txt = marketShareText(doc);
+    if (navigator.share) navigator.share({ text: txt, title: doc.title }).catch(() => {});
+    else navigator.clipboard?.writeText(txt).catch(() => {});
+  }
+
+  const freqChips = topMkFreq(mkFreq, doc.items);
   const suggestions =
-    name.trim().length >= 2 ? ALL_SUGGESTIONS.filter((s) => s.includes(name.trim().toLowerCase())).slice(0, 6) : [];
+    name.trim().length >= 2
+      ? [...new Set(ALL_SUGGESTIONS.concat(Object.values(mkFreq).map((f) => f.name)))]
+          .filter((s) => s.toLowerCase().includes(name.trim().toLowerCase()))
+          .slice(0, 6)
+      : [];
 
   const pending = doc.items.filter((i) => !i.checked);
   const listTotal = doc.items.reduce((a, i) => a + (i.price || 0), 0);
@@ -65,6 +85,15 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
   });
   const order = doc.aisleOrder.concat(Object.keys(byAisle).filter((a) => !doc.aisleOrder.includes(a)));
   const hasAnyItem = doc.items.length > 0;
+
+  // Porta dos handlers data-aup/data-adown (index.html:7359-7364): a troca é
+  // feita sobre `order` completo (inclui gôndolas fora de aisleOrder) e o
+  // resultado vira o novo aisleOrder persistido.
+  function moveAisle(i: number, delta: -1 | 1) {
+    const novo = [...order];
+    [novo[i + delta], novo[i]] = [novo[i], novo[i + delta]];
+    save({ aisleOrder: novo });
+  }
 
   return (
     <div className="screen">
@@ -90,10 +119,25 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
         >
           <Icon name="arrowPath" size={15} />
         </button>
+        <button className="icon-btn" title="Compartilhar como texto" aria-label="Compartilhar como texto" onClick={compartilhar}>
+          <Icon name="arrowUpRight" size={13} />
+        </button>
       </div>
       <div style={{ overflowY: "auto", flex: 1, paddingBottom: 20 }}>
         {!doc.shopMode && (
           <div className="market-form">
+            {freqChips.length > 0 && (
+              <div className="mk-chips">
+                <span className="dev-n" style={{ marginRight: 2 }}>
+                  frequentes:
+                </span>
+                {freqChips.map((f) => (
+                  <span key={f.name} className="tag-chip" onClick={() => addItem(f)}>
+                    {f.name}
+                  </span>
+                ))}
+              </div>
+            )}
             <input
               type="text"
               placeholder="Item"
@@ -158,7 +202,7 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
                   </option>
                 ))}
               </select>
-              <button className="btn-primary" style={{ flex: "0 0 auto", padding: "10px 24px" }} onClick={addItem}>
+              <button className="btn-primary" style={{ flex: "0 0 auto", padding: "10px 24px" }} onClick={() => addItem()}>
                 +
               </button>
             </div>
@@ -175,20 +219,41 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
             {pending.length} pendente(s) de {doc.items.length}
           </div>
         ) : null}
+        {!doc.shopMode && (
+          <button className="link-btn" style={{ fontSize: 13, padding: "0 0 8px" }} onClick={() => setReorderAisles(!reorderAisles)}>
+            {reorderAisles ? "concluir ordenação" : (
+              <>
+                <Icon name="arrowsUpDown" size={13} /> ordenar gôndolas
+              </>
+            )}
+          </button>
+        )}
         {doc.items.length === 0 && (
           <div className="empty-state" style={{ minHeight: "30vh" }}>
             <p>Adicione itens — eles serão agrupados por gôndola.</p>
           </div>
         )}
 
-        {order.map((a) => {
+        {order.map((a, ai) => {
           const items = byAisle[a] || [];
           let visible = doc.shopMode ? items.filter((i) => !i.checked) : items;
           if (doc.shopMode ? visible.length === 0 : visible.length === 0 && !hasAnyItem) return null;
           visible = [...visible].sort((x, y) => (x.checked ? 1 : 0) - (y.checked ? 1 : 0));
           return (
             <div key={a}>
-              <div className="section-label">{a}</div>
+              <div className="section-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {a}
+                {reorderAisles && (
+                  <>
+                    <button className="order-btn" disabled={ai === 0} onClick={() => moveAisle(ai, -1)}>
+                      <Icon name="arrowUp" size={14} />
+                    </button>
+                    <button className="order-btn" disabled={ai === order.length - 1} onClick={() => moveAisle(ai, +1)}>
+                      <Icon name="arrowDown" size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
               <div className="stat-card" style={{ padding: "10px 14px" }}>
                 {visible.length === 0 ? (
                   <div className="dev-n" style={{ padding: "4px 2px", opacity: 0.6 }}>

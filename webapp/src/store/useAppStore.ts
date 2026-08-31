@@ -80,7 +80,7 @@ interface AppState {
   theme: Theme;
   fontScale: number;
   weekStart: number;
-  homeView: "rotinas" | "semana";
+  homeView: "rotinas" | "semana" | "dia";
   digestSemanal: boolean;
   nudge: boolean;
   nudgeDias: number[];
@@ -112,7 +112,7 @@ interface AppState {
   setTheme: (t: Theme) => void;
   setFontScale: (n: number) => void;
   setWeekStart: (d: number) => void;
-  setHomeView: (v: "rotinas" | "semana") => void;
+  setHomeView: (v: "rotinas" | "semana" | "dia") => void;
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
   toggleNudgeDia: (d: number) => void;
@@ -165,6 +165,8 @@ interface AppState {
   // Porta de abrirFormDespesa (index.html:9041-9078) sem o formulário em si
   // (fica no modal da tela) — só o push no array de templates.
   addExpense: (fields: { desc: string; value: number; cat: string; date: string; time?: string }) => void;
+  // Import de extrato CSV (index.html:9161-9170) — um save só para o lote.
+  addExpenses: (lote: Array<{ desc: string; value: number; cat: string; date: string; time?: string }>) => void;
 
   // Busca global (index.html:2978-3151) — só estado de aberto/fechado; a
   // varredura em si mora em components/GlobalSearch.tsx (a mesma "receita" do
@@ -220,7 +222,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       theme: load<Theme>(K_THEME, "auto"),
       fontScale: load<number>(K_FONTSCALE, 1),
       weekStart: load<number>(K_WEEKSTART, 0),
-      homeView: load<"rotinas" | "semana">(K_HOMEVIEW, "rotinas"),
+      homeView: load<"rotinas" | "semana" | "dia">(K_HOMEVIEW, "rotinas"),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
       nudgeDias: load<number[]>(K_NUDGEDAYS, [5]),
@@ -662,6 +664,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const now = Date.now();
     const doc = { id: uid(), type: "expense" as const, ...fields, createdAt: now, updatedAt: now };
     const templates = [...get().templates, doc];
+    save(K_TEMPLATES, templates);
+    set({ templates });
+  },
+  addExpenses: (lote) => {
+    const now = Date.now();
+    const docs = lote.map((fields) => ({ id: uid(), type: "expense" as const, ...fields, createdAt: now, updatedAt: now }));
+    const templates = [...get().templates, ...docs];
     save(K_TEMPLATES, templates);
     set({ templates });
   },

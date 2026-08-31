@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agruparPorMes, catColor, chartsBucketKey, chartsBucketLabel, computeDonutArcs, filtrarDespesas, resumoPorPeriodo } from "./expense";
+import { agruparPorMes, catColor, computeImportPreview, despesasCsv, guessExpenseColumns, parseBRNumber, parseCsvText, parseFlexDate, sugerirCategoriaDespesa, chartsBucketKey, chartsBucketLabel, computeDonutArcs, filtrarDespesas, resumoPorPeriodo } from "./expense";
 import type { ExpenseDoc } from "./types";
 
 function exp(partial: Partial<ExpenseDoc>): ExpenseDoc {
@@ -99,5 +99,66 @@ describe("resumoPorPeriodo", () => {
     expect(r.totalPeriodoAtual).toBe(50);
     expect(r.categoriaTopoPeriodoAtual).toEqual({ cat: "Lazer", valor: 40 });
     expect(r.lancamentosPeriodoAtual).toBe(2);
+  });
+});
+
+describe("sugerirCategoriaDespesa", () => {
+  it("puxa a categoria mais usada entre lançamentos com a mesma chave de descrição", () => {
+    const existentes = [
+      { desc: "UBER TRIP 123", cat: "Transporte" },
+      { desc: "UBER TRIP 456", cat: "Transporte" },
+      { desc: "UBER TRIP 789", cat: "Lazer" },
+    ];
+    expect(sugerirCategoriaDespesa("Uber Trip 999", existentes)).toBe("Transporte");
+    expect(sugerirCategoriaDespesa("PADARIA DO ZE", existentes)).toBeNull();
+  });
+});
+
+describe("parseBRNumber / parseFlexDate", () => {
+  it("aceita formato brasileiro, americano, parênteses e R$", () => {
+    expect(parseBRNumber("1.234,56")).toBe(1234.56);
+    expect(parseBRNumber("1,234.56")).toBe(1234.56);
+    expect(parseBRNumber("R$ 10,00")).toBe(10);
+    expect(parseBRNumber("(5,50)")).toBe(-5.5);
+    expect(parseBRNumber("-3")).toBe(-3);
+    expect(parseBRNumber("abc")).toBeNaN();
+  });
+  it("normaliza datas dd/mm/aaaa, dd/mm/aa e ISO", () => {
+    expect(parseFlexDate("05/03/2026")).toBe("2026-03-05");
+    expect(parseFlexDate("5/3/26")).toBe("2026-03-05");
+    expect(parseFlexDate("2026-03-05")).toBe("2026-03-05");
+    expect(parseFlexDate("nada")).toBeNull();
+  });
+});
+
+describe("import de extrato CSV", () => {
+  const csv = 'Data;Descrição;Valor\n05/03/2026;"UBER TRIP";-12,50\n06/03/2026;PIX RECEBIDO;100,00\n;linha ruim;x';
+  it("detecta delimitador, cabeçalho e colunas", () => {
+    const { rows, delimiter } = parseCsvText(csv);
+    expect(delimiter).toBe(";");
+    const g = guessExpenseColumns(rows);
+    expect(g.header).not.toBeNull();
+    expect(g.dateCol).toBe(0);
+    expect(g.descCol).toBe(1);
+    expect(g.valCol).toBe(2);
+    expect(g.dataRows).toHaveLength(3);
+  });
+  it("computeImportPreview respeita o filtro de sinal e conta ignoradas", () => {
+    const g = guessExpenseColumns(parseCsvText(csv).rows);
+    const st = { dataRows: g.dataRows, guess: g, map: { date: 0, val: 2, desc: 1 }, sign: "neg" as const };
+    const r = computeImportPreview(st);
+    expect(r.parsed).toEqual([{ date: "2026-03-05", desc: "UBER TRIP", value: 12.5 }]);
+    expect(r.skipped).toBe(1);
+    expect(computeImportPreview({ ...st, sign: "abs" }).parsed).toHaveLength(2);
+  });
+});
+
+describe("despesasCsv", () => {
+  it("exporta com BOM, ponto-e-vírgula e valores com vírgula, ordenado por data", () => {
+    const out = despesasCsv([exp({ date: "2026-02-01", desc: "b;c", value: 1.5, cat: "Lazer" }), exp({ date: "2026-01-01", desc: "a", value: 2 })]);
+    const linhas = out.split("\n");
+    expect(linhas[0].charCodeAt(0)).toBe(0xfeff);
+    expect(linhas[1]).toBe("2026-01-01;;a;2,00;Outros");
+    expect(linhas[2]).toBe("2026-02-01;;b,c;1,50;Lazer");
   });
 });

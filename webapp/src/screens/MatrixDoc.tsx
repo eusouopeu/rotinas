@@ -1,7 +1,7 @@
-// Porta de renderMatrixDoc (index.html:7421-7583) — grade de 4 quadrantes
-// com cor, modo (check/lista/numerada) e itens com indentação simples (1
-// nível). Sem expandir quadrante, editar eixos nem exportar PDF — gaps
-// documentados em CLAUDE.md > "webapp/".
+// Porta de renderMatrixDoc (index.html:7421-7587) — grade de 4 quadrantes
+// com cor, modo (check/lista/numerada), itens com indentação simples (1
+// nível), expandir quadrante e edição dos rótulos dos eixos. Sem exportar
+// PDF — gap documentado em CLAUDE.md > "webapp/".
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
@@ -15,6 +15,8 @@ type QItem = Quadrant["items"][number];
 export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
   const [editing, setEditing] = useState<{ qi: number; ii: number } | null>(null);
+  const [showAxes, setShowAxes] = useState(false);
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   function save(patch: Partial<MatrixDocType>) {
     updateTemplateDoc({ ...doc, ...patch });
@@ -26,20 +28,13 @@ export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
     saveQuadrants(doc.quadrants.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
   }
 
-  return (
-    <div className="screen">
-      <TmplDocHeader doc={doc} onTitleChange={(title) => save({ title })} />
-      {(doc.axisX || doc.axisY) && <div className="mx-axis-x">&larr; {doc.axisX} &rarr;</div>}
-      <div style={{ flex: 1, display: "flex", minHeight: 0, gap: 6, overflow: "hidden" }}>
-        {doc.axisY && <div className="mx-axis-y">{doc.axisY}</div>}
-        <div className="matrix-grid" style={{ overflowY: "auto" }}>
-          {doc.quadrants.map((q, qi) => (
-            <div className="matrix-quad" key={qi} style={{ borderColor: q.color, background: q.color + "14" }}>
+  const renderQuad = (q: Quadrant, qi: number, big: boolean) => (
+    <div className="matrix-quad" key={qi} style={{ borderColor: q.color, background: q.color + "14" }}>
               <input
                 type="text"
                 className="mx-title"
                 value={q.title}
-                style={{ color: q.color }}
+                style={{ color: q.color, fontSize: big ? 17 : 14 }}
                 onChange={(e) => patchQuad(qi, { title: e.target.value })}
               />
               <span className="dev-n" style={{ fontSize: 10.5 }}>
@@ -56,12 +51,25 @@ export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
                     />
                   ))}
                 </div>
-                <div className="type-toggle" style={{ fontSize: 10 }}>
-                  {(["check", "ul", "ol"] as const).map((m) => (
-                    <span key={m} className={q.mode === m ? "active" : ""} onClick={() => patchQuad(qi, { mode: m })}>
-                      {m === "check" ? <Icon name="check" size={13} /> : m === "ul" ? "•" : "1."}
-                    </span>
-                  ))}
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <div className="type-toggle" style={{ fontSize: 10 }}>
+                    {(["check", "ul", "ol"] as const).map((m) => (
+                      <span key={m} className={q.mode === m ? "active" : ""} onClick={() => patchQuad(qi, { mode: m })}>
+                        {m === "check" ? <Icon name="check" size={13} /> : m === "ul" ? "•" : "1."}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    className="order-btn"
+                    title={big ? "Voltar à grade" : "Expandir"}
+                    aria-label={big ? "Voltar à grade" : "Expandir"}
+                    onClick={() => {
+                      setExpanded(expanded === qi ? null : qi);
+                      setEditing(null);
+                    }}
+                  >
+                    <Icon name={big ? "arrowsPointingIn" : "arrowsPointingOut"} size={15} />
+                  </button>
                 </div>
               </div>
               <div className="mx-items">
@@ -77,7 +85,7 @@ export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
                       onSave={(quadrants) => saveQuadrants(quadrants)}
                     />
                   ) : (
-                    <QItemRow key={ii} q={q} it={it} ii={ii} onEdit={() => setEditing({ qi, ii })} onToggle={() => {
+                    <QItemRow key={ii} q={q} it={it} ii={ii} big={big} onEdit={() => setEditing({ qi, ii })} onToggle={() => {
                       const items = q.items.map((x, i) => (i === ii ? { ...x, checked: !x.checked } : x));
                       patchQuad(qi, { items });
                     }} />
@@ -98,8 +106,30 @@ export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
                 <input type="text" placeholder="+ item (Enter)" />
               </form>
             </div>
-          ))}
+  );
+
+  return (
+    <div className="screen">
+      <TmplDocHeader doc={doc} onTitleChange={(title) => save({ title })} />
+      <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
+        <button className="icon-btn" title="Rótulos dos eixos" aria-label="Rótulos dos eixos" onClick={() => setShowAxes(!showAxes)}>
+          <Icon name="tag" size={15} />
+        </button>
+      </div>
+      {showAxes && (
+        <div className="mx-axes" style={{ display: "flex" }}>
+          <input type="text" placeholder="eixo horizontal" value={doc.axisX || ""} onChange={(e) => save({ axisX: e.target.value })} />
+          <input type="text" placeholder="eixo vertical" value={doc.axisY || ""} onChange={(e) => save({ axisY: e.target.value })} />
         </div>
+      )}
+      {doc.axisX && !showAxes && <div className="mx-axis-x">&larr; {doc.axisX} &rarr;</div>}
+      <div style={{ flex: 1, display: "flex", minHeight: 0, gap: 6, overflow: "hidden" }}>
+        {doc.axisY && !showAxes && expanded === null && <div className="mx-axis-y">{doc.axisY}</div>}
+        {expanded !== null ? (
+          <div className="matrix-single" style={{ overflowY: "auto" }}>{renderQuad(doc.quadrants[expanded], expanded, true)}</div>
+        ) : (
+          <div className="matrix-grid" style={{ overflowY: "auto" }}>{doc.quadrants.map((q, qi) => renderQuad(q, qi, false))}</div>
+        )}
       </div>
     </div>
   );
@@ -109,19 +139,22 @@ function QItemRow({
   q,
   it,
   ii,
+  big,
   onEdit,
   onToggle,
 }: {
   q: Quadrant;
   it: QItem;
   ii: number;
+  big: boolean;
   onEdit: () => void;
   onToggle: () => void;
 }) {
   const indStyle = it.indent ? { marginLeft: 16 } : undefined;
+  const fontSize = big ? 15 : 13.5;
   if (q.mode === "check") {
     return (
-      <div className={"checklist-item" + (it.checked ? " checked" : "")} style={{ margin: "3px 0", fontSize: 13.5, ...indStyle }}>
+      <div className={"checklist-item" + (it.checked ? " checked" : "")} style={{ margin: "3px 0", fontSize, ...indStyle }}>
         <span
           className="checklist-box mx-box"
           style={{ width: 16, height: 16, borderColor: q.color, background: it.checked ? q.color : undefined }}
@@ -137,7 +170,7 @@ function QItemRow({
   }
   const marker = q.mode === "ol" ? q.items.slice(0, ii).filter((x) => !x.indent).length + (it.indent ? 0 : 1) + "." : "•";
   return (
-    <div className="live-line li-line" style={{ fontSize: 13.5, display: "flex", alignItems: "flex-start", ...indStyle }}>
+    <div className="live-line li-line" style={{ fontSize, display: "flex", alignItems: "flex-start", ...indStyle }}>
       <span className="li-marker" style={{ color: q.color }}>
         {it.indent ? "◦" : marker}
       </span>
