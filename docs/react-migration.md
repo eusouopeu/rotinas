@@ -4,7 +4,7 @@
 
 Vite usa `root:"webapp"`, `base:"./"`, saída `webapp-dist`; TypeScript é estrito. Scripts: `dev:react`, `build:react`, `test:react`, `typecheck:react`. Estado: store Zustand e storage compatível com os mesmos formatos/dados legados. O CSS é o `app.css` raiz importado por `main.tsx`; não há Tailwind/CSS Modules. Preserve `#app`.
 
-Portados parcialmente: Home, Settings (incluindo Backup, Sincronização com nuvem e Integrações MCP), RoutineEditor/Detail, Player/Done, Metas, Notes/NoteEditor, pastas/documentos de modelo (scoreboard, thoughtrecord, proscons, mercado, matriz 2×2, kanban, viagem) e Despesas (`ExpenseFolder.tsx` — tela dedicada fora do molde genérico de doc, cada lançamento é a própria "nota"). Gamificação/scoring/metas têm lógica real e testes. Ainda faltam, entre outros, calendário externo (iCal), mini player, simulação de pontuação, consolidação do drag-and-drop e a agenda inline em Rotinas (ver nota "Diário" abaixo). `templates` é passthrough genérico para não destruir documentos não tipados.
+Portados parcialmente: Home, Settings (incluindo Backup, Sincronização com nuvem e Integrações MCP), RoutineEditor/Detail, Player/Done, Metas, Notes/NoteEditor, pastas/documentos de modelo (scoreboard, thoughtrecord, proscons, mercado, matriz 2×2, kanban, viagem) e Despesas (`ExpenseFolder.tsx` — tela dedicada fora do molde genérico de doc, cada lançamento é a própria "nota"). Gamificação/scoring/metas têm lógica real e testes. Drag-and-drop está consolidado em `lib/dnd.ts` (`useDragReorder` + `computeStepDragTarget`/`computeKanbanDragTarget`), usado em RoutineEditor (etapas) e KanbanDoc (cartões, com os botões `‹ ›` como fallback). Ainda faltam, entre outros, calendário externo (iCal), mini player, simulação de pontuação e a agenda inline em Rotinas (ver nota "Diário" abaixo). `templates` é passthrough genérico para não destruir documentos não tipados.
 
 **Excluídos por decisão explícita (não portar):** PIN de bloqueio e atalhos de teclado globais. Não recriar.
 
@@ -16,6 +16,6 @@ Drive e MCP (`lib/nativeBridge.ts` + `components/SyncCard.tsx`/`McpCard.tsx`): c
 
 Despesas (`lib/expense.ts` + `screens/ExpenseFolder.tsx`): busca/filtro (texto, intervalo de datas, categoria), lista agrupada por mês com repartição por categoria, e gráficos (tendência por período + donut) — tudo com dados reais. Sem import/export CSV nem sugestão de categoria por histórico (`sugerirCategoriaDespesa`).
 
-Modelos de mercado/viagem: sem chips de frequência (K_MKFREQ), sem reordenar gôndola/categoria e sem compartilhar como texto. Matriz: sem expandir quadrante nem editar rótulos dos eixos. Kanban de modelo: sem arrastar cartão (só mover com botões), sem PDF em nenhum dos quatro.
+Modelos de mercado/viagem: sem chips de frequência (K_MKFREQ), sem reordenar gôndola/categoria e sem compartilhar como texto. Matriz: sem expandir quadrante nem editar rótulos dos eixos. Kanban de modelo: sem PDF em nenhum dos quatro tipos de doc.
 
-Riscos: live Markdown requer fase própria por causa da reconciliação React; DnD deve convergir em hook único, não seis cópias; MCP volta apenas com cobertura suficiente. Há bug upstream no sticky desktop do CSS compartilhado; não corrija incidentalmente durante port.
+Riscos: live Markdown requer fase própria por causa da reconciliação React; MCP volta apenas com cobertura suficiente. Há bug upstream no sticky desktop do CSS compartilhado; não corrija incidentalmente durante port.
