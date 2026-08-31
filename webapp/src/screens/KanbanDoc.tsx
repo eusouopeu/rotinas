@@ -1,11 +1,14 @@
 // Porta de renderKanbanDoc + pintarKanban sem opts (index.html:7877-7893,
-// 7624-7876) — 3 colunas fixas, cartão só com texto. Sem arrastar (só mover
-// com os botões ‹ ›), sem horário/peso/abas (exclusivos do kanban do
-// Diário) nem exportar PDF — gaps documentados em CLAUDE.md > "webapp/".
-import { useState } from "react";
+// 7624-7876) — 3 colunas fixas, cartão só com texto. Arrastar (useDragReorder,
+// ver webapp/src/lib/dnd.ts) e os botões ‹ › convivem, igual ao legado. Sem
+// horário/peso/abas (exclusivos do kanban do Diário, removido — ver
+// docs/react-migration.md) nem exportar PDF — gaps documentados em
+// CLAUDE.md > "webapp/".
+import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { TmplDocHeader } from "../components/TmplDocHeader";
+import { computeKanbanDragTarget, useDragReorder } from "../lib/dnd";
 import type { KanbanDoc as KanbanDocType } from "../lib/types";
 
 function uid(): string {
@@ -29,12 +32,32 @@ export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
     save(cols);
   }
 
+  const colRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const cardRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
+  function moveCardTo(fromCol: number, fromIndex: number, toCol: number, toIndex: number) {
+    const cols = doc.cols.map((c) => ({ ...c, items: [...c.items] }));
+    const [it] = cols[fromCol].items.splice(fromIndex, 1);
+    cols[toCol].items.splice(Math.min(toIndex, cols[toCol].items.length), 0, it);
+    save(cols);
+  }
+
+  const { dragFrom, dragOver, dragHandleProps } = useDragReorder((from, to) =>
+    moveCardTo(from.container, from.index, to.container, to.index),
+  );
+
   return (
     <div className="screen">
       <TmplDocHeader doc={doc} onTitleChange={(title) => updateTemplateDoc({ ...doc, title })} />
       <div className="kb-board">
         {doc.cols.map((c, ci) => (
-          <div className="kb-col" key={ci}>
+          <div
+            className={"kb-col" + (dragOver?.container === ci ? " kb-drop" : "")}
+            key={ci}
+            ref={(el) => {
+              colRefs.current[ci] = el;
+            }}
+          >
             <div className="kb-head">
               {c.title} <span className="dev-n">{c.items.length}</span>
             </div>
@@ -59,8 +82,38 @@ export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
                     }}
                   />
                 ) : (
-                  <div className="kb-card" key={it.id}>
+                  <div
+                    className={"kb-card" + (dragFrom?.container === ci && dragFrom.index === ii ? " dragging" : "")}
+                    key={it.id}
+                    ref={(el) => {
+                      cardRefs.current.set(it.id, el);
+                    }}
+                  >
                     <div className="kb-card-top">
+                      <span
+                        className="kb-drag"
+                        {...dragHandleProps({ container: ci, index: ii }, (x, y) => {
+                          const columns = doc.cols.map((_, i) => ({
+                            containerIndex: i,
+                            rect: colRefs.current[i]!.getBoundingClientRect(),
+                          }));
+                          const draggedId = it.id;
+                          return computeKanbanDragTarget(
+                            columns,
+                            (containerIndex) =>
+                              doc.cols[containerIndex].items
+                                .filter((x2) => x2.id !== draggedId)
+                                .map((x2) => cardRefs.current.get(x2.id))
+                                .filter((el): el is HTMLDivElement => el != null)
+                                .map((el) => el.getBoundingClientRect()),
+                            x,
+                            y,
+                            ci,
+                          );
+                        })}
+                      >
+                        <Icon name="bars3" size={15} />
+                      </span>
                       <span className="kb-text" onClick={() => setEditing({ ci, ii })}>
                         {it.text}
                       </span>
