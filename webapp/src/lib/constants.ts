@@ -38,6 +38,10 @@ export const K_PIN = "rotinas_v2_pin";
 export const K_EXERCICIOS = "rotinas_v2_exercicios";
 export const K_COMPROMISSOS = "rotinas_v2_compromissos";
 export const K_MKFREQ = "rotinas_v2_mkfreq";
+// Backup automático em arquivo no navegador (index.html:10812-10816).
+export const K_BAKHANDLE = "rotinas_v2_bakhandle";
+export const K_BAKWEB = "rotinas_v2_bakweb_ts";
+export const K_BAKSEENAT = "rotinas_v2_bakseenat";
 export const K_PREFIX = "rotinas_v2_";
 export const K_SIDEBARCOLLAPSED = "rotinas_v2_sidebar_collapsed";
 

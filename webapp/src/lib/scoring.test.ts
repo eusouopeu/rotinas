@@ -3,12 +3,14 @@ import { criarEstadoGamificacaoInicial, inicioSemanaISO, localKey } from "./gami
 import {
   avancarGamificacaoAteAgora,
   congelarSemana,
+  descreditarCartao,
   desfazerConclusao,
   registrarConclusaoStep,
   simularDistribuicaoSemana,
+  sincronizarPontosCartao,
   totalPlanejadoSegundos,
 } from "./scoring";
-import type { Routine } from "./types";
+import type { DiaKanbanCard, Routine } from "./types";
 
 function rotinaDiariaTimer(minutos: number): Routine {
   return {
@@ -158,6 +160,34 @@ describe("simularDistribuicaoSemana", () => {
     const gamHipotetico = { ...gam, config: { ...gam.config, multiplicadores: { ...gam.config.multiplicadores, medio: gam.config.multiplicadores.medio * 3 } } };
     const maior = simularDistribuicaoSemana([rotinaMedio, rotinaBaixo], gamHipotetico, inicio).find((s) => s.routineId === "r1")!.pontos;
     expect(maior).toBeGreaterThan(base);
+  });
+});
+
+describe("sincronizarPontosCartao / descreditarCartao", () => {
+  function cartao(patch: Partial<DiaKanbanCard>): DiaKanbanCard {
+    return { id: "c1", text: "Tarefa", col: "todo", per: "dia:2026-01-15", ord: 0, tagValor: "medio", ...patch };
+  }
+
+  it("cartão de escopo dia credita em semanaAtual.concluidos ao marcar done, e estorna ao desmarcar", () => {
+    const gam = avancarGamificacaoAteAgora([], criarEstadoGamificacaoInicial());
+    const feito = sincronizarPontosCartao(gam, cartao({ col: "done" }));
+    expect(feito.gam.semanaAtual!.concluidos).toHaveLength(1);
+    expect(feito.card.gamItemId).toBeTruthy();
+    // idempotente: já creditado, chamar de novo não duplica
+    const repetido = sincronizarPontosCartao(feito.gam, feito.card);
+    expect(repetido.gam.semanaAtual!.concluidos).toHaveLength(1);
+    const desfeito = descreditarCartao(feito.gam, feito.card);
+    expect(desfeito.gam.semanaAtual!.concluidos).toHaveLength(0);
+    expect(desfeito.card.gamItemId).toBeUndefined();
+  });
+
+  it("cartão de escopo mês vira bônus em gam.metasPontos, estornável", () => {
+    const gam = criarEstadoGamificacaoInicial();
+    const feito = sincronizarPontosCartao(gam, cartao({ col: "done", per: "mes:2026-01" }));
+    expect(feito.gam.metasPontos["2026-01"]).toBeGreaterThan(0);
+    expect(feito.card.gamPeriodo).toBe("2026-01");
+    const desfeito = descreditarCartao(feito.gam, feito.card);
+    expect(desfeito.gam.metasPontos["2026-01"]).toBeUndefined();
   });
 });
 

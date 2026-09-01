@@ -6,6 +6,8 @@
 import { create } from "zustand";
 import { bootStorage, isNative, load, save } from "../lib/storage";
 import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
+import { planoNotificacaoCompromissos } from "../lib/notifications";
+import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
 import { K_AUTOBAK, K_DATAFOLDER } from "../lib/constants";
 import {
   K_COMPROMISSOS,
@@ -244,6 +246,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       booted: true,
     });
     autoBackupNative(get());
+    syncCompromissoNotifications(get().compromissos);
   },
 
   goTo: (view) => set({ view }),
@@ -589,16 +592,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const compromissos = [...get().compromissos, { id: uid(), title: t, date, time, notify: "nenhuma" as const, createdAt: Date.now() }];
     save(K_COMPROMISSOS, compromissos);
     set({ compromissos });
+    syncCompromissoNotifications(compromissos);
   },
   toggleCompromisso: (id) => {
     const compromissos = get().compromissos.map((c) => (c.id === id ? { ...c, feito: !c.feito } : c));
     save(K_COMPROMISSOS, compromissos);
     set({ compromissos });
+    syncCompromissoNotifications(compromissos);
   },
   deleteCompromisso: (id) => {
     const compromissos = get().compromissos.filter((c) => c.id !== id);
     save(K_COMPROMISSOS, compromissos);
     set({ compromissos });
+    syncCompromissoNotifications(compromissos);
   },
 
   addDiaKanbanCard: (iso, text, hIni, hFim) => {
@@ -617,25 +623,50 @@ export const useAppStore = create<AppState>((set, get) => ({
     // fim sem início não descreve nada; fim antes do início é engano
     const hIni = card.hIni || "";
     const hFim = hIni && card.hFim && card.hFim > hIni ? card.hFim : "";
+    let gam = get().gam;
     let diaKanban;
     if (card.id) {
-      diaKanban = get().diaKanban.map((c) => (c.id === card.id ? { ...c, text, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null } : c));
+      const existente = get().diaKanban.find((c) => c.id === card.id);
+      let alvo: DiaKanbanCard | null = existente ? { ...existente, text, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null } : null;
+      // cartão já concluído que muda de peso/área precisa estornar antes: o
+      // crédito antigo foi calculado com os valores velhos (index.html:5229-5235)
+      const mudouPeso = existente && existente.col === "done" && (existente.tagValor !== card.tagValor || (existente.eixo ?? null) !== (card.eixo ?? null));
+      if (mudouPeso && existente) {
+        const desc = descreditarCartao(gam, existente);
+        gam = desc.gam;
+        alvo = { ...desc.card, text, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null };
+      }
+      if (alvo) {
+        const sinc = sincronizarPontosCartao(gam, alvo);
+        gam = sinc.gam;
+        alvo = sinc.card;
+      }
+      diaKanban = get().diaKanban.map((c) => (c.id === card.id ? (alvo as DiaKanbanCard) : c));
     } else {
       const ord = get().diaKanban.filter((c) => c.per === per).length;
       diaKanban = [...get().diaKanban, { id: uid(), text, col: "todo" as const, per, ord, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null }];
     }
     save(K_DIAKANBAN, diaKanban);
-    set({ diaKanban });
+    save(K_GAMIFICACAO, gam);
+    set({ diaKanban, gam });
   },
   toggleDiaKanbanCard: (id) => {
-    const diaKanban = get().diaKanban.map((c) => (c.id === id ? { ...c, col: c.col === "done" ? ("todo" as const) : ("done" as const) } : c));
+    const card = get().diaKanban.find((c) => c.id === id);
+    if (!card) return;
+    const toggled = { ...card, col: card.col === "done" ? ("todo" as const) : ("done" as const) };
+    const { gam, card: novoCard } = sincronizarPontosCartao(get().gam, toggled);
+    const diaKanban = get().diaKanban.map((c) => (c.id === id ? novoCard : c));
     save(K_DIAKANBAN, diaKanban);
-    set({ diaKanban });
+    save(K_GAMIFICACAO, gam);
+    set({ diaKanban, gam });
   },
   deleteDiaKanbanCard: (id) => {
+    const card = get().diaKanban.find((c) => c.id === id);
+    const gam = card ? descreditarCartao(get().gam, card).gam : get().gam;
     const diaKanban = get().diaKanban.filter((c) => c.id !== id);
     save(K_DIAKANBAN, diaKanban);
-    set({ diaKanban });
+    save(K_GAMIFICACAO, gam);
+    set({ diaKanban, gam });
   },
 
   // Notas simples (index.html:9685-9847, 11038-11137). Sem editor contínuo
@@ -746,6 +777,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (Array.isArray(data.snoozes)) save(K_SNOOZES, data.snoozes);
       if (Array.isArray(data.exercicios)) save(K_EXERCICIOS, data.exercicios);
       set({ routines, notes, history, templates, diario, diaKanban, compromissos });
+      syncCompromissoNotifications(compromissos);
       return;
     }
     const routines = mergeById(s.routines, data.routines as Routine[] | undefined);
@@ -769,6 +801,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       save(K_EXERCICIOS, mergeByIdLoose(load<Array<{ id?: unknown }>>(K_EXERCICIOS, []), data.exercicios as Array<{ id?: unknown }>));
     }
     set({ routines, notes, history, templates, diario, diaKanban, compromissos });
+    syncCompromissoNotifications(compromissos);
   },
 }));
 
@@ -807,5 +840,38 @@ async function autoBackupNative(state: AppState): Promise<void> {
     }
   } catch (e) {
     console.error("Auto-backup falhou:", e);
+  }
+}
+
+/** Porta parcial de syncNativeSchedules (index.html:2779-2865) — só a fatia
+ * de compromissos avulsos (ver lib/notifications.ts); o resto do sistema
+ * (rotinas agendadas, metas recorrentes, digest semanal) fica fora desta
+ * fase. Mesmo status de autoBackupNative: fiel ao legado, inerte fora do
+ * Android/Capacitor. Reagenda do zero a cada chamada — cancela as próprias
+ * notificações antigas (tag "sched-cp") antes de recriar. */
+async function syncCompromissoNotifications(compromissos: Compromisso[]): Promise<void> {
+  const LN = isNative ? window.Capacitor?.Plugins.LocalNotifications : undefined;
+  if (!LN) return;
+  try {
+    const perm = await LN.checkPermissions();
+    if (perm.display !== "granted") return;
+    const pending = await LN.getPending();
+    const minhas = (pending.notifications || []).filter((n) => n.extra && n.extra.brita === "sched-cp");
+    if (minhas.length) await LN.cancel({ notifications: minhas.map((n) => ({ id: n.id })) });
+    const snoozed = load<Array<{ from: number; to: number }>>(K_SNOOZES, []).some((s) => Date.now() >= s.from && Date.now() <= s.to);
+    if (snoozed) return; // agenda pausada: nada é reagendado até o próximo uso do app
+    const plano = planoNotificacaoCompromissos(compromissos, Date.now());
+    if (!plano.length) return;
+    await LN.schedule({
+      notifications: plano.map((p) => ({
+        id: p.id,
+        title: p.title,
+        body: p.body,
+        extra: { brita: "sched-cp" },
+        schedule: { at: new Date(p.when), allowWhileIdle: true },
+      })),
+    });
+  } catch (e) {
+    console.error("Sincronização de notificação de compromisso falhou:", e);
   }
 }

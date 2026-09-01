@@ -104,6 +104,26 @@ export interface DriveSyncPlugin {
   resolveConflict(args: { key: string; choice: "local" | "remote" }): Promise<void>;
 }
 
+/** Ponte do plugin Capacitor LocalNotifications (index.html:2765-2900) — só
+ * a fatia usada pela sincronização de notificação de compromisso avulso
+ * (ver lib/notifications.ts); o resto do sistema de notificações nativas
+ * (rotinas agendadas, metas recorrentes, digest semanal) fica fora desta
+ * fase. */
+export interface LocalNotificationsPlugin {
+  checkPermissions(): Promise<{ display: string }>;
+  getPending(): Promise<{ notifications: Array<{ id: number; extra?: Record<string, unknown> }> }>;
+  cancel(args: { notifications: Array<{ id: number }> }): Promise<void>;
+  schedule(args: {
+    notifications: Array<{
+      id: number;
+      title: string;
+      body: string;
+      extra?: Record<string, unknown>;
+      schedule: { at: Date; allowWhileIdle?: boolean };
+    }>;
+  }): Promise<void>;
+}
+
 /** Porta de syncBridge (index.html:14283-14297) — mesma ponte comum entre
  * desktop (IPC) e Android (Capacitor), métodos idênticos. */
 export function getSyncBridge(): SyncBridge | null {

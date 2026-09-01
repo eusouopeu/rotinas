@@ -26,7 +26,7 @@ import {
 } from "./gamificacao";
 import { rotinaAgendadaEm } from "./schedule";
 import { playbackSteps } from "./player";
-import type { GamificacaoState, Routine, RoutineStep, SemanaAtual, Tag } from "./types";
+import type { DiaKanbanCard, GamificacaoState, Routine, RoutineStep, SemanaAtual, Tag } from "./types";
 
 export function areaDaRotina(r: Routine, gam: GamificacaoState): string {
   const id = r.eixo || "";
@@ -254,6 +254,92 @@ export function desfazerConclusao(gam: GamificacaoState, itemId: string | undefi
   const concluidos = gam.semanaAtual.concluidos.filter((c) => c.itemId !== itemId);
   if (concluidos.length === gam.semanaAtual.concluidos.length) return gam;
   return { ...gam, semanaAtual: { ...gam.semanaAtual, concluidos } };
+}
+
+/* ---- Pontuação dos cartões do kanban do dia (index.html:12649-12766) ----
+ * O cartão não tem duração, então vale um bloco da duração de referência
+ * (`pesoBruto(tag, divisorDuracao)` dá sqrt(1)=1, o peso bruto vira o
+ * multiplicador). Dia/semana creditam em gam.semanaAtual.concluidos (mesma
+ * lista das etapas, reaproveitando desfazerConclusao); mês/ano viram bônus
+ * em gam.metasPontos, junto das metas. Peso "nenhum" (padrão) não pontua. */
+const KB_ESCOPO_LABEL: Record<string, string> = { dia: "do dia", semana: "da semana", mes: "do mês", ano: "do ano" };
+const KB_ESCOPO_MULT: Record<string, number> = { dia: 1, semana: 2, mes: 3, ano: 4 };
+const KB_PESO_BONUS = 1.15;
+
+export function escopoDoPer(per: string): string {
+  return String(per || "").split(":")[0] || "dia";
+}
+
+export function cartaoVaiParaSemana(per: string): boolean {
+  const e = escopoDoPer(per);
+  return e === "dia" || e === "semana";
+}
+
+function periodoBonusDoCartao(per: string): string {
+  const e = escopoDoPer(per);
+  const sufixo = String(per).slice(e.length + 1);
+  return e === "mes" ? sufixo : sufixo.slice(0, 4); // "2026-07" ou "2026"
+}
+
+function areaDoCartao(c: { eixo?: string | null }, gam: GamificacaoState): string {
+  const id = c.eixo || "";
+  return gam.config.roda.areas.some((a) => a.id === id) ? id : "";
+}
+
+export function pontosCartao(tag: Tag | undefined, per: string, area: string, gam: GamificacaoState): number {
+  const mult = KB_ESCOPO_MULT[escopoDoPer(per)] || 1;
+  const fator = cartaoVaiParaSemana(per)
+    ? fatorParaArea(area, gam.semanaAtual?.fatoresArea || {}, gam.semanaAtual?.fatorNormalizacao || 1)
+    : gam.semanaAtual?.fatorNormalizacao || 1;
+  return pesoBruto(tag || "nenhum", gam.config.divisorDuracao, gam.config) * fator * mult * KB_PESO_BONUS;
+}
+
+/** Porta de sincronizarPontosCartao (index.html:12734-12756) — credita
+ * quando o cartão vira "done" e ainda não tinha crédito; não faz nada se o
+ * estado feito/creditado já bate (idempotente). */
+export function sincronizarPontosCartao(gam: GamificacaoState, card: DiaKanbanCard, data: Date = new Date()): { gam: GamificacaoState; card: DiaKanbanCard } {
+  const feito = card.col === "done";
+  const jaCreditado = !!card.gamItemId || !!card.gamPeriodo;
+  if (feito === jaCreditado) return { gam, card };
+  if (!feito) return descreditarCartao(gam, card);
+  if (cartaoVaiParaSemana(card.per)) {
+    if (!gam.semanaAtual) return { gam, card };
+    const dataISO = localKey(data);
+    const itemId = "kanban:" + card.id + ":" + dataISO;
+    if (gam.semanaAtual.concluidos.some((c) => c.itemId === itemId)) return { gam, card };
+    const area = areaDoCartao(card, gam);
+    const pb = pesoBruto(card.tagValor || "nenhum", gam.config.divisorDuracao, gam.config) * (KB_ESCOPO_MULT[escopoDoPer(card.per)] || 1);
+    const pontos = pb * fatorParaArea(area, gam.semanaAtual.fatoresArea, gam.semanaAtual.fatorNormalizacao);
+    const entry = { itemId, pontos, pb, area, dataISO, rotulo: "Kanban " + (KB_ESCOPO_LABEL[escopoDoPer(card.per)] || "") };
+    const semanaAtual = { ...gam.semanaAtual, concluidos: [...gam.semanaAtual.concluidos, entry] };
+    return { gam: { ...gam, semanaAtual }, card: { ...card, gamItemId: itemId } };
+  }
+  const pontos = pontosCartao(card.tagValor, card.per, areaDoCartao(card, gam), gam);
+  if (pontos <= 0) return { gam, card };
+  const periodo = periodoBonusDoCartao(card.per);
+  const metasPontos = { ...gam.metasPontos, [periodo]: (gam.metasPontos[periodo] || 0) + pontos };
+  return { gam: { ...gam, metasPontos }, card: { ...card, gamPeriodo: periodo, gamPontos: pontos } };
+}
+
+/** Porta de descreditarCartao (index.html:12757-12766) — estorna crédito de
+ * semana (via desfazerConclusao, casa por itemId) e/ou bônus de mês/ano. */
+export function descreditarCartao(gam: GamificacaoState, card: DiaKanbanCard): { gam: GamificacaoState; card: DiaKanbanCard } {
+  let novoGam = gam;
+  let novoCard = card;
+  if (card.gamItemId) {
+    novoGam = desfazerConclusao(novoGam, card.gamItemId);
+    novoCard = { ...novoCard, gamItemId: undefined };
+  }
+  if (card.gamPeriodo) {
+    const p = card.gamPeriodo;
+    const restante = Math.max(0, (novoGam.metasPontos[p] || 0) - (card.gamPontos || 0));
+    const metasPontos = { ...novoGam.metasPontos };
+    if (restante < 1e-9) delete metasPontos[p];
+    else metasPontos[p] = restante;
+    novoGam = { ...novoGam, metasPontos };
+    novoCard = { ...novoCard, gamPeriodo: undefined, gamPontos: undefined };
+  }
+  return { gam: novoGam, card: novoCard };
 }
 
 export interface SimulacaoRotina {

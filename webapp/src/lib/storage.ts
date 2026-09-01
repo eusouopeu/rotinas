@@ -36,6 +36,7 @@ interface CapacitorFilesystem {
 export interface CapacitorPlugins {
   Filesystem: CapacitorFilesystem;
   DriveSync?: import("./nativeBridge").DriveSyncPlugin;
+  LocalNotifications?: import("./nativeBridge").LocalNotificationsPlugin;
 }
 
 declare global {

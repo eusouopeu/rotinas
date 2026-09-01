@@ -249,6 +249,12 @@ export interface DiaKanbanCard {
   eixo?: string | null;
   hIni?: string; // "HH:MM" | ""
   hFim?: string; // "HH:MM" | ""
+  // Crédito de pontos (index.html:12734-12766) — dia/semana creditam em
+  // gam.semanaAtual.concluidos (gamItemId aponta a entrada); mês/ano viram
+  // bônus em gam.metasPontos (gamPeriodo/gamPontos guardam quanto estornar).
+  gamItemId?: string;
+  gamPeriodo?: string;
+  gamPontos?: number;
 }
 
 // Diário: um texto markdown por período, chaveado por "dia:<ISO>" |
