@@ -1,14 +1,15 @@
 // Porta de renderKanbanDoc + pintarKanban sem opts (index.html:7877-7893,
-// 7624-7876) — 3 colunas fixas, cartão só com texto. Arrastar (useDragReorder,
-// ver webapp/src/lib/dnd.ts) e os botões ‹ › convivem, igual ao legado. Sem
-// horário/peso/abas (exclusivos do kanban do Diário, removido — ver
-// docs/react-migration.md) nem exportar PDF — gaps documentados em
-// CLAUDE.md > "webapp/".
+// 7624-7876) — 3 colunas fixas, cartão só com texto, exportar PDF. Arrastar
+// (useDragReorder, ver webapp/src/lib/dnd.ts) e os botões ‹ › convivem,
+// igual ao legado. Sem horário/peso/abas — exclusivos do kanban do Diário,
+// removido (ver docs/react-migration.md).
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { TmplDocHeader } from "../components/TmplDocHeader";
 import { computeKanbanDragTarget, useDragReorder } from "../lib/dnd";
+import { exportPdfView } from "../lib/exportFile";
+import { kanbanPdfHtml } from "../lib/pdfExport";
 import type { KanbanDoc as KanbanDocType } from "../lib/types";
 
 function uid(): string {
@@ -18,6 +19,7 @@ function uid(): string {
 export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
   const [editing, setEditing] = useState<{ ci: number; ii: number } | null>(null);
+  const [erro, setErro] = useState("");
 
   function save(cols: KanbanDocType["cols"]) {
     updateTemplateDoc({ ...doc, cols });
@@ -49,6 +51,25 @@ export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
   return (
     <div className="screen">
       <TmplDocHeader doc={doc} onTitleChange={(title) => updateTemplateDoc({ ...doc, title })} />
+      <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
+        <button
+          className="icon-btn"
+          title="Exportar PDF"
+          aria-label="Exportar PDF"
+          onClick={async () => {
+            setErro("");
+            const r = await exportPdfView(doc.title, kanbanPdfHtml(doc), "Kanbans");
+            if (!r.ok && r.erro) setErro(r.erro);
+          }}
+        >
+          PDF
+        </button>
+      </div>
+      {erro && (
+        <div className="stat-foot" style={{ color: "var(--erro)" }}>
+          {erro}
+        </div>
+      )}
       <div className="kb-board">
         {doc.cols.map((c, ci) => (
           <div

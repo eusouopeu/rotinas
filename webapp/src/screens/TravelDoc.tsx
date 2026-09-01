@@ -1,11 +1,13 @@
-// Porta de renderTravelDoc (index.html:9564-9660ish) — itens de mala
-// agrupados por categoria, com sugestão de categoria por nome. Sem exportar
-// PDF nem "desmarcar tudo" — gaps documentados em CLAUDE.md > "webapp/".
+// Porta de renderTravelDoc (index.html:9564-9683) — itens de mala agrupados
+// por categoria, com sugestão de categoria por nome, "desmarcar tudo" e
+// exportar PDF.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { TmplDocHeader } from "../components/TmplDocHeader";
 import { TRAVEL_DB, guessTravelCat } from "../lib/templates";
+import { exportPdfView } from "../lib/exportFile";
+import { travelPdfHtml } from "../lib/pdfExport";
 import type { TravelDoc as TravelDocType } from "../lib/types";
 
 type Item = TravelDocType["items"][number];
@@ -22,6 +24,7 @@ export function TravelDoc({ doc }: { doc: TravelDocType }) {
   const [qty, setQty] = useState("1");
   const [cat, setCat] = useState(doc.catOrder[0] || "Outros");
   const [editId, setEditId] = useState<string | null>(null);
+  const [erro, setErro] = useState("");
 
   function save(patch: Partial<TravelDocType>) {
     updateTemplateDoc({ ...doc, ...patch });
@@ -62,7 +65,24 @@ export function TravelDoc({ doc }: { doc: TravelDocType }) {
         >
           <Icon name="arrowPath" size={15} />
         </button>
+        <button
+          className="icon-btn"
+          title="Exportar PDF"
+          aria-label="Exportar PDF"
+          onClick={async () => {
+            setErro("");
+            const r = await exportPdfView(doc.title, travelPdfHtml(doc), "Listas de viagem");
+            if (!r.ok && r.erro) setErro(r.erro);
+          }}
+        >
+          PDF
+        </button>
       </div>
+      {erro && (
+        <div className="stat-foot" style={{ color: "var(--erro)" }}>
+          {erro}
+        </div>
+      )}
       <div className="market-form">
         <input
           type="text"

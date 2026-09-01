@@ -104,6 +104,13 @@ export interface DriveSyncPlugin {
   resolveConflict(args: { key: string; choice: "local" | "remote" }): Promise<void>;
 }
 
+/** Ponte do plugin Capacitor Share, usada por shareOrDownload/exportPdfView
+ * (index.html:10679-10702, 6316-6337) para abrir o share sheet nativo com o
+ * arquivo já gravado. */
+export interface SharePlugin {
+  share(args: { title: string; files: string[] }): Promise<void>;
+}
+
 /** Ponte do plugin Capacitor LocalNotifications (index.html:2765-2900) — só
  * a fatia usada pela sincronização de notificação de compromisso avulso
  * (ver lib/notifications.ts); o resto do sistema de notificações nativas
@@ -119,7 +126,9 @@ export interface LocalNotificationsPlugin {
       title: string;
       body: string;
       extra?: Record<string, unknown>;
-      schedule: { at: Date; allowWhileIdle?: boolean };
+      // ausente = dispara imediatamente (index.html:2771-2772, notifyDigestSemanal);
+      // `at` = ocorrência única; `on` = recorrente (rotina agendada, index.html:2825).
+      schedule?: { at: Date; allowWhileIdle?: boolean } | { on: { weekday?: number; hour: number; minute: number } };
     }>;
   }): Promise<void>;
 }

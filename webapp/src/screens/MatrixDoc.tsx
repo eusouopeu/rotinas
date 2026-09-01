@@ -1,12 +1,13 @@
 // Porta de renderMatrixDoc (index.html:7421-7587) — grade de 4 quadrantes
 // com cor, modo (check/lista/numerada), itens com indentação simples (1
-// nível), expandir quadrante e edição dos rótulos dos eixos. Sem exportar
-// PDF — gap documentado em CLAUDE.md > "webapp/".
+// nível), expandir quadrante, edição dos rótulos dos eixos e exportar PDF.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { TmplDocHeader } from "../components/TmplDocHeader";
 import { MATRIX_COLORS } from "../lib/templates";
+import { exportPdfView } from "../lib/exportFile";
+import { matrixPdfHtml } from "../lib/pdfExport";
 import type { MatrixDoc as MatrixDocType } from "../lib/types";
 
 type Quadrant = MatrixDocType["quadrants"][number];
@@ -17,6 +18,7 @@ export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
   const [editing, setEditing] = useState<{ qi: number; ii: number } | null>(null);
   const [showAxes, setShowAxes] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [erro, setErro] = useState("");
 
   function save(patch: Partial<MatrixDocType>) {
     updateTemplateDoc({ ...doc, ...patch });
@@ -115,7 +117,24 @@ export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
         <button className="icon-btn" title="Rótulos dos eixos" aria-label="Rótulos dos eixos" onClick={() => setShowAxes(!showAxes)}>
           <Icon name="tag" size={15} />
         </button>
+        <button
+          className="icon-btn"
+          title="Exportar PDF"
+          aria-label="Exportar PDF"
+          onClick={async () => {
+            setErro("");
+            const r = await exportPdfView(doc.title, matrixPdfHtml(doc), "Matrizes 2x2");
+            if (!r.ok && r.erro) setErro(r.erro);
+          }}
+        >
+          PDF
+        </button>
       </div>
+      {erro && (
+        <div className="stat-foot" style={{ color: "var(--erro)" }}>
+          {erro}
+        </div>
+      )}
       {showAxes && (
         <div className="mx-axes" style={{ display: "flex" }}>
           <input type="text" placeholder="eixo horizontal" value={doc.axisX || ""} onChange={(e) => save({ axisX: e.target.value })} />

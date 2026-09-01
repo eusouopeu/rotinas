@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { bootStorage, isNative, load, save } from "../lib/storage";
 import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
-import { planoNotificacaoCompromissos } from "../lib/notifications";
+import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoRotinas } from "../lib/notifications";
 import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
 import { K_AUTOBAK, K_DATAFOLDER } from "../lib/constants";
 import {
@@ -30,7 +30,17 @@ import {
   K_THEME,
   K_WEEKSTART,
 } from "../lib/constants";
-import { BACKUP_VERSION, mergeById, mergeByIdLoose, mergeDiario, mergeHistory, sanitizeBackup, type BackupPayload } from "../lib/backup";
+import {
+  BACKUP_VERSION,
+  mergeById,
+  mergeByIdLoose,
+  mergeDiario,
+  mergeHistory,
+  prepararModeloImportado,
+  prepararRotinaImportada,
+  sanitizeBackup,
+  type BackupPayload,
+} from "../lib/backup";
 import { nomeAutoDoc } from "../lib/notes";
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import { novoDraftSchedule } from "../lib/schedule";
@@ -190,6 +200,10 @@ interface AppState {
   backupSnapshot: () => BackupPayload;
   markBackupExported: () => void;
   importBackup: (data: BackupPayload, mode: "merge" | "replace") => void;
+  // Import de item avulso (index.html:10921-10944) — devolvem o
+  // nome/título final (já com sufixo de colisão) pro aviso na UI.
+  importRotinaShare: (routine: Routine) => string;
+  importModeloShare: (doc: AnyTemplateDoc) => AnyTemplateDoc;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -221,10 +235,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const routines = load<Routine[]>(K_ROUTINES, []);
     let gam = load<GamificacaoState>(K_GAMIFICACAO, null as unknown as GamificacaoState);
     if (!gam) gam = criarEstadoGamificacaoInicial();
+    const semanasAntesDoBoot = gam.historico.semanas.length;
     // index.html:1462 (!gam.semanaAtual congela) + avancarGamificacaoAteAgora
     // no boot (index.html:14444+) — o app pode ter ficado dias fechado.
     gam = avancarGamificacaoAteAgora(routines, gam);
     save(K_GAMIFICACAO, gam);
+    // Porta de semanasFechadasNoBoot + notifyDigestSemanal (index.html:1615,
+    // 14469-14471) — avisa só a mais recente se mais de uma semana fechou.
+    const semanasFechadasNoBoot = gam.historico.semanas.slice(semanasAntesDoBoot);
     set({
       routines,
       theme: load<Theme>(K_THEME, "auto"),
@@ -247,6 +265,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     autoBackupNative(get());
     syncCompromissoNotifications(get().compromissos);
+    syncRoutineNotifications(routines);
+    if (semanasFechadasNoBoot.length) {
+      const sem = semanasFechadasNoBoot[semanasFechadasNoBoot.length - 1];
+      // O legado leva pro boletim (tela de estatísticas); o React ainda não
+      // tem essa tela — leva pra Home até ela ser portada.
+      setTimeout(() => notifyDigestSemanal(sem, () => get().goTo({ tab: "home", screen: "home" })), 800);
+    }
   },
 
   goTo: (view) => set({ view }),
@@ -255,6 +280,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const routines = get().routines.filter((r) => r.id !== id);
     save(K_ROUTINES, routines);
     set({ routines });
+    syncRoutineNotifications(routines);
   },
 
   openEditor: (id) => {
@@ -290,6 +316,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const novasRoutines = idx >= 0 ? routines.map((r, i) => (i === idx ? limpo : r)) : [...routines, limpo];
     save(K_ROUTINES, novasRoutines);
     set({ routines: novasRoutines, editorDraft: null, view: { tab: "home", screen: "home" } });
+    syncRoutineNotifications(novasRoutines);
     return true;
   },
 
@@ -778,6 +805,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (Array.isArray(data.exercicios)) save(K_EXERCICIOS, data.exercicios);
       set({ routines, notes, history, templates, diario, diaKanban, compromissos });
       syncCompromissoNotifications(compromissos);
+      syncRoutineNotifications(routines);
       return;
     }
     const routines = mergeById(s.routines, data.routines as Routine[] | undefined);
@@ -802,6 +830,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     set({ routines, notes, history, templates, diario, diaKanban, compromissos });
     syncCompromissoNotifications(compromissos);
+    syncRoutineNotifications(routines);
+  },
+
+  importRotinaShare: (routine) => {
+    const r = prepararRotinaImportada(routine, get().routines, uid);
+    const routines = [...get().routines, r];
+    save(K_ROUTINES, routines);
+    set({ routines });
+    syncRoutineNotifications(routines);
+    return r.name;
+  },
+  importModeloShare: (doc) => {
+    const d = prepararModeloImportado(doc, get().templates, uid);
+    const templates = [...get().templates, d];
+    save(K_TEMPLATES, templates);
+    set({ templates });
+    return d;
   },
 }));
 
@@ -843,12 +888,11 @@ async function autoBackupNative(state: AppState): Promise<void> {
   }
 }
 
-/** Porta parcial de syncNativeSchedules (index.html:2779-2865) — só a fatia
- * de compromissos avulsos (ver lib/notifications.ts); o resto do sistema
- * (rotinas agendadas, metas recorrentes, digest semanal) fica fora desta
- * fase. Mesmo status de autoBackupNative: fiel ao legado, inerte fora do
- * Android/Capacitor. Reagenda do zero a cada chamada — cancela as próprias
- * notificações antigas (tag "sched-cp") antes de recriar. */
+/** Porta de syncNativeSchedules para compromissos avulsos (index.html:2779-
+ * 2865, ver lib/notifications.ts). Mesmo status de autoBackupNative: fiel ao
+ * legado, inerte fora do Android/Capacitor. Reagenda do zero a cada
+ * chamada — cancela as próprias notificações antigas (tag "sched-cp") antes
+ * de recriar. */
 async function syncCompromissoNotifications(compromissos: Compromisso[]): Promise<void> {
   const LN = isNative ? window.Capacitor?.Plugins.LocalNotifications : undefined;
   if (!LN) return;
@@ -873,5 +917,36 @@ async function syncCompromissoNotifications(compromissos: Compromisso[]): Promis
     });
   } catch (e) {
     console.error("Sincronização de notificação de compromisso falhou:", e);
+  }
+}
+
+/** Porta de syncNativeSchedules para rotinas agendadas (index.html:2779-
+ * 2828, ver lib/notifications.ts) — mesmo padrão de syncCompromissoNotifications,
+ * tag própria ("sched-rt") pra cancelar/recriar sem mexer nas notificações
+ * de compromisso. */
+async function syncRoutineNotifications(routines: Routine[]): Promise<void> {
+  const LN = isNative ? window.Capacitor?.Plugins.LocalNotifications : undefined;
+  if (!LN) return;
+  try {
+    const perm = await LN.checkPermissions();
+    if (perm.display !== "granted") return;
+    const pending = await LN.getPending();
+    const minhas = (pending.notifications || []).filter((n) => n.extra && n.extra.brita === "sched-rt");
+    if (minhas.length) await LN.cancel({ notifications: minhas.map((n) => ({ id: n.id })) });
+    const snoozed = load<Array<{ from: number; to: number }>>(K_SNOOZES, []).some((s) => Date.now() >= s.from && Date.now() <= s.to);
+    if (snoozed) return;
+    const plano = planoNotificacaoRotinas(routines, Date.now());
+    if (!plano.length) return;
+    await LN.schedule({
+      notifications: plano.map((p) => ({
+        id: p.id,
+        title: p.title,
+        body: p.body,
+        extra: { brita: "sched-rt" },
+        schedule: p.at != null ? { at: new Date(p.at), allowWhileIdle: true } : { on: { weekday: p.weekday, hour: p.hour!, minute: p.minute! } },
+      })),
+    });
+  } catch (e) {
+    console.error("Sincronização de notificação de rotina falhou:", e);
   }
 }

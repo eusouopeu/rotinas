@@ -1,11 +1,13 @@
 // Porta de backupData/exportBackup/importBackup/oferecerImportarBackup
-// (index.html:10769-11005) — só o backup completo em JSON (mesclar ou
-// substituir tudo). Fora do escopo: import de item avulso ("rotina-share"/
-// "modelo-share", formato diferente, ver CLAUDE.md > "webapp/"), backup
-// automático em arquivo (File System Access API, exige gesto do usuário
-// salvo antes) e a cópia automática nativa (Capacitor).
+// (index.html:10769-11005), incluindo o import de item avulso
+// ("rotina-share"/"modelo-share", index.html:10921-10944) — o backup
+// completo em JSON (mesclar ou substituir tudo) e uma rotina/modelo único
+// compartilhado por outro usuário. Fora do escopo: o botão de exportar um
+// item avulso (share de UMA rotina/doc — não existe ainda no React), backup
+// automático em arquivo (ver lib/fileBackup.ts) e a cópia automática nativa
+// (ver lib/autoBackup.ts).
 import type { HistoryEntry } from "./history";
-import type { DiarioMap } from "./types";
+import type { AnyTemplateDoc, DiarioMap, Routine } from "./types";
 
 export const BACKUP_VERSION = 8;
 
@@ -45,6 +47,54 @@ export function sanitizeBackup(data: BackupPayload): BackupPayload {
     if (Array.isArray(arr)) (out as Record<string, unknown>)[k] = arr.filter((x) => x && typeof x === "object");
   });
   return out;
+}
+
+// ---- Import de item avulso ("rotina-share"/"modelo-share",
+// index.html:10921-10944) — um arquivo com UMA rotina ou UM modelo,
+// exportado por outro usuário (ou outro dispositivo), diferente do backup
+// completo acima. ----
+export interface RotinaShare {
+  type: "rotina-share";
+  version?: number;
+  routine: Routine;
+}
+export interface ModeloShare {
+  type: "modelo-share";
+  version?: number;
+  doc: AnyTemplateDoc;
+}
+
+export function ehRotinaShare(data: unknown): data is RotinaShare {
+  return !!data && typeof data === "object" && (data as { type?: unknown }).type === "rotina-share" && !!(data as { routine?: unknown }).routine;
+}
+export function ehModeloShare(data: unknown): data is ModeloShare {
+  return !!data && typeof data === "object" && (data as { type?: unknown }).type === "modelo-share" && !!(data as { doc?: unknown }).doc;
+}
+
+/** Porta do ramo "rotina-share" de importBackup (index.html:10921-10933) —
+ * novo id pra rotina e pra cada etapa; etapa do tipo "routine" (sub-rotina)
+ * vira "checklist" e perde o vínculo de nota (`noteId`), igual ao legado —
+ * sub-rotina referenciava uma rotina LOCAL que não existe em quem importa.
+ * Agendamento sempre entra desativado, e o nome ganha sufixo se colidir. */
+export function prepararRotinaImportada(routine: Routine, existentes: Routine[], newId: () => string): Routine {
+  const r: Routine = {
+    ...routine,
+    id: newId(),
+    steps: routine.steps.map((s) => ({ ...s, id: newId(), type: s.type === "routine" ? "checklist" : s.type, noteId: undefined })),
+    schedule: { ...(routine.schedule || { enabled: false, anchor: "start", time: "07:00", days: [0, 1, 2, 3, 4, 5, 6] }), enabled: false },
+  };
+  if (existentes.some((x) => x.name === r.name)) r.name = r.name + " (importada)";
+  return r;
+}
+
+/** Porta do ramo "modelo-share" de importBackup (index.html:10934-10943) —
+ * novo id; título ganha sufixo se colidir com um modelo do mesmo tipo. */
+export function prepararModeloImportado(doc: AnyTemplateDoc, existentes: AnyTemplateDoc[], newId: () => string): AnyTemplateDoc {
+  const d = { ...doc, id: newId() } as AnyTemplateDoc & { title?: string };
+  if (existentes.some((t) => (t as { title?: string }).title === d.title && t.type === d.type)) {
+    d.title = (d.title || "") + " (importado)";
+  }
+  return d;
 }
 
 /** Porta do merge por id de routines/notes/templates (index.html:10991-10993)

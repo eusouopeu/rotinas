@@ -1,15 +1,14 @@
 // Porta de exportBackup/importBackup/oferecerImportarBackup (index.html:
-// 10774-11005) e do backup automático em arquivo no navegador
+// 10774-11005), incluindo import de item avulso ("rotina-share"/
+// "modelo-share"), e do backup automático em arquivo no navegador
 // (index.html:10812-10914, ver lib/fileBackup.ts) — exportar/importar um
 // arquivo JSON, e opcionalmente manter um arquivo do disco sempre
 // atualizado sozinho (grava ao sair da aba, checa por versão mais nova ao
-// voltar). Fora do escopo: a cópia automática nativa (Capacitor, ver
-// lib/autoBackup.ts) e o import de item avulso ("rotina-share"/
-// "modelo-share") — ver CLAUDE.md > "webapp/".
+// voltar). Fora do escopo: a cópia automática nativa (ver lib/autoBackup.ts).
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "./Icon";
-import { pareceBackup, type BackupPayload } from "../lib/backup";
+import { ehModeloShare, ehRotinaShare, pareceBackup, type BackupPayload } from "../lib/backup";
 import { localKey } from "../lib/gamificacao";
 import {
   backupHandle,
@@ -42,10 +41,14 @@ export function BackupCard() {
   const backupSnapshot = useAppStore((s) => s.backupSnapshot);
   const markBackupExported = useAppStore((s) => s.markBackupExported);
   const importBackup = useAppStore((s) => s.importBackup);
+  const importRotinaShare = useAppStore((s) => s.importRotinaShare);
+  const importModeloShare = useAppStore((s) => s.importModeloShare);
+  const goTo = useAppStore((s) => s.goTo);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<BackupPayload | null>(null);
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
   const [ativo, setAtivo] = useState(() => !!backupHandle());
   const [maisRecente, setMaisRecente] = useState<BackupPayload | null>(null);
 
@@ -85,10 +88,23 @@ export function BackupCard() {
 
   function onFile(file: File) {
     setErro("");
+    setAviso("");
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const data = JSON.parse(String(reader.result));
+        if (ehRotinaShare(data)) {
+          const nome = importRotinaShare(data.routine);
+          setAviso(`Rotina "${nome}" importada ✓`);
+          return;
+        }
+        if (ehModeloShare(data)) {
+          const doc = importModeloShare(data.doc);
+          const titulo = (doc as { title?: string }).title || doc.type;
+          setAviso(`Modelo "${titulo}" importado ✓`);
+          goTo({ tab: "templates", screen: "templateDoc", id: doc.id });
+          return;
+        }
         if (!pareceBackup(data)) {
           setErro("Arquivo não parece um backup do Rotinas");
           return;
@@ -143,6 +159,7 @@ export function BackupCard() {
             {erro}
           </div>
         )}
+        {aviso && <div className="stat-foot">{aviso}</div>}
         <div className="stat-foot">{lastBackupAt ? "Último backup: " + new Date(lastBackupAt).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
       </div>
 
