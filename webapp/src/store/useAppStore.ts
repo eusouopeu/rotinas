@@ -4,7 +4,9 @@
 // save(K_X, x) + render() do app antigo, só que sem o "+ render()" manual —
 // o React re-renderiza sozinho quem lê a fatia que mudou.
 import { create } from "zustand";
-import { bootStorage, load, save } from "../lib/storage";
+import { bootStorage, isNative, load, save } from "../lib/storage";
+import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
+import { K_AUTOBAK, K_DATAFOLDER } from "../lib/constants";
 import {
   K_COMPROMISSOS,
   K_DIAKANBAN,
@@ -146,6 +148,10 @@ interface AppState {
   toggleCompromisso: (id: string) => void;
   deleteCompromisso: (id: string) => void;
   addDiaKanbanCard: (iso: string, text: string, hIni?: string, hFim?: string) => void;
+  // Porta de abrirPopupTarefa#tfSave (index.html:5222-5246), sem o crédito de
+  // pontos do cartão (sincronizarPontosCartao ainda não portado — mesma
+  // lacuna do toggle). id ausente cria; presente edita.
+  upsertDiaKanbanCard: (iso: string, card: { id?: string; text: string; hIni?: string; hFim?: string; tagValor?: Tag; eixo?: string | null }) => void;
   toggleDiaKanbanCard: (id: string) => void;
   deleteDiaKanbanCard: (id: string) => void;
 
@@ -237,6 +243,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       lastBackupAt: load<number | null>(K_LASTBACKUP, null),
       booted: true,
     });
+    autoBackupNative(get());
   },
 
   goTo: (view) => set({ view }),
@@ -603,6 +610,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     save(K_DIAKANBAN, diaKanban);
     set({ diaKanban });
   },
+  upsertDiaKanbanCard: (iso, card) => {
+    const per = "dia:" + iso;
+    const text = card.text.trim();
+    if (!text) return;
+    // fim sem início não descreve nada; fim antes do início é engano
+    const hIni = card.hIni || "";
+    const hFim = hIni && card.hFim && card.hFim > hIni ? card.hFim : "";
+    let diaKanban;
+    if (card.id) {
+      diaKanban = get().diaKanban.map((c) => (c.id === card.id ? { ...c, text, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null } : c));
+    } else {
+      const ord = get().diaKanban.filter((c) => c.per === per).length;
+      diaKanban = [...get().diaKanban, { id: uid(), text, col: "todo" as const, per, ord, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null }];
+    }
+    save(K_DIAKANBAN, diaKanban);
+    set({ diaKanban });
+  },
   toggleDiaKanbanCard: (id) => {
     const diaKanban = get().diaKanban.map((c) => (c.id === id ? { ...c, col: c.col === "done" ? ("todo" as const) : ("done" as const) } : c));
     save(K_DIAKANBAN, diaKanban);
@@ -750,4 +774,38 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/** Porta de autoBackupNative (index.html:10785-10800) — sem-op fora do
+ * Android/Capacitor (mesmo status de SyncCard/McpCard: fiel ao legado, mas
+ * inerte até o build React ser o que roda lá). A cada 3 dias grava um JSON
+ * em Documentos/<pasta>/Backups e mantém só os 5 mais recentes. */
+async function autoBackupNative(state: AppState): Promise<void> {
+  if (!isNative || !window.Capacitor) return;
+  if (state.routines.length + state.notes.length + state.templates.length === 0) return;
+  if (Date.now() - load(K_AUTOBAK, 0) < 3 * 86400000) return;
+  const FS = window.Capacitor.Plugins.Filesystem;
+  const pasta = load(K_DATAFOLDER, "Rotinas") + "/Backups";
+  try {
+    const filename = nomeAutoBackup(localKey(new Date()));
+    await FS.writeFile({
+      path: pasta + "/" + filename,
+      directory: "DOCUMENTS",
+      encoding: "utf8",
+      data: JSON.stringify(state.backupSnapshot(), null, 2),
+      recursive: true,
+    });
+    save(K_AUTOBAK, Date.now());
+    const r = await FS.readdir({ path: pasta, directory: "DOCUMENTS" });
+    const nomes = (r.files || []).map((f) => (typeof f === "string" ? f : f.name));
+    for (const old of autoBackupsParaApagar(nomes)) {
+      try {
+        await FS.deleteFile({ path: pasta + "/" + old, directory: "DOCUMENTS" });
+      } catch {
+        /* ok deixar órfão */
+      }
+    }
+  } catch (e) {
+    console.error("Auto-backup falhou:", e);
+  }
 }

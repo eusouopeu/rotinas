@@ -199,6 +199,14 @@ export function save(key: string, val: unknown): void {
   persistQueue(() => storageBackend.set(key, mem.get(key)));
 }
 
+/** Porta de saveRaw (index.html:312) — grava SEM o clone JSON, preservando
+ * objetos que só sobrevivem por structured clone no IndexedDB (ex.:
+ * FileSystemFileHandle do backup automático em arquivo). */
+export function saveRaw(key: string, val: unknown): void {
+  mem.set(key, val);
+  persistQueue(() => storageBackend.set(key, mem.get(key)));
+}
+
 export function removeKey(key: string): void {
   mem.delete(key);
   persistQueue(() => storageBackend.del(key));
