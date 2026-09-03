@@ -39,6 +39,12 @@ export interface Routine {
   semHabito?: boolean;
   sound?: "normal" | "suave" | "mudo";
   notaId?: string | null;
+  // Porta do backfill lazy em boot (index.html:1120-1123) — usado por
+  // lib/stats.ts pra não contar dias antes da rotina existir. Rotinas
+  // criadas pelo legado antigo, ou pelo React antes desta mudança, podem
+  // não ter o campo (undefined) — `if (r.createdAt && ...)` trata isso
+  // como "sem restrição de data", igual ao legado.
+  createdAt?: number;
 }
 
 export interface GamificacaoConfig {

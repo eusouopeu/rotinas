@@ -84,6 +84,7 @@ function novoDraft(): Routine {
     schedule: novoDraftSchedule(),
     restSeconds: 0,
     tagValor: "medio",
+    createdAt: Date.now(),
   };
 }
 
