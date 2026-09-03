@@ -642,6 +642,9 @@ export function Home() {
       <div className="tab-scroll">
         <div className="home-header" style={{ marginBottom: 10 }}>
           <h1>Rotinas</h1>
+          <button className="bell-btn" title="Boletim da semana" aria-label="Boletim da semana" onClick={() => goTo({ tab: "home", screen: "boletim" })}>
+            <Icon name="trophy" size={16} />
+          </button>
         </div>
 
         <div className="type-toggle view-toggle" style={{ marginBottom: 14 }}>

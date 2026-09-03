@@ -8,7 +8,7 @@ import { bootStorage, isNative, load, save } from "../lib/storage";
 import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
 import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoRotinas } from "../lib/notifications";
 import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
-import { K_AUTOBAK, K_DATAFOLDER } from "../lib/constants";
+import { K_AUTOBAK, K_DATAFOLDER, K_HORASBUDGET } from "../lib/constants";
 import {
   K_COMPROMISSOS,
   K_DIAKANBAN,
@@ -99,6 +99,7 @@ interface AppState {
   nudge: boolean;
   nudgeDias: number[];
   sidebarCollapsed: boolean;
+  horasBudget: number;
   gam: GamificacaoState;
   editorDraft: Routine | null;
   playerState: PlayerState | null;
@@ -131,6 +132,9 @@ interface AppState {
   setNudge: (v: boolean) => void;
   toggleNudgeDia: (d: number) => void;
   toggleSidebarCollapsed: () => void;
+  // Boletim (index.html:13342-13501, ver lib/boletim.ts).
+  setHorasBudget: (min: number) => void;
+  alternarDispensaSemana: () => void;
 
   updateGamConfig: (patch: Partial<GamificacaoConfig>) => void;
   addRodaArea: (label: string) => void;
@@ -218,6 +222,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   nudge: true,
   nudgeDias: [5],
   sidebarCollapsed: false,
+  horasBudget: 40,
   gam: criarEstadoGamificacaoInicial(),
   editorDraft: null,
   playerState: null,
@@ -253,6 +258,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       nudge: load<boolean>(K_NUDGE, true),
       nudgeDias: load<number[]>(K_NUDGEDAYS, [5]),
       sidebarCollapsed: load<boolean>(K_SIDEBARCOLLAPSED, false),
+      horasBudget: load<number>(K_HORASBUDGET, 40),
       gam,
       templates: load<AnyTemplateDoc[]>(K_TEMPLATES, []),
       diario: load<DiarioMap>(K_DIARIO, {}),
@@ -356,6 +362,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     const sidebarCollapsed = !get().sidebarCollapsed;
     save(K_SIDEBARCOLLAPSED, sidebarCollapsed);
     set({ sidebarCollapsed });
+  },
+  setHorasBudget: (min) => {
+    const horasBudget = Math.max(1, min);
+    save(K_HORASBUDGET, horasBudget);
+    set({ horasBudget });
+  },
+  alternarDispensaSemana: () => {
+    const gam = get().gam;
+    if (!gam.semanaAtual) return;
+    const novo = { ...gam, semanaAtual: { ...gam.semanaAtual, dispensada: !gam.semanaAtual.dispensada } };
+    save(K_GAMIFICACAO, novo);
+    set({ gam: novo });
   },
 
   updateGamConfig: (patch) => {

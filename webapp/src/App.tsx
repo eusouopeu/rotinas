@@ -19,6 +19,7 @@ import { TemplateFolders } from "./screens/TemplateFolders";
 import { TmplFolder } from "./screens/TmplFolder";
 import { TemplateDoc } from "./screens/TemplateDoc";
 import { ExpenseFolder } from "./screens/ExpenseFolder";
+import { Boletim } from "./screens/Boletim";
 import { GlobalSearch } from "./components/GlobalSearch";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
@@ -133,6 +134,8 @@ function Screen({ screen }: { screen: string }) {
       return <TemplateDoc />;
     case "expenseFolder":
       return <ExpenseFolder />;
+    case "boletim":
+      return <Boletim />;
     case "home":
     default:
       return <Home />;
