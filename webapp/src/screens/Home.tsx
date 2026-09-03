@@ -645,6 +645,9 @@ export function Home() {
           <button className="bell-btn" title="Boletim da semana" aria-label="Boletim da semana" onClick={() => goTo({ tab: "home", screen: "boletim" })}>
             <Icon name="trophy" size={16} />
           </button>
+          <button className="bell-btn" title="Dados" aria-label="Dados" onClick={() => goTo({ tab: "home", screen: "stats" })}>
+            <Icon name="stats" size={14} />
+          </button>
         </div>
 
         <div className="type-toggle view-toggle" style={{ marginBottom: 14 }}>

@@ -298,7 +298,8 @@ export type ScreenName =
   | "tmplFolder"
   | "templateDoc"
   | "expenseFolder"
-  | "boletim";
+  | "boletim"
+  | "stats";
 
 // Templates é um array de docs de vários tipos (mercado, kanban, matriz...)
 // no app antigo — o React só edita de verdade countdown/scoreboard/
