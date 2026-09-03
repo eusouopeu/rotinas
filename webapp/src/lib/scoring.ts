@@ -45,7 +45,7 @@ export function corDaRotina(r: Routine, gam: GamificacaoState): string {
   return a ? a.color : "grad";
 }
 
-function stepTagEfetiva(s: RoutineStep, r: Routine): Tag {
+export function stepTagEfetiva(s: RoutineStep, r: Routine): Tag {
   return (s.tagValor || r.tagValor || "medio") as Tag;
 }
 

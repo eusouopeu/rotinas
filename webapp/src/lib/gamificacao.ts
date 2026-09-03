@@ -81,7 +81,7 @@ export function pesoBruto(tag: Tag, minutos: number, config: GamificacaoConfig):
   return tagMultiplicador(tag, config) * Math.sqrt(minutos / config.divisorDuracao);
 }
 
-const BLOCOS_SEMANA_PADRAO = 20;
+export const BLOCOS_SEMANA_PADRAO = 20;
 
 /** Sem nada agendado o denominador seria 0 — cai numa escala fixa (20 blocos
  * médios de 30min = 100 pontos) para não zerar a semana inteira. */

@@ -81,7 +81,11 @@ export interface GamificacaoState {
   config: GamificacaoConfig;
   semanaAtual: SemanaAtual | null;
   historico: {
-    semanas: Array<{ inicioISO: string; nota: number; badge: string | null; dispensada?: boolean }>;
+    // porArea: gravado por fecharSemanaAtual (lib/scoring.ts) desde sempre —
+    // faltava só no tipo. Usado por lib/boletim.ts (tendenciaAreaSemanas/
+    // correlacaoAreas). Semanas fechadas antes dessa entrada existir no
+    // objeto simplesmente não têm o campo (ausência normal, não erro).
+    semanas: Array<{ inicioISO: string; nota: number; badge: string | null; dispensada?: boolean; porArea?: Record<string, number> }>;
     meses: Array<{ anoMes: string; nota: number; badge: string | null; bonusMetas: number }>;
     trimestres: Array<{ anoTri: string; nota: number; badge: string | null; bonusMetas: number }>;
     anos: Array<{ ano: number; nota: number; badge: string | null; bonusMetas: number }>;
