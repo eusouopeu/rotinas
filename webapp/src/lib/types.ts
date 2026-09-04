@@ -45,6 +45,7 @@ export interface Routine {
   // não ter o campo (undefined) — `if (r.createdAt && ...)` trata isso
   // como "sem restrição de data", igual ao legado.
   createdAt?: number;
+  weeklyGoalTimes?: number;
 }
 
 export interface GamificacaoConfig {
@@ -79,6 +80,8 @@ export interface SemanaAtual {
     area?: string;
     dataISO?: string;
     rotulo?: string;
+    tipo?: string;
+    agendado?: boolean;
   }>;
   dispensada?: boolean;
 }
@@ -107,6 +110,7 @@ export interface MetaTarget {
   title: string;
   date: string; // ISO, prazo
   createdAt: number;
+  unit?: string;
   topics?: number | null;
   done?: number;
   tagValor?: Tag;
@@ -114,11 +118,36 @@ export interface MetaTarget {
   creditos?: Record<string, number>; // período (ver periodoDeEscopo) -> pontos já creditados
 }
 
+export interface MetaRecNotif {
+  inicio: string; // "08:00"
+  fim: string;    // "18:00"
+}
+
+export interface MetaRecProgresso {
+  periodo: string; // "dia:AAAA-MM-DD" ou "semana:AAAA-MM-DD"
+  feitas: number;
+}
+
+export interface MetaRecorrente {
+  id: string;
+  titulo: string;
+  tipo: "diaria" | "semanal";
+  vezes: number;
+  area?: string | null;
+  notif?: MetaRecNotif | null;
+  negativa?: boolean;
+  pontua?: boolean;
+  tagValor?: Tag;
+  criadoEm: number;
+  progresso?: MetaRecProgresso | null;
+}
+
 export interface CountdownDoc {
   id: string;
   type: "countdown";
   title: string;
   targets: MetaTarget[];
+  recorrentes?: MetaRecorrente[];
   updatedAt: number;
   createdAt: number;
 }
@@ -299,7 +328,8 @@ export type ScreenName =
   | "templateDoc"
   | "expenseFolder"
   | "boletim"
-  | "stats";
+  | "stats"
+  | "routineStats";
 
 // Templates é um array de docs de vários tipos (mercado, kanban, matriz...)
 // no app antigo — o React só edita de verdade countdown/scoreboard/

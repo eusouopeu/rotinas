@@ -1,11 +1,9 @@
 // Porta de backupData/exportBackup/importBackup/oferecerImportarBackup
-// (index.html:10769-11005), incluindo o import de item avulso
-// ("rotina-share"/"modelo-share", index.html:10921-10944) — o backup
-// completo em JSON (mesclar ou substituir tudo) e uma rotina/modelo único
-// compartilhado por outro usuário. Fora do escopo: o botão de exportar um
-// item avulso (share de UMA rotina/doc — não existe ainda no React), backup
-// automático em arquivo (ver lib/fileBackup.ts) e a cópia automática nativa
-// (ver lib/autoBackup.ts).
+// (index.html:10769-11005), incluindo o export/import de item avulso
+// ("rotina-share"/"modelo-share", index.html:4721-4727, 6749-6754, 10921-10944)
+// — o backup completo em JSON (mesclar ou substituir tudo) e uma rotina/modelo
+// único compartilhado por outro usuário. Fora do escopo: backup automático em
+// arquivo (ver lib/fileBackup.ts) e a cópia automática nativa (ver lib/autoBackup.ts).
 import type { HistoryEntry } from "./history";
 import type { AnyTemplateDoc, DiarioMap, Routine } from "./types";
 
@@ -49,10 +47,10 @@ export function sanitizeBackup(data: BackupPayload): BackupPayload {
   return out;
 }
 
-// ---- Import de item avulso ("rotina-share"/"modelo-share",
-// index.html:10921-10944) — um arquivo com UMA rotina ou UM modelo,
-// exportado por outro usuário (ou outro dispositivo), diferente do backup
-// completo acima. ----
+// ---- Export/import de item avulso ("rotina-share"/"modelo-share",
+// index.html:4721-4727, 6749-6754, 10921-10944) — um arquivo com UMA rotina
+// ou UM modelo, exportado/importado por outro usuário (ou outro dispositivo),
+// diferente do backup completo acima. ----
 export interface RotinaShare {
   type: "rotina-share";
   version?: number;
@@ -62,6 +60,28 @@ export interface ModeloShare {
   type: "modelo-share";
   version?: number;
   doc: AnyTemplateDoc;
+}
+
+/** Porta da geração de payload de export de rotina avulsa (index.html:4723-4724).
+ * Clona a rotina e força agendamento desativado (`schedule.enabled = false`) se existir. */
+export function rotinaShareData(routine: Routine): RotinaShare {
+  const clone: Routine = JSON.parse(JSON.stringify(routine));
+  if (clone.schedule) clone.schedule.enabled = false;
+  return {
+    type: "rotina-share",
+    version: 1,
+    routine: clone,
+  };
+}
+
+/** Porta da geração de payload de export de modelo/doc avulso (index.html:6752).
+ * Clona o documento do modelo. */
+export function modeloShareData(doc: AnyTemplateDoc): ModeloShare {
+  return {
+    type: "modelo-share",
+    version: 1,
+    doc: JSON.parse(JSON.stringify(doc)),
+  };
 }
 
 export function ehRotinaShare(data: unknown): data is RotinaShare {

@@ -255,3 +255,42 @@ export function tmplMeta(doc: AnyTemplateDoc): string {
   }
   return "";
 }
+
+/** Rótulo curto de fallback por tipo de documento (index.html:10569-10575) —
+ * usado ao gerar slug/nome de arquivo quando o doc não tem título. */
+export function mdTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    market: "mercado",
+    matrix: "matriz",
+    kanban: "kanban",
+    countdown: "contagem",
+    expense: "despesa",
+    proscons: "pros-contras",
+    travel: "viagem",
+    thoughtrecord: "pensamento",
+    journal: "diario",
+    note: "nota",
+    scoreboard: "pontos",
+  };
+  return map[type] || type || "modelo";
+}
+
+export const TIPO_SUBPASTA: Record<string, string> = {
+  note: "Notas simples",
+  market: "Listas de mercado",
+  matrix: "Matrizes 2x2",
+  kanban: "Kanbans",
+  countdown: "Metas",
+  expense: "Despesas",
+  proscons: "Pros e Contras",
+  travel: "Listas de viagem",
+  thoughtrecord: "RPD",
+  scoreboard: "Registros de pontos",
+  journal: "Anotações de Rotinas",
+};
+
+/** Subpasta em Documentos/<pasta>/ onde cada tipo é salvo (index.html:10581-10587). */
+export function subpastaDoTipo(type: string): string {
+  return TIPO_SUBPASTA[type] || "Notas simples";
+}
+

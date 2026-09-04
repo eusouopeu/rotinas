@@ -16,6 +16,8 @@ export interface StepActual {
   actual: number;
   skipped: boolean;
   gamItemId?: string;
+  exercicioId?: string;
+  series?: Array<{ reps?: number; peso?: number; carga?: number }>;
 }
 
 /** Porta de expandSteps+playbackSteps (index.html:11140-11165), sem o tipo

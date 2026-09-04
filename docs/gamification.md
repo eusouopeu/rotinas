@@ -16,7 +16,7 @@ Hábito consolidado decide desconto no congelamento e grava `semanaAtual.habitos
 
 ## Metas e Kanban
 
-Meta por prazo pontua proporcionalmente por progresso, via delta, com `creditos` por período. Estorno pode voltar a períodos anteriores; não deixe `creditos` e `gam.metasPontos` divergirem. Meta recorrente positiva é hábito/lembrete sem pontos. Negativa aplica penalidade por excesso, com itemId estável e estorno ao desmarcar/editar/apagar. Peso padrão de meta é alto.
+Meta por prazo pontua proporcionalmente por progresso, via delta, com `creditos` por período. Estorno pode voltar a períodos anteriores; não deixe `creditos` e `gam.metasPontos` divergirem. Meta recorrente positiva é por padrão hábito/lembrete sem pontos, com opt-in `pontua: true` para creditar pontos semanais até o limite de vezes (`tipo:"metaRec"`). Negativa aplica penalidade por excesso via `tipo:"metaRecNeg"`, com itemId estável e estorno ao desmarcar/editar/apagar. Peso padrão de meta é alto (prazo) ou médio (recorrente).
 
 Kanban dia/semana entra na nota semanal; mês/ano entram em `metasPontos`. Use `sincronizarPontosCartao`; conclusão tem ID estável e saída de Feito/exclusão estorna. Cartão aberto/em andamento pode rolar somente no dia atual; histórico não reescreve passado.
 

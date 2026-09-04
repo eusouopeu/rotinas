@@ -20,6 +20,7 @@ import {
   K_HISTORY,
   K_HOMEVIEW,
   K_LASTBACKUP,
+  K_METASSUBVIEWSEL,
   K_NOTES,
   K_NUDGE,
   K_NUDGEDAYS,
@@ -45,8 +46,27 @@ import { nomeAutoDoc } from "../lib/notes";
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import { novoDraftSchedule } from "../lib/schedule";
 import { novoPlayerState, type PlayerState, type StepActual } from "../lib/player";
-import { estornarMeta, sincronizarPontosMeta } from "../lib/metas";
-import { areaDaRotina, avancarGamificacaoAteAgora, desfazerConclusao, registrarConclusaoStep, totalPlanejadoSegundos } from "../lib/scoring";
+import {
+  ajustarProgressoMetaRec,
+  duplicarMetaRec,
+  estornarMeta,
+  loadMetasSubviewSel,
+  metaRecExcesso,
+  metaRecFeitas,
+  sincronizarPontosMeta,
+  toggleMetasSubview,
+  type MetasSubview,
+} from "../lib/metas";
+import {
+  areaDaRotina,
+  avancarGamificacaoAteAgora,
+  desfazerConclusao,
+  estornarPenalidadesMetaRec,
+  registrarConclusaoStep,
+  sincronizarPenalidadeMetaRec,
+  sincronizarPontosMetaRec,
+  totalPlanejadoSegundos,
+} from "../lib/scoring";
 import type { HistoryEntry } from "../lib/history";
 import { newTemplateDoc } from "../lib/templates";
 import type {
@@ -58,6 +78,7 @@ import type {
   DiarioMap,
   GamificacaoConfig,
   GamificacaoState,
+  MetaRecorrente,
   MetaTarget,
   Note,
   RodaArea,
@@ -70,7 +91,15 @@ function isCountdownDoc(d: AnyTemplateDoc): d is CountdownDoc {
 }
 
 function criarMetaDoc(): CountdownDoc {
-  return { id: uid(), type: "countdown", title: "Metas", targets: [], updatedAt: Date.now(), createdAt: Date.now() };
+  return {
+    id: uid(),
+    type: "countdown",
+    title: "Metas",
+    targets: [],
+    recorrentes: [],
+    updatedAt: Date.now(),
+    createdAt: Date.now(),
+  };
 }
 
 type Theme = "auto" | "light" | "dark";
@@ -117,6 +146,8 @@ interface AppState {
   goTo: (view: AppView) => void;
 
   deleteRoutine: (id: string) => void;
+  deleteHistoryEntry: (ts: number) => void;
+  adjustRoutineStep: (routineId: string, stepName: string, newSec: number) => void;
 
   openEditor: (id?: string | null) => void;
   updateDraft: (patch: Partial<Routine>) => void;
@@ -148,11 +179,22 @@ interface AppState {
   goPrevStep: () => void;
   exitPlayer: () => void;
 
+  metasSubview: MetasSubview[];
+  setMetasSubview: (views: MetasSubview[]) => void;
+  toggleMetasSubviewState: (view: MetasSubview) => void;
+
   metaDoc: () => CountdownDoc;
   addMeta: (title: string, date: string) => void;
   updateMeta: (id: string, patch: Partial<MetaTarget>) => void;
   setMetaDone: (id: string, done: number) => void;
   deleteMeta: (id: string) => void;
+
+  addMetaRec: (params: Omit<MetaRecorrente, "id" | "criadoEm" | "progresso">) => void;
+  updateMetaRec: (id: string, patch: Partial<MetaRecorrente>) => void;
+  ajustarMetaRec: (id: string, delta: number) => void;
+  duplicarMetaRec: (id: string) => void;
+  deleteMetaRec: (id: string) => void;
+  reorderMetaRec: (fromIndex: number, toIndex: number) => void;
 
   setDiarioTexto: (chave: string, texto: string) => void;
 
@@ -235,6 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   compromissos: [],
   searchOpen: false,
   lastBackupAt: null,
+  metasSubview: ["recorrentes"],
 
   boot: async () => {
     await bootStorage();
@@ -268,6 +311,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       diaKanban: load<DiaKanbanCard[]>(K_DIAKANBAN, []),
       compromissos: load<Compromisso[]>(K_COMPROMISSOS, []),
       lastBackupAt: load<number | null>(K_LASTBACKUP, null),
+      metasSubview: loadMetasSubviewSel(load),
       booted: true,
     });
     autoBackupNative(get());
@@ -288,6 +332,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     save(K_ROUTINES, routines);
     set({ routines });
     syncRoutineNotifications(routines);
+  },
+
+  deleteHistoryEntry: (ts) => {
+    const history = get().history.filter((h) => h.ts !== ts);
+    save(K_HISTORY, history);
+    set({ history });
+  },
+
+  adjustRoutineStep: (routineId, stepName, newSec) => {
+    const routines = get().routines.map((r) => {
+      if (r.id !== routineId) return r;
+      return {
+        ...r,
+        steps: r.steps.map((st) => (st.name === stepName && st.type === "timer" ? { ...st, seconds: newSec } : st)),
+      };
+    });
+    save(K_ROUTINES, routines);
+    set({ routines });
   },
 
   openEditor: (id) => {
@@ -560,14 +622,28 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   exitPlayer: () => set({ playerState: null, view: { tab: "home", screen: "home" } }),
 
-  // Metas (index.html:6403-6408, 8391+) — só Prazos por ora (ver
+  setMetasSubview: (metasSubview) => {
+    save(K_METASSUBVIEWSEL, metasSubview);
+    set({ metasSubview });
+  },
+  toggleMetasSubviewState: (view) => {
+    const metasSubview = toggleMetasSubview(get().metasSubview, view);
+    save(K_METASSUBVIEWSEL, metasSubview);
+    set({ metasSubview });
+  },
+
+  // Metas (index.html:6403-6408, 8391+) — Prazos e Recorrentes (ver
   // lib/metas.ts). `metaDoc()` acha-ou-cria o doc "countdown" dentro de
   // `templates`, igual getOrCreateCountdownDoc, sem tocar nos outros tipos.
   metaDoc: () => {
     const existente = get()
       .templates.filter(isCountdownDoc)
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
-    if (existente) return existente;
+    if (existente) {
+      if (!existente.targets) existente.targets = [];
+      if (!existente.recorrentes) existente.recorrentes = [];
+      return existente;
+    }
     const doc = criarMetaDoc();
     const templates = [...get().templates, doc];
     save(K_TEMPLATES, templates);
@@ -622,6 +698,117 @@ export const useAppStore = create<AppState>((set, get) => ({
     save(K_TEMPLATES, templates);
     save(K_GAMIFICACAO, gam);
     set({ templates, gam });
+  },
+
+  addMetaRec: (params) => {
+    const titulo = params.titulo.trim();
+    if (!titulo) return;
+    const doc = get().metaDoc();
+    const nova: MetaRecorrente = {
+      id: uid(),
+      titulo,
+      tipo: params.tipo,
+      vezes: Math.max(1, params.vezes || 1),
+      area: params.area || null,
+      notif: params.notif || null,
+      negativa: !!params.negativa,
+      pontua: !!params.pontua,
+      tagValor: params.tagValor || "medio",
+      criadoEm: Date.now(),
+      progresso: null,
+    };
+    const docNovo: CountdownDoc = {
+      ...doc,
+      recorrentes: [...(doc.recorrentes || []), nova],
+      updatedAt: Date.now(),
+    };
+    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
+    save(K_TEMPLATES, templates);
+    set({ templates });
+  },
+  updateMetaRec: (id, patch) => {
+    const doc = get().metaDoc();
+    const alvo = (doc.recorrentes || []).find((r) => r.id === id);
+    if (!alvo) return;
+    const excessoAntes = alvo.negativa ? metaRecExcesso(alvo) : 0;
+    const feitasAntes = !alvo.negativa && alvo.pontua ? metaRecFeitas(alvo) : 0;
+
+    let atualizado: MetaRecorrente = { ...alvo, ...patch };
+    if (patch.vezes != null) atualizado.vezes = Math.max(1, patch.vezes);
+    let gam = get().gam;
+    const excessoDepois = atualizado.negativa ? metaRecExcesso(atualizado) : 0;
+    gam = sincronizarPenalidadeMetaRec(gam, atualizado, excessoAntes, excessoDepois, new Date(), get().routines);
+    const feitasDepois = !atualizado.negativa && atualizado.pontua ? metaRecFeitas(atualizado) : 0;
+    gam = sincronizarPontosMetaRec(gam, atualizado, feitasAntes, feitasDepois, new Date(), get().routines);
+
+    const docNovo: CountdownDoc = {
+      ...doc,
+      recorrentes: (doc.recorrentes || []).map((r) => (r.id === id ? atualizado : r)),
+      updatedAt: Date.now(),
+    };
+    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
+    save(K_TEMPLATES, templates);
+    save(K_GAMIFICACAO, gam);
+    set({ templates, gam });
+  },
+  ajustarMetaRec: (id, delta) => {
+    const doc = get().metaDoc();
+    const alvo = (doc.recorrentes || []).find((r) => r.id === id);
+    if (!alvo) return;
+    const { rec: atualizado, excessoAntes, excessoDepois, feitasAntes, feitasDepois } = ajustarProgressoMetaRec(alvo, delta);
+    let gam = get().gam;
+    if (atualizado.negativa) {
+      gam = sincronizarPenalidadeMetaRec(gam, atualizado, excessoAntes, excessoDepois, new Date(), get().routines);
+    }
+    if (!atualizado.negativa && atualizado.pontua) {
+      gam = sincronizarPontosMetaRec(gam, atualizado, feitasAntes, feitasDepois, new Date(), get().routines);
+    }
+    const docNovo: CountdownDoc = {
+      ...doc,
+      recorrentes: (doc.recorrentes || []).map((r) => (r.id === id ? atualizado : r)),
+      updatedAt: Date.now(),
+    };
+    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
+    save(K_TEMPLATES, templates);
+    save(K_GAMIFICACAO, gam);
+    set({ templates, gam });
+  },
+  duplicarMetaRec: (id) => {
+    const doc = get().metaDoc();
+    const docNovo = duplicarMetaRec(doc, id, uid);
+    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
+    save(K_TEMPLATES, templates);
+    set({ templates });
+  },
+  deleteMetaRec: (id) => {
+    const doc = get().metaDoc();
+    const alvo = (doc.recorrentes || []).find((r) => r.id === id);
+    if (!alvo) return;
+    const gam = estornarPenalidadesMetaRec(get().gam, id);
+    const docNovo: CountdownDoc = {
+      ...doc,
+      recorrentes: (doc.recorrentes || []).filter((r) => r.id !== id),
+      updatedAt: Date.now(),
+    };
+    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
+    save(K_TEMPLATES, templates);
+    save(K_GAMIFICACAO, gam);
+    set({ templates, gam });
+  },
+  reorderMetaRec: (fromIndex, toIndex) => {
+    const doc = get().metaDoc();
+    const recorrentes = [...(doc.recorrentes || [])];
+    if (fromIndex < 0 || fromIndex >= recorrentes.length || toIndex < 0 || toIndex >= recorrentes.length) return;
+    const [moved] = recorrentes.splice(fromIndex, 1);
+    recorrentes.splice(toIndex, 0, moved);
+    const docNovo: CountdownDoc = {
+      ...doc,
+      recorrentes,
+      updatedAt: Date.now(),
+    };
+    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
+    save(K_TEMPLATES, templates);
+    set({ templates });
   },
 
   // Diário (index.html K_DIARIO) — um texto por chave "escopo:período"

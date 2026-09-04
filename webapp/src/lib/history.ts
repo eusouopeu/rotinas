@@ -15,6 +15,8 @@ export interface HistoryEntry {
   pausedSec: number;
   skippedCount: number;
   steps: StepActual[];
+  schedDelayMin?: number;
+  mood?: number;
 }
 
 /** Execução de uma rotina num dia (a mais recente, se houver mais de uma) —

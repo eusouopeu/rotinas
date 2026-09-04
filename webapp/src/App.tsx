@@ -21,6 +21,7 @@ import { TemplateDoc } from "./screens/TemplateDoc";
 import { ExpenseFolder } from "./screens/ExpenseFolder";
 import { Boletim } from "./screens/Boletim";
 import { Stats } from "./screens/Stats";
+import { RoutineStats } from "./screens/RoutineStats";
 import { GlobalSearch } from "./components/GlobalSearch";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
@@ -139,6 +140,8 @@ function Screen({ screen }: { screen: string }) {
       return <Boletim />;
     case "stats":
       return <Stats />;
+    case "routineStats":
+      return <RoutineStats />;
     case "home":
     default:
       return <Home />;

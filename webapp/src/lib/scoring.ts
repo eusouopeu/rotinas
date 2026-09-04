@@ -26,7 +26,7 @@ import {
 } from "./gamificacao";
 import { rotinaAgendadaEm } from "./schedule";
 import { playbackSteps } from "./player";
-import type { DiaKanbanCard, GamificacaoState, Routine, RoutineStep, SemanaAtual, Tag } from "./types";
+import type { DiaKanbanCard, GamificacaoConfig, GamificacaoState, MetaRecorrente, Routine, RoutineStep, SemanaAtual, Tag } from "./types";
 
 export function areaDaRotina(r: Routine, gam: GamificacaoState): string {
   const id = r.eixo || "";
@@ -377,4 +377,130 @@ export function simularDistribuicaoSemana(routines: Routine[], gam: GamificacaoS
  * histórico. */
 export function totalPlanejadoSegundos(routine: Routine): number {
   return playbackSteps(routine).reduce((acc, s) => acc + (s.type === "timer" ? s.seconds || 0 : 0), 0);
+}
+
+/* ---- Pontuação de metas recorrentes (index.html:7981-8056) ---- */
+
+export function metaRecItemId(recId: string, per: string, n: number): string {
+  return "metarecneg:" + recId + ":" + per + ":" + n;
+}
+
+export function metaRecItemIdPos(recId: string, per: string, n: number): string {
+  return "metarecpos:" + recId + ":" + per + ":" + n;
+}
+
+export function metaRecPenalidadeUnidade(rec: MetaRecorrente, config: GamificacaoConfig): number {
+  return -pesoBruto(rec.tagValor || "medio", config.divisorDuracao, config);
+}
+
+export function metaRecPontosUnidade(rec: MetaRecorrente, config: GamificacaoConfig): number {
+  return pesoBruto(rec.tagValor || "medio", config.divisorDuracao, config);
+}
+
+/**
+ * Porta de sincronizarPenalidadeMetaRec (index.html:7993-8013).
+ * Ajusta a ficha de penalidades da semana corrente para bater com o excesso
+ * atual (excessoAntes -> excessoDepois).
+ */
+export function sincronizarPenalidadeMetaRec(
+  gam: GamificacaoState,
+  rec: MetaRecorrente,
+  excessoAntes: number,
+  excessoDepois: number,
+  data: Date = new Date(),
+  routines: Routine[] = []
+): GamificacaoState {
+  if (excessoDepois === excessoAntes) return gam;
+  const atual = avancarGamificacaoAteAgora(routines, gam);
+  if (!atual.semanaAtual) return atual;
+  const per = rec.tipo === "semanal" ? "semana:" + inicioSemanaISO(data) : "dia:" + localKey(data);
+  const pb = metaRecPenalidadeUnidade(rec, atual.config);
+
+  const concluidos = [...atual.semanaAtual.concluidos];
+  if (excessoDepois > excessoAntes) {
+    if (pb >= 0) return atual; // peso "nenhum" não pontua
+    const fator = fatorParaArea(rec.area || "", atual.semanaAtual.fatoresArea, atual.semanaAtual.fatorNormalizacao);
+    for (let n = excessoAntes + 1; n <= excessoDepois; n++) {
+      const itemId = metaRecItemId(rec.id, per, n);
+      if (concluidos.some((c) => c.itemId === itemId)) continue;
+      concluidos.push({
+        itemId,
+        tipo: "metaRecNeg",
+        dataISO: localKey(data),
+        pontos: pb * fator,
+        pb,
+        agendado: false,
+        area: rec.area || "",
+        rotulo: rec.titulo,
+      });
+    }
+  } else {
+    for (let n = excessoAntes; n > excessoDepois; n--) {
+      const targetId = metaRecItemId(rec.id, per, n);
+      const i = concluidos.findIndex((c) => c.itemId === targetId);
+      if (i > -1) concluidos.splice(i, 1);
+    }
+  }
+  return { ...atual, semanaAtual: { ...atual.semanaAtual, concluidos } };
+}
+
+/**
+ * Porta de sincronizarPontosMetaRec (index.html:8036-8056).
+ * Credita ocorrências de meta positiva com opt-in `rec.pontua` até o limite `vezes`.
+ */
+export function sincronizarPontosMetaRec(
+  gam: GamificacaoState,
+  rec: MetaRecorrente,
+  feitasAntes: number,
+  feitasDepois: number,
+  data: Date = new Date(),
+  routines: Routine[] = []
+): GamificacaoState {
+  if (feitasDepois === feitasAntes) return gam;
+  const atual = avancarGamificacaoAteAgora(routines, gam);
+  if (!atual.semanaAtual) return atual;
+  const per = rec.tipo === "semanal" ? "semana:" + inicioSemanaISO(data) : "dia:" + localKey(data);
+  const pb = metaRecPontosUnidade(rec, atual.config);
+
+  const concluidos = [...atual.semanaAtual.concluidos];
+  if (feitasDepois > feitasAntes) {
+    if (pb <= 0) return atual; // peso "nenhum" não pontua
+    const fator = fatorParaArea(rec.area || "", atual.semanaAtual.fatoresArea, atual.semanaAtual.fatorNormalizacao);
+    for (let n = feitasAntes + 1; n <= feitasDepois; n++) {
+      const itemId = metaRecItemIdPos(rec.id, per, n);
+      if (concluidos.some((c) => c.itemId === itemId)) continue;
+      concluidos.push({
+        itemId,
+        tipo: "metaRec",
+        dataISO: localKey(data),
+        pontos: pb * fator,
+        pb,
+        agendado: false,
+        area: rec.area || "",
+        rotulo: rec.titulo,
+      });
+    }
+  } else {
+    for (let n = feitasAntes; n > feitasDepois; n--) {
+      const targetId = metaRecItemIdPos(rec.id, per, n);
+      const i = concluidos.findIndex((c) => c.itemId === targetId);
+      if (i > -1) concluidos.splice(i, 1);
+    }
+  }
+  return { ...atual, semanaAtual: { ...atual.semanaAtual, concluidos } };
+}
+
+/**
+ * Porta de estornarPenalidadesMetaRec (index.html:8018-8023).
+ * Remove todas as penalidades/créditos lançados por esta meta recorrente na semana atual.
+ */
+export function estornarPenalidadesMetaRec(gam: GamificacaoState, recId: string): GamificacaoState {
+  if (!gam.semanaAtual) return gam;
+  const prefNeg = "metarecneg:" + recId + ":";
+  const prefPos = "metarecpos:" + recId + ":";
+  const concluidos = gam.semanaAtual.concluidos.filter(
+    (c) => !c.itemId?.startsWith(prefNeg) && !c.itemId?.startsWith(prefPos)
+  );
+  if (concluidos.length === gam.semanaAtual.concluidos.length) return gam;
+  return { ...gam, semanaAtual: { ...gam.semanaAtual, concluidos } };
 }

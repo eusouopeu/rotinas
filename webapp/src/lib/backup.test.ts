@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { ehModeloShare, ehRotinaShare, mergeById, mergeDiario, mergeHistory, pareceBackup, prepararModeloImportado, prepararRotinaImportada, sanitizeBackup } from "./backup";
-import type { MatrixDoc, Routine } from "./types";
+import {
+  ehModeloShare,
+  ehRotinaShare,
+  mergeById,
+  mergeDiario,
+  mergeHistory,
+  modeloShareData,
+  pareceBackup,
+  prepararModeloImportado,
+  prepararRotinaImportada,
+  rotinaShareData,
+  sanitizeBackup,
+} from "./backup";
+import type { CountdownDoc, MatrixDoc, Routine } from "./types";
 
 describe("pareceBackup", () => {
   it("aceita objeto com pelo menos uma coleção em array", () => {
@@ -90,3 +102,122 @@ describe("import de item avulso", () => {
     expect((d as { title: string }).title).toBe("Projeto (importado)");
   });
 });
+
+describe("export de item avulso", () => {
+  const routine: Routine = {
+    id: "r1",
+    name: "Treino",
+    steps: [{ id: "s1", name: "Aquecer", type: "timer", seconds: 120 }],
+    schedule: { enabled: true, anchor: "start", time: "06:30", days: [0, 2, 4] },
+  };
+
+  const doc = {
+    id: "m1",
+    type: "kanban",
+    title: "Trabalho",
+    cols: [{ title: "A fazer", items: [{ id: "c1", text: "Tarefa 1" }] }],
+    createdAt: 123456789,
+    updatedAt: 123456789,
+  } as unknown as MatrixDoc;
+
+  it("rotinaShareData gera payload com type, version e schedule.enabled forçado a false", () => {
+    const payload = rotinaShareData(routine);
+    expect(payload).toEqual({
+      type: "rotina-share",
+      version: 1,
+      routine: {
+        ...routine,
+        schedule: { ...routine.schedule!, enabled: false },
+      },
+    });
+    // Não deve mutar a rotina original
+    expect(routine.schedule!.enabled).toBe(true);
+  });
+
+  it("rotinaShareData funciona sem schedule", () => {
+    const semSched: Routine = { id: "r2", name: "Livre", steps: [] };
+    const payload = rotinaShareData(semSched);
+    expect(payload.type).toBe("rotina-share");
+    expect(payload.version).toBe(1);
+    expect(payload.routine.schedule).toBeUndefined();
+  });
+
+  it("modeloShareData gera payload com type, version e clone exato do doc", () => {
+    const payload = modeloShareData(doc);
+    expect(payload).toEqual({
+      type: "modelo-share",
+      version: 1,
+      doc,
+    });
+    expect(payload.doc).not.toBe(doc);
+  });
+
+  it("roundtrip rotina: rotinaShareData -> ehRotinaShare -> prepararRotinaImportada", () => {
+    const payload = rotinaShareData(routine);
+    expect(ehRotinaShare(payload)).toBe(true);
+    if (!ehRotinaShare(payload)) return;
+
+    const importada = prepararRotinaImportada(payload.routine, [routine], () => "id-importada");
+    expect(importada.id).toBe("id-importada");
+    expect(importada.name).toBe("Treino (importada)");
+    expect(importada.schedule!.enabled).toBe(false);
+    expect(importada.steps[0].id).toBe("id-importada");
+  });
+
+  it("roundtrip modelo: modeloShareData -> ehModeloShare -> prepararModeloImportado", () => {
+    const payload = modeloShareData(doc);
+    expect(ehModeloShare(payload)).toBe(true);
+    if (!ehModeloShare(payload)) return;
+
+    const importado = prepararModeloImportado(payload.doc, [doc], () => "id-importado");
+    expect(importado.id).toBe("id-importado");
+    expect((importado as { title: string }).title).toBe("Trabalho (importado)");
+  });
+});
+
+describe("backup e import de metas recorrentes no CountdownDoc", () => {
+  it("preserva recorrentes e targets no sanitizeBackup e mergeById", () => {
+    const docComRec: CountdownDoc = {
+      id: "cd1",
+      type: "countdown",
+      title: "Metas",
+      targets: [{ id: "t1", title: "Prova", date: "2026-12-31", createdAt: 1000 }],
+      recorrentes: [
+        {
+          id: "r1",
+          titulo: "Beber água",
+          tipo: "diaria",
+          vezes: 4,
+          criadoEm: 1000,
+          negativa: false,
+          pontua: true,
+          tagValor: "medio",
+        },
+      ],
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+
+    const sanitized = sanitizeBackup({ templates: [docComRec] });
+    expect((sanitized.templates as CountdownDoc[])[0].recorrentes).toHaveLength(1);
+    expect((sanitized.templates as CountdownDoc[])[0].targets).toHaveLength(1);
+
+    // Documento legado (só targets, sem recorrentes)
+    const docLegado: CountdownDoc = {
+      id: "cd2",
+      type: "countdown",
+      title: "Metas Antigas",
+      targets: [{ id: "t2", title: "Certificação", date: "2026-10-15", createdAt: 2000 }],
+      createdAt: 2000,
+      updatedAt: 2000,
+    };
+
+    const merged = mergeById([docComRec], [docLegado]);
+    expect(merged).toHaveLength(2);
+    expect((merged[0] as CountdownDoc).recorrentes).toHaveLength(1);
+    expect((merged[1] as CountdownDoc).recorrentes).toBeUndefined();
+    expect((merged[1] as CountdownDoc).targets).toHaveLength(1);
+  });
+});
+
+

@@ -9,6 +9,8 @@ import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { computeSchedule, DAY_LETTERS } from "../lib/schedule";
 import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
+import { rotinaShareData } from "../lib/backup";
+import { downloadFile, slugify } from "../lib/exportFile";
 import type { RoutineStep } from "../lib/types";
 
 function uid(): string {
@@ -62,6 +64,12 @@ export function RoutineEditor() {
     cancelEdit();
   }
 
+  async function handleExport() {
+    const data = rotinaShareData(draft!);
+    const filename = "rotina-" + slugify(draft!.name || "rotina") + ".json";
+    await downloadFile(filename, JSON.stringify(data, null, 2), "application/json", "Rotinas");
+  }
+
   const stepRefs = useRef<Array<HTMLDivElement | null>>([]);
   function reorderSteps(fromIndex: number, toIndex: number) {
     const steps = [...draft!.steps];
@@ -76,6 +84,15 @@ export function RoutineEditor() {
       <div className="topbar">
         <button className="link-btn muted" onClick={cancelEdit}>
           Cancelar
+        </button>
+        <button
+          className="link-btn"
+          title="Exportar"
+          aria-label="Exportar"
+          onClick={handleExport}
+          style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+        >
+          <Icon name="arrowUpTray" size={14} /> Exportar
         </button>
       </div>
 

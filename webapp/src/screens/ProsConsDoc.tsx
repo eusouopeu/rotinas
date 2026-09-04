@@ -1,9 +1,11 @@
-// Porta de renderProsConsDoc (index.html:9460-9519), sem exportar PDF —
+// Porta de renderProsConsDoc (index.html:9460-9519) —
 // prós/contras com peso 1-5, placar é a soma dos pesos de cada lado.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { TmplDocHeader } from "../components/TmplDocHeader";
+import { exportPdfView } from "../lib/exportFile";
+import { prosConsPdfHtml } from "../lib/pdfExport";
 import type { ProsConsDoc as ProsConsDocType } from "../lib/types";
 
 type Key = "pros" | "cons";
@@ -112,6 +114,7 @@ function ColunaHtml({
 
 export function ProsConsDoc({ doc }: { doc: ProsConsDocType }) {
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
+  const [erro, setErro] = useState("");
   function save(patch: Partial<ProsConsDocType>) {
     updateTemplateDoc({ ...doc, ...patch });
   }
@@ -143,6 +146,25 @@ export function ProsConsDoc({ doc }: { doc: ProsConsDocType }) {
   return (
     <div className="screen">
       <TmplDocHeader doc={doc} onTitleChange={(title) => save({ title })} />
+      <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
+        <button
+          className="icon-btn"
+          title="Exportar PDF"
+          aria-label="Exportar PDF"
+          onClick={async () => {
+            setErro("");
+            const r = await exportPdfView(doc.title, prosConsPdfHtml(doc), "Pros e Contras");
+            if (!r.ok && r.erro) setErro(r.erro);
+          }}
+        >
+          PDF
+        </button>
+      </div>
+      {erro && (
+        <div className="stat-foot" style={{ color: "var(--erro)" }}>
+          {erro}
+        </div>
+      )}
       <div style={{ overflowY: "auto", flex: 1, paddingBottom: 20 }}>
         <div className="stat-card" style={{ marginBottom: 12, textAlign: "center" }}>
           <div className="cd-big ontime" style={{ fontSize: 34 }}>
