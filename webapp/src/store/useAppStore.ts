@@ -8,6 +8,7 @@ import { bootStorage, isNative, load, save } from "../lib/storage";
 import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
 import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoRotinas } from "../lib/notifications";
 import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
+import { marcarSemanaVista as marcarSemanaVistaLib } from "../lib/semanaFechada";
 import { K_AUTOBAK, K_DATAFOLDER, K_HORASBUDGET } from "../lib/constants";
 import {
   K_COMPROMISSOS,
@@ -167,6 +168,8 @@ interface AppState {
   // Boletim (index.html:13342-13501, ver lib/boletim.ts).
   setHorasBudget: (min: number) => void;
   alternarDispensaSemana: () => void;
+  marcarSemanaVista: () => void;
+  goToSemanaFechada: () => void;
 
   updateGamConfig: (patch: Partial<GamificacaoConfig>) => void;
   addRodaArea: (label: string) => void;
@@ -220,6 +223,7 @@ interface AppState {
   updateNote: (id: string, patch: Partial<Note>) => void;
   toggleNotePinned: (id: string) => void;
   deleteNote: (id: string) => void;
+  addNote: (title: string, content: string) => Note;
 
   // Modelos genéricos (index.html:6339-6669) — pastas por tipo, um doc por
   // vez. "expense" (registro de gastos) foge desse molde: cada lançamento é
@@ -319,13 +323,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     syncRoutineNotifications(routines);
     if (semanasFechadasNoBoot.length) {
       const sem = semanasFechadasNoBoot[semanasFechadasNoBoot.length - 1];
-      // O legado leva pro boletim (tela de estatísticas); o React ainda não
-      // tem essa tela — leva pra Home até ela ser portada.
-      setTimeout(() => notifyDigestSemanal(sem, () => get().goTo({ tab: "home", screen: "home" })), 800);
+      // O toque leva pro fechamento de semana (renderSemanaFechada no legado).
+      setTimeout(() => notifyDigestSemanal(sem, () => get().goTo({ tab: "home", screen: "semanaFechada" })), 800);
     }
   },
 
   goTo: (view) => set({ view }),
+  goToSemanaFechada: () => set({ view: { tab: "home", screen: "semanaFechada" } }),
 
   deleteRoutine: (id) => {
     const routines = get().routines.filter((r) => r.id !== id);
@@ -437,6 +441,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const novo = { ...gam, semanaAtual: { ...gam.semanaAtual, dispensada: !gam.semanaAtual.dispensada } };
     save(K_GAMIFICACAO, novo);
     set({ gam: novo });
+  },
+  marcarSemanaVista: () => {
+    const gam = get().gam;
+    const novo = marcarSemanaVistaLib(gam);
+    if (novo) {
+      set({ gam: { ...novo } });
+    }
   },
 
   updateGamConfig: (patch) => {
@@ -929,6 +940,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     const notes = get().notes.filter((n) => n.id !== id);
     save(K_NOTES, notes);
     set({ notes });
+  },
+  addNote: (title, content) => {
+    const nota: Note = {
+      id: uid(),
+      title,
+      content,
+      subjects: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    const notes = [...get().notes, nota];
+    save(K_NOTES, notes);
+    set({ notes });
+    return nota;
   },
 
   createTemplateDoc: (type, folderKind, folderKey) => {

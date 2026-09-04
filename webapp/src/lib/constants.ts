@@ -49,11 +49,18 @@ export const K_SIDEBARCOLLAPSED = "rotinas_v2_sidebar_collapsed";
 
 export const DIAS_ABREV = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
+export const BADGE_CHAR: Record<string, string> = {
+  diamante: "◆",
+  ouro: "●",
+  prata: "○",
+  bronze: "◇",
+};
+
 export const BADGE_COR: Record<string, string> = {
-  bronze: "#A9642F",
-  prata: "#8A8F98",
-  ouro: "#C99A2E",
-  diamante: "#2FA0C9",
+  diamante: "var(--caneta-2)",
+  ouro: "#D4AF37",
+  prata: "var(--sub)",
+  bronze: "#B08D57",
 };
 export const BADGE_NOME: Record<string, string> = {
   bronze: "Bronze",

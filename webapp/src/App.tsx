@@ -22,6 +22,7 @@ import { ExpenseFolder } from "./screens/ExpenseFolder";
 import { Boletim } from "./screens/Boletim";
 import { Stats } from "./screens/Stats";
 import { RoutineStats } from "./screens/RoutineStats";
+import { SemanaFechada } from "./screens/SemanaFechada";
 import { GlobalSearch } from "./components/GlobalSearch";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
@@ -142,6 +143,8 @@ function Screen({ screen }: { screen: string }) {
       return <Stats />;
     case "routineStats":
       return <RoutineStats />;
+    case "semanaFechada":
+      return <SemanaFechada />;
     case "home":
     default:
       return <Home />;

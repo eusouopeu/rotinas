@@ -72,19 +72,7 @@ export interface CorrelacaoAreaItem {
 
 type HistoricoSemana = GamificacaoState["historico"]["semanas"][number];
 
-export const BADGE_CHAR: Record<string, string> = {
-  diamante: "◆",
-  ouro: "●",
-  prata: "○",
-  bronze: "◇",
-};
-
-export const BADGE_COR: Record<string, string> = {
-  diamante: "var(--caneta-2)",
-  ouro: "#D4AF37",
-  prata: "var(--sub)",
-  bronze: "#B08D57",
-};
+export { BADGE_CHAR, BADGE_COR } from "./constants";
 
 /** Porta de notaSemanaAtual (index.html:1789). */
 export function notaSemanaAtual(sem: Pick<SemanaAtual, "concluidos">): number {

@@ -14,6 +14,7 @@ import {
   addDaysISO,
   anoMesDoFimDaSemana,
   badgeParaNota,
+  destaquesDaSemana,
   fatoresPorArea,
   fatorNormalizacaoPara,
   fatorParaArea,
@@ -119,14 +120,18 @@ function pontosGanhosPorArea(sem: SemanaAtual): Record<string, number> {
   return out;
 }
 
-/** Porta de fecharSemanaAtual (index.html:1485-1499) — sem "dispensada" (sem
- * UI ainda para marcar uma semana como tal). */
+/** Porta de fecharSemanaAtual (index.html:1485-1499). */
 function fecharSemanaAtual(gam: GamificacaoState): GamificacaoState {
   const sem = gam.semanaAtual!;
   const nota = sem.concluidos.reduce((s, c) => s + c.pontos, 0);
-  const badge = badgeParaNota(nota, gam.config);
   const porArea = pontosGanhosPorArea(sem);
-  const semanas = [...gam.historico.semanas, { inicioISO: sem.inicioISO, nota, badge, porArea }];
+  const destaques = destaquesDaSemana(sem);
+  if (sem.dispensada) {
+    const semanas = [...gam.historico.semanas, { inicioISO: sem.inicioISO, nota, badge: null, dispensada: true, destaques, porArea }];
+    return { ...gam, historico: { ...gam.historico, semanas } };
+  }
+  const badge = badgeParaNota(nota, gam.config);
+  const semanas = [...gam.historico.semanas, { inicioISO: sem.inicioISO, nota, badge, destaques, porArea }];
   const badges = badge
     ? [...gam.badges, { escopo: "semanal", tipo: badge, periodo: sem.inicioISO, nota, emitidaEm: Date.now() }]
     : gam.badges;

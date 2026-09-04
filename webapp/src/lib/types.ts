@@ -94,13 +94,21 @@ export interface GamificacaoState {
     // faltava só no tipo. Usado por lib/boletim.ts (tendenciaAreaSemanas/
     // correlacaoAreas). Semanas fechadas antes dessa entrada existir no
     // objeto simplesmente não têm o campo (ausência normal, não erro).
-    semanas: Array<{ inicioISO: string; nota: number; badge: string | null; dispensada?: boolean; porArea?: Record<string, number> }>;
+    semanas: Array<{
+      inicioISO: string;
+      nota: number;
+      badge: string | null;
+      dispensada?: boolean;
+      porArea?: Record<string, number>;
+      destaques?: Array<{ nome: string; pontos: number }>;
+    }>;
     meses: Array<{ anoMes: string; nota: number; badge: string | null; bonusMetas: number }>;
     trimestres: Array<{ anoTri: string; nota: number; badge: string | null; bonusMetas: number }>;
     anos: Array<{ ano: number; nota: number; badge: string | null; bonusMetas: number }>;
   };
   metasPontos: Record<string, number>;
   badges: Array<{ escopo: string; tipo: string; periodo: string; nota: number; emitidaEm: number }>;
+  ultimaSemanaVista?: string | null;
 }
 
 export type MetaEscopo = "mensal" | "trimestral" | "anual";
@@ -329,7 +337,8 @@ export type ScreenName =
   | "expenseFolder"
   | "boletim"
   | "stats"
-  | "routineStats";
+  | "routineStats"
+  | "semanaFechada";
 
 // Templates é um array de docs de vários tipos (mercado, kanban, matriz...)
 // no app antigo — o React só edita de verdade countdown/scoreboard/

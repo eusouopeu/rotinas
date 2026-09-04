@@ -18,13 +18,13 @@ import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
 import { getIcalCache, icalEventosDoDia } from "../lib/ical";
 import { load, save } from "../lib/storage";
-import { K_SNOOZES } from "../lib/constants";
 import { useIsDesktop } from "../lib/useIsDesktop";
 import type { DiaKanbanCard, Tag } from "../lib/types";
 import { fillStyle } from "../lib/scoring";
 import { addDaysISO, isoToDate, localKey } from "../lib/gamificacao";
 import { formatHM } from "../lib/schedule";
-import { DIAS_ABREV } from "../lib/constants";
+import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV, K_SNOOZES } from "../lib/constants";
+import { semanaFechadaPendente } from "../lib/semanaFechada";
 
 function AgendaLinha({ it, onClick, onDelete, onEdit }: { it: AgendaItemDia; onClick: () => void; onDelete?: () => void; onEdit?: () => void }) {
   const horas = it.ini == null ? "sem hora" : it.tipo === "compromisso" ? formatHM(it.ini) : `${formatHM(it.ini)}–${formatHM(it.fim!)}`;
@@ -630,12 +630,15 @@ function AgendaDia() {
 
 export function Home() {
   const routines = useAppStore((s) => s.routines);
+  const gam = useAppStore((s) => s.gam);
   const deleteRoutine = useAppStore((s) => s.deleteRoutine);
   const openEditor = useAppStore((s) => s.openEditor);
   const startPlayer = useAppStore((s) => s.startPlayer);
   const goTo = useAppStore((s) => s.goTo);
   const homeView = useAppStore((s) => s.homeView);
   const setHomeView = useAppStore((s) => s.setHomeView);
+
+  const semFechada = semanaFechadaPendente(gam);
 
   return (
     <div className="screen with-tabbar">
@@ -649,6 +652,29 @@ export function Home() {
             <Icon name="stats" size={14} />
           </button>
         </div>
+
+        {semFechada && (
+          <div
+            className="routine-card resume-card pinned-card"
+            style={{ cursor: "pointer", marginBottom: 14 }}
+            onClick={() => goTo({ tab: "home", screen: "semanaFechada" })}
+          >
+            <div className="routine-info">
+              <h3>
+                Semana fechada
+                {semFechada.badge && (
+                  <>
+                    {" · "}
+                    <span style={{ color: BADGE_COR[semFechada.badge] }}>
+                      {BADGE_CHAR[semFechada.badge]} {BADGE_NOME[semFechada.badge]}
+                    </span>
+                  </>
+                )}
+              </h3>
+              <div className="routine-meta">Nota {semFechada.nota.toFixed(1)} — toque para ver o fechamento</div>
+            </div>
+          </div>
+        )}
 
         <div className="type-toggle view-toggle" style={{ marginBottom: 14 }}>
           <span className={homeView === "rotinas" ? "active" : ""} onClick={() => setHomeView("rotinas")}>
