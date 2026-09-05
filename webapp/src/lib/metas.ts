@@ -166,6 +166,24 @@ export function metaRecExcedida(rec: MetaRecorrente, data: Date = new Date()): b
   return metaRecExcesso(rec, data) > 0;
 }
 
+/** Porta de metaRecHorarios (index.html:8069-8080) — só metas diárias com
+ * janela de notificação (`notif`) geram horários: `vezes` alarmes
+ * igualmente espaçados entre `notif.inicio` e `notif.fim`. Sem janela válida
+ * (fim <= início) ou `vezes < 1`, nada é agendado. */
+export function metaRecHorarios(rec: Pick<MetaRecorrente, "tipo" | "notif" | "vezes">): Array<{ hour: number; minute: number }> {
+  if (!rec.notif || rec.tipo !== "diaria") return [];
+  const [hi, mi] = rec.notif.inicio.split(":").map(Number);
+  const [hf, mf] = rec.notif.fim.split(":").map(Number);
+  const ini = hi * 60 + mi;
+  const fim = hf * 60 + mf;
+  if (fim <= ini || rec.vezes < 1) return [];
+  const passo = (fim - ini) / rec.vezes;
+  return Array.from({ length: rec.vezes }, (_, i) => {
+    const m = Math.round(ini + passo * i);
+    return { hour: Math.floor(m / 60), minute: m % 60 };
+  });
+}
+
 export function duplicarMetaRec(
   doc: CountdownDoc,
   id: string,

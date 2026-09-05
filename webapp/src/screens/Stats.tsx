@@ -6,8 +6,6 @@ import { Fragment, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { RodaVidaResumo } from "../components/RodaVidaResumo";
-import { load } from "../lib/storage";
-import { K_SNOOZES } from "../lib/constants";
 import {
   getDayDetailData,
   getWeekGridData,
@@ -39,7 +37,7 @@ export function Stats() {
   const [calYear, setCalYear] = useState<number>(new Date().getFullYear());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  const snoozes = load<Array<{ from: number; to: number }>>(K_SNOOZES, []);
+  const snoozes = useAppStore((s) => s.snoozes);
 
   function renderDayDetail(key: string) {
     const data = getDayDetailData(key, history, routines, snoozes);

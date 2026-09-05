@@ -132,6 +132,23 @@ describe("totalPlanejadoSegundos", () => {
     };
     expect(totalPlanejadoSegundos(routine)).toBe(60 + 10 + 60);
   });
+  it("etapa exercicio soma sets * restSeconds (descanso entre séries)", () => {
+    const routine: Routine = {
+      id: "r1",
+      name: "x",
+      restSeconds: 30,
+      steps: [{ id: "e", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 3, reps: "10" }],
+    };
+    expect(totalPlanejadoSegundos(routine)).toBe(3 * 30);
+  });
+  it("sem restSeconds configurado, etapa exercicio usa o padrão de 120s", () => {
+    const routine: Routine = {
+      id: "r1",
+      name: "x",
+      steps: [{ id: "e", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 2, reps: "10" }],
+    };
+    expect(totalPlanejadoSegundos(routine)).toBe(2 * 120);
+  });
 });
 
 describe("simularDistribuicaoSemana", () => {

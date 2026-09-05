@@ -1,10 +1,10 @@
-// Porta parcial do player (index.html:11140-11828) — só o caminho de etapas
-// tipo "tempo", que é tudo que o RoutineEditor cria hoje. Fica para depois:
-// etapa "exercicio"/"checklist", modo zen, anotações (journaling), nota
-// vinculada, adiar/não-fazer etapa — dependem de módulos que ainda não
-// existem no React (exercícios, streak). Registro de histórico (K_HISTORY) e
-// pontuação (registrarConclusaoStep) JÁ estão ligados — ver lib/scoring.ts e
-// as ações startPlayer/advanceStep/goPrevStep na store.
+// Porta parcial do player (index.html:11140-11828) — etapas tipo "tempo" e
+// "exercicio" (sub-loop de séries, ver freshExState/parseRepsRange, porta de
+// index.html:11271-11276). Fica para depois: modo zen, anotações
+// (journaling), nota vinculada, adiar/não-fazer etapa, repescagem — dependem
+// de módulos que ainda não existem no React (streak). Registro de histórico
+// (K_HISTORY) e pontuação (registrarConclusaoStep) JÁ estão ligados — ver
+// lib/scoring.ts e as ações startPlayer/advanceStep/goPrevStep na store.
 import type { Routine, RoutineStep, Tag } from "./types";
 
 export interface StepActual {
@@ -17,7 +17,30 @@ export interface StepActual {
   skipped: boolean;
   gamItemId?: string;
   exercicioId?: string;
-  series?: Array<{ reps?: number; peso?: number; carga?: number }>;
+  series?: Array<{ reps: number; peso: number }>;
+}
+
+// Sub-loop de séries dentro de uma etapa "exercicio" (index.html:11271) —
+// `phase` alterna "set" (registrando a série atual) e "rest" (descanso
+// cronometrado entre séries, ver `routine.restSeconds`).
+export interface ExPlayerState {
+  setIdx: number;
+  phase: "set" | "rest";
+  results: Array<{ reps: number; peso: number }>;
+  restEndTs: number | null;
+}
+
+export function freshExState(): ExPlayerState {
+  return { setIdx: 0, phase: "set", results: [], restEndTs: null };
+}
+
+/** Porta de parseRepsRange (index.html:11272-11276) — "8-12" vira {min:8,
+ * max:12}; um número solto vira {min:n,max:n}; texto inválido vira {0,0}. */
+export function parseRepsRange(reps: string | undefined): { min: number; max: number } {
+  const m = String(reps || "").match(/(\d+)\s*-\s*(\d+)/);
+  if (m) return { min: +m[1], max: +m[2] };
+  const n = parseInt(reps || "", 10);
+  return { min: n || 0, max: n || 0 };
 }
 
 /** Porta de expandSteps+playbackSteps (index.html:11140-11165), sem o tipo
@@ -50,6 +73,7 @@ export interface PlayerState {
   pauseCount: number;
   stepActuals: Array<StepActual | undefined>;
   pontosGanhos: number;
+  ex: ExPlayerState | null;
 }
 
 export function novoPlayerState(routine: Routine): PlayerState | null {
@@ -71,6 +95,7 @@ export function novoPlayerState(routine: Routine): PlayerState | null {
     pauseCount: 0,
     stepActuals: [],
     pontosGanhos: 0,
+    ex: first.type === "exercicio" ? freshExState() : null,
   };
 }
 
@@ -80,4 +105,14 @@ export function computeRemaining(state: PlayerState): number {
   if (!step || step.type !== "timer" || !state.stepEndTs) return 0;
   const ref = state.paused && state.pausedAt ? state.pausedAt : Date.now();
   return Math.round((state.stepEndTs - ref) / 1000);
+}
+
+/** Porta do cálculo inline de descanso entre séries (index.html:12266,
+ * 12345) — usa `pausedAt` como referência quando pausado, igual ao timer de
+ * etapa acima. */
+export function computeExRestRemaining(state: PlayerState): number {
+  const restEndTs = state.ex?.restEndTs;
+  if (state.ex?.phase !== "rest" || !restEndTs) return 0;
+  const ref = state.paused && state.pausedAt ? state.pausedAt : Date.now();
+  return Math.max(0, Math.round((restEndTs - ref) / 1000));
 }

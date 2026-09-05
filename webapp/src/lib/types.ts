@@ -10,7 +10,12 @@ export interface RoutineStep {
   name: string;
   type: "timer" | "exercicio" | "checklist" | string;
   seconds?: number;
+  // Etapa tipo "exercicio" (index.html:4190-4198) — referencia um item da
+  // biblioteca (`Exercicio`, ver adiante); `reps` é texto livre ("10" ou
+  // "8-12"), lido por parseRepsRange (lib/player.ts).
+  exercicioId?: string;
   sets?: number;
+  reps?: string;
   isRest?: boolean;
   tagValor?: Tag;
   noteId?: string | null;
@@ -129,6 +134,23 @@ export interface MetaTarget {
 export interface MetaRecNotif {
   inicio: string; // "08:00"
   fim: string;    // "18:00"
+}
+
+// Pausa de agenda (K_SNOOZES, index.html:5259-5290, 11023) — enquanto
+// `Date.now()` cai dentro de um intervalo, alertas/notificações e o
+// cumprimento de agenda ficam pausados.
+export interface Snooze {
+  from: number;
+  to: number;
+}
+
+// Biblioteca de exercícios (K_EXERCICIOS, index.html:4211-4214) — referenciada
+// por etapas de rotina do tipo "exercicio" via `RoutineStep.exercicioId`.
+export interface Exercicio {
+  id: string;
+  nome: string;
+  grupos: string[];
+  pesoAtual: number;
 }
 
 export interface MetaRecProgresso {

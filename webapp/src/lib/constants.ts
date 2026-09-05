@@ -49,6 +49,10 @@ export const K_SIDEBARCOLLAPSED = "rotinas_v2_sidebar_collapsed";
 
 export const DIAS_ABREV = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
+// Grupos musculares do editor de exercício (index.html:518) — chips
+// multi-seleção, opcionais, sem efeito em pontuação/agenda.
+export const GRUPOS_MUSCULARES = ["Peito", "Costas", "Ombros", "Bíceps", "Tríceps", "Antebraço", "Abdômen", "Pernas", "Glúteos", "Panturrilha"];
+
 export const BADGE_CHAR: Record<string, string> = {
   diamante: "◆",
   ouro: "●",

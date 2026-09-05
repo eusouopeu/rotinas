@@ -5,7 +5,7 @@
 // único compartilhado por outro usuário. Fora do escopo: backup automático em
 // arquivo (ver lib/fileBackup.ts) e a cópia automática nativa (ver lib/autoBackup.ts).
 import type { HistoryEntry } from "./history";
-import type { AnyTemplateDoc, DiarioMap, Routine } from "./types";
+import type { AnyTemplateDoc, DiarioMap, Routine, Snooze } from "./types";
 
 export const BACKUP_VERSION = 8;
 
@@ -145,9 +145,17 @@ export function mergeDiario(current: DiarioMap, incoming: DiarioMap | undefined)
 }
 
 /** Porta de mergeById para coleções sem tipo forte no React ainda
- * (diaKanban/exercicios/compromissos) — mesma regra: precisa de `id`. */
+ * (diaKanban/compromissos) — mesma regra: precisa de `id`. */
 export function mergeByIdLoose<T extends { id?: unknown }>(current: T[], incoming: T[] | undefined): T[] {
   if (!incoming || !incoming.length) return current;
   const ids = new Set(current.map((x) => x.id));
   return [...current, ...incoming.filter((x) => x && x.id != null && !ids.has(x.id))];
+}
+
+/** Merge de snoozes — sem `id` (só `{from, to}`), a dedupe é pelo próprio
+ * intervalo: uma janela já presente não entra de novo. */
+export function mergeSnoozes(current: Snooze[], incoming: Snooze[] | undefined): Snooze[] {
+  if (!incoming || !incoming.length) return current;
+  const chaves = new Set(current.map((s) => s.from + ":" + s.to));
+  return [...current, ...incoming.filter((s) => s && typeof s.from === "number" && typeof s.to === "number" && !chaves.has(s.from + ":" + s.to))];
 }

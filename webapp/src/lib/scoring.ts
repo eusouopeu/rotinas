@@ -378,10 +378,16 @@ export function simularDistribuicaoSemana(routines: Routine[], gam: GamificacaoS
 
 /** Duração planejada da rotina em segundos, incluindo descansos entre etapas
  * — mesma conta de finishRoutine (index.html:11836): soma dos segundos de
- * playbackSteps (que já intercala os descansos), usada pro registro de
- * histórico. */
+ * playbackSteps (que já intercala os descansos) mais, por etapa "exercicio",
+ * `sets * restSeconds` (o descanso ENTRE SÉRIES, que não aparece como etapa
+ * própria) — usada pro registro de histórico. */
 export function totalPlanejadoSegundos(routine: Routine): number {
-  return playbackSteps(routine).reduce((acc, s) => acc + (s.type === "timer" ? s.seconds || 0 : 0), 0);
+  const rest = routine.restSeconds || 120;
+  return playbackSteps(routine).reduce((acc, s) => {
+    if (s.type === "timer") return acc + (s.seconds || 0);
+    if (s.type === "exercicio") return acc + (s.sets || 1) * rest;
+    return acc;
+  }, 0);
 }
 
 /* ---- Pontuação de metas recorrentes (index.html:7981-8056) ---- */

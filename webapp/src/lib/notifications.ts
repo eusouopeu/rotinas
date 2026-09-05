@@ -1,14 +1,12 @@
 // Porta de syncNativeSchedules/notifyDigestSemanal (index.html:2570-2586,
-// 2765-2886) — compromissos avulsos, rotinas agendadas e o resumo semanal.
-// Fora do escopo: metas recorrentes (index.html:8069-8080) — o campo
-// `recorrentes` do doc de metas ainda não existe no modelo de dados do
-// React (CountdownDoc só tem `targets`, metas com prazo); a notificação não
-// tem o que agendar até essa parte da feature ser portada. Ver
-// lib/nativeBridge.ts > LocalNotificationsPlugin.
+// 2765-2886) — compromissos avulsos, rotinas agendadas, metas recorrentes
+// (index.html:8069-8080) e o resumo semanal. Ver lib/nativeBridge.ts >
+// LocalNotificationsPlugin.
 import { BADGE_NOME, K_DIGESTSEMANAL } from "./constants";
+import { metaRecHorarios } from "./metas";
 import { computeSchedule, rotinaAgendadaEm } from "./schedule";
 import { isDesktop, isNative, load } from "./storage";
-import type { Compromisso, Routine } from "./types";
+import type { Compromisso, MetaRecorrente, Routine } from "./types";
 
 /** Porta de notifIdFor (index.html:2766-2770) — hash da chave + slot do dia
  * (0-6 = dia da semana das rotinas, 7 = "sem dia" para compromisso/digest,
@@ -103,6 +101,38 @@ export function planoNotificacaoRotinas(routines: Routine[], agora: number): Not
     const days = r.schedule.days && r.schedule.days.length ? r.schedule.days : [0, 1, 2, 3, 4, 5, 6];
     days.forEach((d) => {
       out.push({ id: idFor(r.id, d), title, body, weekday: d + 1, hour: Math.floor(sched.startMin / 60), minute: sched.startMin % 60 });
+    });
+  });
+  return out;
+}
+
+export interface NotifPlanMetaRec {
+  id: number;
+  title: string;
+  body: string;
+  hour: number;
+  minute: number;
+}
+
+/** Porta do trecho de metas recorrentes em syncNativeSchedules
+ * (index.html:2866-2883) — um alarme por horário de `metaRecHorarios`,
+ * repetindo todo dia (`schedule.on` sem `weekday`). Metas semanais ou sem
+ * janela de notificação não entram (ver metaRecHorarios). */
+export function planoNotificacaoMetaRec(recorrentes: MetaRecorrente[]): NotifPlanMetaRec[] {
+  const out: NotifPlanMetaRec[] = [];
+  const usedIds = new Set<number>();
+  recorrentes.forEach((rec) => {
+    metaRecHorarios(rec).forEach((h, i) => {
+      let nid = notifIdFor("mr-" + rec.id, i);
+      while (usedIds.has(nid)) nid += 8;
+      usedIds.add(nid);
+      out.push({
+        id: nid,
+        title: rec.titulo,
+        body: "Meta recorrente — " + rec.vezes + "x ao dia",
+        hour: h.hour,
+        minute: h.minute,
+      });
     });
   });
   return out;

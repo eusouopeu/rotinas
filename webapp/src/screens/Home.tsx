@@ -18,13 +18,12 @@ import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
 import { getIcalCache, icalEventosDoDia } from "../lib/ical";
-import { load, save } from "../lib/storage";
 import { useIsDesktop } from "../lib/useIsDesktop";
-import type { DiaKanbanCard, Tag } from "../lib/types";
+import type { DiaKanbanCard, Snooze, Tag } from "../lib/types";
 import { fillStyle } from "../lib/scoring";
 import { addDaysISO, isoToDate, localKey } from "../lib/gamificacao";
 import { formatHM } from "../lib/schedule";
-import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV, K_SNOOZES } from "../lib/constants";
+import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV } from "../lib/constants";
 import { semanaFechadaPendente } from "../lib/semanaFechada";
 
 function AgendaLinha({ it, onClick, onDelete, onEdit }: { it: AgendaItemDia; onClick: () => void; onDelete?: () => void; onEdit?: () => void }) {
@@ -209,16 +208,13 @@ function TarefaPopup({ iso, card, onClose }: { iso: string; card: DiaKanbanCard 
 
 /* Snoozes (K_SNOOZES) — porta de agendaSnoozed/abrirSnoozeModal
    (index.html:5259-5290, 11023): pausa alertas/cumprimento por N dias.
-   Sem estado na store (igual ao backup): load/save direto no storage. */
-interface Snooze {
-  from: number;
-  to: number;
-}
-function agendaSnoozed(): Snooze | null {
-  return load<Snooze[]>(K_SNOOZES, []).find((s) => Date.now() >= s.from && Date.now() <= s.to) || null;
+   Estado reativo na store (addSnooze/resumeAgenda), ver useAppStore.ts. */
+function agendaSnoozed(snoozes: Snooze[]): Snooze | null {
+  return snoozes.find((s) => Date.now() >= s.from && Date.now() <= s.to) || null;
 }
 
 function SnoozeModal({ onClose }: { onClose: () => void }) {
+  const addSnooze = useAppStore((s) => s.addSnooze);
   return (
     <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="confirm-box">
@@ -237,8 +233,7 @@ function SnoozeModal({ onClose }: { onClose: () => void }) {
               className="btn-confirm"
               style={{ background: "var(--caneta)" }}
               onClick={() => {
-                const from = Date.now();
-                save(K_SNOOZES, [...load<Snooze[]>(K_SNOOZES, []), { from, to: from + d * 86400000 }]);
+                addSnooze(d);
                 onClose();
               }}
             >
@@ -260,6 +255,8 @@ function AgendaSemana() {
   const history = useAppStore((s) => s.history);
   const diaKanban = useAppStore((s) => s.diaKanban);
   const compromissos = useAppStore((s) => s.compromissos);
+  const snoozes = useAppStore((s) => s.snoozes);
+  const resumeAgenda = useAppStore((s) => s.resumeAgenda);
   const goTo = useAppStore((s) => s.goTo);
   const toggleDiaKanbanCard = useAppStore((s) => s.toggleDiaKanbanCard);
   const toggleCompromisso = useAppStore((s) => s.toggleCompromisso);
@@ -272,12 +269,11 @@ function AgendaSemana() {
   const [inicioISO, setInicioISO] = useState(hojeISO);
   const [popup, setPopup] = useState<{ iso: string; card: DiaKanbanCard | null } | null>(null);
   const [snoozeModal, setSnoozeModal] = useState(false);
-  const [, force] = useState(0);
 
   const fimISO = addDaysISO(inicioISO, 6);
   const rangeLabel =
     inicioISO === hojeISO ? "próximos 7 dias" : `${inicioISO.slice(8, 10)}/${inicioISO.slice(5, 7)} – ${fimISO.slice(8, 10)}/${fimISO.slice(5, 7)}`;
-  const snoozed = agendaSnoozed();
+  const snoozed = agendaSnoozed(snoozes);
 
   return (
     <div className="ag-semana">
@@ -299,10 +295,8 @@ function AgendaSemana() {
         <button
           className="link-btn"
           onClick={() => {
-            if (snoozed) {
-              save(K_SNOOZES, load<Snooze[]>(K_SNOOZES, []).filter((s) => !(Date.now() >= s.from && Date.now() <= s.to)));
-              force((n) => n + 1);
-            } else setSnoozeModal(true);
+            if (snoozed) resumeAgenda();
+            else setSnoozeModal(true);
           }}
         >
           {snoozed ? "retomar agenda" : "pausar agenda"}
@@ -316,14 +310,7 @@ function AgendaSemana() {
           </span>
         </div>
       )}
-      {snoozeModal && (
-        <SnoozeModal
-          onClose={() => {
-            setSnoozeModal(false);
-            force((n) => n + 1);
-          }}
-        />
-      )}
+      {snoozeModal && <SnoozeModal onClose={() => setSnoozeModal(false)} />}
       {popup && <TarefaPopup iso={popup.iso} card={popup.card} onClose={() => setPopup(null)} />}
       {ehDesktop ? (
         /* Porta de agendaSemanaGradeHtml (index.html:5020-5033) — grade de 7

@@ -2,7 +2,7 @@
 // (index.html:5296-5333, 5418-5459, 5842-5909) — visão semanal da tela
 // "Estatísticas" (aba "Dados" no legado): grade de cumprimento da semana e
 // detalhe de execuções/faltas por dia. Sem efeitos colaterais.
-import type { Routine, GamificacaoState, RoutineStep } from "./types";
+import type { Routine, GamificacaoState, RoutineStep, Snooze } from "./types";
 import type { HistoryEntry } from "./history";
 import {
   localKey,
@@ -16,10 +16,7 @@ import { rotinaAgendadaEm, computeSchedule } from "./schedule";
 import { corDaRotina, fillStyle } from "./scoring";
 import { fmtClock, fmtTime, fmtMinLabel } from "./format";
 
-export interface Snooze {
-  from: number;
-  to: number;
-}
+export type { Snooze };
 
 export interface WeekDayData {
   key: string;
