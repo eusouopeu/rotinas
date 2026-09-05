@@ -271,7 +271,7 @@ function createWindow() {
       sandbox: false
     }
   });
-  mainWindow.loadFile(path.join(__dirname, "..", "www", "index.html"));
+  mainWindow.loadFile(path.join(__dirname, "..", "webapp-dist", "index.html"));
 
   let boundsSaveTimer = null;
   const scheduleBoundsSave = () => {

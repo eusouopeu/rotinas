@@ -5,7 +5,7 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 ## Escopo e fonte de verdade
 
 - Brita (nome exibido: Rotinas) é um PWA local-first de rotinas cronometradas, notas Markdown, modelos e organização pessoal; não há backend.
-- O app de produção é o legado na raiz. A reescrita React em `webapp/` é incremental e ainda não tem paridade; nunca altere, substitua ou empacote um em lugar do outro sem pedido explícito.
+- Desde 05/09/2026, por pedido explícito do Pedro (aceitando os gaps conhecidos), Android (Capacitor) e Electron carregam o build React (`webapp-dist`), não mais o legado — ver `docs/react-migration.md` para o corte e os gaps aceitos. O legado na raiz (`index.html`) continua como fonte de leitura/referência para lógica ainda não portada e pode seguir servindo como PWA de navegador à parte; nunca reverta o corte nem empacote um no lugar do outro de novo sem pedido explícito.
 - Antes de atuar na área correspondente, leia: arquitetura (`docs/architecture.md`), migração (`docs/react-migration.md`), gamificação (`docs/gamification.md`), sync/backup (`docs/sync.md`), nativo/release (`docs/native.md`, `docs/release.md`), UI (`docs/design-system.md`) ou estado de funcionalidades (`docs/feature-status.md`).
 
 ## Stack por área — resolução de contradições
@@ -15,8 +15,8 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 - `index.html` + JavaScript vanilla em IIFE async + `app.css`; sem framework, bundler, componentes, TypeScript, Tailwind ou Lucide.
 - Preserve IIFE único, escopo léxico, ordem de declarações e arquitetura single-file. Separar scripts é refatoração explícita.
 - Ícones existentes são entidades HTML/`ICON_D`; reutilize-as. Não troque por Lucide sem migração explícita.
-- Todo novo asset estático precisa entrar no cache PWA e na cópia de `www`; valide os dois destinos.
-- Código que afeta Android/Electron deve manter os ramos `isNative`/`isDesktop` compatíveis; não trate o navegador como único runtime.
+- Todo novo asset estático precisa entrar no cache PWA (`sw.js`); `www/`/`copy:www` não alimenta mais Android/Electron (ver corte acima), só sobra como bundle avulso do legado se precisar.
+- Ramos `isNative`/`isDesktop` do legado continuam existindo e devem seguir compatíveis, mas Android/Electron não os exercitam mais em produção — quem roda ali hoje é o React (mesmos ramos, em `webapp/src/lib/storage.ts`).
 
 ### Migração (`webapp/`)
 
@@ -24,7 +24,7 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 - O React importa e reutiliza o `app.css` legado. Tailwind não está instalado/nem autorizado nesta fase; não introduzir Tailwind, CSS Modules ou design paralelo sem pedido explícito.
 - Lucide só é preferência futura. Hoje os componentes reutilizam `Icon.tsx`/`ICON_D`. Montserrat continua no corpo; Lato continua nos títulos onde já aplicado.
 - A migração usa o mesmo formato de dados do legado. Não crie storage alternativo, nem transformação que descarte documentos desconhecidos.
-- O app React não é candidato a release nativa até que a paridade esteja explicitamente confirmada.
+- O app React já é o que roda em Android/Electron (corte de 05/09/2026, decisão explícita apesar de gaps conhecidos — ver `docs/react-migration.md`); trate mudanças em `webapp/` como release nativa de verdade, não mais como protótipo isolado.
 
 ## Regras invioláveis
 

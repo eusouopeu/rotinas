@@ -1,7 +1,7 @@
 {
   "appId": "com.pedro.rotinas",
   "appName": "Rotinas",
-  "webDir": "www",
+  "webDir": "webapp-dist",
   "android": {
     "allowMixedContent": false
   },
