@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
+import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { exportPdfView } from "../lib/exportFile";
 import { metasPdfHtml } from "../lib/pdfExport";
 import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
@@ -117,6 +118,8 @@ export function Metas() {
             {erro}
           </div>
         )}
+
+        <RodaVidaResumo />
 
         <div className="area-chips area-filter-row" style={{ marginBottom: 14 }}>
           <span

@@ -13,6 +13,7 @@ import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
+import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
@@ -652,6 +653,8 @@ export function Home() {
             <Icon name="stats" size={14} />
           </button>
         </div>
+
+        <RodaVidaResumo />
 
         {semFechada && (
           <div

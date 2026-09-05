@@ -102,7 +102,7 @@ export function Boletim() {
           &larr; Rotinas
         </button>
       </div>
-      <div style={{ overflowY: "auto", flex: 1, paddingBottom: 24 }}>
+      <div className="tab-scroll" style={{ paddingBottom: 24 }}>
         <div className="home-header" style={{ marginBottom: 6 }}>
           <h1>Boletim</h1>
         </div>

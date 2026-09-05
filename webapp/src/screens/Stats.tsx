@@ -5,6 +5,7 @@
 import { Fragment, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
+import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { load } from "../lib/storage";
 import { K_SNOOZES } from "../lib/constants";
 import {
@@ -626,6 +627,7 @@ export function Stats() {
         </div>
 
         <div id="statsHead">
+          <RodaVidaResumo />
           <div className="stats-nav">
             <div className="type-toggle view-toggle">
               <span

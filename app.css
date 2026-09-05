@@ -1435,8 +1435,10 @@
     /* conteúdo empurrado pra caber sidebar flutuante + topbar fixa */
     #app{ padding-top:0; }
     .screen{ margin-top:var(--topbar-h); margin-left:calc(var(--sidebar-w) + 28px); }
-    .home-header{ top:var(--topbar-h); }
-    .stats-sticky-head{ top:var(--topbar-h) !important; }
+    /* cabeçalhos sticky usam top:0 relativo ao seu container de rolagem (.tab-scroll etc.),
+       que já começa abaixo da barra fixa devido ao margin-top de .screen acima. */
+    .home-header{ top:0; }
+    .stats-sticky-head{ top:0 !important; }
 
     /* ---- Modo "só ícones": botão na barra superior recolhe a sidebar para
        uma coluna estreita, texto escondido, título/label só por tooltip. */
