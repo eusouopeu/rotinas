@@ -19,7 +19,7 @@
    - forma vem de --radius/--radius-sm; elevação é só borda, nunca --shadow-*. */
 
   :root{
-    --paper: #F5F5F8;
+    --paper: #FFFFFF;
     --card: #FFFFFF;
     --card-2: #EDF1F6;
     --line: #E3E2E8;

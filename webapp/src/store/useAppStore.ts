@@ -4,6 +4,8 @@
 // save(K_X, x) + render() do app antigo, só que sem o "+ render()" manual —
 // o React re-renderiza sozinho quem lê a fatia que mudou.
 import { create } from "zustand";
+import { uid } from "../lib/uid";
+import { createNotesSlice } from "./slices/notesSlice";
 import { bootStorage, isNative, load, save } from "../lib/storage";
 import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
 import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoMetaRec, planoNotificacaoRotinas } from "../lib/notifications";
@@ -44,7 +46,6 @@ import {
   sanitizeBackup,
   type BackupPayload,
 } from "../lib/backup";
-import { nomeAutoDoc } from "../lib/notes";
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import { novoDraftSchedule } from "../lib/schedule";
 import { freshExState, novoPlayerState, type PlayerState, type StepActual } from "../lib/player";
@@ -70,7 +71,6 @@ import {
   totalPlanejadoSegundos,
 } from "../lib/scoring";
 import type { HistoryEntry } from "../lib/history";
-import { newTemplateDoc } from "../lib/templates";
 import type {
   AnyTemplateDoc,
   AppView,
@@ -103,7 +103,7 @@ function isCountdownDoc(d: AnyTemplateDoc): d is CountdownDoc {
 /** Lê `recorrentes` do doc de metas mais recente sem criar um doc vazio
  * (diferente de `metaDoc()`, que cria) — usado só para (re)sincronizar
  * notificação, onde nada precisa existir se o usuário não tem metas. */
-function recorrentesAtuais(templates: AnyTemplateDoc[]): MetaRecorrente[] {
+export function recorrentesAtuais(templates: AnyTemplateDoc[]): MetaRecorrente[] {
   const doc = templates.filter(isCountdownDoc).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
   return doc?.recorrentes || [];
 }
@@ -135,7 +135,7 @@ function novoDraft(): Routine {
   };
 }
 
-interface AppState {
+export interface AppState {
   booted: boolean;
   view: AppView;
   routines: Routine[];
@@ -293,7 +293,8 @@ interface AppState {
   importModeloShare: (doc: AnyTemplateDoc) => AnyTemplateDoc;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set, get, api) => ({
+  ...createNotesSlice(set, get, api),
   booted: false,
   view: { tab: "home", screen: "home" },
   routines: [],
@@ -1064,82 +1065,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Notas simples (index.html:9685-9847, 11038-11137). Sem editor contínuo
   // (live preview), backlinks nem sinkChecked ainda — textarea simples.
-  openNote: (id) => {
-    if (id) {
-      set({ view: { tab: "templates", screen: "noteEditor", id } });
-      return;
-    }
-    const nota: Note = { id: uid(), title: nomeAutoDoc(), content: "", subjects: [], createdAt: Date.now(), updatedAt: Date.now() };
-    const notes = [...get().notes, nota];
-    save(K_NOTES, notes);
-    set({ notes, view: { tab: "templates", screen: "noteEditor", id: nota.id } });
-  },
-  closeNoteEditor: () => set({ view: { tab: "templates", screen: "notes" } }),
-  updateNote: (id, patch) => {
-    const notes = get().notes.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n));
-    save(K_NOTES, notes);
-    set({ notes });
-  },
-  toggleNotePinned: (id) => {
-    const notes = get().notes.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n));
-    save(K_NOTES, notes);
-    set({ notes });
-  },
-  deleteNote: (id) => {
-    const notes = get().notes.filter((n) => n.id !== id);
-    save(K_NOTES, notes);
-    set({ notes });
-  },
-  addNote: (title, content) => {
-    const nota: Note = {
-      id: uid(),
-      title,
-      content,
-      subjects: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    const notes = [...get().notes, nota];
-    save(K_NOTES, notes);
-    set({ notes });
-    return nota;
-  },
-
-  createTemplateDoc: (type, folderKind, folderKey) => {
-    const doc = newTemplateDoc(type);
-    const templates = [...get().templates, doc];
-    save(K_TEMPLATES, templates);
-    set({ templates, view: { tab: "templates", screen: "templateDoc", id: doc.id, folderKind, folderKey } });
-  },
-  updateTemplateDoc: (doc) => {
-    const docNovo = { ...doc, updatedAt: Date.now() };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    set({ templates });
-  },
-  deleteTemplateDoc: (id) => {
-    const templates = get().templates.filter((t) => t.id !== id);
-    save(K_TEMPLATES, templates);
-    set({ templates });
-  },
-  addExpense: (fields) => {
-    const now = Date.now();
-    const doc = { id: uid(), type: "expense" as const, ...fields, createdAt: now, updatedAt: now };
-    const templates = [...get().templates, doc];
-    save(K_TEMPLATES, templates);
-    set({ templates });
-  },
-  addExpenses: (lote) => {
-    const now = Date.now();
-    const docs = lote.map((fields) => ({ id: uid(), type: "expense" as const, ...fields, createdAt: now, updatedAt: now }));
-    const templates = [...get().templates, ...docs];
-    save(K_TEMPLATES, templates);
-    set({ templates });
-  },
-
-  openSearch: () => set({ searchOpen: true }),
-  closeSearch: () => set({ searchOpen: false }),
-
   backupSnapshot: () => {
     const s = get();
     return {
@@ -1231,10 +1156,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     return d;
   },
 }));
-
-function uid(): string {
-  return Math.random().toString(36).slice(2, 10);
-}
 
 /** Porta de autoBackupNative (index.html:10785-10800) — sem-op fora do
  * Android/Capacitor (mesmo status de SyncCard/McpCard: fiel ao legado, mas

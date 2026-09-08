@@ -1,3 +1,11 @@
+<!--
+  LEGADO CONGELADO (05/09/2026) — Android e Electron carregam o build React
+  (webapp-dist), não este arquivo (ver docs/react-migration.md). Este
+  index.html permanece como fonte de leitura/referência para lógica ainda
+  não portada e pode seguir servindo como PWA de navegador à parte via
+  `npm run copy:www`, mas não é mais produção nativa. Não reverta o corte
+  nem empacote este arquivo no lugar do build React sem pedido explícito.
+-->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +15,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#F5F5F8">
+<meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
@@ -27,7 +35,7 @@ function __britaShowFatal(msg){
   if(!el){
     el = document.createElement("div");
     el.id = "bootError";
-    el.style.cssText = "position:fixed;inset:0;z-index:99999;background:#F5F5F8;color:#1E1B26;padding:24px 20px;font:14px/1.5 monospace;overflow:auto;white-space:pre-wrap;word-break:break-word;";
+    el.style.cssText = "position:fixed;inset:0;z-index:99999;background:#FFFFFF;color:#1E1B26;padding:24px 20px;font:14px/1.5 monospace;overflow:auto;white-space:pre-wrap;word-break:break-word;";
     (document.body || document.documentElement).appendChild(el);
     el.textContent = "O app encontrou um erro ao iniciar. Tire um print desta tela.\n\n";
   }
@@ -99,7 +107,7 @@ window.addEventListener("unhandledrejection", function(e){
     const eff = resolvedTheme();
     document.body.classList.toggle("dark", eff === "dark");
     const meta = document.querySelector('meta[name="theme-color"]');
-    if(meta) meta.setAttribute("content", eff === "dark" ? "#14181C" : "#F5F5F8");
+    if(meta) meta.setAttribute("content", eff === "dark" ? "#14181C" : "#FFFFFF");
   }
   function themeIcon(){
     const t = load(K_THEME, "auto");
@@ -135,7 +143,7 @@ window.addEventListener("unhandledrejection", function(e){
     return new Promise(resolve=>{
       const ov = document.createElement("div");
       ov.id = "pinLockScreen";
-      ov.style.cssText = "position:fixed; inset:0; background:var(--paper,#F5F5F8); color:var(--ink,#1E1B26); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:99999; font-family:'Montserrat',-apple-system,sans-serif; padding:20px;";
+      ov.style.cssText = "position:fixed; inset:0; background:var(--paper,#FFFFFF); color:var(--ink,#1E1B26); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:99999; font-family:'Montserrat',-apple-system,sans-serif; padding:20px;";
       ov.innerHTML = `
         <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:700;">Brita bloqueado</div>
         <input type="password" inputmode="numeric" id="pinLockInput" autocomplete="off"

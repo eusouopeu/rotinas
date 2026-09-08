@@ -1,10 +1,10 @@
 // Tipos + acesso às pontes nativas de Drive/MCP (index.html:14142-14311) —
 // SEM reimplementar nada: cada método aqui só chama a mesma ponte que o app
 // legado já usa (window.electronBridge no Electron, plugin Capacitor
-// DriveSync no Android). Hoje o Electron carrega www/index.html, não o
-// build do React, então window.electronBridge não existe no runtime do
-// React ainda — os cards ficam prontos e corretos, mas inertes até o dia em
-// que o Electron passar a carregar webapp-dist (ver docs/react-migration.md).
+// DriveSync no Android). Desde o corte de produção de 05/09/2026, Electron e
+// Android carregam webapp-dist (este build React), então essas pontes rodam
+// pela primeira vez em produção aqui — ver docs/react-migration.md para os
+// gaps aceitos nesse corte.
 import { isDesktop, isNative } from "./storage";
 
 export interface SyncKeyHealth {
@@ -48,6 +48,9 @@ export interface McpStatus {
   mode: "off" | "read" | "write";
   port: number;
   token: string;
+  /** false enquanto o dispatcher de tools não estiver portado ao React (ver docs/react-migration.md);
+   * o main process força o servidor desligado nesse caso, independente do modo salvo. */
+  wired?: boolean;
   log?: McpLogEntry[];
 }
 

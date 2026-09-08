@@ -15,6 +15,7 @@ import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
 import { rotinaShareData } from "../lib/backup";
 import { downloadFile, slugify } from "../lib/exportFile";
 import { GRUPOS_MUSCULARES } from "../lib/constants";
+import { presetsPorGrupo } from "../lib/exercicioPresets";
 import type { Exercicio, RoutineStep } from "../lib/types";
 
 function uid(): string {
@@ -113,8 +114,18 @@ function ExercicioEditorModal({
  * picker depois de salvar, "+ Novo exercício" já seleciona o criado. */
 function ExercicioPickerModal({ onClose, onPick }: { onClose: () => void; onPick: (ex: Exercicio) => void }) {
   const exercicios = useAppStore((s) => s.exercicios);
+  const upsertExercicio = useAppStore((s) => s.upsertExercicio);
   const [editorFor, setEditorFor] = useState<{ ex: Exercicio | null } | null>(null);
+  const [sugestoesAbertas, setSugestoesAbertas] = useState(false);
   const lista = [...exercicios].sort((a, b) => a.nome.localeCompare(b.nome));
+  const nomesExistentes = new Set(exercicios.map((e) => e.nome.trim().toLowerCase()));
+  const grupos = presetsPorGrupo();
+
+  function adicionarSugestao(nome: string, grupo: string) {
+    const saved = upsertExercicio({ nome, grupos: [grupo], pesoAtual: 0 });
+    onClose();
+    onPick(saved);
+  }
 
   if (editorFor) {
     return (
@@ -169,6 +180,34 @@ function ExercicioPickerModal({ onClose, onPick }: { onClose: () => void; onPick
           </span>
           <span>+ Novo exercício</span>
         </button>
+
+        <div className="section-label" style={{ margin: "14px 0 6px", cursor: "pointer" }} onClick={() => setSugestoesAbertas((v) => !v)}>
+          Sugestões por grupo muscular {sugestoesAbertas ? "▲" : "▼"}
+        </div>
+        {sugestoesAbertas && (
+          <div>
+            {grupos.map(({ grupo, itens }) => (
+              <div key={grupo} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: "var(--sub)", marginBottom: 4 }}>{grupo}</div>
+                {itens.map((it) => {
+                  const jaExiste = nomesExistentes.has(it.nome.trim().toLowerCase());
+                  return (
+                    <div key={it.nome} className="qa-idea-row" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "3px 0" }}>
+                      <span style={{ flex: 1 }}>{it.nome}</span>
+                      {jaExiste ? (
+                        <span style={{ fontSize: 12, color: "var(--sub)" }}>já na biblioteca</span>
+                      ) : (
+                        <button className="icon-btn" title="Adicionar" aria-label="Adicionar" style={{ width: 28, height: 28, flex: "0 0 auto" }} onClick={() => adicionarSugestao(it.nome, grupo)}>
+                          <Icon name="plus" size={12} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

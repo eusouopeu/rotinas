@@ -6,10 +6,13 @@
    de um dispositivo. Estes testes existem para transformar esse silêncio num
    erro de build.
 
-   Três invariantes:
+   Quatro invariantes:
    1. SYNCED_KEYS (sync/engine.js, desktop) == SYNCED_KEYS (SyncEngine.java, Android)
    2. toda coleção devolvida por backupData() tem uma chave em SYNCED_KEYS
-   3. toda chave de SYNCED_KEYS é tratada por applySyncedKey() no index.html */
+   3. toda chave de SYNCED_KEYS é tratada por applySyncedKey() no index.html
+   4. toda coleção devolvida por backupSnapshot() (webapp/src/store/useAppStore.ts,
+      React) tem uma chave K_* conhecida em SYNCED_KEYS — mesma classe de bug,
+      lado React (rec. 4 de docs/react-migration.md) */
 
 const fs = require("fs");
 const path = require("path");
@@ -72,6 +75,41 @@ assert(ask, "applySyncedKey() não encontrado no index.html");
 const tratadas = [...ask[1].matchAll(/case (K_[A-Z0-9_]+):/g)].map(m => constK[m[1]]).filter(Boolean);
 listaIgual(SYNCED_KEYS, tratadas,
   "toda chave de SYNCED_KEYS é aplicada ao vivo por applySyncedKey()");
+
+/* ---- 4) backupSnapshot() do React ---- */
+const STORE = fs.readFileSync(path.join(RAIZ, "webapp/src/store/useAppStore.ts"), "utf8");
+const CONSTANTS = fs.readFileSync(path.join(RAIZ, "webapp/src/lib/constants.ts"), "utf8");
+
+const constKReact = {};
+for (const m of CONSTANTS.matchAll(/export const (K_[A-Z0-9_]+)\s*=\s*"([^"]+)"/g)) constKReact[m[1]] = m[2];
+
+// nome do campo em backupSnapshot() -> constante K_* correspondente em constants.ts
+const CAMPO_PARA_K = {
+  routines: "K_ROUTINES",
+  notes: "K_NOTES",
+  history: "K_HISTORY",
+  templates: "K_TEMPLATES",
+  diario: "K_DIARIO",
+  diaKanban: "K_DIAKANBAN",
+  compromissos: "K_COMPROMISSOS",
+  snoozes: "K_SNOOZES",
+  exercicios: "K_EXERCICIOS",
+};
+
+const snap = STORE.match(/backupSnapshot: \(\) => \{[\s\S]*?return \{([\s\S]*?)\};\s*\},/);
+assert(snap, "backupSnapshot() não encontrado em webapp/src/store/useAppStore.ts");
+const camposSnap = [...snap[1].matchAll(/^\s*([a-zA-Z][a-zA-Z0-9]*):/gm)]
+  .map((m) => m[1])
+  .filter((c) => c !== "version" && c !== "exportedAt");
+ok(camposSnap.length > 0, "backupSnapshot() lista " + camposSnap.length + " coleção(ões): " + camposSnap.join(", "));
+camposSnap.forEach((campo) => {
+  const constName = CAMPO_PARA_K[campo];
+  ok(!!constName, "coleção \"" + campo + "\" de backupSnapshot() tem uma constante K_* mapeada no teste");
+  const chave = constName && constKReact[constName];
+  ok(!!chave, "constante " + constName + " existe em webapp/src/lib/constants.ts");
+  if (chave) ok(SYNCED_KEYS.includes(chave),
+    "coleção \"" + campo + "\" (" + chave + ", React) está em SYNCED_KEYS — senão ela sai do sync em silêncio");
+});
 
 console.log(falhas === 0 ? "\nSYNC-KEYS OK" : "\n" + falhas + " FALHA(S)");
 process.exit(falhas === 0 ? 0 : 1);

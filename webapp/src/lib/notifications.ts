@@ -138,6 +138,61 @@ export function planoNotificacaoMetaRec(recorrentes: MetaRecorrente[]): NotifPla
   return out;
 }
 
+const DIAS_SEMANA_NOTIF = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+
+export interface AlarmeAgendado {
+  tag: "rotina" | "compromisso" | "meta recorrente";
+  titulo: string;
+  quando: string;
+  ordinal: number;
+}
+
+/** Une os três planos de notificação (rotinas, compromissos, metas
+ * recorrentes) numa lista legível — recomendação 3 de docs/react-migration.md:
+ * `syncMetaRecNotifications` está ativo desde 05/09/2026 "sem validação de
+ * campo"; esta função serve tanto de superfície de debug (ver o que está
+ * agendado) quanto de validação visual (um horário inválido/duplicado
+ * aparece aqui). Não agenda nada — só formata os mesmos planos usados por
+ * `syncNativeSchedules`. */
+export function listaAlarmesAgendados(routines: Routine[], compromissos: Compromisso[], recorrentes: MetaRecorrente[], agora: number): AlarmeAgendado[] {
+  const out: AlarmeAgendado[] = [];
+  planoNotificacaoRotinas(routines, agora).forEach((p) => {
+    const titulo = p.title.replace(/^Hora de começar: /, "");
+    if (p.at != null) {
+      out.push({
+        tag: "rotina",
+        titulo,
+        quando: new Date(p.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+        ordinal: p.at,
+      });
+    } else if (p.weekday != null && p.hour != null && p.minute != null) {
+      out.push({
+        tag: "rotina",
+        titulo,
+        quando: `${DIAS_SEMANA_NOTIF[(p.weekday - 1 + 7) % 7]}, ${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`,
+        ordinal: p.weekday * 1440 + p.hour * 60 + p.minute,
+      });
+    }
+  });
+  planoNotificacaoCompromissos(compromissos, agora).forEach((p) => {
+    out.push({
+      tag: "compromisso",
+      titulo: p.title,
+      quando: new Date(p.when).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+      ordinal: p.when,
+    });
+  });
+  planoNotificacaoMetaRec(recorrentes).forEach((p) => {
+    out.push({
+      tag: "meta recorrente",
+      titulo: p.title,
+      quando: `todo dia, ${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`,
+      ordinal: p.hour * 60 + p.minute,
+    });
+  });
+  return out;
+}
+
 /** Porta de notifyDigestSemanal (index.html:2570-2586) — disparada quando o
  * boot detecta uma semana recém-fechada (gam.historico.semanas cresceu).
  * Três canais, igual ao legado: nativo agenda imediato (sem `schedule`,

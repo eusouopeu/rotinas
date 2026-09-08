@@ -14,6 +14,8 @@ import { BackupCard } from "../components/BackupCard";
 import { IcalCard } from "../components/IcalCard";
 import { SyncCard } from "../components/SyncCard";
 import { McpCard } from "../components/McpCard";
+import { DiagnosticsCard } from "../components/DiagnosticsCard";
+import { AlarmesCard } from "../components/AlarmesCard";
 import { getMiniPlayerBridge } from "../lib/nativeBridge";
 import { DIAS_ABREV } from "../lib/constants";
 import { isDesktop, isNative } from "../lib/storage";
@@ -99,6 +101,11 @@ export function Settings() {
               </span>
             ))}
           </div>
+        </div>
+
+        <div className="section-label">Alarmes agendados</div>
+        <div className="stat-card">
+          <AlarmesCard />
         </div>
 
         <div className="section-label">Notificações</div>
@@ -366,6 +373,9 @@ export function Settings() {
             </div>
           </>
         )}
+
+        <div className="section-label">Diagnóstico</div>
+        <DiagnosticsCard />
       </div>
       <Tabbar />
     </div>

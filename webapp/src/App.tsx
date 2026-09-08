@@ -34,7 +34,7 @@ function useThemeEffect(theme: "auto" | "light" | "dark") {
       const eff = theme === "auto" ? (mqDark?.matches ? "dark" : "light") : theme;
       document.body.classList.toggle("dark", eff === "dark");
       const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute("content", eff === "dark" ? "#14181C" : "#F5F5F8");
+      if (meta) meta.setAttribute("content", eff === "dark" ? "#14181C" : "#FFFFFF");
     }
     apply();
     if (theme === "auto" && mqDark) {

@@ -42,6 +42,15 @@ export function McpCard() {
   if (erro) return <div className="routine-meta">Não foi possível carregar o status do MCP.</div>;
   if (!status) return <div className="routine-meta">Carregando status…</div>;
 
+  if (status.wired === false) {
+    return (
+      <div className="routine-meta">
+        Servidor MCP indisponível nesta versão: o dispatcher de tools ainda não foi portado ao React
+        (ver docs/react-migration.md). Fica desligado até isso ser implementado.
+      </div>
+    );
+  }
+
   const log = status.log || [];
 
   return (

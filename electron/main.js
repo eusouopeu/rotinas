@@ -23,6 +23,13 @@ const pendingMcpCalls = new Map();
 let mcpCallSeq = 0;
 let syncIntervalHandle = null;
 
+// O React (webapp-dist, produção desde 05/09/2026) ainda não registra onMcpCall
+// (nenhum handler de tool no lado do renderer — ver docs/react-migration.md).
+// Enquanto isso não for portado, qualquer chamada MCP trava até o timeout de
+// callRenderer. Mantenha o servidor desligado, independente do modo salvo,
+// até o dispatcher ser portado; ligue esta flag quando isso acontecer.
+const MCP_DISPATCH_WIRED = false;
+
 /* ---------------- Storage: um arquivo JSON por chave, igual ao Capacitor Filesystem no APK ---------------- */
 
 function ensureDataDir() {
@@ -139,10 +146,12 @@ ipcMain.handle("mcp:getStatus", () => ({
   port: mcpConfig.port,
   token: mcpConfig.token,
   running: !!mcpServerHandle,
+  wired: MCP_DISPATCH_WIRED,
   log: mcpCallLog.slice().reverse()
 }));
 ipcMain.handle("mcp:setMode", async (_e, mode) => {
   if (!["off", "read", "write"].includes(mode)) throw new Error("modo inválido");
+  if (!MCP_DISPATCH_WIRED && mode !== "off") throw new Error("servidor MCP indisponível nesta versão");
   mcpConfig.mode = mode;
   saveMcpConfig(mcpConfig);
   await applyMcpServerState();
@@ -165,7 +174,7 @@ ipcMain.handle("mcp:regenerateToken", async () => {
 /* ---------------- Servidor MCP: sobe/desce conforme o modo escolhido em Configurações ---------------- */
 
 async function applyMcpServerState() {
-  const shouldRun = mcpConfig.mode !== "off";
+  const shouldRun = MCP_DISPATCH_WIRED && mcpConfig.mode !== "off";
   if (shouldRun && !mcpServerHandle) {
     const { startMcpServer } = require("../mcp-server/server.js");
     try {
@@ -256,7 +265,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 560,
     title: "Brita",
-    backgroundColor: "#F5F5F8",
+    backgroundColor: "#FFFFFF",
     // título nativo escondido: a sidebar flutuante (index.html/app.css, ver
     // body.is-desktop-shell) vira a área de arrasto da janela no lugar dele —
     // "hiddenInset" é macOS-only, no Windows/Linux cai pra "hidden" (Electron
