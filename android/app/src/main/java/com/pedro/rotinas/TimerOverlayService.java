@@ -138,14 +138,31 @@ public class TimerOverlayService extends Service {
     }
 
     private void startForegroundCompat() {
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             NotificationChannel ch = new NotificationChannel(
                     CHANNEL_ID, "Cronômetro em andamento", NotificationManager.IMPORTANCE_LOW);
             ch.setDescription("Mantém o cronômetro visível sobre outros apps");
             ch.setShowBadge(false);
             nm.createNotificationChannel(ch);
         }
+        Notification n = buildNotification();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIF_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(NOTIF_ID, n);
+        }
+    }
+
+    /**
+     * Notificação persistente do cronômetro. Usa setUsesChronometer +
+     * setChronometerCountDown (API 24+, mesmo mínimo do app) para a contagem
+     * regressiva aparecer sozinha na barra de notificação/lock screen sem
+     * precisarmos atualizar a cada segundo — o mesmo mecanismo do timer
+     * nativo do relógio da Samsung. Pausado ou com a fila esgotada, cai para
+     * texto estático (chronometer não tem estado "pausado").
+     */
+    private Notification buildNotification() {
         Intent open = new Intent(this, MainActivity.class);
         open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         int piFlags = PendingIntent.FLAG_UPDATE_CURRENT;
@@ -155,19 +172,27 @@ public class TimerOverlayService extends Service {
         Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this);
-        Notification n = b
-                .setContentTitle("Rotina em andamento")
-                .setContentText(label.isEmpty() ? "Cronômetro ativo" : label)
+        b.setContentTitle(label.isEmpty() ? "Rotina em andamento" : label)
                 .setSmallIcon(android.R.drawable.ic_menu_recent_history)
                 .setContentIntent(pi)
-                .setOngoing(true)
-                .build();
+                .setOngoing(true);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIF_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        if (exhausted) {
+            b.setContentText("Toque para continuar");
+        } else if (paused) {
+            b.setContentText("Pausado");
         } else {
-            startForeground(NOTIF_ID, n);
+            b.setContentText("Em andamento")
+                    .setUsesChronometer(true)
+                    .setChronometerCountDown(true)
+                    .setWhen(endTs);
         }
+        return b.build();
+    }
+
+    private void refreshNotification() {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        try { nm.notify(NOTIF_ID, buildNotification()); } catch (Exception ignored) {}
     }
 
     private int dp(int v) {
@@ -224,9 +249,18 @@ public class TimerOverlayService extends Service {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
+        // Ponto de partida: borda direita, meio da tela verticalmente — a posição
+        // "chat head" clássica. Evita a faixa de cima (barra de status, título/
+        // deck do Anki, título de vídeo) e a faixa de baixo (botões de resposta
+        // do Anki, controles do YouTube), que é onde ficava no canto superior e
+        // incomodava. Gravity continua TOP|START (mesma referência usada pelo
+        // arraste em ACTION_MOVE); a posição da borda direita/meio é obtida a
+        // partir das métricas reais da tela, não por gravity, porque o arraste
+        // assume x crescendo para a direita e y para baixo a partir do topo.
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
         params.gravity = Gravity.TOP | Gravity.START;
-        params.x = lastX == Integer.MIN_VALUE ? dp(16) : lastX;
-        params.y = lastY == Integer.MIN_VALUE ? dp(120) : lastY;
+        params.x = lastX == Integer.MIN_VALUE ? dm.widthPixels - dp(96) : lastX;
+        params.y = lastY == Integer.MIN_VALUE ? (dm.heightPixels / 2) - dp(36) : lastY;
 
         box.setOnTouchListener(new View.OnTouchListener() {
             private int startX, startY;
@@ -276,15 +310,18 @@ public class TimerOverlayService extends Service {
      */
     private void rollForward() {
         if (paused) return;
+        boolean advanced = false;
         int guard = 0;
         while (auto && !exhausted && System.currentTimeMillis() >= endTs && guard++ < 100) {
-            if (queue.isEmpty()) { exhausted = true; return; }
+            if (queue.isEmpty()) { exhausted = true; advanced = true; break; }
             Etapa e = queue.remove(0);
-            if (e.seconds <= 0) { auto = false; return; } // sem duração: quem resolve é o app
+            if (e.seconds <= 0) { auto = false; break; } // sem duração: quem resolve é o app
             endTs += e.seconds * 1000L;
             label = e.label;
             auto = e.auto;
+            advanced = true;
         }
+        if (advanced) refreshNotification();
     }
 
     private void render() {
