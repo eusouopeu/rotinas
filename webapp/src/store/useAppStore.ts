@@ -30,6 +30,7 @@ import {
   K_ROUTINES,
   K_SIDEBARCOLLAPSED,
   K_SNOOZES,
+  K_SOHOJE,
   K_TEMPLATES,
   K_THEME,
   K_WEEKSTART,
@@ -47,6 +48,7 @@ import {
   type BackupPayload,
 } from "../lib/backup";
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
+import type { MatrixPreset } from "../lib/templates";
 import { novoDraftSchedule } from "../lib/schedule";
 import { freshExState, novoPlayerState, type PlayerState, type StepActual } from "../lib/player";
 import {
@@ -143,6 +145,7 @@ export interface AppState {
   fontScale: number;
   weekStart: number;
   homeView: "rotinas" | "semana" | "dia";
+  soHoje: boolean;
   digestSemanal: boolean;
   nudge: boolean;
   nudgeDias: number[];
@@ -180,6 +183,7 @@ export interface AppState {
   setFontScale: (n: number) => void;
   setWeekStart: (d: number) => void;
   setHomeView: (v: "rotinas" | "semana" | "dia") => void;
+  setSoHoje: (v: boolean) => void;
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
   toggleNudgeDia: (d: number) => void;
@@ -264,7 +268,7 @@ export interface AppState {
   // Modelos genéricos (index.html:6339-6669) — pastas por tipo, um doc por
   // vez. "expense" (registro de gastos) foge desse molde: cada lançamento é
   // a própria "nota", sem tela de doc — ver addExpense/ExpenseFolder.tsx.
-  createTemplateDoc: (type: string, folderKind?: "type" | "routine", folderKey?: string) => void;
+  createTemplateDoc: (type: string, folderKind?: "type" | "routine", folderKey?: string, preset?: MatrixPreset) => void;
   updateTemplateDoc: (doc: AnyTemplateDoc) => void;
   deleteTemplateDoc: (id: string) => void;
   // Porta de abrirFormDespesa (index.html:9041-9078) sem o formulário em si
@@ -302,6 +306,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   fontScale: 1,
   weekStart: 0,
   homeView: "rotinas",
+  soHoje: false,
   digestSemanal: true,
   nudge: true,
   nudgeDias: [5],
@@ -341,6 +346,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       fontScale: load<number>(K_FONTSCALE, 1),
       weekStart: load<number>(K_WEEKSTART, 0),
       homeView: load<"rotinas" | "semana" | "dia">(K_HOMEVIEW, "rotinas"),
+      soHoje: load<boolean>(K_SOHOJE, false),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
       nudgeDias: load<number[]>(K_NUDGEDAYS, [5]),
@@ -452,6 +458,10 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     save(K_HOMEVIEW, homeView);
     set({ homeView });
   },
+  setSoHoje: (soHoje) => {
+    save(K_SOHOJE, soHoje);
+    set({ soHoje });
+  },
   setDigestSemanal: (digestSemanal) => {
     save(K_DIGESTSEMANAL, digestSemanal);
     set({ digestSemanal });
@@ -522,8 +532,14 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     const gam = get().gam;
     const areas = gam.config.roda.areas.filter((a) => a.id !== id);
     const novo: GamificacaoState = { ...gam, config: { ...gam.config, roda: { ...gam.config.roda, areas } } };
+    // Igual ao legado (index.html:14099-14104): a rotina que apontava para a
+    // área removida fica sem área DE VERDADE, não só por degradação de leitura
+    // em areaDaRotina — senão o id morto voltaria a valer se a área fosse
+    // recriada com o mesmo id (import de backup, sync).
+    const routines = get().routines.map((r) => (r.eixo === id ? { ...r, eixo: null } : r));
     save(K_GAMIFICACAO, novo);
-    set({ gam: novo });
+    save(K_ROUTINES, routines);
+    set({ gam: novo, routines });
   },
 
   // index.html:11279-11829 (startPlayer/togglePause/advanceStep/goPrevStep/

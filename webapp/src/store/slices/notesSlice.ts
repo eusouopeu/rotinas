@@ -72,8 +72,8 @@ export const createNotesSlice: StateCreator<AppState, [], [], NotesSlice> = (set
     return nota;
   },
 
-  createTemplateDoc: (type, folderKind, folderKey) => {
-    const doc = newTemplateDoc(type);
+  createTemplateDoc: (type, folderKind, folderKey, preset) => {
+    const doc = newTemplateDoc(type, preset);
     const templates = [...get().templates, doc];
     save(K_TEMPLATES, templates);
     set({ templates, view: { tab: "templates", screen: "templateDoc", id: doc.id, folderKind, folderKey } });

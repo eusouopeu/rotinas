@@ -46,6 +46,26 @@ export function corDaRotina(r: Routine, gam: GamificacaoState): string {
   return a ? a.color : "grad";
 }
 
+/* Porta de areaInfoRoda (index.html:1195-1197) — rótulo/cor/peso de uma área
+   da roda, com o fallback "Sem área" que o card da Home e os chips usam. */
+export interface AreaInfo {
+  id: string;
+  label: string;
+  color: string;
+  peso: number;
+}
+export function areaInfoRoda(id: string, gam: GamificacaoState): AreaInfo {
+  const a = gam.config.roda.areas.find((x) => x.id === id);
+  return a ? { id: a.id, label: a.label, color: a.color, peso: a.peso } : { id: "", label: "Sem área", color: "var(--sub)", peso: gam.config.roda.pesoSemArea };
+}
+
+/* Porta de rotinaEhHabito (index.html:1309) — só leitura para a UI: a rotina
+   está descontada como hábito na semana EM CURSO (mapa congelado em
+   semanaAtual.habitos), não um recálculo do streak agora. */
+export function rotinaEhHabito(r: Routine, gam: GamificacaoState): boolean {
+  return !!(gam.semanaAtual?.habitos || {})[r.id];
+}
+
 export function stepTagEfetiva(s: RoutineStep, r: Routine): Tag {
   return (s.tagValor || r.tagValor || "medio") as Tag;
 }

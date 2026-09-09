@@ -25,6 +25,20 @@ export const TMPL_TYPES: TmplTypeInfo[] = [
 
 // Porta de GROCERY_DB/AISLES/guessAisle (index.html:6207-6227), sem o ajuste
 // de gôndola aprendido por item (mkFreq/K_MKFREQ, ainda não portado).
+/* Porta de TMPL_SECOES (index.html:6306-6310) — agrupamento das pastas fixas
+   da aba Modelos. "notes" (nota simples) não é um TMPL_TYPES: é a única pasta
+   que não vem de newTemplateDoc, por isso entra à mão em GERAL. */
+export interface TmplSecao {
+  key: string;
+  label: string;
+  tipos: string[];
+}
+export const TMPL_SECOES: TmplSecao[] = [
+  { key: "geral", label: "Geral", tipos: ["notes", "thoughtrecord", "matrix"] },
+  { key: "listas", label: "Listas", tipos: ["market", "travel", "kanban"] },
+  { key: "registros", label: "Registros", tipos: ["expense", "scoreboard"] },
+];
+
 export const GROCERY_DB: Record<string, string[]> = {
   "Hortifrúti": ["banana","maçã","laranja","limão","mamão","abacate","manga","uva","tomate","cebola","alho","batata","batata doce","cenoura","abobrinha","abóbora","chuchu","pimentão","alface","couve","brócolis","espinafre","coentro","cebolinha","salsinha","gengibre","aipim","macaxeira","inhame","pepino","beterraba","repolho","quiabo","maracujá","melancia","abacaxi"],
   "Açougue e Peixaria": ["frango","peito de frango","coxa de frango","carne moída","patinho","alcatra","picanha","costela","linguiça","peixe","tilápia","salmão","camarão","carne de sol","fígado"],
@@ -172,7 +186,33 @@ export function newMarketDoc(): MarketDoc {
   return { ...base("market"), type: "market", items: [], aisleOrder: [...AISLES], shopMode: false };
 }
 
-export function newMatrixDoc(): MatrixDoc {
+/* Porta do parâmetro `preset` de newTemplateDoc (index.html:6355-6368) — a
+   matriz nasce como Eisenhower (padrão), SWOT ou em branco. */
+export type MatrixPreset = "eisenhower" | "swot" | "blank";
+export function newMatrixDoc(preset: MatrixPreset = "eisenhower"): MatrixDoc {
+  if (preset === "swot") {
+    return {
+      ...base("matrix"),
+      type: "matrix",
+      axisX: "Ajuda ↔ Atrapalha",
+      axisY: "Interno ↕ Externo",
+      quadrants: [
+        { title: "Forças", color: "#6B8F71", mode: "ul", items: [] },
+        { title: "Fraquezas", color: "#B25B4C", mode: "ul", items: [] },
+        { title: "Oportunidades", color: "#5B8DEF", mode: "ul", items: [] },
+        { title: "Ameaças", color: "#C9B23E", mode: "ul", items: [] },
+      ],
+    };
+  }
+  if (preset === "blank") {
+    return {
+      ...base("matrix"),
+      type: "matrix",
+      axisX: "",
+      axisY: "",
+      quadrants: [1, 2, 3, 4].map((i) => ({ title: "Quadrante " + i, color: MATRIX_COLORS[i - 1], mode: "ul" as const, items: [] })),
+    };
+  }
   return {
     ...base("matrix"),
     type: "matrix",
@@ -205,12 +245,12 @@ export function newTravelDoc(): TravelDoc {
 
 /** Cria um doc pra `type`; tipos sem editor no React ainda viram um doc
  * genérico (fica listado na pasta, mas TemplateDoc mostra "não portado"). */
-export function newTemplateDoc(type: string): AnyTemplateDoc {
+export function newTemplateDoc(type: string, preset?: MatrixPreset): AnyTemplateDoc {
   if (type === "scoreboard") return newScoreboardDoc();
   if (type === "thoughtrecord") return newThoughtRecordDoc();
   if (type === "proscons") return newProsConsDoc();
   if (type === "market") return newMarketDoc();
-  if (type === "matrix") return newMatrixDoc();
+  if (type === "matrix") return newMatrixDoc(preset);
   if (type === "kanban") return newKanbanDoc();
   if (type === "travel") return newTravelDoc();
   return base(type) as AnyTemplateDoc;

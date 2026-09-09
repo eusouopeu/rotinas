@@ -45,6 +45,7 @@ export function Settings() {
   const updateRodaArea = useAppStore((s) => s.updateRodaArea);
   const removeRodaArea = useAppStore((s) => s.removeRodaArea);
   const [novaArea, setNovaArea] = useState("");
+  const [areaParaRemover, setAreaParaRemover] = useState<string | null>(null);
   const c = gam.config;
   const simulacao = useMemo(() => simularDistribuicaoSemana(routines, gam, inicioSemanaISO(new Date())), [routines, gam]);
 
@@ -146,15 +147,23 @@ export function Settings() {
             />
           </label>
           {c.roda.areas.map((a) => (
-            <div className="roda-area-row" key={a.id}>
+            /* .roda-area-row só traz o gap: quem dá display:flex é
+               .sched-time-row (app.css:405/429), igual ao legado
+               (index.html:14076) — sem ela a linha empilha. */
+            <div className="sched-time-row roda-area-row" style={{ marginTop: 0 }} key={a.id}>
               <input
                 type="color"
+                className="area-color-swatch"
+                title="Cor da área"
+                aria-label="Cor da área — usada também nas rotinas dessa área"
                 value={a.color.startsWith("#") ? a.color : "#6D28D9"}
                 onChange={(e) => updateRodaArea(a.id, { color: e.target.value })}
               />
               <input
                 className="roda-area-nome"
                 type="text"
+                aria-label="Nome da área"
+                style={{ color: a.color }}
                 value={a.label}
                 onChange={(e) => updateRodaArea(a.id, { label: e.target.value })}
               />
@@ -166,11 +175,18 @@ export function Settings() {
                 value={a.peso}
                 onChange={(e) => updateRodaArea(a.id, { peso: Math.max(1, +e.target.value || 1) })}
               />
-              <button className="icon-btn borderless" title="Excluir área" onClick={() => removeRodaArea(a.id)}>
+              <button
+                className="icon-btn borderless"
+                title="Remover área"
+                aria-label="Remover área"
+                style={{ color: "var(--erro)" }}
+                onClick={() => setAreaParaRemover(a.id)}
+              >
                 <Icon name="trash" size={15} />
               </button>
             </div>
           ))}
+          {c.roda.areas.length === 0 && <div className="dev-n">Nenhuma área — adicione abaixo.</div>}
           <div className="market-form-row" style={{ marginTop: 10 }}>
             <input
               type="text"
@@ -196,6 +212,19 @@ export function Settings() {
             >
               Adicionar
             </button>
+          </div>
+          <div className="sched-time-row" style={{ marginTop: 12 }}>
+            <span style={{ flex: 1 }}>Peso de "sem área"</span>
+            <input
+              className="dur-input"
+              type="number"
+              min={1}
+              max={10}
+              value={c.roda.pesoSemArea}
+              onChange={(e) =>
+                updateGamConfig({ roda: { ...c.roda, pesoSemArea: Math.max(1, Math.min(10, +e.target.value || 5)) } })
+              }
+            />
           </div>
         </div>
 
@@ -377,6 +406,40 @@ export function Settings() {
         <div className="section-label">Diagnóstico</div>
         <DiagnosticsCard />
       </div>
+
+      {/* Confirmação de remoção de área — o legado (index.html:14097-14106)
+          avisa quantas rotinas ficam sem área antes de remover, porque o
+          vínculo some junto. */}
+      {areaParaRemover && (
+        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setAreaParaRemover(null)}>
+          <div className="confirm-box">
+            <p style={{ marginBottom: 8 }}>
+              Remover a área?
+              {routines.filter((r) => r.eixo === areaParaRemover).length > 0 && (
+                <>
+                  {" "}
+                  <b>{routines.filter((r) => r.eixo === areaParaRemover).length}</b> rotina(s) ficam sem área.
+                </>
+              )}
+            </p>
+            <div className="confirm-actions">
+              <button className="btn-cancel" onClick={() => setAreaParaRemover(null)}>
+                Cancelar
+              </button>
+              <button
+                className="btn-confirm"
+                onClick={() => {
+                  removeRodaArea(areaParaRemover);
+                  setAreaParaRemover(null);
+                }}
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Tabbar />
     </div>
   );

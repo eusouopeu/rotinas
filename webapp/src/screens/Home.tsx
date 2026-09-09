@@ -16,16 +16,17 @@ import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { StreakTag } from "../components/StreakTag";
 import { fmtTime } from "../lib/format";
-import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
+import { EXERCICIO_SET_SEG, rotinaCabeEmHoje, rotinasOrdenadas, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
 import { getIcalCache, icalEventosDoDia } from "../lib/ical";
 import { useIsDesktop } from "../lib/useIsDesktop";
 import type { DiaKanbanCard, Snooze, Tag } from "../lib/types";
-import { fillStyle } from "../lib/scoring";
+import { areaDaRotina, areaInfoRoda, corDaRotina, fillStyle, rotinaEhHabito } from "../lib/scoring";
 import { addDaysISO, isoToDate, localKey } from "../lib/gamificacao";
-import { formatHM } from "../lib/schedule";
+import { computeSchedule, diasChipLabel, formatHM } from "../lib/schedule";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV } from "../lib/constants";
 import { semanaFechadaPendente } from "../lib/semanaFechada";
+import { execucaoDoDia, execucaoMinutos } from "../lib/history";
 
 function AgendaLinha({ it, onClick, onDelete, onEdit }: { it: AgendaItemDia; onClick: () => void; onDelete?: () => void; onEdit?: () => void }) {
   const horas = it.ini == null ? "sem hora" : it.tipo === "compromisso" ? formatHM(it.ini) : `${formatHM(it.ini)}–${formatHM(it.fim!)}`;
@@ -627,8 +628,14 @@ export function Home() {
   const goTo = useAppStore((s) => s.goTo);
   const homeView = useAppStore((s) => s.homeView);
   const setHomeView = useAppStore((s) => s.setHomeView);
+  const soHoje = useAppStore((s) => s.soHoje);
+  const setSoHoje = useAppStore((s) => s.setSoHoje);
 
   const semFechada = semanaFechadaPendente(gam);
+  const hojeISO = localKey();
+  /* Mesma ordem do legado (index.html:3645-3646): sempre por horário de início,
+     e o filtro "hoje" esconde só quem tem dia fixo em outro dia. */
+  const visiveis = rotinasOrdenadas(routines).filter((r) => !soHoje || rotinaCabeEmHoje(r));
 
   return (
     <div className="screen with-tabbar">
@@ -680,6 +687,19 @@ export function Home() {
           </span>
         </div>
 
+        {homeView === "rotinas" && (
+          <div className="header-right" style={{ marginBottom: 14 }}>
+            <button
+              className={"bell-btn di-hoje" + (soHoje ? " on" : "")}
+              title="Mostrar só as rotinas de hoje"
+              aria-pressed={soHoje}
+              onClick={() => setSoHoje(!soHoje)}
+            >
+              hoje
+            </button>
+          </div>
+        )}
+
         {homeView === "semana" ? (
           <AgendaSemana />
         ) : homeView === "dia" ? (
@@ -692,10 +712,20 @@ export function Home() {
               + Nova rotina
             </button>
           </div>
+        ) : visiveis.length === 0 ? (
+          <div className="empty-state">
+            <h2>Nada agendado para hoje</h2>
+            <p>Desligue o "hoje" para ver todas as rotinas.</p>
+          </div>
         ) : (
           <div className="routine-list" style={{ flex: "0 0 auto", overflow: "visible" }}>
-            {routines.map((r) => {
+            {visiveis.map((r) => {
               const dur = routineDurationRaw(r, EXERCICIO_SET_SEG);
+              const sched = computeSchedule(r);
+              const area = areaDaRotina(r, gam);
+              const areaInfo = area ? areaInfoRoda(area, gam) : null;
+              const execHoje = execucaoDoDia(history, r.id, hojeISO);
+              const execMin = execHoje ? execucaoMinutos(execHoje) : null;
               return (
                 <div className="routine-card" key={r.id}>
                   <div
@@ -704,6 +734,7 @@ export function Home() {
                     onClick={() => goTo({ tab: "home", screen: "routineDetail", id: r.id })}
                   >
                     <h3>
+                      <span className="r-dot" style={{ background: fillStyle(corDaRotina(r, gam)) }} />
                       {r.icon ? r.icon + " " : ""}
                       {r.name}
                     </h3>
@@ -711,7 +742,34 @@ export function Home() {
                       {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} ·{" "}
                       {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
                       <StreakTag routineId={r.id} routines={routines} history={history} />
+                      {rotinaEhHabito(r, gam) && (
+                        <span
+                          className="habito-chip"
+                          title={`Hábito consolidado: vale ${Math.round((gam.config.habito.fator || 0.6) * 100)}% do peso, para abrir espaço ao que ainda não pegou`}
+                        >
+                          hábito
+                        </span>
+                      )}
                     </div>
+                    {gam.config.roda.ativa && areaInfo && (
+                      <div className="sched-chip chip-block" style={{ color: areaInfo.color }}>
+                        {areaInfo.label}
+                      </div>
+                    )}
+                    {execMin ? (
+                      <div className="sched-chip" style={{ color: "var(--ok)" }}>
+                        <Icon name="check" size={13} /> {formatHM(execMin.ini)} &rarr; {formatHM(execMin.fim)}
+                      </div>
+                    ) : sched ? (
+                      <div className="sched-chip">
+                        <Icon name="clock" size={13} /> {sched.startStr} &rarr; {sched.endStr}
+                      </div>
+                    ) : null}
+                    {sched && (
+                      <div className="sched-chip chip-block" style={{ color: "var(--sub)" }}>
+                        {diasChipLabel(r)}
+                      </div>
+                    )}
                   </div>
                   <div className="routine-actions">
                     <button

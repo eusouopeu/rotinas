@@ -1,6 +1,6 @@
-// Porta parcial de renderTmplFolder (index.html:6596-6669) — só a pasta por
-// tipo (kind:"type"); pasta-rotina (journaling) fica para quando essas notas
-// existirem no React. Sem swipe-to-delete/undo banner ainda (confirm nativo).
+// Porta de renderTmplFolder (index.html:6603-6669) — pasta por tipo
+// (kind:"type") e pasta-rotina (kind:"routine", as notas de journaling de uma
+// rotina). Sem swipe-to-delete/undo banner ainda (confirm nativo).
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
@@ -13,10 +13,19 @@ export function TmplFolder() {
   const createTemplateDoc = useAppStore((s) => s.createTemplateDoc);
   const deleteTemplateDoc = useAppStore((s) => s.deleteTemplateDoc);
   const key = useAppStore((s) => s.view.folderKey) || "";
+  const kind = useAppStore((s) => s.view.folderKind) || "type";
+  const routines = useAppStore((s) => s.routines);
 
+  /* Pasta-rotina (kind:"routine") lista as notas de journaling daquela rotina;
+     pasta por tipo lista os documentos do tipo (index.html:6607-6615). */
   const typeInfo = TMPL_TYPES.find((t) => t.type === key);
-  const titleLabel = typeInfo ? typeInfo.label : key;
-  const docs = [...templates.filter((t) => t.type === key)].sort((a, b) => {
+  const titleLabel =
+    kind === "routine" ? routines.find((x) => x.id === key)?.name || "Rotina excluída" : typeInfo ? typeInfo.label : key;
+  const brutos =
+    kind === "routine"
+      ? templates.filter((t) => t.type === "journal" && (t as { routineId?: string }).routineId === key)
+      : templates.filter((t) => t.type === key);
+  const docs = [...brutos].sort((a, b) => {
     const au = typeof a.updatedAt === "number" ? a.updatedAt : 0;
     const bu = typeof b.updatedAt === "number" ? b.updatedAt : 0;
     return bu - au;
@@ -48,7 +57,7 @@ export function TmplFolder() {
               <div key={t.id} className="note-card">
                 <div
                   className="note-info"
-                  onClick={() => goTo({ tab: "templates", screen: "templateDoc", id: t.id, folderKind: "type", folderKey: key })}
+                  onClick={() => goTo({ tab: "templates", screen: "templateDoc", id: t.id, folderKind: kind, folderKey: key })}
                 >
                   <h3>{("title" in t && typeof t.title === "string" && t.title) || "Sem título"}</h3>
                   <div className="routine-meta" style={{ marginTop: 4 }}>

@@ -1,15 +1,101 @@
-// Porta parcial de renderTemplates (index.html:6500-6543) — tiles de pastas
-// fixas por tipo. Sem seção "Anotações de Rotinas" (pastas de journaling por
-// rotina, ainda não existem no React) e sem importar backup pelo botão do
-// cabeçalho.
+// Porta de renderTemplates (index.html:6508-6550) — tiles de pastas fixas
+// agrupados nas seções do legado (Geral/Listas/Registros), a pasta "Notas"
+// (única que não vem de newTemplateDoc), a seção "Anotações de Rotinas"
+// (pastas de journaling, uma por rotina com nota do tipo "journal") e o FAB
+// com o popup "Criar novo" (openNewTemplatePopup, index.html:6554-6580),
+// incluindo o seletor de preset da matriz (openMatrixPresetPicker).
+import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { ModelosTabPill } from "../components/ModelosTabPill";
-import { TMPL_TYPES } from "../lib/templates";
+import { TMPL_SECOES, TMPL_TYPES, type MatrixPreset } from "../lib/templates";
+import type { IconName } from "../lib/icons";
+
+interface Tile {
+  key: string;
+  icon: IconName;
+  label: string;
+}
 
 export function TemplateFolders() {
   const goTo = useAppStore((s) => s.goTo);
+  const templates = useAppStore((s) => s.templates);
+  const routines = useAppStore((s) => s.routines);
+  const openNote = useAppStore((s) => s.openNote);
+  const createTemplateDoc = useAppStore((s) => s.createTemplateDoc);
+  const [criando, setCriando] = useState(false);
+  const [matrixPicker, setMatrixPicker] = useState(false);
+
+  // Porta de templateFolderTiles (index.html:6471-6485).
+  const todas: Tile[] = [{ key: "notes", icon: "notes", label: "Notas" }, ...TMPL_TYPES.map((t) => ({ key: t.type, icon: t.icon, label: t.label }))];
+  const secoes = TMPL_SECOES.map((s) => ({
+    key: s.key,
+    label: s.label,
+    tiles: s.tipos.map((k) => todas.find((f) => f.key === k)).filter((f): f is Tile => !!f),
+  }));
+  const journalRoutineIds = [...new Set(templates.filter((t) => t.type === "journal").map((t) => (t as { routineId?: string }).routineId))].filter(
+    (id): id is string => !!id,
+  );
+  const rotinasTiles: Tile[] = journalRoutineIds.map((rid) => ({
+    key: "journal:" + rid,
+    icon: "notes",
+    label: routines.find((x) => x.id === rid)?.name || "Rotina excluída",
+  }));
+
+  function abrirPasta(key: string) {
+    if (key === "notes") {
+      goTo({ tab: "templates", screen: "notes" });
+      return;
+    }
+    if (key === "expense") {
+      goTo({ tab: "templates", screen: "expenseFolder" });
+      return;
+    }
+    if (key.startsWith("journal:")) {
+      goTo({ tab: "templates", screen: "tmplFolder", folderKind: "routine", folderKey: key.slice(8) });
+      return;
+    }
+    goTo({ tab: "templates", screen: "tmplFolder", folderKind: "type", folderKey: key });
+  }
+
+  /* Mesmo destino de openNewTemplatePopup: nota simples abre o editor de nota,
+     matriz passa pelo seletor de preset e gastos vai direto pra pasta própria
+     (que não tem doc por documento). */
+  function criar(type: string) {
+    setCriando(false);
+    if (type === "notasimples") {
+      openNote(null);
+      return;
+    }
+    if (type === "matrix") {
+      setMatrixPicker(true);
+      return;
+    }
+    if (type === "expense") {
+      goTo({ tab: "templates", screen: "expenseFolder" });
+      return;
+    }
+    createTemplateDoc(type, "type", type);
+  }
+
+  function criarMatriz(preset: MatrixPreset) {
+    setMatrixPicker(false);
+    createTemplateDoc("matrix", "type", "matrix", preset);
+  }
+
+  const grade = (tiles: Tile[]) => (
+    <div className="tmpl-new-grid">
+      {tiles.map((f) => (
+        <button key={f.key} className="tmpl-new" onClick={() => abrirPasta(f.key)}>
+          <span className="tmpl-ic">
+            <Icon name={f.icon} size={22} />
+          </span>
+          <span>{f.label}</span>
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="screen with-tabbar">
@@ -19,26 +105,82 @@ export function TemplateFolders() {
         </div>
         <ModelosTabPill active="outros" />
         <div className="tmpl-folders">
-          <div className="tmpl-new-grid">
-            {TMPL_TYPES.map((f) => (
-              <button
-                key={f.type}
-                className="tmpl-new"
-                onClick={() =>
-                  f.type === "expense"
-                    ? goTo({ tab: "templates", screen: "expenseFolder" })
-                    : goTo({ tab: "templates", screen: "tmplFolder", folderKind: "type", folderKey: f.type })
-                }
-              >
-                <span className="tmpl-ic">
-                  <Icon name={f.icon} size={22} />
-                </span>
-                <span>{f.label}</span>
-              </button>
-            ))}
+          {secoes.map((s) => (
+            <div key={s.key}>
+              <div className="tmpl-sep">
+                <span>{s.label}</span>
+              </div>
+              {grade(s.tiles)}
+            </div>
+          ))}
+          <div className="tmpl-sep">
+            <span>Anotações de Rotinas</span>
           </div>
+          {rotinasTiles.length ? (
+            grade(rotinasTiles)
+          ) : (
+            <div className="dev-n" style={{ margin: "0 2px 8px" }}>
+              Nenhuma ainda — nasce sozinha ao registrar anotações numa rotina.
+            </div>
+          )}
         </div>
       </div>
+
+      <button className="fab" title="Novo modelo" onClick={() => setCriando(true)}>
+        +
+      </button>
+
+      {criando && (
+        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setCriando(false)}>
+          <div className="confirm-box" style={{ textAlign: "left" }}>
+            <p style={{ margin: "0 0 10px" }}>Criar novo:</p>
+            <div className="tmpl-new-grid">
+              <button className="tmpl-new" onClick={() => criar("notasimples")}>
+                <span className="tmpl-ic">
+                  <Icon name="notes" size={22} />
+                </span>
+                <span>Notas simples</span>
+              </button>
+              {TMPL_TYPES.map((t) => (
+                <button key={t.type} className="tmpl-new" onClick={() => criar(t.type)}>
+                  <span className="tmpl-ic">
+                    <Icon name={t.icon} size={22} />
+                  </span>
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="confirm-actions" style={{ marginTop: 14 }}>
+              <button className="btn-cancel" onClick={() => setCriando(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {matrixPicker && (
+        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setMatrixPicker(false)}>
+          <div className="confirm-box">
+            <p>Começar a matriz como:</p>
+            <div className="confirm-actions" style={{ flexDirection: "column" }}>
+              <button className="btn-confirm" style={{ background: "var(--caneta)" }} onClick={() => criarMatriz("eisenhower")}>
+                Matriz de Eisenhower
+              </button>
+              <button className="btn-confirm" style={{ background: "var(--caneta)" }} onClick={() => criarMatriz("swot")}>
+                Análise SWOT
+              </button>
+              <button className="btn-confirm" style={{ background: "var(--card-2)", color: "var(--ink)" }} onClick={() => criarMatriz("blank")}>
+                Em branco
+              </button>
+              <button className="btn-cancel" onClick={() => setMatrixPicker(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Tabbar />
     </div>
   );

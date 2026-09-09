@@ -39,7 +39,7 @@ export interface Routine {
   steps: RoutineStep[];
   schedule?: RoutineSchedule | null;
   restSeconds?: number;
-  eixo?: string; // área da roda da vida
+  eixo?: string | null; // área da roda da vida (null = removida/sem área)
   tagValor?: Tag;
   semHabito?: boolean;
   sound?: "normal" | "suave" | "mudo";
