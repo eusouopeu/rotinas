@@ -11,7 +11,7 @@ import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
 import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoMetaRec, planoNotificacaoRotinas } from "../lib/notifications";
 import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
 import { marcarSemanaVista as marcarSemanaVistaLib } from "../lib/semanaFechada";
-import { K_AUTOBAK, K_DATAFOLDER, K_HORASBUDGET, K_NAOFEITAS } from "../lib/constants";
+import { BADGE_COR, BADGE_NOME, K_AUTOBAK, K_DATAFOLDER, K_HORASBUDGET, K_NAOFEITAS } from "../lib/constants";
 import {
   K_COMPROMISSOS,
   K_DIAKANBAN,
@@ -169,6 +169,13 @@ export interface AppState {
   playerState: PlayerState | null;
   naoFeitas: NaoFeitasMap;
   playerBanner: string | null;
+  // Toast global (index.html:2484-2508) — topo da tela, texto neutro ou
+  // celebração (badge ganho); e undoBanner (index.html:9963-9977) — embaixo,
+  // com um botão "Desfazer" que reverte a ação (delete de rotina/nota/doc).
+  // Ambos vivem soltos (não presos a uma tela), diferente do playerBanner
+  // acima, que só existe dentro do Player.
+  banner: { text: string; celebrate: boolean } | null;
+  undoBanner: { text: string; onUndo: () => void } | null;
   templates: AnyTemplateDoc[];
   diario: DiarioMap;
   history: HistoryEntry[];
@@ -184,6 +191,12 @@ export interface AppState {
   goTo: (view: AppView) => void;
 
   deleteRoutine: (id: string) => void;
+  // Porta de deleteRoutineWithUndo (index.html:3863-3872) — mesma remoção,
+  // mas com showUndoBanner reinserindo no índice original em vez do confirm()
+  // nativo. duplicateRoutine (index.html:3778-3789): cópia com ids novos,
+  // "(cópia)" no nome e agendamento sempre desativado.
+  deleteRoutineWithUndo: (id: string) => void;
+  duplicateRoutine: (id: string) => void;
   deleteHistoryEntry: (ts: number) => void;
   adjustRoutineStep: (routineId: string, stepName: string, newSec: number) => void;
 
@@ -234,6 +247,11 @@ export interface AppState {
   // pausa dela), não posições cruas no array de steps.
   reordenarEtapasPlayer: (gi: number, alvoGi: number) => void;
   clearPlayerBanner: () => void;
+  showAlertBanner: (text: string) => void;
+  showCelebrationBanner: (text: string) => void;
+  showUndoBanner: (text: string, onUndo: () => void) => void;
+  dismissBanner: () => void;
+  dismissUndoBanner: () => void;
   // Sub-loop de séries de uma etapa "exercicio" (index.html:11365-11416) —
   // concluir uma série avança pro descanso (ou termina a etapa, na última);
   // "voltar série" desfaz o último registro pra corrigir peso/reps errados.
@@ -293,6 +311,9 @@ export interface AppState {
   updateNote: (id: string, patch: Partial<Note>) => void;
   toggleNotePinned: (id: string) => void;
   deleteNote: (id: string) => void;
+  // Restaura uma nota removida na posição original (undo de deleteNote,
+  // index.html:4880-4885). Não mexe em updatedAt: a nota volta como estava.
+  addNoteAt: (idx: number, nota: Note) => void;
   addNote: (title: string, content: string) => Note;
 
   // Modelos genéricos (index.html:6339-6669) — pastas por tipo, um doc por
@@ -301,6 +322,7 @@ export interface AppState {
   createTemplateDoc: (type: string, folderKind?: "type" | "routine", folderKey?: string, preset?: MatrixPreset) => void;
   updateTemplateDoc: (doc: AnyTemplateDoc) => void;
   deleteTemplateDoc: (id: string) => void;
+  deleteTemplateDocWithUndo: (id: string) => void;
   // Porta de abrirFormDespesa (index.html:9041-9078) sem o formulário em si
   // (fica no modal da tela) — só o push no array de templates.
   addExpense: (fields: { desc: string; value: number; cat: string; date: string; time?: string }) => void;
@@ -347,6 +369,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   playerState: null,
   naoFeitas: {},
   playerBanner: null,
+  banner: null,
+  undoBanner: null,
   templates: [],
   diario: {},
   history: [],
@@ -365,6 +389,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     let gam = load<GamificacaoState>(K_GAMIFICACAO, null as unknown as GamificacaoState);
     if (!gam) gam = criarEstadoGamificacaoInicial();
     const semanasAntesDoBoot = gam.historico.semanas.length;
+    const badgesAntesDoBoot = gam.badges.length;
     // index.html:1462 (!gam.semanaAtual congela) + avancarGamificacaoAteAgora
     // no boot (index.html:14444+) — o app pode ter ficado dias fechado.
     gam = avancarGamificacaoAteAgora(routines, gam);
@@ -372,6 +397,9 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     // Porta de semanasFechadasNoBoot + notifyDigestSemanal (index.html:1615,
     // 14469-14471) — avisa só a mais recente se mais de uma semana fechou.
     const semanasFechadasNoBoot = gam.historico.semanas.slice(semanasAntesDoBoot);
+    // Badge ganha na virada de semana/mês/etc. no boot (index.html:14469-
+    // 14473) — celebra só a mais recente, com a tela já de pé.
+    const badgesGanhasNoBoot = gam.badges.slice(badgesAntesDoBoot);
     const hoje = localKey();
     const naoFeitasCarregado = load<NaoFeitasMap>(K_NAOFEITAS, {});
     const naoFeitas = podarNaoFeitasDeOutrosDias(naoFeitasCarregado, hoje);
@@ -412,6 +440,14 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       // O toque leva pro fechamento de semana (renderSemanaFechada no legado).
       setTimeout(() => notifyDigestSemanal(sem, () => get().goTo({ tab: "home", screen: "semanaFechada" })), 800);
     }
+    if (badgesGanhasNoBoot.length) {
+      const b = badgesGanhasNoBoot[badgesGanhasNoBoot.length - 1];
+      const escLabel: Record<string, string> = { semanal: "da semana", mensal: "do mês", trimestral: "do trimestre", anual: "do ano" };
+      setTimeout(
+        () => get().showCelebrationBanner(`Badge <b style="color:${BADGE_COR[b.tipo]};">${BADGE_NOME[b.tipo]}</b> ${escLabel[b.escopo] || ""} · nota ${b.nota.toFixed(1)}`),
+        500
+      );
+    }
   },
 
   goTo: (view) => set({ view }),
@@ -422,6 +458,40 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     save(K_ROUTINES, routines);
     set({ routines });
     syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
+  },
+
+  deleteRoutineWithUndo: (id) => {
+    const antes = get().routines;
+    const idx = antes.findIndex((r) => r.id === id);
+    if (idx === -1) return;
+    const removida = antes[idx];
+    const routines = antes.filter((r) => r.id !== id);
+    save(K_ROUTINES, routines);
+    set({ routines });
+    syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
+    get().showUndoBanner("Rotina excluída", () => {
+      const atuais = get().routines;
+      const novoIdx = Math.min(idx, atuais.length);
+      const restauradas = [...atuais.slice(0, novoIdx), removida, ...atuais.slice(novoIdx)];
+      save(K_ROUTINES, restauradas);
+      set({ routines: restauradas });
+      syncRoutineNotifications(restauradas, algumSnoozeAtivo(get().snoozes));
+    });
+  },
+
+  duplicateRoutine: (id) => {
+    const src = get().routines.find((r) => r.id === id);
+    if (!src) return;
+    const copia: Routine = {
+      ...src,
+      id: uid(),
+      name: src.name + " (cópia)",
+      steps: src.steps.map((s) => ({ ...s, id: uid() })),
+      schedule: src.schedule ? { ...src.schedule, enabled: false } : src.schedule,
+    };
+    const routines = [...get().routines, copia];
+    save(K_ROUTINES, routines);
+    set({ routines });
   },
 
   deleteHistoryEntry: (ts) => {
@@ -599,6 +669,16 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     });
   },
   clearPlayerBanner: () => set({ playerBanner: null }),
+
+  // Porta de showAlertBanner/showCelebrationBanner/showUndoBanner
+  // (index.html:2484-2508, 9963-9977) — o timer de auto-esconder e a
+  // animação de saída moram no componente (GlobalBanner.tsx), não aqui; a
+  // store só guarda o conteúdo atual.
+  showAlertBanner: (text) => set({ banner: { text, celebrate: false } }),
+  showCelebrationBanner: (text) => set({ banner: { text, celebrate: true } }),
+  showUndoBanner: (text, onUndo) => set({ undoBanner: { text, onUndo } }),
+  dismissBanner: () => set({ banner: null }),
+  dismissUndoBanner: () => set({ undoBanner: null }),
   togglePause: () => {
     const p = get().playerState;
     if (!p) return;

@@ -1309,7 +1309,12 @@
        linhas de meta; esticado a 1000px sobra tarja vazia à direita. */
     .routine-list, .notes-list{
       display:grid; grid-template-columns:repeat(2, minmax(0,1fr));
-      gap:12px; align-content:start; overflow-y:visible;
+      /* align-items:start (não só align-content) evita que um card mais baixo
+         estique pra igualar a altura do vizinho na mesma linha da grade — sem
+         isso o .swipe-item (transparente) do card mais baixo esticava além do
+         seu .swipe-track (o card colorido em si), expondo uma tira do botão
+         de excluir/duplicar por baixo (rodada de swipe, 09/09/2026). */
+      gap:12px; align-content:start; align-items:start; overflow-y:visible;
     }
     #metasBody{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; align-items:start; }
     #metasBody > .stat-card{ margin-bottom:0; }

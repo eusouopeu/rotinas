@@ -9,7 +9,7 @@
 // fechada", card motivacional, retomar rotina em andamento, grade de 7
 // colunas no desktop, agenda pausada (snoozes), arrastar bloco/cartão pra
 // reagendar, e swipe-to-delete.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
@@ -26,6 +26,8 @@ import { addDaysISO, isoToDate, localKey } from "../lib/gamificacao";
 import { computeSchedule, diasChipLabel, formatHM } from "../lib/schedule";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV } from "../lib/constants";
 import { semanaFechadaPendente } from "../lib/semanaFechada";
+import { SwipeItem } from "../components/SwipeItem";
+import { attachSwipeDownSearch } from "../lib/swipe";
 import { execucaoDoDia, execucaoMinutos } from "../lib/history";
 
 function AgendaLinha({ it, onClick, onDelete, onEdit }: { it: AgendaItemDia; onClick: () => void; onDelete?: () => void; onEdit?: () => void }) {
@@ -622,7 +624,8 @@ export function Home() {
   const routines = useAppStore((s) => s.routines);
   const gam = useAppStore((s) => s.gam);
   const history = useAppStore((s) => s.history);
-  const deleteRoutine = useAppStore((s) => s.deleteRoutine);
+  const deleteRoutineWithUndo = useAppStore((s) => s.deleteRoutineWithUndo);
+  const duplicateRoutine = useAppStore((s) => s.duplicateRoutine);
   const openEditor = useAppStore((s) => s.openEditor);
   const startPlayer = useAppStore((s) => s.startPlayer);
   const goTo = useAppStore((s) => s.goTo);
@@ -630,6 +633,8 @@ export function Home() {
   const setHomeView = useAppStore((s) => s.setHomeView);
   const soHoje = useAppStore((s) => s.soHoje);
   const setSoHoje = useAppStore((s) => s.setSoHoje);
+  const openSearch = useAppStore((s) => s.openSearch);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   const semFechada = semanaFechadaPendente(gam);
   const hojeISO = localKey();
@@ -637,10 +642,18 @@ export function Home() {
      e o filtro "hoje" esconde só quem tem dia fixo em outro dia. */
   const visiveis = rotinasOrdenadas(routines).filter((r) => !soHoje || rotinaCabeEmHoje(r));
 
+  // Puxar o cabeçalho pra baixo abre a busca global (wireSwipeDownSearch,
+  // index.html:2955-2966) — só no topo da tela mesmo, sem scroll acima dele.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    return attachSwipeDownSearch(el, openSearch);
+  }, [openSearch]);
+
   return (
     <div className="screen with-tabbar">
       <div className="tab-scroll">
-        <div className="home-header" style={{ marginBottom: 10 }}>
+        <div className="home-header" style={{ marginBottom: 10 }} ref={headerRef}>
           <h1>Rotinas</h1>
           <button className="bell-btn" title="Boletim da semana" aria-label="Boletim da semana" onClick={() => goTo({ tab: "home", screen: "boletim" })}>
             <Icon name="trophy" size={16} />
@@ -727,7 +740,12 @@ export function Home() {
               const execHoje = execucaoDoDia(history, r.id, hojeISO);
               const execMin = execHoje ? execucaoMinutos(execHoje) : null;
               return (
-                <div className="routine-card" key={r.id}>
+                <SwipeItem
+                  key={r.id}
+                  onLeft={() => deleteRoutineWithUndo(r.id)}
+                  onRight={() => duplicateRoutine(r.id)}
+                  className="routine-card"
+                >
                   <div
                     className="routine-info"
                     style={{ cursor: "pointer" }}
@@ -773,22 +791,6 @@ export function Home() {
                   </div>
                   <div className="routine-actions">
                     <button
-                      className="icon-btn borderless"
-                      title="Editar rotina"
-                      aria-label="Editar rotina"
-                      onClick={() => openEditor(r.id)}
-                    >
-                      <Icon name="notes" size={16} />
-                    </button>
-                    <button
-                      className="icon-btn borderless"
-                      title="Excluir rotina"
-                      aria-label="Excluir rotina"
-                      onClick={() => deleteRoutine(r.id)}
-                    >
-                      <Icon name="trash" size={16} />
-                    </button>
-                    <button
                       className="play-btn"
                       title="Iniciar rotina"
                       aria-label="Iniciar rotina"
@@ -798,7 +800,7 @@ export function Home() {
                       <Icon name="play" size={16} />
                     </button>
                   </div>
-                </div>
+                </SwipeItem>
               );
             })}
           </div>

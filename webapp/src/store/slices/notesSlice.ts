@@ -20,10 +20,12 @@ export type NotesSlice = Pick<
   | "updateNote"
   | "toggleNotePinned"
   | "deleteNote"
+  | "addNoteAt"
   | "addNote"
   | "createTemplateDoc"
   | "updateTemplateDoc"
   | "deleteTemplateDoc"
+  | "deleteTemplateDocWithUndo"
   | "addExpense"
   | "addExpenses"
   | "openSearch"
@@ -54,6 +56,13 @@ export const createNotesSlice: StateCreator<AppState, [], [], NotesSlice> = (set
   },
   deleteNote: (id) => {
     const notes = get().notes.filter((n) => n.id !== id);
+    save(K_NOTES, notes);
+    set({ notes });
+  },
+  addNoteAt: (idx, nota) => {
+    const atuais = get().notes;
+    const novoIdx = Math.min(idx, atuais.length);
+    const notes = [...atuais.slice(0, novoIdx), nota, ...atuais.slice(novoIdx)];
     save(K_NOTES, notes);
     set({ notes });
   },
@@ -88,6 +97,25 @@ export const createNotesSlice: StateCreator<AppState, [], [], NotesSlice> = (set
     const templates = get().templates.filter((t) => t.id !== id);
     save(K_TEMPLATES, templates);
     set({ templates });
+  },
+  // Porta de wrapSwipeDelete + showUndoBanner do doc genérico (index.html:
+  // 6639-6645) — mesma remoção, com "Desfazer" reinserindo no índice
+  // original do array `templates` (não da lista filtrada da pasta).
+  deleteTemplateDocWithUndo: (id) => {
+    const antes = get().templates;
+    const idx = antes.findIndex((t) => t.id === id);
+    if (idx === -1) return;
+    const removido = antes[idx];
+    const templates = antes.filter((t) => t.id !== id);
+    save(K_TEMPLATES, templates);
+    set({ templates });
+    get().showUndoBanner("Documento excluído", () => {
+      const atuais = get().templates;
+      const novoIdx = Math.min(idx, atuais.length);
+      const restaurados = [...atuais.slice(0, novoIdx), removido, ...atuais.slice(novoIdx)];
+      save(K_TEMPLATES, restaurados);
+      set({ templates: restaurados });
+    });
   },
   addExpense: (fields) => {
     const now = Date.now();

@@ -24,6 +24,7 @@ import { Stats } from "./screens/Stats";
 import { RoutineStats } from "./screens/RoutineStats";
 import { SemanaFechada } from "./screens/SemanaFechada";
 import { GlobalSearch } from "./components/GlobalSearch";
+import { GlobalBanner } from "./components/GlobalBanner";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
 // se o sistema pedir tema escuro explicitamente — sem preferência, cai claro.
@@ -176,6 +177,7 @@ export function App() {
     <>
       <Screen screen={view.screen} />
       <GlobalSearch />
+      <GlobalBanner />
     </>
   );
 }

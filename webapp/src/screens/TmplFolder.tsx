@@ -1,9 +1,10 @@
 // Porta de renderTmplFolder (index.html:6603-6669) — pasta por tipo
 // (kind:"type") e pasta-rotina (kind:"routine", as notas de journaling de uma
-// rotina). Sem swipe-to-delete/undo banner ainda (confirm nativo).
+// rotina). Excluir é por swipe com undo banner (index.html:6639-6645).
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
+import { SwipeItem } from "../components/SwipeItem";
 import { relativeTime } from "../lib/notes";
 import { TMPL_TYPES, tmplMeta } from "../lib/templates";
 
@@ -11,7 +12,7 @@ export function TmplFolder() {
   const templates = useAppStore((s) => s.templates);
   const goTo = useAppStore((s) => s.goTo);
   const createTemplateDoc = useAppStore((s) => s.createTemplateDoc);
-  const deleteTemplateDoc = useAppStore((s) => s.deleteTemplateDoc);
+  const deleteTemplateDocWithUndo = useAppStore((s) => s.deleteTemplateDocWithUndo);
   const key = useAppStore((s) => s.view.folderKey) || "";
   const kind = useAppStore((s) => s.view.folderKind) || "type";
   const routines = useAppStore((s) => s.routines);
@@ -54,7 +55,7 @@ export function TmplFolder() {
         ) : (
           <div className="notes-list" style={{ flex: "0 0 auto", overflow: "visible" }}>
             {docs.map((t) => (
-              <div key={t.id} className="note-card">
+              <SwipeItem key={t.id} className="note-card" onLeft={() => deleteTemplateDocWithUndo(t.id)}>
                 <div
                   className="note-info"
                   onClick={() => goTo({ tab: "templates", screen: "templateDoc", id: t.id, folderKind: kind, folderKey: key })}
@@ -64,19 +65,7 @@ export function TmplFolder() {
                     {tmplMeta(t)} · {relativeTime(typeof t.updatedAt === "number" ? t.updatedAt : 0)}
                   </div>
                 </div>
-                <button
-                  className="icon-btn borderless"
-                  title="Excluir"
-                  aria-label="Excluir"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const titulo = ("title" in t && typeof t.title === "string" && t.title) || "sem título";
-                    if (window.confirm(`Excluir "${titulo}"?`)) deleteTemplateDoc(t.id);
-                  }}
-                >
-                  <Icon name="trash" size={14} />
-                </button>
-              </div>
+              </SwipeItem>
             ))}
           </div>
         )}

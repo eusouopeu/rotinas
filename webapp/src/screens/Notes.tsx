@@ -1,11 +1,11 @@
 // Porta parcial de renderNotes (index.html:4785-4902) — busca, filtro por
-// tag, pin, excluir (com confirm, sem undo banner ainda), FAB de nova nota.
-// Sem backup/importar/paginação "carregar mais" nesta fase.
+// tag, pin, excluir por swipe com undo banner (index.html:4879-4886), FAB de
+// nova nota. Sem backup/importar/paginação "carregar mais" nesta fase.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
-import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { ModelosTabPill } from "../components/ModelosTabPill";
+import { SwipeItem } from "../components/SwipeItem";
 import { allTags, extractTags, relativeTime, stripMdForSnippet } from "../lib/notes";
 
 export function Notes() {
@@ -13,6 +13,8 @@ export function Notes() {
   const openNote = useAppStore((s) => s.openNote);
   const toggleNotePinned = useAppStore((s) => s.toggleNotePinned);
   const deleteNote = useAppStore((s) => s.deleteNote);
+  const showUndoBanner = useAppStore((s) => s.showUndoBanner);
+  const addNoteAt = useAppStore((s) => s.addNoteAt);
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState<string | null>(null);
 
@@ -67,8 +69,15 @@ export function Notes() {
               )}
             </div>
           ) : (
-            sorted.map((n) => (
-              <div key={n.id} className="note-card">
+            sorted.map((n, idx) => (
+              <SwipeItem
+                key={n.id}
+                className="note-card"
+                onLeft={() => {
+                  deleteNote(n.id);
+                  showUndoBanner("Nota excluída", () => addNoteAt(idx, n));
+                }}
+              >
                 <div className="note-info" onClick={() => openNote(n.id)}>
                   <h3>
                     {n.pinned && <span className="pin-mark">&#9733; </span>}
@@ -91,18 +100,7 @@ export function Notes() {
                 >
                   &#9733;
                 </button>
-                <button
-                  className="icon-btn borderless"
-                  title="Excluir nota"
-                  aria-label="Excluir nota"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm(`Excluir a nota "${n.title || "sem título"}"?`)) deleteNote(n.id);
-                  }}
-                >
-                  <Icon name="trash" size={14} />
-                </button>
-              </div>
+              </SwipeItem>
             ))
           )}
         </div>
