@@ -60,9 +60,9 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 - Faça a menor alteração completa; não faça limpeza/refactor não relacionado.
 - Busque primeiro a função/seção. Reuse o padrão local e mantenha compatibilidade PWA, Electron e Android quando aplicável.
 - Planeje antes os 2–3 testes essenciais e rode os testes da área; `npm test` continua obrigatório após mudança em `index.html` e quando a regra do projeto o exigir.
-- Depois de mudar código do app: atualize documentação relevante; faça commit e push; e, quando for entregar APK ao Pedro, siga integralmente `docs/release.md` (versões, `BUILD_STAMP`, validação e build).
-- Resposta final: curta, arquivos alterados, testes e ressalvas materiais. Para comunicação ultracurta, use a skill Caveman conforme `.claude/skills/caveman/SKILL.md`; clareza e avisos de segurança prevalecem.
-- Não faça release, push ou APK por uma mudança exclusivamente documental, salvo pedido explícito.
+- Depois de mudar código do app (index.html, webapp/, android/, electron/): atualize a documentação relevante, faça commit e push, e gere o APK atualizado seguindo integralmente `docs/release.md` (versões, `BUILD_STAMP`, validação com `aapt dump badging`, build) — sem precisar de pedido explícito a cada rodada, isso é automático desde 09/09/2026 (pedido do Pedro). Envie o APK gerado ao Pedro ao final da rodada. Isso vale por rodada de trabalho que altere código (não por edit individual): finalize a mudança, rode os testes da área, então commit+push+APK de uma vez.
+- Resposta final: curta, arquivos alterados, testes, versão do APK gerado e ressalvas materiais. Para comunicação ultracurta, use a skill Caveman conforme `.claude/skills/caveman/SKILL.md`; clareza e avisos de segurança prevalecem.
+- Mudança exclusivamente documental (só `docs/`, `CLAUDE.md`, comentários) continua sem release/push automático de APK, salvo pedido explícito — a regra acima só vale para mudança em código do app.
 - Não use agentes concorrentes para alterar o IIFE do legado; podem investigar tarefas isoladas sem sobreposição de edição.
 
 ## Atualização desta documentação
