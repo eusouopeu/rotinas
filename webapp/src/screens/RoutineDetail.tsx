@@ -10,6 +10,7 @@
 // por isso o display:flex/column é forçado inline abaixo.
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
+import { StreakTag } from "../components/StreakTag";
 import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
 import { computeSchedule, diasChipLabel } from "../lib/schedule";
@@ -18,6 +19,7 @@ import { corDaRotina, fillStyle } from "../lib/scoring";
 export function RoutineDetail() {
   const routines = useAppStore((s) => s.routines);
   const gam = useAppStore((s) => s.gam);
+  const history = useAppStore((s) => s.history);
   const goTo = useAppStore((s) => s.goTo);
   const openEditor = useAppStore((s) => s.openEditor);
   const startPlayer = useAppStore((s) => s.startPlayer);
@@ -64,6 +66,7 @@ export function RoutineDetail() {
         <div className="routine-meta" style={{ marginBottom: 4 }}>
           {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} ·{" "}
           {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
+          <StreakTag routineId={r.id} routines={routines} history={history} />
         </div>
         {sched && (
           <>

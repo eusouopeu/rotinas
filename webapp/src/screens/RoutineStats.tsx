@@ -93,8 +93,18 @@ export function RoutineStats() {
               </div>
               <div className="dev-row">
                 <span>Sequência atual</span>
-                <b className="ontime">{stats.streak} dia(s)</b>
+                <b className="ontime">
+                  {stats.streak} {stats.streakUnidade === "semanas" ? "semana(s)" : "dia(s)"}
+                </b>
               </div>
+              {stats.streakRecorde > 0 && (
+                <div className="dev-row">
+                  <span>Recorde</span>
+                  <b className="ontime">
+                    {stats.streakRecorde} {stats.streakUnidade === "semanas" ? "semana(s)" : "dia(s)"}
+                  </b>
+                </div>
+              )}
               {stats.medDev != null && (
                 <div className="dev-row">
                   <span>Desvio mediano</span>

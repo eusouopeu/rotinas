@@ -11,6 +11,7 @@ import {
   ordemDiasSemana,
   offsetSemana,
   janelaSemanaLabel,
+  weekStartDow,
 } from "./gamificacao";
 import { rotinaAgendadaEm, computeSchedule } from "./schedule";
 import { corDaRotina, fillStyle } from "./scoring";
@@ -161,6 +162,7 @@ export interface RoutineStreakData {
   routineName: string;
   icon?: string;
   streak: number;
+  streakUnidade: "dias" | "semanas";
 }
 
 export interface StepBottleneckData {
@@ -281,6 +283,8 @@ export interface RoutineDetailStats {
   totalMin: number;
   totalTimeStr: string;
   streak: number;
+  streakRecorde: number;
+  streakUnidade: "dias" | "semanas";
   medDev: number | null;
   medDevStr: string;
   medDevClass: "early" | "ontime" | "late";
@@ -508,6 +512,179 @@ export function computeStreak(routines: Routine[], history: HistoryEntry[]): num
     }
   }
   return streak;
+}
+
+/** Quantas execuções de `routineId` caem na semana que começa em `inicioISO`
+ * (7 dias a partir daí, respeitando o mesmo formato "YYYY-MM-DD" de localKey). */
+function execucoesNaSemana(inicioISO: string, execDates: Set<string>): number {
+  const inicio = isoToDate(inicioISO);
+  let count = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(inicio);
+    d.setDate(d.getDate() + i);
+    if (execDates.has(localKey(d))) count++;
+  }
+  return count;
+}
+
+/** Rotina "restrita por dias" (agendada em menos de 7 dias da semana; modo
+ * ausente ou "dias", nunca "intervalo" — mesma convenção de computeSchedule/
+ * rotinaAgendadaEm em schedule.ts) — é o caso onde faz sentido tolerar troca
+ * de dia dentro da mesma semana: quem cumpre `days.length` execuções na
+ * semana bateu a meta, mesmo que não tenha sido exatamente nos dias
+ * marcados. */
+function restritaPorDiasDaSemana(r: Routine | undefined): r is Routine & { schedule: NonNullable<Routine["schedule"]> } {
+  return !!(r && r.schedule && r.schedule.enabled && r.schedule.mode !== "intervalo" && r.schedule.days && r.schedule.days.length > 0 && r.schedule.days.length < 7);
+}
+
+/** Streak semanal (recomendação de 08/09/2026: "fiz a rotina o número certo
+ * de vezes na semana, só que em dias diferentes do planejado, não devia
+ * quebrar a sequência") — conta semanas consecutivas (a partir de hoje, para
+ * trás) em que o número de execuções bateu ou passou `schedule.days.length`,
+ * não os dias exatos. A semana corrente nunca quebra a sequência mesmo sem
+ * bater a meta ainda (pode fechar até o fim dela); só conta pra frente
+ * quando a meta já foi cumprida. Só se aplica a rotinas de modo "dias" com
+ * menos de 7 dias/semana — modo "intervalo" e diária (7/7) continuam no
+ * streak por dia de computeStreakFor. */
+export function computeStreakSemanalFor(routineId: string, routines: Routine[], history: HistoryEntry[]): number {
+  const r = routines.find((x) => x.id === routineId);
+  if (!restritaPorDiasDaSemana(r)) return 0;
+  const requerido = r.schedule.days!.length;
+  const execDates = new Set(history.filter((h) => h.routineId === routineId).map((h) => h.date));
+  const ws = weekStartDow();
+  let streak = 0;
+  let cursor = new Date();
+  let primeira = true;
+  let guard = 0;
+  while (guard++ < 520) {
+    const inicioISO = inicioSemanaISO(cursor, ws);
+    const count = execucoesNaSemana(inicioISO, execDates);
+    if (count >= requerido) {
+      streak++;
+    } else if (primeira) {
+      // semana em andamento: ainda não bateu a meta, mas também não fechou — não quebra.
+    } else {
+      break;
+    }
+    primeira = false;
+    cursor = isoToDate(inicioISO);
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+/** Recorde histórico do streak por dia (maior sequência já alcançada, não só
+ * a atual) — mesma regra de tolerância de dia-não-devido de computeStreakFor,
+ * só que percorrendo para frente desde a primeira execução em vez de para
+ * trás a partir de hoje. */
+export function recordeStreakFor(routineId: string, routines: Routine[], history: HistoryEntry[]): number {
+  const r = routines.find((x) => x.id === routineId);
+  const execs = history.filter((h) => h.routineId === routineId).map((h) => h.date);
+  if (execs.length === 0) return 0;
+  const dias = new Set(execs);
+  const restrito = !!(
+    r &&
+    r.schedule &&
+    r.schedule.enabled &&
+    (r.schedule.mode === "intervalo" || (r.schedule.days && r.schedule.days.length < 7))
+  );
+  const hojeKey = localKey();
+  let atual = 0;
+  let recorde = 0;
+  const d = isoToDate(execs.slice().sort()[0]);
+  let guard = 0;
+  while (guard++ < 3700) {
+    const key = localKey(d);
+    if (key > hojeKey) break;
+    const devido = restrito ? rotinaAgendadaEm(r!, d) : true;
+    if (!devido) {
+      // não conta nem quebra
+    } else if (dias.has(key)) {
+      atual++;
+      if (atual > recorde) recorde = atual;
+    } else if (key === hojeKey) {
+      // hoje ainda em aberto
+    } else {
+      atual = 0;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return recorde;
+}
+
+/** Recorde histórico do streak semanal (maior sequência de semanas
+ * cumprindo a meta), mesma tolerância de dia-trocado de computeStreakSemanalFor. */
+export function recordeStreakSemanalFor(routineId: string, routines: Routine[], history: HistoryEntry[]): number {
+  const r = routines.find((x) => x.id === routineId);
+  if (!restritaPorDiasDaSemana(r)) return 0;
+  const requerido = r.schedule.days!.length;
+  const execs = history.filter((h) => h.routineId === routineId).map((h) => h.date);
+  if (execs.length === 0) return 0;
+  const execDates = new Set(execs);
+  const ws = weekStartDow();
+  const hojeSemanaISO = inicioSemanaISO(new Date(), ws);
+  let cursorISO = inicioSemanaISO(isoToDate(execs.slice().sort()[0]), ws);
+  let atual = 0;
+  let recorde = 0;
+  let guard = 0;
+  while (guard++ < 520) {
+    const count = execucoesNaSemana(cursorISO, execDates);
+    if (count >= requerido) {
+      atual++;
+      if (atual > recorde) recorde = atual;
+    } else if (cursorISO !== hojeSemanaISO) {
+      atual = 0;
+    }
+    if (cursorISO === hojeSemanaISO) break;
+    const prox = isoToDate(cursorISO);
+    prox.setDate(prox.getDate() + 7);
+    cursorISO = inicioSemanaISO(prox, ws);
+  }
+  return recorde;
+}
+
+export interface StreakInfo {
+  atual: number;
+  recorde: number;
+  unidade: "dias" | "semanas";
+}
+
+/** Ponto único de leitura de streak de uma rotina (recomendações 2/7 de
+ * 08/09/2026) — decide entre streak por dia ou por semana (tolerante a
+ * trocar o dia) conforme o agendamento da rotina, e já traz o recorde junto
+ * do valor atual. Usado pelo card da Home, RoutineDetail e RoutineStats. */
+export function streakInfoFor(routineId: string, routines: Routine[], history: HistoryEntry[]): StreakInfo {
+  const r = routines.find((x) => x.id === routineId);
+  if (restritaPorDiasDaSemana(r)) {
+    return {
+      atual: computeStreakSemanalFor(routineId, routines, history),
+      recorde: recordeStreakSemanalFor(routineId, routines, history),
+      unidade: "semanas",
+    };
+  }
+  return {
+    atual: computeStreakFor(routineId, routines, history),
+    recorde: recordeStreakFor(routineId, routines, history),
+    unidade: "dias",
+  };
+}
+
+export type StreakMarco = "bronze" | "prata" | "ouro" | "diamante" | null;
+
+/** Marco de streak (recomendação 3 de 08/09/2026) — mesmos 4 patamares
+ * visuais já usados pelos badges semanais/mensais do Boletim
+ * (BADGE_NOME/BADGE_COR, lib/constants.ts), aplicados aqui a 7/30/100/365
+ * dias seguidos (ou 4/12/26/52 semanas seguidas, para rotina com tolerância
+ * semanal — proporção aproximada de 1/3/6/12 meses). Marca só o degrau mais
+ * alto já atingido pelo streak atual, para acender o selo no card assim que
+ * o patamar é cruzado. */
+export function marcoStreak(info: StreakInfo): StreakMarco {
+  const limites = info.unidade === "semanas" ? [52, 26, 12, 4] : [365, 100, 30, 7];
+  const nomes: StreakMarco[] = ["diamante", "ouro", "prata", "bronze"];
+  for (let i = 0; i < limites.length; i++) {
+    if (info.atual >= limites[i]) return nomes[i];
+  }
+  return null;
 }
 
 /** Porta de statsRoutineFiltered (index.html:5302-5304). */
@@ -922,12 +1099,10 @@ export function getPeriodExtrasData(
   // 6. Sequências por rotina
   const streakRoutines = routineFilter ? routines.filter((r) => r.id === routineFilter) : routines;
   const streaks: RoutineStreakData[] = streakRoutines
-    .map((r) => ({
-      routineId: r.id,
-      routineName: r.name,
-      icon: r.icon,
-      streak: computeStreakFor(r.id, routines, history),
-    }))
+    .map((r) => {
+      const info = streakInfoFor(r.id, routines, history);
+      return { routineId: r.id, routineName: r.name, icon: r.icon, streak: info.atual, streakUnidade: info.unidade };
+    })
     .filter((x) => x.streak > 0)
     .sort((a, b) => b.streak - a.streak);
 
@@ -1247,14 +1422,16 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
     };
   });
 
-  const streak = computeStreakFor(routine.id, [routine], history);
+  const streakInfo = streakInfoFor(routine.id, [routine], history);
   const routineColor = gam ? fillStyle(corDaRotina(routine, gam)) : "var(--caneta)";
 
   return {
     allCount: all.length,
     totalMin,
     totalTimeStr,
-    streak,
+    streak: streakInfo.atual,
+    streakRecorde: streakInfo.recorde,
+    streakUnidade: streakInfo.unidade,
     medDev,
     medDevStr: medDev != null ? fmtS(medDev) : "",
     medDevClass,

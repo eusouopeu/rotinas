@@ -14,6 +14,7 @@ import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../components/RodaVidaResumo";
+import { StreakTag } from "../components/StreakTag";
 import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
@@ -619,6 +620,7 @@ function AgendaDia() {
 export function Home() {
   const routines = useAppStore((s) => s.routines);
   const gam = useAppStore((s) => s.gam);
+  const history = useAppStore((s) => s.history);
   const deleteRoutine = useAppStore((s) => s.deleteRoutine);
   const openEditor = useAppStore((s) => s.openEditor);
   const startPlayer = useAppStore((s) => s.startPlayer);
@@ -708,6 +710,7 @@ export function Home() {
                     <div className="routine-meta">
                       {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} ·{" "}
                       {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
+                      <StreakTag routineId={r.id} routines={routines} history={history} />
                     </div>
                   </div>
                   <div className="routine-actions">

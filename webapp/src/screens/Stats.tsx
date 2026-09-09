@@ -314,7 +314,7 @@ export function Stats() {
                     {x.routineName}
                   </span>
                   <b className="ontime">
-                    {x.streak} dia{x.streak > 1 ? "s" : ""}
+                    {x.streak} {x.streakUnidade === "semanas" ? `semana${x.streak > 1 ? "s" : ""}` : `dia${x.streak > 1 ? "s" : ""}`}
                   </b>
                 </div>
               ))}

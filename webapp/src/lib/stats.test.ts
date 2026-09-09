@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getDayDetailData,
   getWeekGridData,
@@ -9,6 +9,11 @@ import {
   getRoutineDetailStats,
   computeStreakFor,
   computeStreak,
+  computeStreakSemanalFor,
+  recordeStreakFor,
+  recordeStreakSemanalFor,
+  streakInfoFor,
+  marcoStreak,
   gerarInsights,
   intensityClass,
   snoozedOn,
@@ -64,6 +69,16 @@ describe("intensityClass", () => {
 });
 
 describe("computeStreakFor e computeStreak", () => {
+  // "hoje" fixado (era `new Date()` puro — passava só quando o dia real da
+  // execução do teste caía num dos dias agendados da rotina, [1,3,5]).
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-05T12:00:00")); // segunda-feira, dia 1
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("computa sequência contínua por rotina considerando dias agendados", () => {
     const r = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } });
     const hoje = new Date();
@@ -83,6 +98,101 @@ describe("computeStreakFor e computeStreak", () => {
     const r = routine({ schedule: { enabled: true, anchor: "start", time: "07:00", days: [] } });
     const streak = computeStreak([r], [hist({ date: localKey() })]);
     expect(streak).toBe(1);
+  });
+});
+
+describe("computeStreakSemanalFor / recordeStreakSemanalFor (tolerante a trocar o dia)", () => {
+  // Semanas começam no domingo (weekStartDow padrão, sem K_WEEKSTART salvo).
+  // Jan/2026: dom 4–sáb 10, dom 11–sáb 17, dom 18–sáb 24.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00")); // quinta-feira, dentro da semana 11–17
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("rotina não-restrita (7/7 ou sem agenda) não usa streak semanal", () => {
+    expect(computeStreakSemanalFor("r1", [routine()], [])).toBe(0);
+  });
+
+  it("bate a meta da semana em dias diferentes dos agendados não quebra a sequência", () => {
+    const r = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } }); // seg/qua/sex, meta = 3/semana
+    const history = [
+      // semana 4–10: 3 execuções, mas em dom/ter/qui (fora do agendado) — deve contar mesmo assim.
+      hist({ date: "2026-01-04" }),
+      hist({ date: "2026-01-06" }),
+      hist({ date: "2026-01-08" }),
+      // semana 11–17 (em andamento, "hoje" é 15): só 2 execuções até agora — não quebra, mas também não conta ainda.
+      hist({ date: "2026-01-12" }),
+      hist({ date: "2026-01-14" }),
+    ];
+    expect(computeStreakSemanalFor("r1", [r], history)).toBe(1);
+  });
+
+  it("semana atual já cumprida antes de terminar conta imediatamente", () => {
+    const r = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } });
+    const history = [
+      hist({ date: "2026-01-04" }),
+      hist({ date: "2026-01-06" }),
+      hist({ date: "2026-01-08" }),
+      // semana em andamento já bateu a meta (3) até quinta (hoje):
+      hist({ date: "2026-01-11" }),
+      hist({ date: "2026-01-13" }),
+      hist({ date: "2026-01-15" }),
+    ];
+    expect(computeStreakSemanalFor("r1", [r], history)).toBe(2);
+  });
+
+  it("semana totalmente encerrada sem bater a meta quebra a sequência", () => {
+    const r = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } });
+    const history = [
+      // semana 4-10: só 1 execução — quebra.
+      hist({ date: "2026-01-04" }),
+      // semana 11-17 (em andamento): 2 até hoje.
+      hist({ date: "2026-01-12" }),
+      hist({ date: "2026-01-14" }),
+    ];
+    expect(computeStreakSemanalFor("r1", [r], history)).toBe(0);
+  });
+
+  it("recorde captura a maior sequência de semanas já cumprida, não só a atual", () => {
+    const r = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } });
+    const history = [
+      // semana 4-10 e 11-17 (até hoje): cumpridas, streak de 2.
+      hist({ date: "2026-01-04" }),
+      hist({ date: "2026-01-06" }),
+      hist({ date: "2026-01-08" }),
+      hist({ date: "2026-01-11" }),
+      hist({ date: "2026-01-13" }),
+      hist({ date: "2026-01-15" }),
+    ];
+    expect(recordeStreakSemanalFor("r1", [r], history)).toBe(2);
+    expect(recordeStreakFor("r1", [r], [])).toBe(0); // porta diária não se aplica a essa rotina restrita
+  });
+
+  it("streakInfoFor decide a unidade certa (semanas para restrita por dias, dias pro resto)", () => {
+    const restrita = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } });
+    const diaria = routine({ id: "r2", schedule: { enabled: true, anchor: "start", time: "07:00", days: [0, 1, 2, 3, 4, 5, 6] } });
+    const infoRestrita = streakInfoFor("r1", [restrita], [hist({ routineId: "r1", date: "2026-01-15" })]);
+    expect(infoRestrita.unidade).toBe("semanas");
+    const infoDiaria = streakInfoFor("r2", [diaria], [hist({ routineId: "r2", date: "2026-01-15" })]);
+    expect(infoDiaria.unidade).toBe("dias");
+  });
+});
+
+describe("marcoStreak", () => {
+  it("mapeia patamares de dias (7/30/100/365)", () => {
+    expect(marcoStreak({ atual: 3, recorde: 3, unidade: "dias" })).toBeNull();
+    expect(marcoStreak({ atual: 7, recorde: 7, unidade: "dias" })).toBe("bronze");
+    expect(marcoStreak({ atual: 30, recorde: 30, unidade: "dias" })).toBe("prata");
+    expect(marcoStreak({ atual: 100, recorde: 100, unidade: "dias" })).toBe("ouro");
+    expect(marcoStreak({ atual: 365, recorde: 365, unidade: "dias" })).toBe("diamante");
+  });
+  it("mapeia patamares de semanas (4/12/26/52)", () => {
+    expect(marcoStreak({ atual: 2, recorde: 2, unidade: "semanas" })).toBeNull();
+    expect(marcoStreak({ atual: 4, recorde: 4, unidade: "semanas" })).toBe("bronze");
+    expect(marcoStreak({ atual: 52, recorde: 52, unidade: "semanas" })).toBe("diamante");
   });
 });
 
