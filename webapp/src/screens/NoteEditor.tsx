@@ -14,7 +14,7 @@ import { useAppStore } from "../store/useAppStore";
 import { criadoEmLabel } from "../lib/notes";
 import { parseMdLines, prefixLines, splitBold, wrapSelection } from "../lib/mdPreview";
 
-function Inline({ text }: { text: string }) {
+export function Inline({ text }: { text: string }) {
   return (
     <>
       {splitBold(text).map((p, i) => (p.bold ? <strong key={i}>{p.text}</strong> : <span key={i}>{p.text}</span>))}
@@ -22,7 +22,7 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-function MdPreview({ text }: { text: string }) {
+export function MdPreview({ text }: { text: string }) {
   const linhas = parseMdLines(text);
   if (!text.trim()) return <p style={{ color: "var(--sub)" }}>Nota vazia.</p>;
   return (

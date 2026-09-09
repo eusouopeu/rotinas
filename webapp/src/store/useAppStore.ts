@@ -11,7 +11,7 @@ import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
 import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoMetaRec, planoNotificacaoRotinas } from "../lib/notifications";
 import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
 import { marcarSemanaVista as marcarSemanaVistaLib } from "../lib/semanaFechada";
-import { K_AUTOBAK, K_DATAFOLDER, K_HORASBUDGET } from "../lib/constants";
+import { K_AUTOBAK, K_DATAFOLDER, K_HORASBUDGET, K_NAOFEITAS } from "../lib/constants";
 import {
   K_COMPROMISSOS,
   K_DIAKANBAN,
@@ -50,7 +50,20 @@ import {
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import type { MatrixPreset } from "../lib/templates";
 import { novoDraftSchedule } from "../lib/schedule";
-import { freshExState, novoPlayerState, type PlayerState, type StepActual } from "../lib/player";
+import {
+  adiarEtapaPlayer,
+  freshExState,
+  limparNaoFeitaMap,
+  marcarNaoFeitaMap,
+  moverGrupoPlayer,
+  naoFeitasDe,
+  novoPlayerState,
+  podarNaoFeitasDeOutrosDias,
+  type NaoFeitasMap,
+  type PlayerState,
+  type StepActual,
+} from "../lib/player";
+import { finishCue, stepTransitionCue } from "../lib/haptics";
 import {
   ajustarProgressoMetaRec,
   duplicarMetaRec,
@@ -154,6 +167,8 @@ export interface AppState {
   gam: GamificacaoState;
   editorDraft: Routine | null;
   playerState: PlayerState | null;
+  naoFeitas: NaoFeitasMap;
+  playerBanner: string | null;
   templates: AnyTemplateDoc[];
   diario: DiarioMap;
   history: HistoryEntry[];
@@ -201,9 +216,24 @@ export interface AppState {
 
   startPlayer: (routineId: string) => void;
   togglePause: () => void;
-  advanceStep: () => void;
+  advanceStep: (skipped?: boolean, naoFeita?: boolean) => void;
   goPrevStep: () => void;
   exitPlayer: () => void;
+  // "não fazer" (index.html:11542-11548): encerra sem concluir/pontuar e
+  // marca a etapa como pendente do dia — a rotina reabre só com as
+  // pendentes (repescagem, ver startPlayer/novoPlayerState).
+  naoFazerEtapaAtual: () => void;
+  // Adia por BLOCO — troca a etapa atual (+ pausa dela, se houver) de lugar
+  // com o bloco seguinte inteiro (index.html:11788-11809).
+  adiarEtapaAtual: () => void;
+  // Reinicia o cronômetro da etapa atual do zero, sem avançar/concluir nada
+  // (index.html:11768-11780).
+  reiniciarTimerEtapaAtual: () => void;
+  // Painel "Etapas" do player (index.html:11678-11759) — reordena da etapa
+  // atual em diante; `gi`/`alvoGi` são índices na lista agrupada (tarefa +
+  // pausa dela), não posições cruas no array de steps.
+  reordenarEtapasPlayer: (gi: number, alvoGi: number) => void;
+  clearPlayerBanner: () => void;
   // Sub-loop de séries de uma etapa "exercicio" (index.html:11365-11416) —
   // concluir uma série avança pro descanso (ou termina a etapa, na última);
   // "voltar série" desfaz o último registro pra corrigir peso/reps errados.
@@ -315,6 +345,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   gam: criarEstadoGamificacaoInicial(),
   editorDraft: null,
   playerState: null,
+  naoFeitas: {},
+  playerBanner: null,
   templates: [],
   diario: {},
   history: [],
@@ -340,6 +372,10 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     // Porta de semanasFechadasNoBoot + notifyDigestSemanal (index.html:1615,
     // 14469-14471) — avisa só a mais recente se mais de uma semana fechou.
     const semanasFechadasNoBoot = gam.historico.semanas.slice(semanasAntesDoBoot);
+    const hoje = localKey();
+    const naoFeitasCarregado = load<NaoFeitasMap>(K_NAOFEITAS, {});
+    const naoFeitas = podarNaoFeitasDeOutrosDias(naoFeitasCarregado, hoje);
+    if (naoFeitas !== naoFeitasCarregado) save(K_NAOFEITAS, naoFeitas);
     set({
       routines,
       theme: load<Theme>(K_THEME, "auto"),
@@ -361,6 +397,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       compromissos: load<Compromisso[]>(K_COMPROMISSOS, []),
       snoozes: load<Snooze[]>(K_SNOOZES, []),
       exercicios: load<Exercicio[]>(K_EXERCICIOS, []),
+      naoFeitas,
       lastBackupAt: load<number | null>(K_LASTBACKUP, null),
       metasSubview: loadMetasSubviewSel(load),
       booted: true,
@@ -548,10 +585,20 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   startPlayer: (routineId) => {
     const routine = get().routines.find((r) => r.id === routineId);
     if (!routine) return;
-    const playerState = novoPlayerState(routine);
-    if (!playerState) return;
-    set({ playerState, view: { tab: "home", screen: "player" } });
+    // Repescagem (index.html:11284-11296): se alguma etapa ficou "não feita"
+    // hoje, a rotina volta só com as pendentes.
+    const pendentes = naoFeitasDe(get().naoFeitas, routineId, localKey());
+    const resultado = novoPlayerState(routine, pendentes);
+    if (!resultado) return;
+    const { playerState, repescagem } = resultado;
+    const n = playerState.steps.filter((s) => !s.isRest).length;
+    set({
+      playerState,
+      view: { tab: "home", screen: "player" },
+      playerBanner: repescagem ? `Repescagem: só ${n} etapa${n > 1 ? "s" : ""} não feita${n > 1 ? "s" : ""} de hoje` : null,
+    });
   },
+  clearPlayerBanner: () => set({ playerBanner: null }),
   togglePause: () => {
     const p = get().playerState;
     if (!p) return;
@@ -571,7 +618,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       });
     }
   },
-  advanceStep: () => {
+  advanceStep: (skipped = false, naoFeita = false) => {
     const p = get().playerState;
     if (!p) return;
     const routine = get().routines.find((r) => r.id === p.routineId);
@@ -579,7 +626,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     const endRef = p.paused && p.pausedAt ? p.pausedAt : Date.now();
     const elapsed = Math.round((endRef - p.stepStart) / 1000);
 
-    // Credita a etapa concluída (index.html:11462-11507) — descanso não pontua.
+    // Credita a etapa concluída (index.html:11462-11507) — descanso e etapa
+    // pulada/não-feita não pontuam.
     let gam = get().gam;
     let pontosGanhos = p.pontosGanhos;
     let actual: StepActual;
@@ -594,8 +642,9 @@ export const useAppStore = create<AppState>((set, get, api) => ({
         name: step.name,
         isRest: false,
         planned: (step.sets || 1) * rest,
-        actual: results.length * rest,
-        skipped: false,
+        actual: skipped ? 0 : results.length * rest,
+        skipped,
+        naoFeita,
         exercicioId: step.exercicioId,
         series: results,
       };
@@ -606,11 +655,18 @@ export const useAppStore = create<AppState>((set, get, api) => ({
         name: step.name,
         isRest: !!step.isRest,
         planned: step.type === "timer" ? step.seconds ?? null : null,
-        actual: elapsed,
-        skipped: false,
+        actual: skipped ? 0 : elapsed,
+        skipped,
+        naoFeita,
       };
     }
-    if (routine && !step.isRest && actual.planned) {
+    // concluir de verdade tira a etapa da repescagem do dia (index.html:11512).
+    let naoFeitas = get().naoFeitas;
+    if (!skipped && !step.isRest) {
+      naoFeitas = limparNaoFeitaMap(naoFeitas, p.routineId, step.id, localKey());
+      if (naoFeitas !== get().naoFeitas) save(K_NAOFEITAS, naoFeitas);
+    }
+    if (routine && !step.isRest && !skipped && actual.planned) {
       const r = registrarConclusaoStep(
         get().routines,
         gam,
@@ -636,7 +692,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
 
     if (p.idx >= p.steps.length - 1) {
       // Fim da rotina (finishRoutine, index.html:11828-11884) — sem journaling
-      // nem "skipped" ainda (sem UI de pular etapa nesta fase).
+      // ainda (sem UI de anotações por etapa nesta fase).
+      finishCue();
       if (routine) {
         const grossSec = Math.round((Date.now() - p.startedAt) / 1000);
         const entry: HistoryEntry = {
@@ -649,23 +706,25 @@ export const useAppStore = create<AppState>((set, get, api) => ({
           actualSec: Math.max(0, grossSec - Math.round(p.pausedTotalMs / 1000)),
           pauses: p.pauseCount,
           pausedSec: Math.round(p.pausedTotalMs / 1000),
-          skippedCount: 0,
+          skippedCount: stepActuals.filter((a) => a?.skipped).length,
           steps: stepActuals.filter((a): a is StepActual => !!a),
         };
         const history = [...get().history, entry];
         save(K_HISTORY, history);
-        set({ history, gam, playerState: null, view: { tab: "home", screen: "done" } });
+        set({ history, gam, naoFeitas, playerState: null, view: { tab: "home", screen: "done" } });
       } else {
-        set({ gam, playerState: null, view: { tab: "home", screen: "done" } });
+        set({ gam, naoFeitas, playerState: null, view: { tab: "home", screen: "done" } });
       }
       return;
     }
 
+    stepTransitionCue();
     const idx = p.idx + 1;
     const nextStep = p.steps[idx];
     const now = Date.now();
     set({
       gam,
+      naoFeitas,
       playerState: {
         ...p,
         idx,
@@ -674,6 +733,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
         stepStart: now,
         stepEndTs: nextStep.type === "timer" ? now + (nextStep.seconds || 0) * 1000 : null,
         ex: nextStep.type === "exercicio" ? freshExState() : null,
+        overtimeCueFired: false,
       },
     });
   },
@@ -688,6 +748,14 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     const desfeita = p.stepActuals[idx];
     let gam = get().gam;
     let pontosGanhos = p.pontosGanhos;
+    // voltar numa etapa marcada como "não feita" apaga a anotação da
+    // repescagem também (index.html:11819-11820) — ela volta a ser tratada
+    // como parte normal da rotina, não mais pendente do dia.
+    let naoFeitas = get().naoFeitas;
+    if (desfeita?.naoFeita) {
+      naoFeitas = limparNaoFeitaMap(naoFeitas, p.routineId, desfeita.id, localKey());
+      if (naoFeitas !== get().naoFeitas) save(K_NAOFEITAS, naoFeitas);
+    }
     if (desfeita?.gamItemId) {
       const creditado = gam.semanaAtual?.concluidos.find((c) => c.itemId === desfeita.gamItemId);
       if (creditado) pontosGanhos = Math.max(0, pontosGanhos - creditado.pontos);
@@ -698,6 +766,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     stepActuals[idx] = undefined;
     set({
       gam,
+      naoFeitas,
       playerState: {
         ...p,
         idx,
@@ -708,10 +777,74 @@ export const useAppStore = create<AppState>((set, get, api) => ({
         stepStart: now,
         stepEndTs: step.type === "timer" ? now + (step.seconds || 0) * 1000 : null,
         ex: step.type === "exercicio" ? freshExState() : null,
+        overtimeCueFired: false,
       },
     });
   },
   exitPlayer: () => set({ playerState: null, view: { tab: "home", screen: "home" } }),
+
+  naoFazerEtapaAtual: () => {
+    const p = get().playerState;
+    if (!p) return;
+    const step = p.steps[p.idx];
+    if (step.isRest) return;
+    const naoFeitas = marcarNaoFeitaMap(get().naoFeitas, p.routineId, step.id, localKey());
+    save(K_NAOFEITAS, naoFeitas);
+    set({ naoFeitas, playerBanner: `"${step.name}" ficou como não feita — refaça hoje pela rotina` });
+    get().advanceStep(true, true);
+  },
+
+  adiarEtapaAtual: () => {
+    const p = get().playerState;
+    if (!p) return;
+    const resultado = adiarEtapaPlayer(p.steps, p.idx);
+    if (!resultado) {
+      set({ playerBanner: "Não há próxima etapa para adiar" });
+      return;
+    }
+    stepTransitionCue();
+    const novoStep = resultado.steps[p.idx];
+    const now = Date.now();
+    set({
+      playerBanner: `"${resultado.adiadaNome}" vem depois de "${resultado.proximaNome}"`,
+      playerState: {
+        ...p,
+        steps: resultado.steps,
+        paused: false,
+        pausedAt: null,
+        stepStart: now,
+        stepEndTs: novoStep.type === "timer" ? now + (novoStep.seconds || 0) * 1000 : null,
+        ex: novoStep.type === "exercicio" ? freshExState() : null,
+        overtimeCueFired: false,
+      },
+    });
+  },
+
+  reiniciarTimerEtapaAtual: () => {
+    const p = get().playerState;
+    if (!p) return;
+    const step = p.steps[p.idx];
+    if (step.type !== "timer") return;
+    const now = Date.now();
+    set({
+      playerState: {
+        ...p,
+        paused: false,
+        pausedAt: null,
+        stepStart: now,
+        stepEndTs: now + (step.seconds || 0) * 1000,
+        overtimeCueFired: false,
+      },
+    });
+  },
+
+  reordenarEtapasPlayer: (gi, alvoGi) => {
+    const p = get().playerState;
+    if (!p) return;
+    const novo = moverGrupoPlayer(p.steps, gi, alvoGi);
+    if (!novo) return;
+    set({ playerState: { ...p, steps: novo } });
+  },
 
   concluirSerieExercicio: (reps, peso) => {
     const p = get().playerState;
@@ -734,6 +867,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       return;
     }
     const routine = get().routines.find((r) => r.id === p.routineId);
+    stepTransitionCue();
     set({
       playerState: {
         ...p,

@@ -31,7 +31,7 @@ describe("playbackSteps", () => {
 
 describe("novoPlayerState / computeRemaining", () => {
   it("primeira etapa timer já tem stepEndTs no futuro", () => {
-    const st = novoPlayerState({ ...base, restSeconds: 0 })!;
+    const st = novoPlayerState({ ...base, restSeconds: 0 })!.playerState;
     expect(st.idx).toBe(0);
     expect(st.stepEndTs).toBeGreaterThan(Date.now());
     expect(computeRemaining(st)).toBeGreaterThan(55);
@@ -40,7 +40,7 @@ describe("novoPlayerState / computeRemaining", () => {
     expect(novoPlayerState({ ...base, steps: [] })).toBeNull();
   });
   it("pausado usa pausedAt como referência (não avança)", () => {
-    const st = novoPlayerState({ ...base, restSeconds: 0 })!;
+    const st = novoPlayerState({ ...base, restSeconds: 0 })!.playerState;
     st.paused = true;
     st.pausedAt = st.stepStart + 5000;
     const rem = computeRemaining(st);
@@ -48,7 +48,7 @@ describe("novoPlayerState / computeRemaining", () => {
   });
   it("primeira etapa exercicio já vem com estado de série zerado", () => {
     const routine: Routine = { ...base, steps: [{ id: "e1", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 3, reps: "10" }] };
-    const st = novoPlayerState(routine)!;
+    const st = novoPlayerState(routine)!.playerState;
     expect(st.ex).toEqual({ setIdx: 0, phase: "set", results: [], restEndTs: null });
     expect(st.stepEndTs).toBeNull();
   });
@@ -77,16 +77,16 @@ describe("freshExState", () => {
 describe("computeExRestRemaining", () => {
   const routine: Routine = { ...base, steps: [{ id: "e1", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 3, reps: "10" }] };
   it("zero fora da fase de descanso", () => {
-    const st = novoPlayerState(routine)!;
+    const st = novoPlayerState(routine)!.playerState;
     expect(computeExRestRemaining(st)).toBe(0);
   });
   it("conta regressivo até restEndTs na fase de descanso", () => {
-    const st = novoPlayerState(routine)!;
+    const st = novoPlayerState(routine)!.playerState;
     st.ex = { setIdx: 1, phase: "rest", results: [{ reps: 10, peso: 20 }], restEndTs: Date.now() + 60000 };
     expect(computeExRestRemaining(st)).toBeGreaterThan(55);
   });
   it("pausado usa pausedAt como referência", () => {
-    const st = novoPlayerState(routine)!;
+    const st = novoPlayerState(routine)!.playerState;
     const restEndTs = Date.now() + 60000;
     st.ex = { setIdx: 1, phase: "rest", results: [{ reps: 10, peso: 20 }], restEndTs };
     st.paused = true;

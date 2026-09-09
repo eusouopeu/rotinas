@@ -1,17 +1,23 @@
 // Porta parcial de renderPlayer (index.html:12248-12513) — etapas "timer" e
 // "exercicio" (sub-loop de séries com reps/peso, ver
 // concluirSerieExercicio/pularDescansoExercicio/voltarSerieExercicio na
-// store), sem modo zen, anotações, nota vinculada, adiar/não-fazer, painel
-// de etapas do desktop. O círculo de progresso (SVG dasharray) é o mesmo
+// store), adiar/não-fazer/reiniciar etapa, lançamento rápido, painel de
+// etapas e nota vinculada (ver components/PlayerOverlays.tsx). Sem modo zen
+// nem journaling/nota por etapa ainda (RoutineStep.noteId/journaling não têm
+// UI de criação em nenhum editor do React — não é regressão desta rodada,
+// nunca existiu aqui). O círculo de progresso (SVG dasharray) é o mesmo
 // truque do original.
 import { useEffect, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { computeExRestRemaining, computeRemaining, parseRepsRange } from "../lib/player";
 import { fmtTime } from "../lib/format";
+import { timeUpCue } from "../lib/haptics";
+import { NotaRotinaOverlay, QuickAddOverlay, StepsOverlay } from "../components/PlayerOverlays";
 
 export function Player() {
   const playerState = useAppStore((s) => s.playerState);
+  const routine = useAppStore((s) => s.routines.find((r) => r.id === playerState?.routineId));
   const exercicios = useAppStore((s) => s.exercicios);
   const togglePause = useAppStore((s) => s.togglePause);
   const advanceStep = useAppStore((s) => s.advanceStep);
@@ -20,9 +26,23 @@ export function Player() {
   const concluirSerieExercicio = useAppStore((s) => s.concluirSerieExercicio);
   const pularDescansoExercicio = useAppStore((s) => s.pularDescansoExercicio);
   const voltarSerieExercicio = useAppStore((s) => s.voltarSerieExercicio);
+  const naoFazerEtapaAtual = useAppStore((s) => s.naoFazerEtapaAtual);
+  const adiarEtapaAtual = useAppStore((s) => s.adiarEtapaAtual);
+  const reiniciarTimerEtapaAtual = useAppStore((s) => s.reiniciarTimerEtapaAtual);
+  const playerBanner = useAppStore((s) => s.playerBanner);
+  const clearPlayerBanner = useAppStore((s) => s.clearPlayerBanner);
   const [, setTick] = useState(0);
   const [reps, setReps] = useState(0);
   const [peso, setPeso] = useState(0);
+  const [overlay, setOverlay] = useState<"steps" | "nota" | "quickadd" | null>(null);
+
+  // Banner transiente (adiar/não fazer/repescagem) — some sozinho, mesmo
+  // padrão de duração do showAlertBanner do legado.
+  useEffect(() => {
+    if (!playerBanner) return;
+    const id = setTimeout(clearPlayerBanner, 3200);
+    return () => clearTimeout(id);
+  }, [playerBanner, clearPlayerBanner]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -31,7 +51,17 @@ export function Player() {
       // — diferente do timer de etapa, que só avança no toque.
       const p = useAppStore.getState().playerState;
       if (!p?.paused && p?.ex?.phase === "rest" && p.ex.restEndTs != null && Date.now() >= p.ex.restEndTs) {
+        timeUpCue();
         useAppStore.getState().pularDescansoExercicio();
+        return;
+      }
+      // Etapa de tempo/pausa zerou: nunca avança sozinha (index.html:11418-
+      // 11433), só o aviso (vibração) dispara — uma vez — e o cronômetro
+      // segue contando negativo até o toque em "concluir".
+      const step = p?.steps[p.idx];
+      if (p && !p.paused && step?.type === "timer" && p.stepEndTs != null && Date.now() >= p.stepEndTs && !p.overtimeCueFired) {
+        timeUpCue();
+        useAppStore.setState({ playerState: { ...p, overtimeCueFired: true } });
       }
     }, 1000);
     return () => clearInterval(id);
@@ -76,6 +106,12 @@ export function Player() {
     if (window.confirm("Sair da rotina em andamento?")) exitPlayer();
   }
 
+  const temNota = !!routine?.notaId;
+  // só faz sentido adiar se existe um próximo BLOCO (tarefa + a pausa dela)
+  // inteiro pra trocar de lugar (index.html:12441-12443).
+  const curBlockLen = !step.isRest && playerState.steps[playerState.idx + 1]?.isRest ? 2 : 1;
+  const podeAdiar = playerState.idx + curBlockLen < playerState.steps.length;
+
   return (
     <div className="screen" style={{ paddingBottom: 0 }}>
       <div className="player">
@@ -83,10 +119,29 @@ export function Player() {
           <button className="player-close" onClick={handleExit}>
             Sair
           </button>
-          <div className="player-progress-label">
-            {playerState.idx + 1} / {playerState.steps.length}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button className="player-close" title="Ver todas as etapas" aria-label="Ver todas as etapas" onClick={() => setOverlay("steps")}>
+              <Icon name="bars3" size={15} />
+            </button>
+            {temNota && (
+              <button className="player-close" title="Abrir nota anexada" aria-label="Abrir nota anexada" onClick={() => setOverlay("nota")}>
+                <Icon name="notes" size={14} />
+              </button>
+            )}
+            <button className="player-close" title="Lançar rápido" aria-label="Lançar rápido" onClick={() => setOverlay("quickadd")}>
+              +
+            </button>
+            <div className="player-progress-label">
+              {playerState.idx + 1} / {playerState.steps.length}
+            </div>
           </div>
         </div>
+
+        {playerBanner && (
+          <div className="notice-card" style={{ marginBottom: 10 }}>
+            <span>{playerBanner}</span>
+          </div>
+        )}
 
         {step.type === "timer" ? (
           <div className={"dial-wrap" + (rem < 0 ? " overtime" : "") + (step.isRest ? " restdial" : "")}>
@@ -190,7 +245,37 @@ export function Player() {
           })}
         </div>
 
-        {step.type === "exercicio" ? (
+        {step.type === "timer" ? (
+          <div className="player-controls five">
+            <button className="ctrl-btn" title="Etapa anterior" aria-label="Etapa anterior" onClick={goPrevStep}>
+              <Icon name="arrowLeft" size={15} />
+            </button>
+            <button className="ctrl-btn" title="Reiniciar o temporizador da etapa" aria-label="Reiniciar o temporizador da etapa" onClick={reiniciarTimerEtapaAtual}>
+              <Icon name="arrowPath" size={15} />
+            </button>
+            <button className="ctrl-btn big" onClick={togglePause}>
+              <Icon name={playerState.paused ? "play" : "pause"} size={22} />
+            </button>
+            <button
+              className={"ctrl-btn ok" + (rem < 0 ? " pulse" : "")}
+              title="Concluir etapa"
+              aria-label="Concluir etapa"
+              onClick={() => advanceStep()}
+            >
+              <Icon name="check" size={14} />
+            </button>
+            <button
+              className="ctrl-btn"
+              title="Adiar: vai para depois da pausa da próxima etapa"
+              aria-label="Adiar etapa"
+              disabled={!podeAdiar}
+              style={podeAdiar ? undefined : { opacity: 0.35 }}
+              onClick={adiarEtapaAtual}
+            >
+              <Icon name="arrowUturnRight" size={14} />
+            </button>
+          </div>
+        ) : step.type === "exercicio" ? (
           <div className="player-controls">
             <button className="ctrl-btn" title="Etapa anterior" aria-label="Etapa anterior" onClick={goPrevStep}>
               <Icon name="arrowLeft" size={15} />
@@ -209,36 +294,57 @@ export function Player() {
                 <Icon name="check" size={14} />
               </button>
             )}
+            <button
+              className="ctrl-btn"
+              title="Adiar: vai para depois da pausa da próxima etapa"
+              aria-label="Adiar etapa"
+              disabled={!podeAdiar}
+              style={podeAdiar ? undefined : { opacity: 0.35 }}
+              onClick={adiarEtapaAtual}
+            >
+              <Icon name="arrowUturnRight" size={14} />
+            </button>
           </div>
         ) : (
-          <div className="player-controls five">
+          <div className="player-controls">
             <button className="ctrl-btn" title="Etapa anterior" aria-label="Etapa anterior" onClick={goPrevStep}>
               <Icon name="arrowLeft" size={15} />
             </button>
-            <div style={{ width: 44 }} />
-            <button className="ctrl-btn big" onClick={togglePause}>
-              <Icon name={playerState.paused ? "play" : "pause"} size={22} />
-            </button>
-            <button
-              className={"ctrl-btn ok" + (rem < 0 ? " pulse" : "")}
-              title="Concluir etapa"
-              aria-label="Concluir etapa"
-              onClick={advanceStep}
-            >
+            <button className="ctrl-btn big ok" title="Concluir etapa" aria-label="Concluir etapa" onClick={() => advanceStep()}>
               <Icon name="check" size={14} />
             </button>
-            <div style={{ width: 44 }} />
+            <button
+              className="ctrl-btn"
+              title="Adiar: vai para depois da pausa da próxima etapa"
+              aria-label="Adiar etapa"
+              disabled={!podeAdiar}
+              style={podeAdiar ? undefined : { opacity: 0.35 }}
+              onClick={adiarEtapaAtual}
+            >
+              <Icon name="arrowUturnRight" size={14} />
+            </button>
           </div>
         )}
 
-        {step.type === "exercicio" && (playerState.ex?.results.length || 0) > 0 && (
+        {(step.type === "exercicio" && (playerState.ex?.results.length || 0) > 0) || !step.isRest ? (
           <div className="skip-row" style={{ padding: "10px 0 4px" }}>
-            <button className="skip-btn" onClick={voltarSerieExercicio}>
-              <Icon name="arrowLeft" size={13} /> voltar série
-            </button>
+            {step.type === "exercicio" && (playerState.ex?.results.length || 0) > 0 && (
+              <button className="skip-btn" onClick={voltarSerieExercicio}>
+                <Icon name="arrowLeft" size={13} /> voltar série
+              </button>
+            )}
+            {!step.isRest && (
+              <button className="skip-btn" title="Encerrar sem concluir e sem pontuar" onClick={naoFazerEtapaAtual}>
+                não fazer
+              </button>
+            )}
           </div>
-        )}
+        ) : null}
       </div>
+
+      {overlay === "steps" && <StepsOverlay playerState={playerState} onClose={() => setOverlay(null)} />}
+      {overlay === "nota" && <NotaRotinaOverlay routineId={playerState.routineId} onClose={() => setOverlay(null)} />}
+      {overlay === "quickadd" && <QuickAddOverlay onClose={() => setOverlay(null)} />}
     </div>
   );
 }

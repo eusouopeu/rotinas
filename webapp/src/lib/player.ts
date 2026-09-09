@@ -15,6 +15,10 @@ export interface StepActual {
   planned: number | null;
   actual: number;
   skipped: boolean;
+  // "não fazer" (index.html:11542-11548): encerra sem concluir/pontuar E
+  // marca a etapa como pendente do dia (naoFeitas) — diferente de "pular
+  // etapa (opcional)", que também tem skipped:true mas não vira repescagem.
+  naoFeita?: boolean;
   gamItemId?: string;
   exercicioId?: string;
   series?: Array<{ reps: number; peso: number }>;
@@ -74,28 +78,67 @@ export interface PlayerState {
   stepActuals: Array<StepActual | undefined>;
   pontosGanhos: number;
   ex: ExPlayerState | null;
+  // Dispara o aviso de "tempo estourado" (vibração) só uma vez por etapa —
+  // sem isso o tick de 1s repetiria a vibração a cada segundo negativo
+  // (index.html:11433, overtimeCueFired).
+  overtimeCueFired: boolean;
 }
 
-export function novoPlayerState(routine: Routine): PlayerState | null {
-  const steps = playbackSteps(routine);
+/** Porta de podarDescansos (index.html:11176-11184) — remove descanso
+ * duplicado/sobrando depois de filtrar por repescagem (nunca duas pausas
+ * seguidas, nunca uma pausa sobrando no fim). */
+export function podarDescansos(steps: RoutineStep[]): RoutineStep[] {
+  const out: RoutineStep[] = [];
+  steps.forEach((s) => {
+    if (s.isRest && (!out.length || out[out.length - 1].isRest)) return;
+    out.push(s);
+  });
+  while (out.length && out[out.length - 1].isRest) out.pop();
+  return out;
+}
+
+export interface NovoPlayerStateResult {
+  playerState: PlayerState;
+  /** true quando a rotina voltou só com as etapas pendentes de hoje
+   * (repescagem, index.html:11284-11296) — Player.tsx mostra o aviso. */
+  repescagem: boolean;
+}
+
+/** `pendentes`: ids de etapa marcados como "não feita" hoje nesta rotina
+ * (naoFeitasDe) — se houver alguma, a rotina reabre só com elas (+ pausas),
+ * igual ao startPlayer do legado. Sem pendentes, roda a rotina inteira. */
+export function novoPlayerState(routine: Routine, pendentes: string[] = []): NovoPlayerStateResult | null {
+  let steps = playbackSteps(routine);
   if (steps.length === 0) return null;
+  let repescagem = false;
+  if (pendentes.length) {
+    const filtrados = podarDescansos(steps.filter((s) => s.isRest || pendentes.includes(s.id)));
+    if (filtrados.some((s) => !s.isRest)) {
+      steps = filtrados;
+      repescagem = true;
+    }
+  }
   const first = steps[0];
   const now = Date.now();
   return {
-    routineId: routine.id,
-    routineName: routine.name,
-    steps,
-    idx: 0,
-    paused: false,
-    pausedAt: null,
-    pausedTotalMs: 0,
-    stepStart: now,
-    stepEndTs: first.type === "timer" ? now + (first.seconds || 0) * 1000 : null,
-    startedAt: now,
-    pauseCount: 0,
-    stepActuals: [],
-    pontosGanhos: 0,
-    ex: first.type === "exercicio" ? freshExState() : null,
+    playerState: {
+      routineId: routine.id,
+      routineName: routine.name,
+      steps,
+      idx: 0,
+      paused: false,
+      pausedAt: null,
+      pausedTotalMs: 0,
+      stepStart: now,
+      stepEndTs: first.type === "timer" ? now + (first.seconds || 0) * 1000 : null,
+      startedAt: now,
+      pauseCount: 0,
+      stepActuals: [],
+      pontosGanhos: 0,
+      ex: first.type === "exercicio" ? freshExState() : null,
+      overtimeCueFired: false,
+    },
+    repescagem,
   };
 }
 
@@ -115,4 +158,101 @@ export function computeExRestRemaining(state: PlayerState): number {
   if (state.ex?.phase !== "rest" || !restEndTs) return 0;
   const ref = state.paused && state.pausedAt ? state.pausedAt : Date.now();
   return Math.max(0, Math.round((restEndTs - ref) / 1000));
+}
+
+/* ---- Repescagem: etapas marcadas "não feita" hoje (index.html:11192-11223) ----
+   Sem cycles (multi-volta) no React ainda, então nunca precisamos de
+   idBaseEtapa (que só existia para achar a etapa-base de uma volta repetida
+   com id sufixado "-c<n>") — o id do RoutineStep já é a chave estável. */
+export interface NaoFeitaRec {
+  date: string;
+  ids: string[];
+}
+export type NaoFeitasMap = Record<string, NaoFeitaRec>;
+
+export function naoFeitasDe(map: NaoFeitasMap, routineId: string, hoje: string): string[] {
+  const rec = map[routineId];
+  return rec && rec.date === hoje ? rec.ids : [];
+}
+
+export function marcarNaoFeitaMap(map: NaoFeitasMap, routineId: string, stepId: string, hoje: string): NaoFeitasMap {
+  const rec = map[routineId] && map[routineId].date === hoje ? map[routineId] : { date: hoje, ids: [] };
+  if (rec.ids.includes(stepId)) return map;
+  return { ...map, [routineId]: { date: hoje, ids: [...rec.ids, stepId] } };
+}
+
+export function limparNaoFeitaMap(map: NaoFeitasMap, routineId: string, stepId: string, hoje: string): NaoFeitasMap {
+  const rec = map[routineId];
+  if (!rec || rec.date !== hoje) return map;
+  const ids = rec.ids.filter((id) => id !== stepId);
+  const novo = { ...map };
+  if (ids.length) novo[routineId] = { date: hoje, ids };
+  else delete novo[routineId];
+  return novo;
+}
+
+/** Porta da IIFE podarNaoFeitasDeOutrosDias (index.html:11194-11201) — chamada
+ * no boot: descarta registros de dias anteriores (a repescagem só vale hoje). */
+export function podarNaoFeitasDeOutrosDias(map: NaoFeitasMap, hoje: string): NaoFeitasMap {
+  const novo: NaoFeitasMap = {};
+  let mudou = false;
+  for (const [rid, rec] of Object.entries(map)) {
+    if (rec && rec.date === hoje && rec.ids.length) novo[rid] = rec;
+    else mudou = true;
+  }
+  return mudou ? novo : map;
+}
+
+/* ---- Reordenar/adiar etapas em execução (index.html:11626-11809) ----
+   Tarefa + a pausa que vem logo depois dela (se houver) sempre andam juntas
+   — é o "bloco" que adiarEtapa troca de lugar e que openPlayerStepsOverlay
+   reordena; nunca a posição crua no array, que trocaria a tarefa pela PAUSA
+   seguinte em vez de alcançar a próxima tarefa de verdade. */
+export interface StepGroup {
+  reais: number[];
+  step: RoutineStep;
+}
+
+export function agruparEtapasPlayer(steps: RoutineStep[]): StepGroup[] {
+  const grupos: StepGroup[] = [];
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i].isRest) continue;
+    const reais = [i];
+    if (steps[i + 1]?.isRest) reais.push(i + 1);
+    grupos.push({ reais, step: steps[i] });
+  }
+  return grupos;
+}
+
+/** Troca o grupo `gi` de lugar com o grupo `alvoGi` (ambos índices na lista
+ * agrupada de agruparEtapasPlayer) e devolve o array de etapas achatado de
+ * volta. `null` se um dos índices for inválido. */
+export function moverGrupoPlayer(steps: RoutineStep[], gi: number, alvoGi: number): RoutineStep[] | null {
+  const grupos = agruparEtapasPlayer(steps);
+  if (gi < 0 || gi >= grupos.length || alvoGi < 0 || alvoGi >= grupos.length) return null;
+  const blocos = grupos.map((g) => g.reais.map((i) => steps[i]));
+  const tmp = blocos[gi];
+  blocos[gi] = blocos[alvoGi];
+  blocos[alvoGi] = tmp;
+  return blocos.flat();
+}
+
+export interface AdiarEtapaResult {
+  steps: RoutineStep[];
+  adiadaNome: string;
+  proximaNome: string;
+}
+
+/** Porta de adiarEtapa (index.html:11788-11809) — o bloco da etapa ATUAL
+ * troca de lugar com o bloco seguinte inteiro (não com a posição i+1, que
+ * podia ser só a pausa dela). `null` se não há próxima etapa para adiar. */
+export function adiarEtapaPlayer(steps: RoutineStep[], idx: number): AdiarEtapaResult | null {
+  const curLen = !steps[idx].isRest && steps[idx + 1]?.isRest ? 2 : 1;
+  const nextStart = idx + curLen;
+  if (nextStart >= steps.length) return null;
+  const nextLen = !steps[nextStart].isRest && steps[nextStart + 1]?.isRest ? 2 : 1;
+  const curBlock = steps.slice(idx, idx + curLen);
+  const nextBlock = steps.slice(nextStart, nextStart + nextLen);
+  const novo = steps.slice(0, idx).concat(nextBlock, curBlock, steps.slice(nextStart + nextLen));
+  return { steps: novo, adiadaNome: curBlock[0].name, proximaNome: nextBlock[0].name };
 }
