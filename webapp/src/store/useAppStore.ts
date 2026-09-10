@@ -7,7 +7,7 @@ import { create } from "zustand";
 import { uid } from "../lib/uid";
 import { createNotesSlice } from "./slices/notesSlice";
 import { bootStorage, isNative, load, save } from "../lib/storage";
-import { getTimerOverlayBridge } from "../lib/nativeBridge";
+import { getTimerOverlayBridge, overlayHide } from "../lib/nativeBridge";
 import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
 import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoMetaRec, planoNotificacaoRotinas } from "../lib/notifications";
 import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
@@ -587,8 +587,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     set({ nudge });
   },
   setOverlayCronometro: async (v) => {
-    const p = getTimerOverlayBridge();
     if (v) {
+      const p = getTimerOverlayBridge();
       if (!p) return false;
       try {
         const r = await p.requestPermission();
@@ -597,11 +597,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
         return false;
       }
     } else {
-      try {
-        await p?.hide();
-      } catch {
-        // segue mesmo se o serviço já não estiver de pé
-      }
+      overlayHide();
     }
     save(K_OVERLAY, v);
     set({ overlayCronometro: v });

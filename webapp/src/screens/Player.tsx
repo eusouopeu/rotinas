@@ -13,7 +13,7 @@ import { Icon } from "../components/Icon";
 import { activeCountdown, computeExRestRemaining, computeRemaining, filaOverlay, parseRepsRange } from "../lib/player";
 import { fmtTime } from "../lib/format";
 import { timeUpCue } from "../lib/haptics";
-import { getTimerOverlayBridge, onAppStateChange } from "../lib/nativeBridge";
+import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
 import { NotaRotinaOverlay, QuickAddOverlay, StepsOverlay } from "../components/PlayerOverlays";
 
 export function Player() {
@@ -99,15 +99,13 @@ export function Player() {
   // sincronizarOverlay, index.html:2642-2664) — só quando a preferência está
   // ligada e há contagem ativa (timer de etapa ou descanso entre séries).
   useEffect(() => {
-    const p = getTimerOverlayBridge();
-    if (!p) return;
     if (!overlayCronometro || !playerState || !cd) {
-      p.hide().catch(() => {});
+      overlayHide();
       return;
     }
     const ref = playerState.paused && playerState.pausedAt ? playerState.pausedAt : Date.now();
     const remMs = cd.endTs - ref;
-    p.show({
+    overlayShow({
       endTs: playerState.paused ? 0 : Date.now() + remMs,
       remainingMs: remMs,
       paused: !!playerState.paused,
@@ -115,16 +113,14 @@ export function Player() {
       visible: appBackground,
       label: cd.label || playerState.routineName || "",
       queue: JSON.stringify(filaOverlay(playerState)),
-    }).catch((e) => console.error("overlay:", e));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlayCronometro, appBackground, playerState?.idx, playerState?.paused, playerState?.pausedAt, cd?.endTs, cd?.auto, cd?.label]);
 
   // Encerra o serviço/bolha ao sair da tela do Player (rotina concluída ou
   // cancelada) — sem isso a notificação/bolha ficaria presa.
   useEffect(() => {
-    return () => {
-      getTimerOverlayBridge()?.hide().catch(() => {});
-    };
+    return () => overlayHide();
   }, []);
 
   const step = playerState?.steps[playerState.idx];

@@ -158,11 +158,15 @@ export interface TimerOverlayShowArgs {
  * bolha do cronômetro sobre outros apps E a notificação em primeiro plano
  * com chronometer na barra/lock screen (mesmo serviço cobre as duas
  * superfícies, index.html:2601-2675). Só Android. */
+/* Os métodos devolvem `Promise<X> | X` de propósito: o proxy do Capacitor nem
+   sempre entrega Promise (e pode lançar de forma síncrona quando o plugin não
+   está de pé). Tipar como Promise pura foi o que derrubou a tela do Player no
+   APK v39 — ver overlayShow/overlayHide abaixo. */
 export interface TimerOverlayPlugin {
-  hasPermission(): Promise<{ granted: boolean }>;
-  requestPermission(): Promise<{ granted: boolean }>;
-  show(args: TimerOverlayShowArgs): Promise<void>;
-  hide(): Promise<void>;
+  hasPermission(): Promise<{ granted: boolean }> | { granted: boolean };
+  requestPermission(): Promise<{ granted: boolean }> | { granted: boolean };
+  show(args: TimerOverlayShowArgs): Promise<void> | void;
+  hide(): Promise<void> | void;
 }
 
 export function getTimerOverlayBridge(): TimerOverlayPlugin | null {
@@ -170,30 +174,81 @@ export function getTimerOverlayBridge(): TimerOverlayPlugin | null {
   return null;
 }
 
+/** Chama a ponte nativa sem nunca derrubar quem chamou — mesma defesa do
+ * legado (index.html:2650-2663 e 2665-2672): o retorno pode não ser Promise
+ * (nada a encadear) e a chamada pode lançar de forma síncrona. Num efeito do
+ * React, uma exceção dessas desmonta a árvore inteira: tela branca. */
+function chamarPonte(rodar: () => unknown, contexto: string): void {
+  try {
+    const r = rodar() as { catch?: (cb: (e: unknown) => void) => unknown } | undefined;
+    if (r && typeof r.catch === "function") r.catch((e: unknown) => console.error(contexto, e));
+  } catch (e) {
+    console.error(contexto, e);
+  }
+}
+
+/** Porta de sincronizarOverlay (index.html:2650-2663) — sobe/atualiza a bolha
+ * e a notificação com chronometer. Silencioso fora do Android. */
+export function overlayShow(args: TimerOverlayShowArgs): void {
+  const p = getTimerOverlayBridge();
+  if (!p) return;
+  chamarPonte(() => p.show(args), "overlay:");
+}
+
+/** Porta de pararOverlay (index.html:2665-2672) — encerra serviço e bolha. */
+export function overlayHide(): void {
+  const p = getTimerOverlayBridge();
+  if (!p) return;
+  chamarPonte(() => p.hide(), "overlay:");
+}
+
 export interface AppStateChangeInfo {
   isActive: boolean;
 }
 
-export interface AppPlugin {
-  addListener(eventName: "appStateChange", cb: (state: AppStateChangeInfo) => void): Promise<{ remove: () => void }>;
+export interface PluginListenerHandle {
+  remove?: () => void;
 }
 
-/** Assina appStateChange do plugin Capacitor App (core, auto-registrado,
- * index.html:2767-2771) — sinal confiável de "saiu da frente" no APK;
- * complementa visibilitychange, que cobre o navegador. Devolve unsubscribe;
- * no-op fora do Android. */
+export interface AppPlugin {
+  addListener(
+    eventName: "appStateChange",
+    cb: (state: AppStateChangeInfo) => void,
+  ): Promise<PluginListenerHandle> | PluginListenerHandle;
+}
+
+/** Assina appStateChange do plugin Capacitor App (index.html:2767-2771) —
+ * sinal confiável de "saiu da frente" no APK; complementa visibilitychange,
+ * que cobre o navegador. Devolve unsubscribe; no-op fora do Android. Como no
+ * legado, nada aqui pode escapar: o proxy devolve ora Promise, ora o handle
+ * direto, e lança se o plugin não estiver registrado. */
 export function onAppStateChange(cb: (isActive: boolean) => void): () => void {
   const plugin = isNative ? window.Capacitor?.Plugins.App : undefined;
   if (!plugin) return () => {};
-  let handle: { remove: () => void } | null = null;
-  let cancelled = false;
-  plugin.addListener("appStateChange", (s) => cb(s.isActive)).then((h) => {
-    if (cancelled) h.remove();
-    else handle = h;
-  });
+  let handle: PluginListenerHandle | null = null;
+  let cancelado = false;
+  try {
+    const r = plugin.addListener("appStateChange", (s) => cb(s.isActive));
+    if (r && typeof (r as PromiseLike<PluginListenerHandle>).then === "function") {
+      (r as Promise<PluginListenerHandle>)
+        .then((h) => {
+          if (cancelado) h?.remove?.();
+          else handle = h;
+        })
+        .catch((e) => console.error("appStateChange:", e));
+    } else {
+      handle = r as PluginListenerHandle;
+    }
+  } catch (e) {
+    console.error("appStateChange:", e);
+  }
   return () => {
-    cancelled = true;
-    handle?.remove();
+    cancelado = true;
+    try {
+      handle?.remove?.();
+    } catch (e) {
+      console.error("appStateChange:", e);
+    }
   };
 }
 
