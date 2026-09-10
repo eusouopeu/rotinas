@@ -48,6 +48,10 @@ export const K_PREFIX = "rotinas_v2_";
 export const K_SIDEBARCOLLAPSED = "rotinas_v2_sidebar_collapsed";
 
 export const DIAS_ABREV = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+// Nome por extenso do dia da semana — usado nos cabeçalhos das visões
+// "semana" e "dia" da aba Rotinas (a grade de 7 colunas do desktop segue
+// abreviada, não há largura de coluna para o nome inteiro).
+export const DIAS_NOME = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
 // Grupos musculares do editor de exercício (index.html:518) — chips
 // multi-seleção, opcionais, sem efeito em pontuação/agenda.

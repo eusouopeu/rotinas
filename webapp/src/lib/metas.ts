@@ -232,6 +232,45 @@ export function ajustarProgressoMetaRec(
   };
 }
 
+/* Áreas de meta (porta de metaAreaInfo/metaAreasPool, index.html:7937-8104) —
+   texto livre: os eixos da roda entram como sugestão e emprestam a cor; um
+   nome novo ganha cor estável derivada do próprio nome. Metas antigas guardam
+   o *id* do eixo, então o resolvedor aceita id e rótulo. */
+const META_AREA_CORES = ["#E0619E", "#5B8DEF", "#6B8F71", "#C9B23E", "#B25B4C", "#8A78C8", "#3FA7A0"];
+
+export function metaAreaInfo(v: string, areasRoda: Array<{ id: string; label: string; color: string }> = []): { label: string; color: string } {
+  const s = String(v || "").trim();
+  const e = areasRoda.find((x) => x.id === s) || areasRoda.find((x) => x.label.toLowerCase() === s.toLowerCase());
+  if (e) return { label: e.label, color: e.color };
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return { label: s, color: META_AREA_CORES[h % META_AREA_CORES.length] };
+}
+
+export function metaAreasPool(doc: CountdownDoc, areasRoda: Array<{ id: string; label: string; color: string }> = []): string[] {
+  const set = new Set<string>();
+  (doc.targets || []).forEach((t) => (t.areas || []).forEach((a) => {
+    const l = metaAreaInfo(a, areasRoda).label;
+    if (l) set.add(l);
+  }));
+  areasRoda.forEach((a) => set.add(a.label));
+  return [...set];
+}
+
+/* Dias para trabalhar a meta: vazio/ausente = todo dia, mesma convenção de
+   diasDaRotina/rotinaOcorreHoje (index.html:7947-7955). */
+export function metaDias(t: Pick<MetaTarget, "dias">): number[] {
+  const d = t && t.dias;
+  return d && d.length ? d : [0, 1, 2, 3, 4, 5, 6];
+}
+
+/* Rótulo curto dos dias — "" quando é todo dia (não vira chip). */
+export function metaDiasLabel(t: Pick<MetaTarget, "dias">, abrev: string[]): string {
+  const dias = metaDias(t);
+  if (dias.length >= 7) return "";
+  return dias.slice().sort((a, b) => a - b).map((d) => abrev[d]).join("/");
+}
+
 export type MetasSubview = "prazos" | "recorrentes";
 
 export function loadMetasSubviewSel(

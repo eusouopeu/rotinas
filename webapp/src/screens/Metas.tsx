@@ -15,6 +15,9 @@ import {
   daysUntil,
   metaConcluida,
   metaCreditado,
+  metaAreaInfo,
+  metaAreasPool,
+  metaDiasLabel,
   metaEscopo,
   metaPontosTotais,
   metaRecCompleta,
@@ -23,6 +26,7 @@ import {
   metaRecFeitas,
 } from "../lib/metas";
 import { fatorParaArea } from "../lib/gamificacao";
+import { DIAS_ABREV } from "../lib/constants";
 import { metaRecPenalidadeUnidade, metaRecPontosUnidade } from "../lib/scoring";
 import type { CountdownDoc, GamificacaoState, MetaRecorrente, MetaTarget, Tag } from "../lib/types";
 
@@ -49,9 +53,7 @@ export function Metas() {
   const reorderMetaRec = useAppStore((s) => s.reorderMetaRec);
 
   const [criandoPrazo, setCriandoPrazo] = useState(false);
-  const [novoTitulo, setNovoTitulo] = useState("");
-  const [novaData, setNovaData] = useState("");
-  const [editandoPrazoId, setEditandoPrazoId] = useState<string | null>(null);
+  const [editandoPrazo, setEditandoPrazo] = useState<MetaTarget | null>(null);
 
   const [criandoRec, setCriandoRec] = useState(false);
   const [editandoRec, setEditandoRec] = useState<MetaRecorrente | null>(null);
@@ -71,14 +73,6 @@ export function Metas() {
   const { dragFrom, dragHandleProps } = useDragReorder((from, to) => {
     reorderMetaRec(from.index, to.index);
   });
-
-  function confirmarCriacaoPrazo() {
-    if (!novoTitulo.trim() || !novaData) return;
-    addMeta(novoTitulo, novaData);
-    setNovoTitulo("");
-    setNovaData("");
-    setCriandoPrazo(false);
-  }
 
   function handleFabClick() {
     if (ambos) {
@@ -199,12 +193,7 @@ export function Metas() {
                   key={t.id}
                   t={t}
                   gam={gam}
-                  editando={editandoPrazoId === t.id}
-                  onEditar={() => setEditandoPrazoId(editandoPrazoId === t.id ? null : t.id)}
-                  onSalvarEdicao={(patch) => {
-                    updateMeta(t.id, patch);
-                    setEditandoPrazoId(null);
-                  }}
+                  onEditar={() => setEditandoPrazo(t)}
                   onDone={(d) => setMetaDone(t.id, d)}
                   onExcluir={() => {
                     if (window.confirm(`Remover a meta "${t.title}"?`)) deleteMeta(t.id);
@@ -252,34 +241,22 @@ export function Metas() {
         </div>
       )}
 
-      {criandoPrazo && (
-        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setCriandoPrazo(false)}>
-          <div className="confirm-box" style={{ textAlign: "left" }}>
-            <p style={{ margin: "0 0 10px" }}>Nova meta</p>
-            <input
-              className="note-title-input"
-              style={{ width: "100%", marginBottom: 8 }}
-              autoFocus
-              value={novoTitulo}
-              onChange={(e) => setNovoTitulo(e.target.value)}
-              placeholder="Título"
-            />
-            <input
-              type="date"
-              style={{ width: "100%" }}
-              value={novaData}
-              onChange={(e) => setNovaData(e.target.value)}
-            />
-            <div className="confirm-actions" style={{ marginTop: 10 }}>
-              <button className="btn-cancel" onClick={() => setCriandoPrazo(false)}>
-                Cancelar
-              </button>
-              <button className="btn-confirm" onClick={confirmarCriacaoPrazo}>
-                Criar
-              </button>
-            </div>
-          </div>
-        </div>
+      {(criandoPrazo || editandoPrazo) && (
+        <MetaPrazoForm
+          meta={editandoPrazo}
+          doc={doc ?? null}
+          gam={gam}
+          onClose={() => {
+            setCriandoPrazo(false);
+            setEditandoPrazo(null);
+          }}
+          onSalvar={(dados) => {
+            if (editandoPrazo) updateMeta(editandoPrazo.id, dados);
+            else addMeta(dados);
+            setCriandoPrazo(false);
+            setEditandoPrazo(null);
+          }}
+        />
       )}
 
       {(criandoRec || editandoRec) && (
@@ -639,73 +616,29 @@ function MetaRecForm({
 function MetaCard({
   t,
   gam,
-  editando,
   onEditar,
-  onSalvarEdicao,
   onDone,
   onExcluir,
   onNota,
 }: {
   t: MetaTarget;
   gam: Parameters<typeof metaPontosTotais>[1];
-  editando: boolean;
   onEditar: () => void;
-  onSalvarEdicao: (patch: Partial<MetaTarget>) => void;
   onDone: (d: number) => void;
   onExcluir: () => void;
   onNota: (nota: string) => void;
 }) {
-  const [tituloEd, setTituloEd] = useState(t.title);
-  const [dataEd, setDataEd] = useState(t.date);
-  const [tagEd, setTagEd] = useState<Tag>(t.tagValor || "alto");
-  const [topicsEd, setTopicsEd] = useState(t.topics ?? 0);
-
   const d = daysUntil(t.date);
   const esc = metaEscopo(t);
   const feita = metaConcluida(t);
   const donePct = t.topics ? Math.min(100, ((t.done || 0) / t.topics) * 100) : 0;
   const totalPts = metaPontosTotais(t, gam);
   const creditadoPts = metaCreditado(t);
+  const diasLabel = metaDiasLabel(t, DIAS_ABREV);
 
   return (
     <div className="stat-card" style={{ marginBottom: 10, borderColor: feita ? "var(--ok)" : undefined }}>
-      {editando ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <input className="note-title-input" value={tituloEd} onChange={(e) => setTituloEd(e.target.value)} />
-          <input type="date" value={dataEd} onChange={(e) => setDataEd(e.target.value)} />
-          <div className="type-toggle">
-            {TAGS.map((tag) => (
-              <span key={tag} className={tagEd === tag ? "active" : ""} onClick={() => setTagEd(tag)}>
-                {TAG_LABEL[tag]}
-              </span>
-            ))}
-          </div>
-          <div className="sched-time-row" style={{ marginTop: 0 }}>
-            <span style={{ flex: 1 }}>Total de itens (progresso)</span>
-            <input
-              className="dur-input"
-              type="number"
-              min={0}
-              value={topicsEd}
-              onChange={(e) => setTopicsEd(Math.max(0, +e.target.value || 0))}
-            />
-          </div>
-          <div className="confirm-actions">
-            <button className="btn-cancel" onClick={onEditar}>
-              Cancelar
-            </button>
-            <button
-              className="btn-confirm"
-              onClick={() =>
-                onSalvarEdicao({ title: tituloEd.trim() || t.title, date: dataEd, tagValor: tagEd, topics: topicsEd || null })
-              }
-            >
-              Salvar
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
+      <>
           <div className="dev-row" style={{ border: "none", padding: 0 }}>
             <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 17, flex: 1 }}>{t.title}</span>
             <button className="icon-btn borderless" title="Editar meta" aria-label="Editar meta" onClick={onEditar}>
@@ -721,7 +654,20 @@ function MetaCard({
               {d >= 0 ? `${d} dia(s)` : `atrasada ${Math.abs(d)}d`}
             </b>{" "}
             · {ESCOPO_LABEL[esc]} · peso {TAG_LABEL[t.tagValor || "alto"].toLowerCase()}
+            {diasLabel ? ` · ${diasLabel}` : ""}
           </div>
+          {(t.areas || []).length > 0 && (
+            <div className="area-chips" style={{ marginTop: 6 }}>
+              {(t.areas || []).map((a) => {
+                const info = metaAreaInfo(a, gam.config.roda.areas);
+                return (
+                  <span key={a} className="area-chip sel" style={{ "--chip": info.color } as React.CSSProperties}>
+                    {info.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
           {t.topics != null && (
             <>
               <div className="bar-row" style={{ marginTop: 8 }}>
@@ -770,8 +716,198 @@ function MetaCard({
               if (e.target.value !== (t.nota || "")) onNota(e.target.value);
             }}
           />
-        </>
-      )}
+      </>
+    </div>
+  );
+}
+
+
+/* Porta de abrirFormMeta (index.html:8175-8265) — formulário completo da meta
+   com prazo: título, prazo, quantidade + unidade ("quantos itens e de quê"),
+   áreas (texto livre, os eixos da roda entram como sugestão), dias para
+   trabalhar e peso no boletim, com o aviso de escopo/pontos ao vivo. Serve a
+   criação e a edição: antes a criação só pedia título e prazo e a edição
+   inline não tinha quantidade/unidade, áreas nem dias. */
+function MetaPrazoForm({
+  meta,
+  doc,
+  gam,
+  onClose,
+  onSalvar,
+}: {
+  meta: MetaTarget | null;
+  doc: CountdownDoc | null;
+  gam: GamificacaoState;
+  onClose: () => void;
+  onSalvar: (dados: Partial<MetaTarget> & { title: string; date: string }) => void;
+}) {
+  const areasRoda = gam.config.roda.areas;
+  const [titulo, setTitulo] = useState(meta?.title || "");
+  const [data, setData] = useState(meta?.date || "");
+  const [qtd, setQtd] = useState(meta?.topics != null ? String(meta.topics) : "");
+  const [unidade, setUnidade] = useState(meta?.unit || "");
+  const [areas, setAreas] = useState<string[]>(() => (meta?.areas || []).map((a) => metaAreaInfo(a, areasRoda).label).filter(Boolean));
+  const [dias, setDias] = useState<number[]>(meta?.dias ? meta.dias.slice() : []);
+  const [tag, setTag] = useState<Tag>(meta?.tagValor || "alto");
+  const [novaArea, setNovaArea] = useState("");
+
+  const pool = doc ? metaAreasPool(doc, areasRoda) : areasRoda.map((a) => a.label);
+  const sugestoes = pool.filter((a) => !areas.some((x) => x.toLowerCase() === a.toLowerCase()));
+
+  // aviso ao vivo: em que boletim a meta pontua e quanto vale por item
+  const nItens = Math.max(0, parseInt(qtd, 10) || 0);
+  const fake: MetaTarget = {
+    id: meta?.id || "novo",
+    title: titulo,
+    date: data,
+    createdAt: meta?.createdAt || Date.now(),
+    tagValor: tag,
+  };
+  const esc = data ? metaEscopo(fake) : null;
+  const total = data ? metaPontosTotais(fake, gam) : 0;
+
+  function toggleArea(label: string) {
+    setAreas((prev) => (prev.some((x) => x.toLowerCase() === label.toLowerCase()) ? prev.filter((x) => x.toLowerCase() !== label.toLowerCase()) : [...prev, label]));
+  }
+
+  function addNovaArea() {
+    const v = novaArea.trim();
+    if (!v) return;
+    if (!areas.some((x) => x.toLowerCase() === v.toLowerCase())) setAreas([...areas, v]);
+    setNovaArea("");
+  }
+
+  function salvar() {
+    if (!titulo.trim() || !data) return;
+    onSalvar({
+      title: titulo.trim(),
+      date: data,
+      topics: nItens > 0 ? nItens : null,
+      unit: unidade.trim() || "tópicos",
+      areas,
+      dias,
+      tagValor: tag,
+    });
+  }
+
+  return (
+    <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="confirm-box" style={{ textAlign: "left", maxHeight: "86vh", overflowY: "auto" }}>
+        <p style={{ margin: "0 0 10px" }}>{meta ? "Editar meta" : "Nova meta"}</p>
+        <input
+          className="mk-e-name"
+          style={{ width: "100%" }}
+          autoFocus
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          placeholder="Alvo (ex: Prova SEFAZ-BA)"
+        />
+        <div className="section-label" style={{ margin: "12px 0 4px" }}>
+          Prazo
+        </div>
+        <input type="date" style={{ width: "100%" }} value={data} onChange={(e) => setData(e.target.value)} />
+        <div className="section-label" style={{ margin: "12px 0 4px" }}>
+          Quantidade (opcional)
+        </div>
+        <div className="market-form-row" style={{ display: "flex", gap: 8 }}>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            placeholder="quantos"
+            style={{ width: 110 }}
+            aria-label="Quantos itens"
+            value={qtd}
+            onChange={(e) => setQtd(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="do quê? (ex: questões)"
+            style={{ flex: 1, minWidth: 0 }}
+            aria-label="Tipo do item"
+            value={unidade}
+            onChange={(e) => setUnidade(e.target.value)}
+          />
+        </div>
+        <div className="section-label" style={{ margin: "12px 0 4px" }}>
+          Áreas
+        </div>
+        <div className="area-chips">
+          {areas.map((a) => {
+            const info = metaAreaInfo(a, areasRoda);
+            return (
+              <span key={a} className="area-chip sel" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(a)}>
+                {info.label}
+              </span>
+            );
+          })}
+          {sugestoes.map((a) => {
+            const info = metaAreaInfo(a, areasRoda);
+            return (
+              <span key={a} className="area-chip" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(info.label)}>
+                {info.label}
+              </span>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <input
+            type="text"
+            placeholder="nova área"
+            style={{ flex: 1, minWidth: 0 }}
+            aria-label="Nova área"
+            value={novaArea}
+            onChange={(e) => setNovaArea(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addNovaArea();
+              }
+            }}
+          />
+          <button className="icon-btn" title="Adicionar área" aria-label="Adicionar área" onClick={addNovaArea}>
+            <Icon name="plus" size={14} />
+          </button>
+        </div>
+        <div className="section-label" style={{ margin: "12px 0 4px" }}>
+          Dias para trabalhar (nenhum marcado = todo dia)
+        </div>
+        <div className="day-chips" style={{ marginTop: 0 }}>
+          {DIAS_ABREV.map((lbl, d) => (
+            <span
+              key={d}
+              className={"day-chip" + (dias.includes(d) ? " active" : "")}
+              onClick={() => setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))}
+            >
+              {lbl.charAt(0).toUpperCase()}
+            </span>
+          ))}
+        </div>
+        <div className="section-label" style={{ margin: "12px 0 4px" }}>
+          Peso no boletim
+        </div>
+        <div className="type-toggle tagval-pills">
+          {TAGS.map((v) => (
+            <span key={v} className={tag === v ? "active" : ""} onClick={() => setTag(v)}>
+              {TAG_LABEL[v]}
+            </span>
+          ))}
+        </div>
+        {esc && (
+          <div className="dev-n" style={{ marginTop: 12 }}>
+            Vale <b>{total.toFixed(1)}</b> pontos no boletim <b>{ESCOPO_LABEL[esc]}</b>
+            {nItens > 0 ? `, creditados aos poucos: ${(total / nItens).toFixed(2)} por item.` : ". Informe a quantidade para pontuar item por item."}
+          </div>
+        )}
+        <div className="confirm-actions" style={{ marginTop: 16 }}>
+          <button className="btn-cancel" onClick={onClose}>
+            Cancelar
+          </button>
+          <button className="btn-confirm" style={{ background: "var(--caneta)" }} onClick={salvar}>
+            {meta ? "Salvar" : "Criar"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

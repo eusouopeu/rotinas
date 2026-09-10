@@ -128,6 +128,11 @@ export interface MetaTarget {
   done?: number;
   tagValor?: Tag;
   nota?: string;
+  // áreas da meta são texto livre (index.html:7937-7945): os eixos da roda
+  // entram como sugestão e emprestam a cor, mas um nome novo cria a área.
+  areas?: string[];
+  // dias para trabalhar a meta; vazio/ausente = todo dia (index.html:7947-7951)
+  dias?: number[];
   creditos?: Record<string, number>; // período (ver periodoDeEscopo) -> pontos já creditados
 }
 

@@ -276,7 +276,7 @@ export interface AppState {
   toggleMetasSubviewState: (view: MetasSubview) => void;
 
   metaDoc: () => CountdownDoc;
-  addMeta: (title: string, date: string) => void;
+  addMeta: (dados: Partial<MetaTarget> & { title: string; date: string }) => void;
   updateMeta: (id: string, patch: Partial<MetaTarget>) => void;
   setMetaDone: (id: string, done: number) => void;
   deleteMeta: (id: string) => void;
@@ -364,7 +364,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   theme: "auto",
   fontScale: 1,
   weekStart: 0,
-  homeView: "rotinas",
+  homeView: "semana",
   soHoje: false,
   digestSemanal: true,
   nudge: true,
@@ -417,7 +417,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       theme: load<Theme>(K_THEME, "auto"),
       fontScale: load<number>(K_FONTSCALE, 1),
       weekStart: load<number>(K_WEEKSTART, 0),
-      homeView: load<"rotinas" | "semana" | "dia">(K_HOMEVIEW, "rotinas"),
+      homeView: load<"rotinas" | "semana" | "dia">(K_HOMEVIEW, "semana"),
       soHoje: load<boolean>(K_SOHOJE, false),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
@@ -1043,11 +1043,11 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     set({ templates });
     return doc;
   },
-  addMeta: (title, date) => {
-    const nome = title.trim();
-    if (!nome || !date) return;
+  addMeta: (dados) => {
+    const nome = dados.title.trim();
+    if (!nome || !dados.date) return;
     const doc = get().metaDoc();
-    const meta: MetaTarget = { id: uid(), title: nome, date, createdAt: Date.now(), tagValor: "alto" };
+    const meta: MetaTarget = { tagValor: "alto", ...dados, id: uid(), title: nome, createdAt: Date.now() };
     const docNovo: CountdownDoc = { ...doc, targets: [...doc.targets, meta], updatedAt: Date.now() };
     const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
     save(K_TEMPLATES, templates);

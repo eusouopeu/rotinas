@@ -11,8 +11,9 @@
 ## Contratos visuais/funcionais existentes
 
 - Home: roda inclui boletim; rotina concluída vai ao fim e exibe horário real; rotinas ordenam por horário; “só hoje” usa `rotinaCabeEmHoje`, enquanto `rotinaOcorreHoje` fica estrita para notificação/MCP.
+- Aba Rotinas (React): ordem das visões é Semana (padrão) / Dia / Lista, com um único FAB nas três que abre a escolha Rotina ou Evento. Card da visão Lista é compacto (ícones numa linha, sem chip de área — a bolinha já diz — e sem duração quando há horário). Clique em vão livre da grade Dia cria evento naquele horário.
 - Player: lançamento rápido oferece nota, despesa, nota diária e cartão; overlay de etapas permite reordenar somente futuro; notas vinculadas não interrompem timer.
-- Metas têm nota Markdown; recorrentes são padrão do seletor. Modelos abrem em Notas; pill Notas/Outros é `type-toggle.view-toggle`.
+- Metas com prazo usam um formulário único (criação e edição) com quantidade + unidade, áreas, dias para trabalhar e peso; não existe horário para meta com prazo. Metas têm nota Markdown; recorrentes são padrão do seletor. Modelos abrem em Notas; pill Notas/Outros é `type-toggle.view-toggle`.
 - Agenda (dia/semana, hoje dentro de Rotinas — ex-Diário): botão textual nos escopos; sem “+ bloco”; time-block mantém nome/hora na mesma linha.
 - Kanban: mover usa `.kb-move-btn`; salto final usa check verde. Agenda inline compartilha grade/fonte única e seus comportamentos de clique/pontuação.
 - Roda: nomes editáveis, sem reordenação de área; campos têm larguras preservadas.

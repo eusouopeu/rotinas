@@ -21,20 +21,30 @@ import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itens
 import { getIcalCache, icalEventosDoDia } from "../lib/ical";
 import { useIsDesktop } from "../lib/useIsDesktop";
 import type { DiaKanbanCard, Snooze, Tag } from "../lib/types";
-import { areaDaRotina, areaInfoRoda, corDaRotina, fillStyle, rotinaEhHabito } from "../lib/scoring";
+import { corDaRotina, fillStyle, rotinaEhHabito } from "../lib/scoring";
 import { addDaysISO, isoToDate, localKey } from "../lib/gamificacao";
 import { computeSchedule, diasChipLabel, formatHM } from "../lib/schedule";
-import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV } from "../lib/constants";
+import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV, DIAS_NOME } from "../lib/constants";
 import { semanaFechadaPendente } from "../lib/semanaFechada";
 import { SwipeItem } from "../components/SwipeItem";
 import { attachSwipeDownSearch } from "../lib/swipe";
 import { execucaoDoDia, execucaoMinutos } from "../lib/history";
 
 function AgendaLinha({ it, onClick, onDelete, onEdit }: { it: AgendaItemDia; onClick: () => void; onDelete?: () => void; onEdit?: () => void }) {
-  const horas = it.ini == null ? "sem hora" : it.tipo === "compromisso" ? formatHM(it.ini) : `${formatHM(it.ini)}–${formatHM(it.fim!)}`;
   return (
     <div className={"dev-row agenda-row" + (it.feito ? " feito" : "")} onClick={onClick} style={{ cursor: "pointer" }}>
-      <span className="agenda-time">{horas}</span>
+      {/* início SEMPRE acima do término, sem travessão: as duas linhas alinham
+          em coluna entre os itens do dia, e o item sem fim ocupa só uma. */}
+      <span className="agenda-time">
+        {it.ini == null ? (
+          <span>sem hora</span>
+        ) : (
+          <>
+            <span>{formatHM(it.ini)}</span>
+            {it.tipo !== "compromisso" && <span>{formatHM(it.fim!)}</span>}
+          </>
+        )}
+      </span>
       <span className="agenda-nome">
         {it.tipo === "rotina" ? <span className="r-dot" style={{ background: fillStyle(it.cor) }} /> : <span className="ag-square" />}
         {it.texto}
@@ -104,13 +114,14 @@ function TimeKbInput({ value, onChange, label }: { value: string; onChange: (v: 
 /* Porta de abrirPopupTarefa (index.html:5181-5256) — popup completo de
    tarefa do dia: texto, horário opcional, peso e área da roda (quando
    ativa). Sem o crédito de pontos do cartão (ver upsertDiaKanbanCard). */
-function TarefaPopup({ iso, card, onClose }: { iso: string; card: DiaKanbanCard | null; onClose: () => void }) {
+function TarefaPopup({ iso, card, iniMin, onClose }: { iso: string; card: DiaKanbanCard | null; iniMin?: number | null; onClose: () => void }) {
   const gam = useAppStore((s) => s.gam);
   const upsertDiaKanbanCard = useAppStore((s) => s.upsertDiaKanbanCard);
   const deleteDiaKanbanCard = useAppStore((s) => s.deleteDiaKanbanCard);
   const [text, setText] = useState(card?.text || "");
-  const [hIni, setHIni] = useState(card?.hIni || "");
-  const [hFim, setHFim] = useState(card?.hFim || "");
+  // horário do vão clicado na grade: 1h de duração, mesma regra do legado
+  const [hIni, setHIni] = useState(card?.hIni || (iniMin != null ? formatHM(iniMin) : ""));
+  const [hFim, setHFim] = useState(card?.hFim || (iniMin != null ? formatHM(Math.min(24 * 60, iniMin + 60)) : ""));
   const [tag, setTag] = useState<Tag>((card?.tagValor as Tag) || "baixo");
   const [eixo, setEixo] = useState<string | null>(card?.eixo ?? null);
   const rodaAtiva = !!gam.config.roda.ativa;
@@ -281,7 +292,9 @@ function AgendaSemana() {
 
   return (
     <div className="ag-semana">
-      <div className="ag-semana-topo">
+      {/* navegação e ações na MESMA linha: setas coladas na data, o resto
+          empurrado para a direita pelo separador flexível. */}
+      <div className="ag-semana-topo ag-nav-row">
         <button className="icon-btn borderless" title="Semana anterior" aria-label="Semana anterior" onClick={() => setInicioISO(addDaysISO(inicioISO, -7))}>
           <Icon name="chevronLeft" size={15} />
         </button>
@@ -289,8 +302,7 @@ function AgendaSemana() {
         <button className="icon-btn borderless" title="Próxima semana" aria-label="Próxima semana" onClick={() => setInicioISO(addDaysISO(inicioISO, 7))}>
           <Icon name="chevronRight" size={15} />
         </button>
-      </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 14, marginBottom: 10 }}>
+        <span className="ag-nav-gap" />
         {inicioISO !== hojeISO && (
           <button className="link-btn" onClick={() => setInicioISO(hojeISO)}>
             hoje
@@ -303,7 +315,7 @@ function AgendaSemana() {
             else setSnoozeModal(true);
           }}
         >
-          {snoozed ? "retomar agenda" : "pausar agenda"}
+          {snoozed ? "retomar" : "pausar"}
         </button>
       </div>
       {snoozed && (
@@ -370,9 +382,10 @@ function AgendaSemana() {
           <div key={iso}>
             <div className="ag-dia-head">
               <span className="ag-dia-nome">
-                {DIAS_ABREV[dow].charAt(0).toUpperCase() + DIAS_ABREV[dow].slice(1)}
+                {DIAS_NOME[dow].charAt(0).toUpperCase() + DIAS_NOME[dow].slice(1)}
                 {ehHoje ? " · hoje" : ""}
               </span>
+              <span className="ag-nav-gap" />
               <span className="dev-n">
                 {iso.slice(8, 10)}/{iso.slice(5, 7)}
               </span>
@@ -425,11 +438,19 @@ type BlocoLayout = ReturnType<typeof computeGradeLayout>["blocos"][number];
 function GradeDia({
   layout,
   onClique,
+  onCliqueVazio,
+  gradePxMin,
+  gradeMIni,
   onDragCard,
   dragPxMin,
 }: {
   layout: ReturnType<typeof computeGradeLayout>;
   onClique: (b: BlocoLayout) => void;
+  /* clique num vão livre da grade cria evento naquele horário (arredondado
+     de 15 em 15 min) — só ligado na visão "Dia", que tem o zoom cheio. */
+  onCliqueVazio?: (iniMin: number) => void;
+  gradePxMin?: number;
+  gradeMIni?: number;
   onDragCard?: (cardId: string, novoIniMin: number) => void;
   dragPxMin?: number;
 }) {
@@ -477,7 +498,16 @@ function GradeDia({
         </div>
       ))}
       {layout.linhaAgoraPx != null && <div className="ag-agora" style={{ top: layout.linhaAgoraPx }} />}
-      <div className="ag-blocos">
+      <div
+        className={"ag-blocos" + (onCliqueVazio ? " ag-blocos-clicavel" : "")}
+        onClick={(ev) => {
+          if (!onCliqueVazio || !gradePxMin) return;
+          if (ev.target !== ev.currentTarget) return; // clique caiu num bloco
+          const y = ev.clientY - ev.currentTarget.getBoundingClientRect().top;
+          const min = (gradeMIni ?? 0) + y / gradePxMin;
+          onCliqueVazio(Math.max(0, Math.min(23 * 60 + 45, Math.round(min / 15) * 15)));
+        }}
+      >
         {layout.blocos.map((b, i) => (
           <div
             key={i}
@@ -531,7 +561,8 @@ function AgendaDia() {
 
   const hojeISO = localKey();
   const [iso, setIso] = useState(hojeISO);
-  const [popup, setPopup] = useState(false);
+  // `ini` = minuto do dia clicado na grade vazia (null = sem horário sugerido)
+  const [popup, setPopup] = useState<{ ini: number | null } | null>(null);
 
   const icalCache = getIcalCache();
   const ehHoje = iso === hojeISO;
@@ -559,12 +590,13 @@ function AgendaDia() {
 
   return (
     <div>
-      <div className="ag-dia-head">
+      {/* tudo numa linha só: setas coladas no nome/data, e "hoje" no fim */}
+      <div className="ag-dia-head ag-nav-row">
         <button className="icon-btn borderless" title="Dia anterior" aria-label="Dia anterior" onClick={() => setIso(addDaysISO(iso, -1))}>
           <Icon name="chevronLeft" size={15} />
         </button>
         <span className="ag-dia-nome">
-          {DIAS_ABREV[dow].charAt(0).toUpperCase() + DIAS_ABREV[dow].slice(1)}
+          {DIAS_NOME[dow].charAt(0).toUpperCase() + DIAS_NOME[dow].slice(1)}
           {ehHoje ? " · hoje" : ""}
         </span>
         <span className="dev-n">
@@ -573,18 +605,17 @@ function AgendaDia() {
         <button className="icon-btn borderless" title="Próximo dia" aria-label="Próximo dia" onClick={() => setIso(addDaysISO(iso, 1))}>
           <Icon name="chevronRight" size={15} />
         </button>
-        <button className="icon-btn borderless" title="Nova tarefa" aria-label="Nova tarefa" onClick={() => setPopup(true)}>
+        <button className="icon-btn borderless" title="Nova tarefa" aria-label="Nova tarefa" onClick={() => setPopup({ ini: null })}>
           <Icon name="plus" size={15} />
         </button>
-      </div>
-      {!ehHoje && (
-        <div style={{ textAlign: "right", margin: "-4px 0 6px" }}>
+        <span className="ag-nav-gap" />
+        {!ehHoje && (
           <button className="link-btn" onClick={() => setIso(hojeISO)}>
             hoje
           </button>
-        </div>
-      )}
-      {popup && <TarefaPopup iso={iso} card={null} onClose={() => setPopup(false)} />}
+        )}
+      </div>
+      {popup && <TarefaPopup iso={iso} card={null} iniMin={popup.ini} onClose={() => setPopup(null)} />}
       {allDay.length > 0 && (
         <div className="ag-allday-row">
           {allDay.map((e, i) => (
@@ -598,6 +629,9 @@ function AgendaDia() {
         <GradeDia
           layout={layout}
           onClique={clique}
+          onCliqueVazio={(min) => setPopup({ ini: min })}
+          gradePxMin={AG_PX_MIN_ZOOM}
+          gradeMIni={0}
           dragPxMin={AG_PX_MIN_ZOOM}
           onDragCard={(cardId, novoIni) => {
             const card = diaKanban.find((c) => c.id === cardId);
@@ -635,6 +669,8 @@ export function Home() {
   const setSoHoje = useAppStore((s) => s.setSoHoje);
   const openSearch = useAppStore((s) => s.openSearch);
   const headerRef = useRef<HTMLDivElement>(null);
+  const [novoAberto, setNovoAberto] = useState(false);
+  const [novoEvento, setNovoEvento] = useState(false);
 
   const semFechada = semanaFechadaPendente(gam);
   const hojeISO = localKey();
@@ -689,14 +725,14 @@ export function Home() {
         )}
 
         <div className="type-toggle view-toggle" style={{ marginBottom: 14 }}>
-          <span className={homeView === "rotinas" ? "active" : ""} onClick={() => setHomeView("rotinas")}>
-            Lista
-          </span>
           <span className={homeView === "semana" ? "active" : ""} onClick={() => setHomeView("semana")}>
             Semana
           </span>
           <span className={homeView === "dia" ? "active" : ""} onClick={() => setHomeView("dia")}>
             Dia
+          </span>
+          <span className={homeView === "rotinas" ? "active" : ""} onClick={() => setHomeView("rotinas")}>
+            Lista
           </span>
         </div>
 
@@ -735,8 +771,6 @@ export function Home() {
             {visiveis.map((r) => {
               const dur = routineDurationRaw(r, EXERCICIO_SET_SEG);
               const sched = computeSchedule(r);
-              const area = areaDaRotina(r, gam);
-              const areaInfo = area ? areaInfoRoda(area, gam) : null;
               const execHoje = execucaoDoDia(history, r.id, hojeISO);
               const execMin = execHoje ? execucaoMinutos(execHoje) : null;
               return (
@@ -744,7 +778,7 @@ export function Home() {
                   key={r.id}
                   onLeft={() => deleteRoutineWithUndo(r.id)}
                   onRight={() => duplicateRoutine(r.id)}
-                  className="routine-card"
+                  className="routine-card routine-card-compact"
                 >
                   <div
                     className="routine-info"
@@ -755,11 +789,33 @@ export function Home() {
                       <span className="r-dot" style={{ background: fillStyle(corDaRotina(r, gam)) }} />
                       {r.icon ? r.icon + " " : ""}
                       {r.name}
-                    </h3>
-                    <div className="routine-meta">
-                      {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} ·{" "}
-                      {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
                       <StreakTag routineId={r.id} routines={routines} history={history} />
+                    </h3>
+                    {/* etapas · horário (ou duração, só quando não há horário) ·
+                        dias, tudo em ícone e numa linha só. A área da roda saiu:
+                        já está dita pela cor da bolinha antes do nome. */}
+                    <div className="routine-meta routine-meta-line">
+                      <span className="rc-fact" title={`${r.steps.length} etapa${r.steps.length !== 1 ? "s" : ""}`}>
+                        <Icon name="clipboard" size={13} /> {r.steps.length}
+                      </span>
+                      {execMin ? (
+                        <span className="rc-fact" style={{ color: "var(--ok)" }} title="Executada hoje">
+                          <Icon name="check" size={13} /> {formatHM(execMin.ini)} &rarr; {formatHM(execMin.fim)}
+                        </span>
+                      ) : sched ? (
+                        <span className="rc-fact" style={{ color: "var(--caneta)" }} title="Horário">
+                          <Icon name="clock" size={13} /> {sched.startStr} &rarr; {sched.endStr}
+                        </span>
+                      ) : dur > 0 ? (
+                        <span className="rc-fact" style={{ color: "var(--caneta)" }} title="Duração">
+                          <Icon name="clock" size={13} /> {fmtTime(dur).replace("+", "")}
+                        </span>
+                      ) : null}
+                      {sched && (
+                        <span className="rc-fact" title="Dias">
+                          <Icon name="calendar" size={13} /> {diasChipLabel(r)}
+                        </span>
+                      )}
                       {rotinaEhHabito(r, gam) && (
                         <span
                           className="habito-chip"
@@ -769,25 +825,6 @@ export function Home() {
                         </span>
                       )}
                     </div>
-                    {gam.config.roda.ativa && areaInfo && (
-                      <div className="sched-chip chip-block" style={{ color: areaInfo.color }}>
-                        {areaInfo.label}
-                      </div>
-                    )}
-                    {execMin ? (
-                      <div className="sched-chip" style={{ color: "var(--ok)" }}>
-                        <Icon name="check" size={13} /> {formatHM(execMin.ini)} &rarr; {formatHM(execMin.fim)}
-                      </div>
-                    ) : sched ? (
-                      <div className="sched-chip">
-                        <Icon name="clock" size={13} /> {sched.startStr} &rarr; {sched.endStr}
-                      </div>
-                    ) : null}
-                    {sched && (
-                      <div className="sched-chip chip-block" style={{ color: "var(--sub)" }}>
-                        {diasChipLabel(r)}
-                      </div>
-                    )}
                   </div>
                   <div className="routine-actions">
                     <button
@@ -807,11 +844,47 @@ export function Home() {
         )}
       </div>
 
-      {homeView === "rotinas" && (
-        <button className="fab" title="Novo" onClick={() => openEditor(null)}>
-          +
-        </button>
+      {/* um único FAB nas três visões: abre a escolha entre rotina e evento */}
+      <button className="fab" title="Novo" onClick={() => setNovoAberto(true)}>
+        +
+      </button>
+      {novoAberto && (
+        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setNovoAberto(false)}>
+          <div className="confirm-box" style={{ textAlign: "left" }}>
+            <p style={{ margin: "0 0 12px" }}>Criar</p>
+            <div className="novo-opcoes">
+              <button
+                className="novo-opcao"
+                onClick={() => {
+                  setNovoAberto(false);
+                  openEditor(null);
+                }}
+              >
+                <Icon name="play" size={16} />
+                <b>Rotina</b>
+                <span className="dev-n">sequência de etapas com tempo</span>
+              </button>
+              <button
+                className="novo-opcao"
+                onClick={() => {
+                  setNovoAberto(false);
+                  setNovoEvento(true);
+                }}
+              >
+                <Icon name="calendar" size={16} />
+                <b>Evento</b>
+                <span className="dev-n">compromisso avulso na agenda</span>
+              </button>
+            </div>
+            <div className="confirm-actions" style={{ marginTop: 14 }}>
+              <button className="btn-cancel" onClick={() => setNovoAberto(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
+      {novoEvento && <TarefaPopup iso={hojeISO} card={null} onClose={() => setNovoEvento(false)} />}
       <Tabbar />
     </div>
   );
