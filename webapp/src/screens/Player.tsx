@@ -10,9 +10,10 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
-import { computeExRestRemaining, computeRemaining, parseRepsRange } from "../lib/player";
+import { activeCountdown, computeExRestRemaining, computeRemaining, filaOverlay, parseRepsRange } from "../lib/player";
 import { fmtTime } from "../lib/format";
 import { timeUpCue } from "../lib/haptics";
+import { getTimerOverlayBridge, onAppStateChange } from "../lib/nativeBridge";
 import { NotaRotinaOverlay, QuickAddOverlay, StepsOverlay } from "../components/PlayerOverlays";
 
 export function Player() {
@@ -31,7 +32,9 @@ export function Player() {
   const reiniciarTimerEtapaAtual = useAppStore((s) => s.reiniciarTimerEtapaAtual);
   const playerBanner = useAppStore((s) => s.playerBanner);
   const clearPlayerBanner = useAppStore((s) => s.clearPlayerBanner);
+  const overlayCronometro = useAppStore((s) => s.overlayCronometro);
   const [, setTick] = useState(0);
+  const [appBackground, setAppBackground] = useState(() => typeof document !== "undefined" && document.hidden);
   const [reps, setReps] = useState(0);
   const [peso, setPeso] = useState(0);
   const [overlay, setOverlay] = useState<"steps" | "nota" | "quickadd" | null>(null);
@@ -76,6 +79,51 @@ export function Player() {
       .catch(() => {});
     return () => {
       lock?.release().catch(() => {});
+    };
+  }, []);
+
+  // Sinal de "app saiu da frente" — a bolha do cronômetro (abaixo) só aparece
+  // fora do app, igual ao timer nativo da Samsung (index.html:2734-2739).
+  useEffect(() => {
+    const onVis = () => setAppBackground(document.hidden);
+    document.addEventListener("visibilitychange", onVis);
+    const unsubscribe = onAppStateChange((isActive) => setAppBackground(!isActive));
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      unsubscribe();
+    };
+  }, []);
+
+  const cd = playerState ? activeCountdown(playerState) : null;
+  // Espelha a etapa atual na bolha nativa/notificação (porta de
+  // sincronizarOverlay, index.html:2642-2664) — só quando a preferência está
+  // ligada e há contagem ativa (timer de etapa ou descanso entre séries).
+  useEffect(() => {
+    const p = getTimerOverlayBridge();
+    if (!p) return;
+    if (!overlayCronometro || !playerState || !cd) {
+      p.hide().catch(() => {});
+      return;
+    }
+    const ref = playerState.paused && playerState.pausedAt ? playerState.pausedAt : Date.now();
+    const remMs = cd.endTs - ref;
+    p.show({
+      endTs: playerState.paused ? 0 : Date.now() + remMs,
+      remainingMs: remMs,
+      paused: !!playerState.paused,
+      auto: cd.auto,
+      visible: appBackground,
+      label: cd.label || playerState.routineName || "",
+      queue: JSON.stringify(filaOverlay(playerState)),
+    }).catch((e) => console.error("overlay:", e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlayCronometro, appBackground, playerState?.idx, playerState?.paused, playerState?.pausedAt, cd?.endTs, cd?.auto, cd?.label]);
+
+  // Encerra o serviço/bolha ao sair da tela do Player (rotina concluída ou
+  // cancelada) — sem isso a notificação/bolha ficaria presa.
+  useEffect(() => {
+    return () => {
+      getTimerOverlayBridge()?.hide().catch(() => {});
     };
   }, []);
 

@@ -142,6 +142,47 @@ export function novoPlayerState(routine: Routine, pendentes: string[] = []): Nov
   };
 }
 
+export interface ActiveCountdown {
+  endTs: number;
+  auto: boolean;
+  isRest: boolean;
+  label: string;
+}
+
+/** Porta de activeCountdown (index.html:11265-11276) — só timer de etapa ou
+ * descanso ENTRE SÉRIES de exercício têm contagem ativa; checklist e a fase
+ * "set" do exercício não. */
+export function activeCountdown(state: PlayerState): ActiveCountdown | null {
+  const step = state.steps[state.idx];
+  if (!step) return null;
+  if (step.type === "timer" && state.stepEndTs) {
+    return { endTs: state.stepEndTs, auto: false, isRest: !!step.isRest, label: step.name || "" };
+  }
+  if (step.type === "exercicio" && state.ex?.phase === "rest" && state.ex.restEndTs) {
+    return { endTs: state.ex.restEndTs, auto: true, isRest: true, label: "Descanso" + (step.name ? " — " + step.name : "") };
+  }
+  return null;
+}
+
+export interface OverlayQueueItem {
+  label: string;
+  seconds: number;
+  auto: boolean;
+}
+
+/** Porta de filaOverlay (index.html:2633-2641) — etapas de tempo a partir da
+ * próxima, para o serviço de overlay nativo rolar os descansos sozinho. Para
+ * na primeira etapa que não for "timer": dali em diante só o app resolve. */
+export function filaOverlay(state: PlayerState): OverlayQueueItem[] {
+  const out: OverlayQueueItem[] = [];
+  for (let i = state.idx + 1; i < state.steps.length; i++) {
+    const s = state.steps[i];
+    if (s.type !== "timer") break;
+    out.push({ label: s.name || "", seconds: s.seconds || 0, auto: false });
+  }
+  return out;
+}
+
 /** Porta de computeRemaining (index.html:11247-11252). */
 export function computeRemaining(state: PlayerState): number {
   const step = state.steps[state.idx];

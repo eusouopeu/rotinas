@@ -38,6 +38,8 @@ export interface CapacitorPlugins {
   DriveSync?: import("./nativeBridge").DriveSyncPlugin;
   LocalNotifications?: import("./nativeBridge").LocalNotificationsPlugin;
   Share?: import("./nativeBridge").SharePlugin;
+  TimerOverlay?: import("./nativeBridge").TimerOverlayPlugin;
+  App?: import("./nativeBridge").AppPlugin;
 }
 
 declare global {

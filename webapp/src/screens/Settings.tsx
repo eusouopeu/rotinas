@@ -35,6 +35,8 @@ export function Settings() {
   const setDigestSemanal = useAppStore((s) => s.setDigestSemanal);
   const nudge = useAppStore((s) => s.nudge);
   const setNudge = useAppStore((s) => s.setNudge);
+  const overlayCronometro = useAppStore((s) => s.overlayCronometro);
+  const setOverlayCronometro = useAppStore((s) => s.setOverlayCronometro);
   const nudgeDias = useAppStore((s) => s.nudgeDias);
   const toggleNudgeDia = useAppStore((s) => s.toggleNudgeDia);
 
@@ -381,6 +383,25 @@ export function Settings() {
               <button className="btn-cancel" style={{ width: "100%" }} onClick={() => getMiniPlayerBridge()?.open()}>
                 Abrir mini player
               </button>
+            </div>
+          </>
+        )}
+
+        {isNative && (
+          <>
+            <div className="section-label">Cronômetro</div>
+            <div className="stat-card">
+              <label className="switch-row" style={{ marginTop: 0 }}>
+                <span>Mostrar sobre outros apps</span>
+                <input
+                  type="checkbox"
+                  checked={overlayCronometro}
+                  onChange={(e) => setOverlayCronometro(e.target.checked)}
+                />
+              </label>
+              <div className="stat-foot">
+                Uma bolha flutuante com o tempo restante, visível fora do app. Exige a permissão "Sobrepor a outros apps".
+              </div>
             </div>
           </>
         )}

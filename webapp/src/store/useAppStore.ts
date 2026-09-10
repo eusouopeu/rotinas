@@ -7,6 +7,7 @@ import { create } from "zustand";
 import { uid } from "../lib/uid";
 import { createNotesSlice } from "./slices/notesSlice";
 import { bootStorage, isNative, load, save } from "../lib/storage";
+import { getTimerOverlayBridge } from "../lib/nativeBridge";
 import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
 import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoMetaRec, planoNotificacaoRotinas } from "../lib/notifications";
 import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
@@ -27,6 +28,7 @@ import {
   K_NOTES,
   K_NUDGE,
   K_NUDGEDAYS,
+  K_OVERLAY,
   K_ROUTINES,
   K_SIDEBARCOLLAPSED,
   K_SNOOZES,
@@ -161,6 +163,9 @@ export interface AppState {
   soHoje: boolean;
   digestSemanal: boolean;
   nudge: boolean;
+  /** Bolha do cronômetro sobre outros apps + notificação em primeiro plano
+   * com chronometer (Android, K_OVERLAY) — local-only, nunca em backup. */
+  overlayCronometro: boolean;
   nudgeDias: number[];
   sidebarCollapsed: boolean;
   horasBudget: number;
@@ -214,6 +219,8 @@ export interface AppState {
   setSoHoje: (v: boolean) => void;
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
+  /** Resolve `false` sem persistir se a permissão de sobreposição for negada. */
+  setOverlayCronometro: (v: boolean) => Promise<boolean>;
   toggleNudgeDia: (d: number) => void;
   toggleSidebarCollapsed: () => void;
   // Boletim (index.html:13342-13501, ver lib/boletim.ts).
@@ -361,6 +368,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   soHoje: false,
   digestSemanal: true,
   nudge: true,
+  overlayCronometro: false,
   nudgeDias: [5],
   sidebarCollapsed: false,
   horasBudget: 40,
@@ -413,6 +421,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       soHoje: load<boolean>(K_SOHOJE, false),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
+      overlayCronometro: load<boolean>(K_OVERLAY, false),
       nudgeDias: load<number[]>(K_NUDGEDAYS, [5]),
       sidebarCollapsed: load<boolean>(K_SIDEBARCOLLAPSED, false),
       horasBudget: load<number>(K_HORASBUDGET, 40),
@@ -576,6 +585,27 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   setNudge: (nudge) => {
     save(K_NUDGE, nudge);
     set({ nudge });
+  },
+  setOverlayCronometro: async (v) => {
+    const p = getTimerOverlayBridge();
+    if (v) {
+      if (!p) return false;
+      try {
+        const r = await p.requestPermission();
+        if (!r?.granted) return false;
+      } catch {
+        return false;
+      }
+    } else {
+      try {
+        await p?.hide();
+      } catch {
+        // segue mesmo se o serviço já não estiver de pé
+      }
+    }
+    save(K_OVERLAY, v);
+    set({ overlayCronometro: v });
+    return true;
   },
   toggleNudgeDia: (d) => {
     const atual = get().nudgeDias;

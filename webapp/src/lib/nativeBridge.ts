@@ -136,6 +136,67 @@ export interface LocalNotificationsPlugin {
   }): Promise<void>;
 }
 
+export interface TimerOverlayQueueItem {
+  label: string;
+  seconds: number;
+  auto: boolean;
+}
+
+export interface TimerOverlayShowArgs {
+  endTs: number;
+  label: string;
+  paused: boolean;
+  remainingMs: number;
+  auto: boolean;
+  visible: boolean;
+  /** JSON de TimerOverlayQueueItem[] — etapas seguintes, para o serviço rolar os descansos sozinho. */
+  queue: string;
+}
+
+/** Ponte do plugin Capacitor TimerOverlay
+ * (android/app/src/main/java/com/pedro/rotinas/TimerOverlayPlugin.java) —
+ * bolha do cronômetro sobre outros apps E a notificação em primeiro plano
+ * com chronometer na barra/lock screen (mesmo serviço cobre as duas
+ * superfícies, index.html:2601-2675). Só Android. */
+export interface TimerOverlayPlugin {
+  hasPermission(): Promise<{ granted: boolean }>;
+  requestPermission(): Promise<{ granted: boolean }>;
+  show(args: TimerOverlayShowArgs): Promise<void>;
+  hide(): Promise<void>;
+}
+
+export function getTimerOverlayBridge(): TimerOverlayPlugin | null {
+  if (isNative && window.Capacitor?.Plugins.TimerOverlay) return window.Capacitor.Plugins.TimerOverlay;
+  return null;
+}
+
+export interface AppStateChangeInfo {
+  isActive: boolean;
+}
+
+export interface AppPlugin {
+  addListener(eventName: "appStateChange", cb: (state: AppStateChangeInfo) => void): Promise<{ remove: () => void }>;
+}
+
+/** Assina appStateChange do plugin Capacitor App (core, auto-registrado,
+ * index.html:2767-2771) — sinal confiável de "saiu da frente" no APK;
+ * complementa visibilitychange, que cobre o navegador. Devolve unsubscribe;
+ * no-op fora do Android. */
+export function onAppStateChange(cb: (isActive: boolean) => void): () => void {
+  const plugin = isNative ? window.Capacitor?.Plugins.App : undefined;
+  if (!plugin) return () => {};
+  let handle: { remove: () => void } | null = null;
+  let cancelled = false;
+  plugin.addListener("appStateChange", (s) => cb(s.isActive)).then((h) => {
+    if (cancelled) h.remove();
+    else handle = h;
+  });
+  return () => {
+    cancelled = true;
+    handle?.remove();
+  };
+}
+
 /** Porta de syncBridge (index.html:14283-14297) — mesma ponte comum entre
  * desktop (IPC) e Android (Capacitor), métodos idênticos. */
 export function getSyncBridge(): SyncBridge | null {
