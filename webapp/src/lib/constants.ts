@@ -33,6 +33,7 @@ export const K_METASSOHOJE = "rotinas_v2_metas_so_hoje";
 export const K_METASSUBVIEW = "rotinas_v2_metas_subview"; // legado, só para migração
 export const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
 export const K_HOMEVIEW = "rotinas_v2_homeview";
+export const K_RODARESUMOABERTO = "rotinas_v2_roda_resumo_aberto";
 export const K_MOTIVAKEY = "rotinas_v2_motiva_key";
 export const K_MOTIVACFG = "rotinas_v2_motiva_cfg";
 export const K_MOTIVA = "rotinas_v2_motiva_hist";

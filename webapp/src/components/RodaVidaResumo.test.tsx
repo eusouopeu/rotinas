@@ -83,10 +83,10 @@ describe("RodaVidaResumo", () => {
     expect(rows.length).toBe(2);
 
     expect(rows[0]?.textContent).toContain("Saúde");
-    expect(rows[0]?.textContent).toContain("25.0 / 50");
+    expect(rows[0]?.textContent).toContain("25 / 50");
 
     expect(rows[1]?.textContent).toContain("Trabalho");
-    expect(rows[1]?.textContent).toContain("10.0 / 50");
+    expect(rows[1]?.textContent).toContain("10 / 50");
   });
 
   it("exclui a categoria 'Sem área' das linhas do card", () => {
@@ -120,8 +120,10 @@ describe("RodaVidaResumo", () => {
     const { container } = render(<RodaVidaResumo />);
     const footer = container.querySelector(".roda-boletim");
     expect(footer).not.toBeNull();
-    expect(footer?.textContent).toContain("Nota 50.0/100");
-    expect(footer?.textContent).toContain("restante");
+    expect(footer?.textContent).toContain("Nota 50/100");
+    // Σ conta itens da semana (1 de 2 concluídos) e o relógio, dias restantes
+    expect(footer?.textContent).toContain("1/2");
+    expect(footer?.textContent).toMatch(/\d+ dias?/);
   });
 
   it("navega para o boletim ao clicar no card ou ao pressionar Enter", () => {
@@ -142,5 +144,56 @@ describe("RodaVidaResumo", () => {
     useAppStore.setState({ view: { tab: "home", screen: "home" } });
     fireEvent.keyDown(card, { key: "Enter" });
     expect(useAppStore.getState().view).toEqual({ tab: "home", screen: "boletim" });
+  });
+  it("recolhe e expande pelo cabeçalho sem navegar para o boletim", () => {
+    useAppStore.setState({ gam: baseGam({ concluidos: [{ pontos: 30, area: "saude" }] }) });
+
+    const { container } = render(<RodaVidaResumo />);
+    const head = container.querySelector(".roda-head") as HTMLElement;
+    expect(container.querySelectorAll(".bar-row").length).toBe(2);
+
+    fireEvent.click(head);
+    expect(container.querySelectorAll(".bar-row").length).toBe(0);
+    expect(container.querySelector(".roda-boletim")).toBeNull();
+    // o clique no cabeçalho não pode disparar a navegação do card inteiro
+    expect(useAppStore.getState().view).toEqual({ tab: "home", screen: "home" });
+
+    fireEvent.click(head);
+    expect(container.querySelectorAll(".bar-row").length).toBe(2);
+  });
+
+  it("pagina as áreas de duas em duas pelas setas, sem navegar", () => {
+    const gam = baseGam({
+      agendaCongelada: [
+        { itemId: "a1", dia: 0, area: "saude", pontos: 25 },
+        { itemId: "a2", dia: 1, area: "trabalho", pontos: 25 },
+        { itemId: "a3", dia: 2, area: "estudo", pontos: 25 },
+        { itemId: "a4", dia: 3, area: "lazer", pontos: 25 },
+      ],
+      concluidos: [{ pontos: 10, area: "saude" }],
+    });
+    gam.config.roda.areas = [
+      ...gam.config.roda.areas,
+      { id: "estudo", label: "Estudo", color: "#a855f7", peso: 1 },
+      { id: "lazer", label: "Lazer", color: "#f59e0b", peso: 1 },
+    ];
+    useAppStore.setState({ gam });
+
+    const { container } = render(<RodaVidaResumo />);
+    const setas = container.querySelectorAll(".roda-seta");
+    expect(setas.length).toBe(2);
+    expect((setas[0] as HTMLButtonElement).disabled).toBe(true);
+
+    let rows = container.querySelectorAll(".bar-row");
+    expect(rows.length).toBe(2);
+    expect(rows[0]?.textContent).toContain("Saúde");
+    expect(rows[1]?.textContent).toContain("Trabalho");
+
+    fireEvent.click(setas[1]);
+    rows = container.querySelectorAll(".bar-row");
+    expect(rows[0]?.textContent).toContain("Estudo");
+    expect(rows[1]?.textContent).toContain("Lazer");
+    expect((container.querySelectorAll(".roda-seta")[1] as HTMLButtonElement).disabled).toBe(true);
+    expect(useAppStore.getState().view).toEqual({ tab: "home", screen: "home" });
   });
 });
