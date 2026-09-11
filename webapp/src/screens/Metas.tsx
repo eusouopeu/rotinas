@@ -11,7 +11,9 @@ import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { exportPdfView } from "../lib/exportFile";
 import { metasPdfHtml } from "../lib/pdfExport";
 import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
+import { SwipeItem } from "../components/SwipeItem";
 import {
+  cdPace,
   daysUntil,
   metaConcluida,
   metaCreditado,
@@ -287,6 +289,25 @@ export function Metas() {
   );
 }
 
+/**
+ * Clique no título do card sem disparar quando o dedo estava arrastando o card
+ * pro lado (o SwipeItem não cancela o click nativo; aqui só ignoramos o clique
+ * que veio de um gesto horizontal).
+ */
+function useCliqueSemArrasto(fn: () => void) {
+  const origem = useRef<{ x: number; y: number } | null>(null);
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      origem.current = { x: e.clientX, y: e.clientY };
+    },
+    onClick: (e: React.MouseEvent) => {
+      const o = origem.current;
+      if (o && (Math.abs(e.clientX - o.x) > 8 || Math.abs(e.clientY - o.y) > 8)) return;
+      fn();
+    },
+  };
+}
+
 function RecCard({
   rec,
   gam,
@@ -312,13 +333,14 @@ function RecCard({
   const feitas = metaRecFeitas(rec);
   const completa = rec.negativa ? !metaRecExcedida(rec) : metaRecCompleta(rec);
   const excesso = rec.negativa ? metaRecExcesso(rec) : 0;
+  const noLimite = rec.negativa && feitas >= rec.vezes;
+  const cliqueEditar = useCliqueSemArrasto(onEditar);
 
-  const freqTxt = `${rec.negativa ? "até " : ""}${rec.vezes}× ${rec.tipo === "semanal" ? "na semana" : "ao dia"}${
-    rec.notif ? ` · lembretes ${rec.notif.inicio}–${rec.notif.fim}` : ""
+  const freqTxt = `${rec.negativa ? "até " : ""}${rec.vezes}x ${
+    rec.tipo === "semanal" ? "por semana" : "ao dia"
   }`;
 
   const areaObj = rec.area ? gam.config.roda.areas.find((a) => a.id === rec.area) : null;
-  const linhaMeta = areaObj ? `${areaObj.label} | ${freqTxt}` : freqTxt;
 
   const fator = fatorParaArea(
     rec.area || "",
@@ -326,26 +348,18 @@ function RecCard({
     gam.semanaAtual?.fatorNormalizacao || 1
   );
 
-  let statusTxt = "";
-  let statusColor = "var(--ok)";
+  // O saldo de pontos saiu do corpo do card (ele vive no Boletim) e virou o
+  // tooltip do selo de peso — o card mostra só nome, peso, frequência e contador.
+  let pesoTitle = "";
   if (rec.negativa) {
-    if (excesso > 0) {
-      const penUnidade = -metaRecPenalidadeUnidade(rec, gam.config);
-      const penalidade = excesso * penUnidade * fator;
-      statusTxt = `excedeu em ${excesso} · -${penalidade.toFixed(1)} pts`;
-      statusColor = "var(--erro)";
-    } else {
-      statusTxt = "dentro do limite";
-      statusColor = "var(--ok)";
-    }
+    const penUnidade = -metaRecPenalidadeUnidade(rec, gam.config);
+    pesoTitle =
+      excesso > 0
+        ? `Excedeu em ${excesso} · -${(excesso * penUnidade * fator).toFixed(1)} pts no boletim`
+        : "Dentro do limite";
   } else if (rec.pontua) {
     const ptsUnidade = metaRecPontosUnidade(rec, gam.config);
-    const ganhos = feitas * ptsUnidade * fator;
-    statusTxt = `+${ganhos.toFixed(1)} pts${completa ? " · concluída ✓" : ""}`;
-    statusColor = "var(--ok)";
-  } else if (completa) {
-    statusTxt = "concluída ✓";
-    statusColor = "var(--ok)";
+    pesoTitle = `+${(feitas * ptsUnidade * fator).toFixed(1)} pts no boletim${completa ? " · concluída" : ""}`;
   }
 
   const borderColor = rec.negativa
@@ -356,78 +370,81 @@ function RecCard({
     ? "var(--ok)"
     : undefined;
 
-  return (
-    <div
-      ref={setRef}
-      className={`stat-card rec-card ${isDragging ? "dragging" : ""}`}
-      style={{ marginBottom: 10, borderColor }}
+  const btnMenos = (
+    <button
+      className="ctrl-btn"
+      style={{ width: 36, height: 36, fontSize: 15 }}
+      onClick={() => onAjustar(-1)}
+      title="Menos um"
+      aria-label="Menos um"
     >
-      <span
-        className="rec-drag drag-handle"
-        title="Arrastar para reordenar"
-        aria-label="Arrastar para reordenar"
-        {...dragHandleProps}
+      &minus;
+    </button>
+  );
+  const btnMais = (
+    <button
+      className="ctrl-btn"
+      style={{ width: 36, height: 36, fontSize: 15 }}
+      onClick={() => onAjustar(1)}
+      title="Mais um"
+      aria-label="Mais um"
+    >
+      +
+    </button>
+  );
+
+  return (
+    <div ref={setRef} style={{ marginBottom: 10 }}>
+      <SwipeItem
+        className={`meta-card ${isDragging ? "dragging" : ""}`}
+        onLeft={onExcluir}
+        leftLabel="Excluir"
+        onRight={onDuplicar}
+        rightLabel="Duplicar"
       >
-        <Icon name="bars3" size={15} />
-      </span>
+        <div className="stat-card meta-card-inner rec-card" style={{ borderColor }}>
+          <span
+            className="rec-drag drag-handle"
+            title="Arrastar para reordenar"
+            aria-label="Arrastar para reordenar"
+            {...dragHandleProps}
+          >
+            <Icon name="bars3" size={15} />
+          </span>
 
-      <div className="rec-card-body">
-        <div className="dev-row" style={{ border: "none", padding: 0 }}>
-          <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 17, flex: 1 }}>
-            {rec.titulo}
-            {rec.negativa ? <span className="dev-n"> (limite)</span> : null}
-          </span>
-        </div>
-        <div className="dev-n" style={{ marginTop: 2 }}>
-          {linhaMeta}
-        </div>
-        <div className="cd-topics" style={{ marginTop: 6 }}>
-          <button
-            className="ctrl-btn"
-            style={{ width: 36, height: 36, fontSize: 15 }}
-            onClick={() => onAjustar(-1)}
-            title="Menos um"
-            aria-label="Menos um"
-          >
-            &minus;
-          </button>
-          <span style={{ fontWeight: 600 }}>
-            {feitas} / {rec.vezes}
-          </span>
-          <button
-            className={"ctrl-btn" + (rec.negativa ? (excesso > 0 ? "" : " ok") : completa ? " ok" : "")}
-            style={{ width: 36, height: 36, fontSize: 15 }}
-            onClick={() => onAjustar(1)}
-            title="Mais um"
-            aria-label="Mais um"
-          >
-            +
-          </button>
-        </div>
-        {statusTxt && (
-          <div className="dev-n" style={{ marginTop: 4, color: statusColor }}>
-            {statusTxt}
+          <div className="rec-card-body">
+            <h3 className="meta-card-title" {...cliqueEditar} title="Editar meta">
+              <span className="r-dot" style={{ background: areaObj?.color || "var(--caneta)" }} />
+              {rec.titulo}
+            </h3>
+            <div className="routine-meta-line" style={{ marginTop: 2 }}>
+              {(rec.negativa || rec.pontua) && (
+                <span className="rc-fact meta-peso" title={pesoTitle || undefined}>
+                  <Icon name="ticket" size={13} /> {TAG_LABEL[rec.tagValor || "medio"]}
+                </span>
+              )}
+              <span className="rc-fact" title={rec.negativa ? "Limite do período" : "Frequência"}>
+                <Icon name="calendar" size={13} /> {freqTxt}
+              </span>
+              {rec.notif && (
+                <span className="rc-fact" title="Lembretes">
+                  <Icon name="bell" size={13} /> {rec.notif.inicio}–{rec.notif.fim}
+                </span>
+              )}
+            </div>
+            <div className="cd-topics" style={{ marginTop: 6 }}>
+              {rec.negativa ? btnMais : btnMenos}
+              <span
+                className="meta-count"
+                style={{ color: noLimite ? "var(--erro)" : completa && !rec.negativa ? "var(--ok)" : undefined }}
+              >
+                {feitas} / {rec.vezes}
+              </span>
+              {rec.negativa ? btnMenos : btnMais}
+            </div>
           </div>
-        )}
-      </div>
-
-      <div className="rec-actions">
-        <button className="icon-btn" onClick={onEditar} title="Editar" aria-label="Editar">
-          <Icon name="notes" size={14} />
-        </button>
-        <button className="icon-btn" onClick={onDuplicar} title="Duplicar" aria-label="Duplicar">
-          <Icon name="clipboard" size={14} />
-        </button>
-        <button
-          className="icon-btn"
-          onClick={onExcluir}
-          title="Remover"
-          aria-label="Remover"
-          style={{ color: "var(--erro)" }}
-        >
-          <Icon name="trash" size={14} />
-        </button>
-      </div>
+        </div>
+      </SwipeItem>
     </div>
   );
 }
@@ -450,14 +467,17 @@ function MetaRecForm({
   const [pontua, setPontua] = useState(rec?.pontua ?? false);
   const [tagValor, setTagValor] = useState<Tag>(rec?.tagValor ?? "medio");
   const [area, setArea] = useState<string | null>(rec?.area ?? null);
-  const [notifIni, setNotifIni] = useState(rec?.notif?.inicio ?? "");
-  const [notifFim, setNotifFim] = useState(rec?.notif?.fim ?? "");
+  const [notifOn, setNotifOn] = useState(!!rec?.notif);
+  const [notifIni, setNotifIni] = useState(rec?.notif?.inicio ?? "08:00");
+  const [notifFim, setNotifFim] = useState(rec?.notif?.fim ?? "18:00");
 
   function handleSave() {
     const t = titulo.trim();
     if (!t) return;
     const notif =
-      tipo === "diaria" && notifIni && notifFim ? { inicio: notifIni, fim: notifFim } : null;
+      tipo === "diaria" && notifOn && notifIni && notifFim
+        ? { inicio: notifIni, fim: notifFim }
+        : null;
     onSave({
       titulo: t,
       tipo,
@@ -482,11 +502,43 @@ function MetaRecForm({
           <input
             type="text"
             className="mf-grow"
-            placeholder="Meta (ex.: Beber água)"
+            placeholder="Alvo (ex.: Beber água)"
             autoFocus
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
           />
+        </div>
+
+        <div className="mf-row">
+          <div className="mf-cell" style={{ flex: "0 0 auto" }}>
+            <span className="mf-ico" title={negativa ? "Limite de vezes" : "Quantas vezes"}>
+              <Icon name="hashtag" size={17} />
+            </span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={20}
+              placeholder="ex.: 4"
+              aria-label={negativa ? "Limite de vezes" : "Quantas vezes"}
+              style={{ width: 74 }}
+              value={vezes}
+              onChange={(e) => setVezes(Math.max(1, +e.target.value || 1))}
+            />
+          </div>
+          <div className="mf-cell" style={{ flex: "0 1 auto" }}>
+            <span className="mf-ico" title="Frequência">
+              <Icon name="clock" size={17} />
+            </span>
+            <div className="type-toggle">
+              <span className={tipo === "diaria" ? "active" : ""} onClick={() => setTipo("diaria")}>
+                diária
+              </span>
+              <span className={tipo === "semanal" ? "active" : ""} onClick={() => setTipo("semanal")}>
+                semanal
+              </span>
+            </div>
+          </div>
           <button
             type="button"
             className={"mf-toggle-btn" + (negativa ? " on" : "")}
@@ -515,101 +567,75 @@ function MetaRecForm({
         </div>
 
         <div className="mf-row">
-          <div className="mf-cell">
-            <span className="mf-ico" title="Frequência">
-              <Icon name="clock" size={17} />
-            </span>
-            <div className="type-toggle">
-              <span className={tipo === "diaria" ? "active" : ""} onClick={() => setTipo("diaria")}>
-                diária
+          <span className="mf-ico" title={negativa ? "Peso da penalidade" : "Peso no boletim"}>
+            <Icon name="ticket" size={17} />
+          </span>
+          <div className="type-toggle mf-wide">
+            {TAGS.map((t) => (
+              <span key={t} className={tagValor === t ? "active" : ""} onClick={() => setTagValor(t)}>
+                {TAG_LABEL[t].toLowerCase()}
               </span>
-              <span className={tipo === "semanal" ? "active" : ""} onClick={() => setTipo("semanal")}>
-                semanal
-              </span>
-            </div>
-          </div>
-          <div className="mf-cell" style={{ flex: "0 1 auto" }}>
-            <span className="mf-ico" title={negativa ? "Peso da penalidade" : "Peso no boletim"}>
-              <Icon name="tag" size={17} />
-            </span>
-            <div className="type-toggle">
-              {TAGS.map((t, i) => (
-                <span
-                  key={t}
-                  className={tagValor === t ? "active" : ""}
-                  title={TAG_LABEL[t]}
-                  onClick={() => setTagValor(t)}
-                >
-                  {i}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mf-row">
-          <div className="mf-cell" style={{ flex: "0 0 auto" }}>
-            <span className="mf-ico" title={negativa ? "Limite de vezes" : "Quantas vezes"}>
-              <Icon name="hashtag" size={17} />
-            </span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={20}
-              placeholder="ex.: 4"
-              aria-label={negativa ? "Limite de vezes" : "Quantas vezes"}
-              style={{ width: 84 }}
-              value={vezes}
-              onChange={(e) => setVezes(Math.max(1, +e.target.value || 1))}
-            />
-          </div>
-          <div className="mf-cell">
-            <span className="mf-ico" title="Lembretes (só quando é diária)">
-              <Icon name="bell" size={17} />
-            </span>
-            <input
-              type="time"
-              aria-label="Lembrar a partir de"
-              disabled={tipo !== "diaria"}
-              value={notifIni}
-              onChange={(e) => setNotifIni(e.target.value)}
-            />
-            <span className="mf-sep">até</span>
-            <input
-              type="time"
-              aria-label="Lembrar até"
-              disabled={tipo !== "diaria"}
-              value={notifFim}
-              onChange={(e) => setNotifFim(e.target.value)}
-            />
+            ))}
           </div>
         </div>
 
         {gam.config.roda.ativa && gam.config.roda.areas.length > 0 && (
           <div className="mf-row">
-            <div className="mf-cell">
-              <span className="mf-ico" title="Área">
-                <Icon name="briefcase" size={17} />
+            <span className="mf-ico" title="Área">
+              <Icon name="briefcase" size={17} />
+            </span>
+            <div className="area-chips mf-areas mf-grow">
+              <span className={`area-chip ${!area ? "sel" : ""}`} onClick={() => setArea(null)}>
+                Sem área
               </span>
-              <div className="area-chips mf-areas mf-grow">
-                <span className={`area-chip ${!area ? "sel" : ""}`} onClick={() => setArea(null)}>
-                  Sem área
+              {gam.config.roda.areas.map((a) => (
+                <span
+                  key={a.id}
+                  className={`area-chip ${area === a.id ? "sel" : ""}`}
+                  style={{ "--chip": a.color } as React.CSSProperties}
+                  onClick={() => setArea(a.id)}
+                >
+                  {a.label}
                 </span>
-                {gam.config.roda.areas.map((a) => (
-                  <span
-                    key={a.id}
-                    className={`area-chip ${area === a.id ? "sel" : ""}`}
-                    style={{ "--chip": a.color } as React.CSSProperties}
-                    onClick={() => setArea(a.id)}
-                  >
-                    {a.label}
-                  </span>
-                ))}
-              </div>
+              ))}
             </div>
           </div>
         )}
+
+        <div className="mf-row">
+          <span className="mf-ico" title="Lembretes (só quando é diária)">
+            <Icon name="bell" size={17} />
+          </span>
+          <button
+            type="button"
+            className={"mf-toggle-btn" + (tipo === "diaria" && notifOn ? " on" : "")}
+            title="Lembrar em horários fixos"
+            aria-label="Lembrar em horários fixos"
+            aria-pressed={tipo === "diaria" && notifOn}
+            disabled={tipo !== "diaria"}
+            onClick={() => setNotifOn(!notifOn)}
+          >
+            <Icon name="check" size={17} />
+          </button>
+          <span className="mf-sep">das</span>
+          <input
+            type="time"
+            className="mf-grow"
+            aria-label="Lembrar a partir de"
+            disabled={tipo !== "diaria" || !notifOn}
+            value={notifIni}
+            onChange={(e) => setNotifIni(e.target.value)}
+          />
+          <span className="mf-sep">até</span>
+          <input
+            type="time"
+            className="mf-grow"
+            aria-label="Lembrar até"
+            disabled={tipo !== "diaria" || !notifOn}
+            value={notifFim}
+            onChange={(e) => setNotifFim(e.target.value)}
+          />
+        </div>
 
         {negativa && (
           <div className="dev-n" style={{ marginTop: 10 }}>
@@ -652,57 +678,51 @@ function MetaCard({
   const d = daysUntil(t.date);
   const esc = metaEscopo(t);
   const feita = metaConcluida(t);
-  const donePct = t.topics ? Math.min(100, ((t.done || 0) / t.topics) * 100) : 0;
   const totalPts = metaPontosTotais(t, gam);
   const creditadoPts = metaCreditado(t);
   const diasLabel = metaDiasLabel(t, DIAS_ABREV);
+  const pace = cdPace(t);
+  const areas = t.areas || [];
+  const dotColor = areas.length ? metaAreaInfo(areas[0], gam.config.roda.areas).color : "var(--caneta)";
+  const urgCor = d < 0 ? "var(--erro)" : d <= 7 ? "var(--caneta)" : undefined;
+  const cliqueEditar = useCliqueSemArrasto(onEditar);
 
   return (
-    <div className="stat-card" style={{ marginBottom: 10, borderColor: feita ? "var(--ok)" : undefined }}>
-      <>
-          <div className="dev-row" style={{ border: "none", padding: 0 }}>
-            <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 17, flex: 1 }}>{t.title}</span>
-            <button className="icon-btn borderless" title="Editar meta" aria-label="Editar meta" onClick={onEditar}>
-              <Icon name="notes" size={14} />
-            </button>
-            <button className="icon-btn borderless" title="Excluir meta" aria-label="Excluir meta" onClick={onExcluir}>
-              <Icon name="trash" size={14} />
-            </button>
-          </div>
-          <div className="dev-n" style={{ marginTop: 4 }}>
-            {t.date.split("-").reverse().join("/")} ·{" "}
-            <b style={{ color: d < 0 ? "var(--erro)" : d <= 7 ? "var(--caneta)" : "var(--ok)" }}>
-              {d >= 0 ? `${d} dia(s)` : `atrasada ${Math.abs(d)}d`}
-            </b>{" "}
-            · {ESCOPO_LABEL[esc]} · peso {TAG_LABEL[t.tagValor || "alto"].toLowerCase()}
-            {diasLabel ? ` · ${diasLabel}` : ""}
-          </div>
-          {(t.areas || []).length > 0 && (
-            <div className="area-chips" style={{ marginTop: 6 }}>
-              {(t.areas || []).map((a) => {
-                const info = metaAreaInfo(a, gam.config.roda.areas);
-                return (
-                  <span key={a} className="area-chip sel" style={{ "--chip": info.color } as React.CSSProperties}>
-                    {info.label}
-                  </span>
-                );
-              })}
+    <div style={{ marginBottom: 10 }}>
+      <SwipeItem className="meta-card" onLeft={onExcluir} leftLabel="Excluir">
+        <div className="stat-card meta-card-inner" style={{ borderColor: feita ? "var(--ok)" : undefined }}>
+          <div className="rec-card-body">
+            <h3 className="meta-card-title" {...cliqueEditar} title="Editar meta">
+              <span className="r-dot" style={{ background: dotColor }} />
+              {t.title}
+            </h3>
+            <div className="routine-meta-line" style={{ marginTop: 2 }}>
+              <span
+                className="rc-fact meta-peso"
+                title={`Vale ${totalPts.toFixed(1)} pts no boletim ${ESCOPO_LABEL[esc]} · ${creditadoPts.toFixed(1)} creditados`}
+              >
+                <Icon name="ticket" size={13} /> {TAG_LABEL[t.tagValor || "alto"]}
+              </span>
+              {diasLabel && (
+                <span className="rc-fact" title="Dias para trabalhar">
+                  <Icon name="calendar" size={13} /> {diasLabel}
+                </span>
+              )}
             </div>
-          )}
-          {t.topics != null && (
-            <>
-              <div className="bar-row" style={{ marginTop: 8 }}>
-                <div className="bar-track goal-track">
-                  <div
-                    className="bar-fill"
-                    style={{ width: `${Math.max(3, donePct)}%`, background: feita ? "var(--ok)" : "var(--caneta)" }}
-                  />
-                </div>
-                <div className="bar-val" style={{ width: "auto", whiteSpace: "nowrap", flex: "0 0 auto" }}>
-                  {creditadoPts.toFixed(1)}/{totalPts.toFixed(1)} pts
-                </div>
-              </div>
-              <div className="cd-topics" style={{ marginTop: 8 }}>
+            {t.topics != null && (
+              <div className="cd-topics" style={{ marginTop: 6 }}>
+                <button
+                  className="ctrl-btn"
+                  style={{ width: 36, height: 36, fontSize: 15 }}
+                  onClick={() => onDone((t.done || 0) + 1)}
+                  title="Mais um"
+                  aria-label="Mais um"
+                >
+                  +
+                </button>
+                <span className="meta-count" style={{ color: feita ? "var(--ok)" : undefined }}>
+                  {(t.done || 0).toLocaleString("pt-BR")} / {t.topics.toLocaleString("pt-BR")}
+                </span>
                 <button
                   className="ctrl-btn"
                   style={{ width: 36, height: 36, fontSize: 15 }}
@@ -712,32 +732,36 @@ function MetaCard({
                 >
                   &minus;
                 </button>
-                <span>
-                  {t.done || 0} / {t.topics}
-                </span>
-                <button
-                  className={"ctrl-btn" + (feita ? "" : " ok")}
-                  style={{ width: 36, height: 36, fontSize: 15 }}
-                  onClick={() => onDone((t.done || 0) + 1)}
-                  title="Mais um"
-                  aria-label="Mais um"
-                >
-                  +
-                </button>
               </div>
-            </>
-          )}
-          <textarea
-            className="mk-e-name"
-            placeholder="+ anotação"
-            defaultValue={t.nota || ""}
-            rows={t.nota ? 3 : 1}
-            style={{ width: "100%", marginTop: 10, resize: "vertical" }}
-            onBlur={(e) => {
-              if (e.target.value !== (t.nota || "")) onNota(e.target.value);
-            }}
-          />
-      </>
+            )}
+            <div className="routine-meta-line" style={{ marginTop: 6 }}>
+              <span
+                className="rc-fact"
+                style={{ color: urgCor }}
+                title={d >= 0 ? `faltam ${d} dia(s)` : `atrasada ${Math.abs(d)} dia(s)`}
+              >
+                <Icon name="countdown" size={13} /> {t.date.split("-").reverse().join("/")} ·{" "}
+                {d >= 0 ? `${d}d` : `-${Math.abs(d)}d`}
+              </span>
+              {pace && (
+                <span className="rc-fact" title="Ritmo necessário">
+                  <b style={{ fontFamily: "'Lato',sans-serif" }}>&Sigma;</b> {pace.txt}
+                </span>
+              )}
+            </div>
+            <textarea
+              className="mk-e-name"
+              placeholder="+ anotação"
+              defaultValue={t.nota || ""}
+              rows={t.nota ? 3 : 1}
+              style={{ width: "100%", marginTop: 10, resize: "vertical" }}
+              onBlur={(e) => {
+                if (e.target.value !== (t.nota || "")) onNota(e.target.value);
+              }}
+            />
+          </div>
+        </div>
+      </SwipeItem>
     </div>
   );
 }
@@ -831,37 +855,6 @@ function MetaPrazoForm({
         </div>
 
         <div className="mf-row">
-          <div className="mf-cell">
-            <span className="mf-ico" title="Prazo">
-              <Icon name="clock" size={17} />
-            </span>
-            <input
-              type="date"
-              aria-label="Prazo"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-            />
-          </div>
-          <div className="mf-cell" style={{ flex: "0 1 auto" }}>
-            <span className="mf-ico" title="Peso no boletim">
-              <Icon name="tag" size={17} />
-            </span>
-            <div className="type-toggle tagval-pills">
-              {TAGS.map((v, i) => (
-                <span
-                  key={v}
-                  className={tag === v ? "active" : ""}
-                  title={TAG_LABEL[v]}
-                  onClick={() => setTag(v)}
-                >
-                  {i}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mf-row">
           <div className="mf-cell" style={{ flex: "0 0 auto" }}>
             <span className="mf-ico" title="Quantidade (opcional)">
               <Icon name="hashtag" size={17} />
@@ -871,7 +864,7 @@ function MetaPrazoForm({
               inputMode="numeric"
               min={1}
               placeholder="ex.: 4"
-              style={{ width: 84 }}
+              style={{ width: 74 }}
               aria-label="Quantos itens"
               value={qtd}
               onChange={(e) => setQtd(e.target.value)}
@@ -892,6 +885,30 @@ function MetaPrazoForm({
         </div>
 
         <div className="mf-row">
+          <span className="mf-ico" title="Peso no boletim">
+            <Icon name="ticket" size={17} />
+          </span>
+          <div className="type-toggle mf-wide">
+            {TAGS.map((v) => (
+              <span key={v} className={tag === v ? "active" : ""} onClick={() => setTag(v)}>
+                {TAG_LABEL[v].toLowerCase()}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="mf-row">
+          <div className="mf-cell" style={{ flex: "0 1 auto" }}>
+            <span className="mf-ico" title="Prazo">
+              <Icon name="calendar" size={17} />
+            </span>
+            <input
+              type="date"
+              aria-label="Prazo"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+            />
+          </div>
           <div className="mf-cell">
             <span className="mf-ico" title="Áreas">
               <Icon name="briefcase" size={17} />
@@ -913,50 +930,40 @@ function MetaPrazoForm({
                   </span>
                 );
               })}
+              <input
+                type="text"
+                className="mf-area-nova"
+                placeholder="+ área"
+                aria-label="Nova área"
+                value={novaArea}
+                onChange={(e) => setNovaArea(e.target.value)}
+                onBlur={addNovaArea}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addNovaArea();
+                  }
+                }}
+              />
             </div>
           </div>
         </div>
 
         <div className="mf-row">
-          <span className="mf-ico" style={{ visibility: "hidden" }}>
-            <Icon name="briefcase" size={17} />
+          <span className="mf-ico" title="Dias para trabalhar (nenhum marcado = todo dia)">
+            <Icon name="bell" size={17} />
           </span>
-          <input
-            type="text"
-            className="mf-grow"
-            placeholder="nova área"
-            aria-label="Nova área"
-            value={novaArea}
-            onChange={(e) => setNovaArea(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addNovaArea();
-              }
-            }}
-          />
-          <button className="icon-btn" title="Adicionar área" aria-label="Adicionar área" onClick={addNovaArea}>
-            <Icon name="plus" size={14} />
-          </button>
-        </div>
-
-        <div className="mf-row">
-          <div className="mf-cell">
-            <span className="mf-ico" title="Dias para trabalhar (nenhum marcado = todo dia)">
-              <Icon name="calendar" size={17} />
-            </span>
-            <div className="day-chips mf-grow">
-              {DIAS_ABREV.map((lbl, d) => (
-                <span
-                  key={d}
-                  className={"day-chip" + (dias.includes(d) ? " active" : "")}
-                  title={lbl}
-                  onClick={() => setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))}
-                >
-                  {lbl.charAt(0).toUpperCase()}
-                </span>
-              ))}
-            </div>
+          <div className="day-chips mf-grow">
+            {DIAS_ABREV.map((lbl, d) => (
+              <span
+                key={d}
+                className={"day-chip" + (dias.includes(d) ? " active" : "")}
+                title={lbl}
+                onClick={() => setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))}
+              >
+                {lbl.charAt(0).toUpperCase()}
+              </span>
+            ))}
           </div>
         </div>
 

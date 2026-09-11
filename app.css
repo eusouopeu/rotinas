@@ -751,11 +751,29 @@
     background:var(--card-2); border:1.5px solid var(--line); border-radius:9px; color:var(--sub); cursor:pointer;
   }
   .mf-toggle-btn.on{ background:var(--caneta); border-color:transparent; color:var(--on-caneta); }
+  .type-toggle.mf-wide{ flex:1 1 0; min-width:0; }
+  .type-toggle.mf-wide span{ flex:1 1 0; text-align:center; }
+  /* campo de área nova: mora dentro da caixa de chips, sem moldura própria */
+  .mf-area-nova{ flex:1 1 70px; min-width:60px; background:none !important; border:none !important;
+    padding:4px 2px !important; font-size:11.5px !important; }
   .mf-areas{
     background:var(--card-2); border:1.5px solid var(--line); border-radius:9px;
     padding:5px 8px; min-height:34px; align-items:center;
   }
   .meta-form .day-chips{ margin-top:0; }
+
+  /* ---------- CARDS DE META (prazo e recorrente) ----------
+     Mesma anatomia do card de rotina: bolinha da área + nome, uma linha de
+     fatos com ícone (.rc-fact) e o contador embaixo. O card de verdade é o
+     .meta-card-inner — o .meta-card é só a faixa do swipe. */
+  .meta-card.dragging{ opacity:.45; }
+  .meta-card-inner{ margin-bottom:0; }
+  .meta-card-title{
+    display:flex; align-items:center; margin:0; font-family:'Lato', sans-serif;
+    font-size:18.5px; font-weight:400; cursor:pointer;
+  }
+  .meta-card .meta-peso{ color:var(--caneta); font-weight:600; }
+  .meta-count{ font-family:'Lato', sans-serif; font-size:19px; font-weight:700; }
 
   /* ---------- TAGS & WIKILINKS ---------- */
   .tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }

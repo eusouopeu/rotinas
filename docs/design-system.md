@@ -2,7 +2,9 @@
 
 Use tokens CSS, nunca cor hardcoded. Tema claro é padrão; escuro é `body.dark`. Primário é `var(--caneta)` sólido, sem gradiente. Superfícies usam borda 1.5px `var(--line)`, sem sombra decorativa; exceções: indicador de DnD e janelas always-on-top. Ao mudar tema, sincronize `theme-color`, manifest e Electron.
 
-Formulários de meta (prazo e recorrente, React): usam `.meta-form` no `.confirm-box` — linhas `.mf-row` de ícone (`.mf-ico`) + controle, sem rótulos empilhados. Peso vira pílulas 0–3 (`.type-toggle`, `title` com o rótulo do peso), negativa/pontua viram `.mf-toggle-btn` (menos/check) e o lembrete da recorrente liga sozinho quando as duas horas estão preenchidas. Reaproveite essas classes em vez de criar variantes.
+Formulários de meta (prazo e recorrente, React): usam `.meta-form` no `.confirm-box` — linhas `.mf-row` de ícone (`.mf-ico`) + controle, sem rótulos empilhados. Peso é uma fileira `.type-toggle.mf-wide` (nenhum/baixo/médio/alto) na linha do ícone de ticket; negativa, pontua e lembrete viram `.mf-toggle-btn` (menos/check); a área nova é digitada dentro da própria caixa de chips (`.mf-area-nova`).
+
+Cards de meta (React): mesma anatomia do card de rotina — bolinha da área + nome (`.meta-card-title`, clique abre o editor), linha de fatos `.routine-meta-line`/`.rc-fact` (peso, frequência ou dias, prazo, ritmo) e contador `.cd-topics` com `.meta-count`. O card de verdade é `.meta-card-inner`; `.meta-card` é só a faixa do `SwipeItem` (arrastar para excluir/duplicar). Em meta negativa o `+` fica à esquerda e o número vai a `var(--erro)` no limite. Reaproveite essas classes em vez de criar variantes.
 
 Componentes: `.icon-btn` é o padrão 34px; `.icon-btn.borderless` só remove aparência, não alvo; `.btn-primary`, `.btn-cancel`, `.btn-confirm`, `.btn-danger-outline`, `.link-btn` já existem. Reutilize-os. No legado ícones são entidades HTML, não emoji literal/SVG. Priorize ícone quando a semântica estiver clara, mas não sacrifique acessibilidade.
 
