@@ -6,13 +6,29 @@
 import { create } from "zustand";
 import { uid } from "../lib/uid";
 import { createNotesSlice } from "./slices/notesSlice";
-import { bootStorage, isNative, load, save } from "../lib/storage";
+import { createPlayerSlice } from "./slices/playerSlice";
+import { createMetasSlice } from "./slices/metasSlice";
+import { createAgendaSlice } from "./slices/agendaSlice";
+import { createBackupSlice } from "./slices/backupSlice";
+import {
+  algumSnoozeAtivo,
+  autoBackupNative,
+  novoDraft,
+  pedirPermissaoNotificacao,
+  recorrentesAtuais,
+  syncCompromissoNotifications,
+  syncMetaRecNotifications,
+  syncRoutineNotifications,
+} from "./shared";
+
+// Re-exportado por compatibilidade: components/AlarmesCard.tsx importa daqui
+// desde antes da extração para store/shared.ts.
+export { recorrentesAtuais };
+import { bootStorage, load, save } from "../lib/storage";
 import { getTimerOverlayBridge, overlayHide } from "../lib/nativeBridge";
-import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
-import { notifyDigestSemanal, planoNotificacaoCompromissos, planoNotificacaoMetaRec, planoNotificacaoRotinas } from "../lib/notifications";
-import { sincronizarPontosCartao, descreditarCartao } from "../lib/scoring";
+import { ensureTimerAlertChannels, notifyDigestSemanal } from "../lib/notifications";
 import { marcarSemanaVista as marcarSemanaVistaLib } from "../lib/semanaFechada";
-import { BADGE_COR, BADGE_NOME, K_AUTOBAK, K_DATAFOLDER, K_HORASBUDGET, K_NAOFEITAS } from "../lib/constants";
+import { BADGE_COR, BADGE_NOME, K_HORASBUDGET, K_NAOFEITAS } from "../lib/constants";
 import {
   K_COMPROMISSOS,
   K_DIAKANBAN,
@@ -24,10 +40,13 @@ import {
   K_HISTORY,
   K_HOMEVIEW,
   K_LASTBACKUP,
-  K_METASSUBVIEWSEL,
   K_NOTES,
   K_NUDGE,
   K_NUDGEDAYS,
+  K_NUDGEMETAS,
+  K_NUDGESTREAK,
+  K_SOMMODO,
+  K_VIBRAR,
   K_CRONOMODO,
   K_OVERLAY,
   K_ROUTINES,
@@ -39,54 +58,25 @@ import {
   K_WEEKSTART,
 } from "../lib/constants";
 import {
-  BACKUP_VERSION,
-  mergeById,
-  mergeByIdLoose,
-  mergeDiario,
-  mergeHistory,
-  mergeSnoozes,
-  prepararModeloImportado,
-  prepararRotinaImportada,
-  sanitizeBackup,
   type BackupPayload,
 } from "../lib/backup";
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import type { MatrixPreset } from "../lib/templates";
 import { novoDraftSchedule } from "../lib/schedule";
 import {
-  adiarEtapaPlayer,
-  freshExState,
-  limparNaoFeitaMap,
-  marcarNaoFeitaMap,
-  moverGrupoPlayer,
-  naoFeitasDe,
-  novoPlayerState,
   podarNaoFeitasDeOutrosDias,
   type NaoFeitasMap,
   type PlayerState,
-  type StepActual,
 } from "../lib/player";
-import { finishCue, stepTransitionCue } from "../lib/haptics";
+import type { SomModo } from "../lib/sound";
+import { checarNudges } from "../lib/nudge";
+import { checkStorageWarning } from "../lib/storageWarning";
 import {
-  ajustarProgressoMetaRec,
-  duplicarMetaRec,
-  estornarMeta,
   loadMetasSubviewSel,
-  metaRecExcesso,
-  metaRecFeitas,
-  sincronizarPontosMeta,
-  toggleMetasSubview,
   type MetasSubview,
 } from "../lib/metas";
 import {
-  areaDaRotina,
   avancarGamificacaoAteAgora,
-  desfazerConclusao,
-  estornarPenalidadesMetaRec,
-  registrarConclusaoStep,
-  sincronizarPenalidadeMetaRec,
-  sincronizarPontosMetaRec,
-  totalPlanejadoSegundos,
 } from "../lib/scoring";
 import type { HistoryEntry } from "../lib/history";
 import type {
@@ -108,69 +98,10 @@ import type {
   Tag,
 } from "../lib/types";
 
-/** Alguma pausa de agenda (K_SNOOZES) cobre o instante `agora`? Porta de
- * agendaSnoozed (index.html:5259-5265). */
-function algumSnoozeAtivo(snoozes: Snooze[], agora = Date.now()): boolean {
-  return snoozes.some((s) => agora >= s.from && agora <= s.to);
-}
-
-function isCountdownDoc(d: AnyTemplateDoc): d is CountdownDoc {
-  return d.type === "countdown";
-}
-
-/** Lê `recorrentes` do doc de metas mais recente sem criar um doc vazio
- * (diferente de `metaDoc()`, que cria) — usado só para (re)sincronizar
- * notificação, onde nada precisa existir se o usuário não tem metas. */
-export function recorrentesAtuais(templates: AnyTemplateDoc[]): MetaRecorrente[] {
-  const doc = templates.filter(isCountdownDoc).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
-  return doc?.recorrentes || [];
-}
-
-function criarMetaDoc(): CountdownDoc {
-  return {
-    id: uid(),
-    type: "countdown",
-    title: "Metas",
-    targets: [],
-    recorrentes: [],
-    updatedAt: Date.now(),
-    createdAt: Date.now(),
-  };
-}
-
 type Theme = "auto" | "light" | "dark";
 
 /** Superfície do cronômetro fora do app (Android). Ver `cronometroModo`. */
 export type CronometroModo = "off" | "barra" | "bolha";
-
-/** Pede POST_NOTIFICATIONS pelo plugin LocalNotifications (mesma ponte já usada
- * pelas notificações agendadas). Fora do Android, ou sem o plugin de pé, deixa
- * passar: quem decide se algo aparece é o próprio sistema. */
-async function pedirPermissaoNotificacao(): Promise<boolean> {
-  const LN = isNative ? window.Capacitor?.Plugins.LocalNotifications : undefined;
-  if (!LN) return true;
-  try {
-    const atual = await LN.checkPermissions();
-    if (atual.display === "granted") return true;
-    const r = await LN.requestPermissions?.();
-    return !r || r.display === "granted";
-  } catch {
-    return true;
-  }
-}
-
-function novoDraft(): Routine {
-  return {
-    id: uid(),
-    name: "",
-    sound: "mudo",
-    steps: [{ id: uid(), name: "", seconds: 60, type: "timer" }],
-    schedule: novoDraftSchedule(),
-    restSeconds: 0,
-    tagValor: "medio",
-    createdAt: Date.now(),
-  };
-}
 
 export interface AppState {
   booted: boolean;
@@ -183,6 +114,10 @@ export interface AppState {
   soHoje: boolean;
   digestSemanal: boolean;
   nudge: boolean;
+  nudgeMetas: boolean;
+  nudgeStreak: boolean;
+  somModo: SomModo;
+  vibracao: boolean;
   /** Onde o cronômetro aparece fora do app (Android, K_CRONOMODO) — local-only,
    * nunca em backup. "off" = em lugar nenhum; "barra" = só a notificação em
    * primeiro plano com chronometer, na barra de status/lock screen (como o
@@ -243,6 +178,11 @@ export interface AppState {
   setSoHoje: (v: boolean) => void;
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
+  setNudgeMetas: (v: boolean) => void;
+  setNudgeStreak: (v: boolean) => void;
+  setSomModo: (m: SomModo) => void;
+  setVibracao: (v: boolean) => void;
+  checarNudgesAgora: () => void;
   /** Resolve `false` sem persistir se a permissão necessária ao modo for negada
    * (sobreposição para "bolha", notificações para "barra"). */
   setCronometroModo: (m: CronometroModo) => Promise<boolean>;
@@ -383,6 +323,10 @@ export interface AppState {
 
 export const useAppStore = create<AppState>((set, get, api) => ({
   ...createNotesSlice(set, get, api),
+  ...createPlayerSlice(set, get, api),
+  ...createMetasSlice(set, get, api),
+  ...createAgendaSlice(set, get, api),
+  ...createBackupSlice(set, get, api),
   booted: false,
   view: { tab: "home", screen: "home" },
   routines: [],
@@ -393,6 +337,10 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   soHoje: false,
   digestSemanal: true,
   nudge: true,
+  nudgeMetas: true,
+  nudgeStreak: true,
+  somModo: "suave",
+  vibracao: true,
   cronometroModo: "off",
   nudgeDias: [5],
   sidebarCollapsed: false,
@@ -446,6 +394,10 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       soHoje: load<boolean>(K_SOHOJE, false),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
+      nudgeMetas: load<boolean>(K_NUDGEMETAS, true),
+      nudgeStreak: load<boolean>(K_NUDGESTREAK, true),
+      somModo: load<SomModo>(K_SOMMODO, "suave"),
+      vibracao: load<boolean>(K_VIBRAR, true),
       cronometroModo: load<CronometroModo>(K_CRONOMODO, load<boolean>(K_OVERLAY, false) ? "bolha" : "off"),
       nudgeDias: load<number[]>(K_NUDGEDAYS, [5]),
       sidebarCollapsed: load<boolean>(K_SIDEBARCOLLAPSED, false),
@@ -465,6 +417,15 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       booted: true,
     });
     autoBackupNative(get());
+    // Canais Android do alerta de fim de etapa em segundo plano
+    // (index.html:2687-2692) — idempotente, criado a cada boot como no legado.
+    void ensureTimerAlertChannels();
+    // Aviso de volume de dados (index.html:3767, checkStorageWarning) — o app
+    // é local-first, estourar a cota é perda silenciosa.
+    const avisoStorage = checkStorageWarning();
+    if (avisoStorage) setTimeout(() => get().showAlertBanner(avisoStorage), 1200);
+    // Avisos proativos (ritmo/metas/streak) — ver checarNudgesAgora.
+    setTimeout(() => get().checarNudgesAgora(), 1500);
     const snoozed = algumSnoozeAtivo(get().snoozes);
     syncCompromissoNotifications(get().compromissos, snoozed);
     syncRoutineNotifications(routines, snoozed);
@@ -611,6 +572,37 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     save(K_NUDGE, nudge);
     set({ nudge });
   },
+  setNudgeMetas: (nudgeMetas) => {
+    save(K_NUDGEMETAS, nudgeMetas);
+    set({ nudgeMetas });
+  },
+  setNudgeStreak: (nudgeStreak) => {
+    save(K_NUDGESTREAK, nudgeStreak);
+    set({ nudgeStreak });
+  },
+  setSomModo: (somModo) => {
+    save(K_SOMMODO, somModo);
+    set({ somModo });
+  },
+  setVibracao: (vibracao) => {
+    save(K_VIBRAR, vibracao);
+    set({ vibracao });
+  },
+  /* Ponto único do motor de nudge (lib/nudge.ts): chamado no boot e na volta
+     do app ao primeiro plano — cada aviso tem sua marca de "já avisei hoje",
+     então chamar em excesso não duplica nada. */
+  checarNudgesAgora: () => {
+    const st = get();
+    if (!st.booted) return;
+    checarNudges({
+      routines: st.routines,
+      history: st.history,
+      gam: st.gam,
+      metas: st.metaDoc().targets || [],
+      weekStart: st.weekStart,
+      onBanner: (texto) => get().showAlertBanner(texto),
+    });
+  },
   setCronometroModo: async (m) => {
     if (m === "bolha") {
       // só a bolha desenha por cima de outros apps; a notificação da barra não
@@ -706,27 +698,6 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     set({ gam: novo, routines });
   },
 
-  // index.html:11279-11829 (startPlayer/togglePause/advanceStep/goPrevStep/
-  // finishRoutine) — etapas "timer" e "exercicio" (ver comentário no topo de
-  // lib/player.ts para o que ainda falta).
-  startPlayer: (routineId) => {
-    const routine = get().routines.find((r) => r.id === routineId);
-    if (!routine) return;
-    // Repescagem (index.html:11284-11296): se alguma etapa ficou "não feita"
-    // hoje, a rotina volta só com as pendentes.
-    const pendentes = naoFeitasDe(get().naoFeitas, routineId, localKey());
-    const resultado = novoPlayerState(routine, pendentes);
-    if (!resultado) return;
-    const { playerState, repescagem } = resultado;
-    const n = playerState.steps.filter((s) => !s.isRest).length;
-    set({
-      playerState,
-      view: { tab: "home", screen: "player" },
-      playerBanner: repescagem ? `Repescagem: só ${n} etapa${n > 1 ? "s" : ""} não feita${n > 1 ? "s" : ""} de hoje` : null,
-    });
-  },
-  clearPlayerBanner: () => set({ playerBanner: null }),
-
   // Porta de showAlertBanner/showCelebrationBanner/showUndoBanner
   // (index.html:2484-2508, 9963-9977) — o timer de auto-esconder e a
   // animação de saída moram no componente (GlobalBanner.tsx), não aqui; a
@@ -736,835 +707,4 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   showUndoBanner: (text, onUndo) => set({ undoBanner: { text, onUndo } }),
   dismissBanner: () => set({ banner: null }),
   dismissUndoBanner: () => set({ undoBanner: null }),
-  togglePause: () => {
-    const p = get().playerState;
-    if (!p) return;
-    if (!p.paused) {
-      set({ playerState: { ...p, paused: true, pausedAt: Date.now(), pauseCount: p.pauseCount + 1 } });
-    } else {
-      const delta = Date.now() - (p.pausedAt || Date.now());
-      set({
-        playerState: {
-          ...p,
-          paused: false,
-          pausedAt: null,
-          pausedTotalMs: p.pausedTotalMs + delta,
-          stepEndTs: p.stepEndTs != null ? p.stepEndTs + delta : null,
-          stepStart: p.stepStart + delta,
-        },
-      });
-    }
-  },
-  advanceStep: (skipped = false, naoFeita = false) => {
-    const p = get().playerState;
-    if (!p) return;
-    const routine = get().routines.find((r) => r.id === p.routineId);
-    const step = p.steps[p.idx];
-    const endRef = p.paused && p.pausedAt ? p.pausedAt : Date.now();
-    const elapsed = Math.round((endRef - p.stepStart) / 1000);
-
-    // Credita a etapa concluída (index.html:11462-11507) — descanso e etapa
-    // pulada/não-feita não pontuam.
-    let gam = get().gam;
-    let pontosGanhos = p.pontosGanhos;
-    let actual: StepActual;
-    if (step.type === "exercicio") {
-      // Pontuação proporcional a séries COMPLETAS, não a tempo gasto: cada
-      // série "vale" o descanso planejado (index.html:11476-11491).
-      const rest = routine?.restSeconds || 120;
-      const results = p.ex?.results || [];
-      actual = {
-        id: step.id,
-        tag: (step.tagValor || routine?.tagValor || "medio") as Tag,
-        name: step.name,
-        isRest: false,
-        planned: (step.sets || 1) * rest,
-        actual: skipped ? 0 : results.length * rest,
-        skipped,
-        naoFeita,
-        exercicioId: step.exercicioId,
-        series: results,
-      };
-    } else {
-      actual = {
-        id: step.id,
-        tag: (step.tagValor || routine?.tagValor || "medio") as Tag,
-        name: step.name,
-        isRest: !!step.isRest,
-        planned: step.type === "timer" ? step.seconds ?? null : null,
-        actual: skipped ? 0 : elapsed,
-        skipped,
-        naoFeita,
-      };
-    }
-    // concluir de verdade tira a etapa da repescagem do dia (index.html:11512).
-    let naoFeitas = get().naoFeitas;
-    if (!skipped && !step.isRest) {
-      naoFeitas = limparNaoFeitaMap(naoFeitas, p.routineId, step.id, localKey());
-      if (naoFeitas !== get().naoFeitas) save(K_NAOFEITAS, naoFeitas);
-    }
-    if (routine && !step.isRest && !skipped && actual.planned) {
-      const r = registrarConclusaoStep(
-        get().routines,
-        gam,
-        {
-          routineId: routine.id,
-          stepId: step.id,
-          tag: actual.tag,
-          minutos: actual.planned / 60,
-          area: areaDaRotina(routine, gam),
-          rotulo: routine.name,
-        },
-        new Date()
-      );
-      gam = r.gam;
-      if (r.entry) {
-        actual = { ...actual, gamItemId: r.entry.itemId };
-        pontosGanhos += r.entry.pontos;
-      }
-    }
-    const stepActuals = [...p.stepActuals];
-    stepActuals[p.idx] = actual;
-    save(K_GAMIFICACAO, gam);
-
-    if (p.idx >= p.steps.length - 1) {
-      // Fim da rotina (finishRoutine, index.html:11828-11884) — sem journaling
-      // ainda (sem UI de anotações por etapa nesta fase).
-      finishCue();
-      if (routine) {
-        const grossSec = Math.round((Date.now() - p.startedAt) / 1000);
-        const entry: HistoryEntry = {
-          date: localKey(new Date()),
-          ts: Date.now(),
-          startedTs: p.startedAt,
-          routineId: routine.id,
-          routineName: routine.name,
-          plannedSec: totalPlanejadoSegundos(routine),
-          actualSec: Math.max(0, grossSec - Math.round(p.pausedTotalMs / 1000)),
-          pauses: p.pauseCount,
-          pausedSec: Math.round(p.pausedTotalMs / 1000),
-          skippedCount: stepActuals.filter((a) => a?.skipped).length,
-          steps: stepActuals.filter((a): a is StepActual => !!a),
-        };
-        const history = [...get().history, entry];
-        save(K_HISTORY, history);
-        set({ history, gam, naoFeitas, playerState: null, view: { tab: "home", screen: "done" } });
-      } else {
-        set({ gam, naoFeitas, playerState: null, view: { tab: "home", screen: "done" } });
-      }
-      return;
-    }
-
-    stepTransitionCue();
-    const idx = p.idx + 1;
-    const nextStep = p.steps[idx];
-    const now = Date.now();
-    set({
-      gam,
-      naoFeitas,
-      playerState: {
-        ...p,
-        idx,
-        stepActuals,
-        pontosGanhos,
-        stepStart: now,
-        stepEndTs: nextStep.type === "timer" ? now + (nextStep.seconds || 0) * 1000 : null,
-        ex: nextStep.type === "exercicio" ? freshExState() : null,
-        overtimeCueFired: false,
-      },
-    });
-  },
-  goPrevStep: () => {
-    const p = get().playerState;
-    if (!p || p.idx <= 0) return;
-    const idx = p.idx - 1;
-    const step = p.steps[idx];
-    const now = Date.now();
-    // "voltar" desfaz a etapa que estava concluída ali — estorna os pontos
-    // pra ela poder ser refeita (index.html:11804-11826).
-    const desfeita = p.stepActuals[idx];
-    let gam = get().gam;
-    let pontosGanhos = p.pontosGanhos;
-    // voltar numa etapa marcada como "não feita" apaga a anotação da
-    // repescagem também (index.html:11819-11820) — ela volta a ser tratada
-    // como parte normal da rotina, não mais pendente do dia.
-    let naoFeitas = get().naoFeitas;
-    if (desfeita?.naoFeita) {
-      naoFeitas = limparNaoFeitaMap(naoFeitas, p.routineId, desfeita.id, localKey());
-      if (naoFeitas !== get().naoFeitas) save(K_NAOFEITAS, naoFeitas);
-    }
-    if (desfeita?.gamItemId) {
-      const creditado = gam.semanaAtual?.concluidos.find((c) => c.itemId === desfeita.gamItemId);
-      if (creditado) pontosGanhos = Math.max(0, pontosGanhos - creditado.pontos);
-      gam = desfazerConclusao(gam, desfeita.gamItemId);
-      save(K_GAMIFICACAO, gam);
-    }
-    const stepActuals = [...p.stepActuals];
-    stepActuals[idx] = undefined;
-    set({
-      gam,
-      naoFeitas,
-      playerState: {
-        ...p,
-        idx,
-        stepActuals,
-        pontosGanhos,
-        paused: false,
-        pausedAt: null,
-        stepStart: now,
-        stepEndTs: step.type === "timer" ? now + (step.seconds || 0) * 1000 : null,
-        ex: step.type === "exercicio" ? freshExState() : null,
-        overtimeCueFired: false,
-      },
-    });
-  },
-  exitPlayer: () => set({ playerState: null, view: { tab: "home", screen: "home" } }),
-
-  naoFazerEtapaAtual: () => {
-    const p = get().playerState;
-    if (!p) return;
-    const step = p.steps[p.idx];
-    if (step.isRest) return;
-    const naoFeitas = marcarNaoFeitaMap(get().naoFeitas, p.routineId, step.id, localKey());
-    save(K_NAOFEITAS, naoFeitas);
-    set({ naoFeitas, playerBanner: `"${step.name}" ficou como não feita — refaça hoje pela rotina` });
-    get().advanceStep(true, true);
-  },
-
-  adiarEtapaAtual: () => {
-    const p = get().playerState;
-    if (!p) return;
-    const resultado = adiarEtapaPlayer(p.steps, p.idx);
-    if (!resultado) {
-      set({ playerBanner: "Não há próxima etapa para adiar" });
-      return;
-    }
-    stepTransitionCue();
-    const novoStep = resultado.steps[p.idx];
-    const now = Date.now();
-    set({
-      playerBanner: `"${resultado.adiadaNome}" vem depois de "${resultado.proximaNome}"`,
-      playerState: {
-        ...p,
-        steps: resultado.steps,
-        paused: false,
-        pausedAt: null,
-        stepStart: now,
-        stepEndTs: novoStep.type === "timer" ? now + (novoStep.seconds || 0) * 1000 : null,
-        ex: novoStep.type === "exercicio" ? freshExState() : null,
-        overtimeCueFired: false,
-      },
-    });
-  },
-
-  reiniciarTimerEtapaAtual: () => {
-    const p = get().playerState;
-    if (!p) return;
-    const step = p.steps[p.idx];
-    if (step.type !== "timer") return;
-    const now = Date.now();
-    set({
-      playerState: {
-        ...p,
-        paused: false,
-        pausedAt: null,
-        stepStart: now,
-        stepEndTs: now + (step.seconds || 0) * 1000,
-        overtimeCueFired: false,
-      },
-    });
-  },
-
-  reordenarEtapasPlayer: (gi, alvoGi) => {
-    const p = get().playerState;
-    if (!p) return;
-    const novo = moverGrupoPlayer(p.steps, gi, alvoGi);
-    if (!novo) return;
-    set({ playerState: { ...p, steps: novo } });
-  },
-
-  concluirSerieExercicio: (reps, peso) => {
-    const p = get().playerState;
-    if (!p || !p.ex || p.ex.phase !== "set") return;
-    const step = p.steps[p.idx];
-    if (step.type !== "exercicio") return;
-    const pesoUsado = Math.max(0, peso || 0);
-    const results = [...p.ex.results, { reps: Math.max(0, Math.round(reps || 0)), peso: pesoUsado }];
-    // a carga digitada vira a nova predefinição do exercício, pra próxima
-    // sessão já sugerir esse peso (index.html:11378-11383)
-    if (pesoUsado > 0 && step.exercicioId) {
-      const exercicios = get().exercicios.map((e) => (e.id === step.exercicioId ? { ...e, pesoAtual: pesoUsado } : e));
-      save(K_EXERCICIOS, exercicios);
-      set({ exercicios });
-    }
-    const isLast = p.ex.setIdx >= (step.sets || 1) - 1;
-    if (isLast) {
-      set({ playerState: { ...p, ex: { ...p.ex, results } } });
-      get().advanceStep();
-      return;
-    }
-    const routine = get().routines.find((r) => r.id === p.routineId);
-    stepTransitionCue();
-    set({
-      playerState: {
-        ...p,
-        ex: { setIdx: p.ex.setIdx + 1, phase: "rest", results, restEndTs: Date.now() + (routine?.restSeconds || 120) * 1000 },
-      },
-    });
-  },
-  pularDescansoExercicio: () => {
-    const p = get().playerState;
-    if (!p || !p.ex || p.ex.phase !== "rest") return;
-    set({ playerState: { ...p, ex: { ...p.ex, phase: "set", restEndTs: null } } });
-  },
-  voltarSerieExercicio: () => {
-    const p = get().playerState;
-    if (!p || !p.ex || !p.ex.results.length) return;
-    const results = p.ex.results.slice(0, -1);
-    set({ playerState: { ...p, ex: { setIdx: Math.max(0, p.ex.setIdx - 1), phase: "set", results, restEndTs: null } } });
-  },
-
-  upsertExercicio: (ex) => {
-    const nome = ex.nome.trim();
-    const pesoAtual = Math.max(0, ex.pesoAtual || 0);
-    let saved: Exercicio;
-    let exercicios: Exercicio[];
-    if (ex.id) {
-      saved = { id: ex.id, nome, grupos: ex.grupos, pesoAtual };
-      exercicios = get().exercicios.map((e) => (e.id === ex.id ? saved : e));
-    } else {
-      saved = { id: uid(), nome, grupos: ex.grupos, pesoAtual };
-      exercicios = [...get().exercicios, saved];
-    }
-    save(K_EXERCICIOS, exercicios);
-    set({ exercicios });
-    return saved;
-  },
-  deleteExercicio: (id) => {
-    const exercicios = get().exercicios.filter((e) => e.id !== id);
-    save(K_EXERCICIOS, exercicios);
-    set({ exercicios });
-  },
-
-  setMetasSubview: (metasSubview) => {
-    save(K_METASSUBVIEWSEL, metasSubview);
-    set({ metasSubview });
-  },
-  toggleMetasSubviewState: (view) => {
-    const metasSubview = toggleMetasSubview(get().metasSubview, view);
-    save(K_METASSUBVIEWSEL, metasSubview);
-    set({ metasSubview });
-  },
-
-  // Metas (index.html:6403-6408, 8391+) — Prazos e Recorrentes (ver
-  // lib/metas.ts). `metaDoc()` acha-ou-cria o doc "countdown" dentro de
-  // `templates`, igual getOrCreateCountdownDoc, sem tocar nos outros tipos.
-  metaDoc: () => {
-    const existente = get()
-      .templates.filter(isCountdownDoc)
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
-    if (existente) {
-      if (!existente.targets) existente.targets = [];
-      if (!existente.recorrentes) existente.recorrentes = [];
-      return existente;
-    }
-    const doc = criarMetaDoc();
-    const templates = [...get().templates, doc];
-    save(K_TEMPLATES, templates);
-    set({ templates });
-    return doc;
-  },
-  addMeta: (dados) => {
-    const nome = dados.title.trim();
-    if (!nome || !dados.date) return;
-    const doc = get().metaDoc();
-    const meta: MetaTarget = { tagValor: "alto", ...dados, id: uid(), title: nome, createdAt: Date.now() };
-    const docNovo: CountdownDoc = { ...doc, targets: [...doc.targets, meta], updatedAt: Date.now() };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    set({ templates });
-  },
-  updateMeta: (id, patch) => {
-    const doc = get().metaDoc();
-    const alvo = doc.targets.find((t) => t.id === id);
-    if (!alvo) return;
-    let atualizado: MetaTarget = { ...alvo, ...patch };
-    let gam = get().gam;
-    if ("topics" in patch || "done" in patch || "tagValor" in patch || "date" in patch) {
-      const r = sincronizarPontosMeta(atualizado, gam);
-      atualizado = r.target;
-      gam = r.gam;
-    }
-    const docNovo: CountdownDoc = {
-      ...doc,
-      targets: doc.targets.map((t) => (t.id === id ? atualizado : t)),
-      updatedAt: Date.now(),
-    };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    save(K_GAMIFICACAO, gam);
-    set({ templates, gam });
-  },
-  setMetaDone: (id, done) => {
-    const doc = get().metaDoc();
-    const alvo = doc.targets.find((t) => t.id === id);
-    if (!alvo) return;
-    const clamped = Math.max(0, Math.min(alvo.topics ?? done, done));
-    get().updateMeta(id, { done: clamped });
-  },
-  deleteMeta: (id) => {
-    const doc = get().metaDoc();
-    const alvo = doc.targets.find((t) => t.id === id);
-    if (!alvo) return;
-    const { gam } = estornarMeta(alvo, get().gam);
-    const docNovo: CountdownDoc = { ...doc, targets: doc.targets.filter((t) => t.id !== id), updatedAt: Date.now() };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    save(K_GAMIFICACAO, gam);
-    set({ templates, gam });
-  },
-
-  addMetaRec: (params) => {
-    const titulo = params.titulo.trim();
-    if (!titulo) return;
-    const doc = get().metaDoc();
-    const nova: MetaRecorrente = {
-      id: uid(),
-      titulo,
-      tipo: params.tipo,
-      vezes: Math.max(1, params.vezes || 1),
-      area: params.area || null,
-      notif: params.notif || null,
-      negativa: !!params.negativa,
-      pontua: !!params.pontua,
-      tagValor: params.tagValor || "medio",
-      criadoEm: Date.now(),
-      progresso: null,
-    };
-    const docNovo: CountdownDoc = {
-      ...doc,
-      recorrentes: [...(doc.recorrentes || []), nova],
-      updatedAt: Date.now(),
-    };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    set({ templates });
-    syncMetaRecNotifications(docNovo.recorrentes || [], algumSnoozeAtivo(get().snoozes));
-  },
-  updateMetaRec: (id, patch) => {
-    const doc = get().metaDoc();
-    const alvo = (doc.recorrentes || []).find((r) => r.id === id);
-    if (!alvo) return;
-    const excessoAntes = alvo.negativa ? metaRecExcesso(alvo) : 0;
-    const feitasAntes = !alvo.negativa && alvo.pontua ? metaRecFeitas(alvo) : 0;
-
-    let atualizado: MetaRecorrente = { ...alvo, ...patch };
-    if (patch.vezes != null) atualizado.vezes = Math.max(1, patch.vezes);
-    let gam = get().gam;
-    const excessoDepois = atualizado.negativa ? metaRecExcesso(atualizado) : 0;
-    gam = sincronizarPenalidadeMetaRec(gam, atualizado, excessoAntes, excessoDepois, new Date(), get().routines);
-    const feitasDepois = !atualizado.negativa && atualizado.pontua ? metaRecFeitas(atualizado) : 0;
-    gam = sincronizarPontosMetaRec(gam, atualizado, feitasAntes, feitasDepois, new Date(), get().routines);
-
-    const docNovo: CountdownDoc = {
-      ...doc,
-      recorrentes: (doc.recorrentes || []).map((r) => (r.id === id ? atualizado : r)),
-      updatedAt: Date.now(),
-    };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    save(K_GAMIFICACAO, gam);
-    set({ templates, gam });
-    syncMetaRecNotifications(docNovo.recorrentes || [], algumSnoozeAtivo(get().snoozes));
-  },
-  ajustarMetaRec: (id, delta) => {
-    const doc = get().metaDoc();
-    const alvo = (doc.recorrentes || []).find((r) => r.id === id);
-    if (!alvo) return;
-    const { rec: atualizado, excessoAntes, excessoDepois, feitasAntes, feitasDepois } = ajustarProgressoMetaRec(alvo, delta);
-    let gam = get().gam;
-    if (atualizado.negativa) {
-      gam = sincronizarPenalidadeMetaRec(gam, atualizado, excessoAntes, excessoDepois, new Date(), get().routines);
-    }
-    if (!atualizado.negativa && atualizado.pontua) {
-      gam = sincronizarPontosMetaRec(gam, atualizado, feitasAntes, feitasDepois, new Date(), get().routines);
-    }
-    const docNovo: CountdownDoc = {
-      ...doc,
-      recorrentes: (doc.recorrentes || []).map((r) => (r.id === id ? atualizado : r)),
-      updatedAt: Date.now(),
-    };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    save(K_GAMIFICACAO, gam);
-    set({ templates, gam });
-  },
-  duplicarMetaRec: (id) => {
-    const doc = get().metaDoc();
-    const docNovo = duplicarMetaRec(doc, id, uid);
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    set({ templates });
-    syncMetaRecNotifications(docNovo.recorrentes || [], algumSnoozeAtivo(get().snoozes));
-  },
-  deleteMetaRec: (id) => {
-    const doc = get().metaDoc();
-    const alvo = (doc.recorrentes || []).find((r) => r.id === id);
-    if (!alvo) return;
-    const gam = estornarPenalidadesMetaRec(get().gam, id);
-    const docNovo: CountdownDoc = {
-      ...doc,
-      recorrentes: (doc.recorrentes || []).filter((r) => r.id !== id),
-      updatedAt: Date.now(),
-    };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    save(K_GAMIFICACAO, gam);
-    set({ templates, gam });
-    syncMetaRecNotifications(docNovo.recorrentes || [], algumSnoozeAtivo(get().snoozes));
-  },
-  reorderMetaRec: (fromIndex, toIndex) => {
-    const doc = get().metaDoc();
-    const recorrentes = [...(doc.recorrentes || [])];
-    if (fromIndex < 0 || fromIndex >= recorrentes.length || toIndex < 0 || toIndex >= recorrentes.length) return;
-    const [moved] = recorrentes.splice(fromIndex, 1);
-    recorrentes.splice(toIndex, 0, moved);
-    const docNovo: CountdownDoc = {
-      ...doc,
-      recorrentes,
-      updatedAt: Date.now(),
-    };
-    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
-    save(K_TEMPLATES, templates);
-    set({ templates });
-  },
-
-  // Diário (index.html K_DIARIO) — um texto por chave "escopo:período"
-  // (diarioChave). Só o texto simples nesta fase.
-  setDiarioTexto: (chave, texto) => {
-    const diario = { ...get().diario, [chave]: texto };
-    save(K_DIARIO, diario);
-    set({ diario });
-  },
-
-  addCompromisso: (title, date, time) => {
-    const t = title.trim();
-    if (!t) return;
-    const compromissos = [...get().compromissos, { id: uid(), title: t, date, time, notify: "nenhuma" as const, createdAt: Date.now() }];
-    save(K_COMPROMISSOS, compromissos);
-    set({ compromissos });
-    syncCompromissoNotifications(compromissos, algumSnoozeAtivo(get().snoozes));
-  },
-  toggleCompromisso: (id) => {
-    const compromissos = get().compromissos.map((c) => (c.id === id ? { ...c, feito: !c.feito } : c));
-    save(K_COMPROMISSOS, compromissos);
-    set({ compromissos });
-    syncCompromissoNotifications(compromissos, algumSnoozeAtivo(get().snoozes));
-  },
-  deleteCompromisso: (id) => {
-    const compromissos = get().compromissos.filter((c) => c.id !== id);
-    save(K_COMPROMISSOS, compromissos);
-    set({ compromissos });
-    syncCompromissoNotifications(compromissos, algumSnoozeAtivo(get().snoozes));
-  },
-
-  addSnooze: (dias) => {
-    const from = Date.now();
-    const snoozes = [...get().snoozes, { from, to: from + dias * 86400000 }];
-    save(K_SNOOZES, snoozes);
-    set({ snoozes });
-    const snoozed = algumSnoozeAtivo(snoozes);
-    syncCompromissoNotifications(get().compromissos, snoozed);
-    syncRoutineNotifications(get().routines, snoozed);
-    syncMetaRecNotifications(recorrentesAtuais(get().templates), snoozed);
-  },
-  resumeAgenda: () => {
-    const agora = Date.now();
-    const snoozes = get().snoozes.filter((s) => !(agora >= s.from && agora <= s.to));
-    save(K_SNOOZES, snoozes);
-    set({ snoozes });
-    syncCompromissoNotifications(get().compromissos, false);
-    syncRoutineNotifications(get().routines, false);
-    syncMetaRecNotifications(recorrentesAtuais(get().templates), false);
-  },
-
-  addDiaKanbanCard: (iso, text, hIni, hFim) => {
-    const t = text.trim();
-    if (!t) return;
-    const per = "dia:" + iso;
-    const ord = get().diaKanban.filter((c) => c.per === per).length;
-    const diaKanban = [...get().diaKanban, { id: uid(), text: t, col: "todo" as const, per, ord, hIni, hFim }];
-    save(K_DIAKANBAN, diaKanban);
-    set({ diaKanban });
-  },
-  upsertDiaKanbanCard: (iso, card) => {
-    const per = "dia:" + iso;
-    const text = card.text.trim();
-    if (!text) return;
-    // fim sem início não descreve nada; fim antes do início é engano
-    const hIni = card.hIni || "";
-    const hFim = hIni && card.hFim && card.hFim > hIni ? card.hFim : "";
-    let gam = get().gam;
-    let diaKanban;
-    if (card.id) {
-      const existente = get().diaKanban.find((c) => c.id === card.id);
-      let alvo: DiaKanbanCard | null = existente ? { ...existente, text, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null } : null;
-      // cartão já concluído que muda de peso/área precisa estornar antes: o
-      // crédito antigo foi calculado com os valores velhos (index.html:5229-5235)
-      const mudouPeso = existente && existente.col === "done" && (existente.tagValor !== card.tagValor || (existente.eixo ?? null) !== (card.eixo ?? null));
-      if (mudouPeso && existente) {
-        const desc = descreditarCartao(gam, existente);
-        gam = desc.gam;
-        alvo = { ...desc.card, text, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null };
-      }
-      if (alvo) {
-        const sinc = sincronizarPontosCartao(gam, alvo);
-        gam = sinc.gam;
-        alvo = sinc.card;
-      }
-      diaKanban = get().diaKanban.map((c) => (c.id === card.id ? (alvo as DiaKanbanCard) : c));
-    } else {
-      const ord = get().diaKanban.filter((c) => c.per === per).length;
-      diaKanban = [...get().diaKanban, { id: uid(), text, col: "todo" as const, per, ord, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null }];
-    }
-    save(K_DIAKANBAN, diaKanban);
-    save(K_GAMIFICACAO, gam);
-    set({ diaKanban, gam });
-  },
-  toggleDiaKanbanCard: (id) => {
-    const card = get().diaKanban.find((c) => c.id === id);
-    if (!card) return;
-    const toggled = { ...card, col: card.col === "done" ? ("todo" as const) : ("done" as const) };
-    const { gam, card: novoCard } = sincronizarPontosCartao(get().gam, toggled);
-    const diaKanban = get().diaKanban.map((c) => (c.id === id ? novoCard : c));
-    save(K_DIAKANBAN, diaKanban);
-    save(K_GAMIFICACAO, gam);
-    set({ diaKanban, gam });
-  },
-  deleteDiaKanbanCard: (id) => {
-    const card = get().diaKanban.find((c) => c.id === id);
-    const gam = card ? descreditarCartao(get().gam, card).gam : get().gam;
-    const diaKanban = get().diaKanban.filter((c) => c.id !== id);
-    save(K_DIAKANBAN, diaKanban);
-    save(K_GAMIFICACAO, gam);
-    set({ diaKanban, gam });
-  },
-
-  // Notas simples (index.html:9685-9847, 11038-11137). Sem editor contínuo
-  // (live preview), backlinks nem sinkChecked ainda — textarea simples.
-  backupSnapshot: () => {
-    const s = get();
-    return {
-      version: BACKUP_VERSION,
-      exportedAt: new Date().toISOString(),
-      routines: s.routines,
-      notes: s.notes,
-      history: s.history,
-      templates: s.templates,
-      diario: s.diario,
-      diaKanban: s.diaKanban,
-      compromissos: s.compromissos,
-      snoozes: s.snoozes,
-      exercicios: s.exercicios,
-    };
-  },
-  markBackupExported: () => {
-    const ts = Date.now();
-    save(K_LASTBACKUP, ts);
-    set({ lastBackupAt: ts });
-  },
-  importBackup: (dataRaw, mode) => {
-    const data = sanitizeBackup(dataRaw);
-    const s = get();
-    if (mode === "replace") {
-      const routines = Array.isArray(data.routines) ? (data.routines as Routine[]) : s.routines;
-      const notes = Array.isArray(data.notes) ? (data.notes as Note[]) : s.notes;
-      const history = Array.isArray(data.history) ? (data.history as HistoryEntry[]) : s.history;
-      const templates = Array.isArray(data.templates) ? (data.templates as AnyTemplateDoc[]) : s.templates;
-      const diario = data.diario && typeof data.diario === "object" ? data.diario : s.diario;
-      const diaKanban = Array.isArray(data.diaKanban) ? (data.diaKanban as DiaKanbanCard[]) : s.diaKanban;
-      const compromissos = Array.isArray(data.compromissos) ? (data.compromissos as Compromisso[]) : s.compromissos;
-      const snoozes = Array.isArray(data.snoozes) ? (data.snoozes as Snooze[]) : s.snoozes;
-      const exercicios = Array.isArray(data.exercicios) ? (data.exercicios as Exercicio[]) : s.exercicios;
-      save(K_ROUTINES, routines);
-      save(K_NOTES, notes);
-      save(K_HISTORY, history);
-      save(K_TEMPLATES, templates);
-      save(K_DIARIO, diario);
-      save(K_DIAKANBAN, diaKanban);
-      save(K_COMPROMISSOS, compromissos);
-      save(K_SNOOZES, snoozes);
-      save(K_EXERCICIOS, exercicios);
-      set({ routines, notes, history, templates, diario, diaKanban, compromissos, snoozes, exercicios });
-      const snoozed = algumSnoozeAtivo(snoozes);
-      syncCompromissoNotifications(compromissos, snoozed);
-      syncRoutineNotifications(routines, snoozed);
-      syncMetaRecNotifications(recorrentesAtuais(templates), snoozed);
-      return;
-    }
-    const routines = mergeById(s.routines, data.routines as Routine[] | undefined);
-    const notes = mergeById(s.notes, data.notes as Note[] | undefined);
-    const templates = mergeById(s.templates, data.templates as AnyTemplateDoc[] | undefined);
-    const history = mergeHistory(s.history, data.history as HistoryEntry[] | undefined);
-    const diario = mergeDiario(s.diario, data.diario);
-    const diaKanban = mergeByIdLoose(s.diaKanban, data.diaKanban as DiaKanbanCard[] | undefined);
-    const compromissos = mergeByIdLoose(s.compromissos, data.compromissos as Compromisso[] | undefined);
-    const snoozes = mergeSnoozes(s.snoozes, data.snoozes as Snooze[] | undefined);
-    const exercicios = mergeByIdLoose(s.exercicios, data.exercicios as Exercicio[] | undefined);
-    save(K_ROUTINES, routines);
-    save(K_NOTES, notes);
-    save(K_HISTORY, history);
-    save(K_TEMPLATES, templates);
-    save(K_DIARIO, diario);
-    save(K_DIAKANBAN, diaKanban);
-    save(K_COMPROMISSOS, compromissos);
-    save(K_SNOOZES, snoozes);
-    save(K_EXERCICIOS, exercicios);
-    set({ routines, notes, history, templates, diario, diaKanban, compromissos, snoozes, exercicios });
-    const snoozed = algumSnoozeAtivo(snoozes);
-    syncCompromissoNotifications(compromissos, snoozed);
-    syncRoutineNotifications(routines, snoozed);
-    syncMetaRecNotifications(recorrentesAtuais(templates), snoozed);
-  },
-
-  importRotinaShare: (routine) => {
-    const r = prepararRotinaImportada(routine, get().routines, uid);
-    const routines = [...get().routines, r];
-    save(K_ROUTINES, routines);
-    set({ routines });
-    syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
-    return r.name;
-  },
-  importModeloShare: (doc) => {
-    const d = prepararModeloImportado(doc, get().templates, uid);
-    const templates = [...get().templates, d];
-    save(K_TEMPLATES, templates);
-    set({ templates });
-    return d;
-  },
 }));
-
-/** Porta de autoBackupNative (index.html:10785-10800) — sem-op fora do
- * Android/Capacitor (mesmo status de SyncCard/McpCard: fiel ao legado, mas
- * inerte até o build React ser o que roda lá). A cada 3 dias grava um JSON
- * em Documentos/<pasta>/Backups e mantém só os 5 mais recentes. */
-async function autoBackupNative(state: AppState): Promise<void> {
-  if (!isNative || !window.Capacitor) return;
-  if (state.routines.length + state.notes.length + state.templates.length === 0) return;
-  if (Date.now() - load(K_AUTOBAK, 0) < 3 * 86400000) return;
-  const FS = window.Capacitor.Plugins.Filesystem;
-  const pasta = load(K_DATAFOLDER, "Rotinas") + "/Backups";
-  try {
-    const filename = nomeAutoBackup(localKey(new Date()));
-    await FS.writeFile({
-      path: pasta + "/" + filename,
-      directory: "DOCUMENTS",
-      encoding: "utf8",
-      data: JSON.stringify(state.backupSnapshot(), null, 2),
-      recursive: true,
-    });
-    save(K_AUTOBAK, Date.now());
-    const r = await FS.readdir({ path: pasta, directory: "DOCUMENTS" });
-    const nomes = (r.files || []).map((f) => (typeof f === "string" ? f : f.name));
-    for (const old of autoBackupsParaApagar(nomes)) {
-      try {
-        await FS.deleteFile({ path: pasta + "/" + old, directory: "DOCUMENTS" });
-      } catch {
-        /* ok deixar órfão */
-      }
-    }
-  } catch (e) {
-    console.error("Auto-backup falhou:", e);
-  }
-}
-
-/** Porta de syncNativeSchedules para compromissos avulsos (index.html:2779-
- * 2865, ver lib/notifications.ts). Mesmo status de autoBackupNative: fiel ao
- * legado, inerte fora do Android/Capacitor. Reagenda do zero a cada
- * chamada — cancela as próprias notificações antigas (tag "sched-cp") antes
- * de recriar. */
-async function syncCompromissoNotifications(compromissos: Compromisso[], snoozed: boolean): Promise<void> {
-  const LN = isNative ? window.Capacitor?.Plugins.LocalNotifications : undefined;
-  if (!LN) return;
-  try {
-    const perm = await LN.checkPermissions();
-    if (perm.display !== "granted") return;
-    const pending = await LN.getPending();
-    const minhas = (pending.notifications || []).filter((n) => n.extra && n.extra.brita === "sched-cp");
-    if (minhas.length) await LN.cancel({ notifications: minhas.map((n) => ({ id: n.id })) });
-    if (snoozed) return; // agenda pausada: nada é reagendado até o próximo uso do app
-    const plano = planoNotificacaoCompromissos(compromissos, Date.now());
-    if (!plano.length) return;
-    await LN.schedule({
-      notifications: plano.map((p) => ({
-        id: p.id,
-        title: p.title,
-        body: p.body,
-        extra: { brita: "sched-cp" },
-        schedule: { at: new Date(p.when), allowWhileIdle: true },
-      })),
-    });
-  } catch (e) {
-    console.error("Sincronização de notificação de compromisso falhou:", e);
-  }
-}
-
-/** Porta de syncNativeSchedules para rotinas agendadas (index.html:2779-
- * 2828, ver lib/notifications.ts) — mesmo padrão de syncCompromissoNotifications,
- * tag própria ("sched-rt") pra cancelar/recriar sem mexer nas notificações
- * de compromisso. */
-async function syncRoutineNotifications(routines: Routine[], snoozed: boolean): Promise<void> {
-  const LN = isNative ? window.Capacitor?.Plugins.LocalNotifications : undefined;
-  if (!LN) return;
-  try {
-    const perm = await LN.checkPermissions();
-    if (perm.display !== "granted") return;
-    const pending = await LN.getPending();
-    const minhas = (pending.notifications || []).filter((n) => n.extra && n.extra.brita === "sched-rt");
-    if (minhas.length) await LN.cancel({ notifications: minhas.map((n) => ({ id: n.id })) });
-    if (snoozed) return;
-    const plano = planoNotificacaoRotinas(routines, Date.now());
-    if (!plano.length) return;
-    await LN.schedule({
-      notifications: plano.map((p) => ({
-        id: p.id,
-        title: p.title,
-        body: p.body,
-        extra: { brita: "sched-rt" },
-        schedule: p.at != null ? { at: new Date(p.at), allowWhileIdle: true } : { on: { weekday: p.weekday, hour: p.hour!, minute: p.minute! } },
-      })),
-    });
-  } catch (e) {
-    console.error("Sincronização de notificação de rotina falhou:", e);
-  }
-}
-
-/** Porta do trecho de metas recorrentes de syncNativeSchedules
- * (index.html:2866-2883, ver lib/notifications.ts) — mesmo padrão das duas
- * funções acima, tag própria ("sched-mr"). Cada alarme usa `schedule.on`
- * só com hour/minute (sem weekday), repetindo todo dia. */
-async function syncMetaRecNotifications(recorrentes: MetaRecorrente[], snoozed: boolean): Promise<void> {
-  const LN = isNative ? window.Capacitor?.Plugins.LocalNotifications : undefined;
-  if (!LN) return;
-  try {
-    const perm = await LN.checkPermissions();
-    if (perm.display !== "granted") return;
-    const pending = await LN.getPending();
-    const minhas = (pending.notifications || []).filter((n) => n.extra && n.extra.brita === "sched-mr");
-    if (minhas.length) await LN.cancel({ notifications: minhas.map((n) => ({ id: n.id })) });
-    if (snoozed) return;
-    const plano = planoNotificacaoMetaRec(recorrentes);
-    if (!plano.length) return;
-    await LN.schedule({
-      notifications: plano.map((p) => ({
-        id: p.id,
-        title: p.title,
-        body: p.body,
-        extra: { brita: "sched-mr" },
-        schedule: { on: { hour: p.hour, minute: p.minute } },
-      })),
-    });
-  } catch (e) {
-    console.error("Sincronização de notificação de meta recorrente falhou:", e);
-  }
-}

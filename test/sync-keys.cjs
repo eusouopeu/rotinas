@@ -10,7 +10,7 @@
    1. SYNCED_KEYS (sync/engine.js, desktop) == SYNCED_KEYS (SyncEngine.java, Android)
    2. toda coleção devolvida por backupData() tem uma chave em SYNCED_KEYS
    3. toda chave de SYNCED_KEYS é tratada por applySyncedKey() no index.html
-   4. toda coleção devolvida por backupSnapshot() (webapp/src/store/useAppStore.ts,
+   4. toda coleção devolvida por backupSnapshot() (webapp/src/store/slices/backupSlice.ts,
       React) tem uma chave K_* conhecida em SYNCED_KEYS — mesma classe de bug,
       lado React (rec. 4 de docs/react-migration.md) */
 
@@ -77,7 +77,9 @@ listaIgual(SYNCED_KEYS, tratadas,
   "toda chave de SYNCED_KEYS é aplicada ao vivo por applySyncedKey()");
 
 /* ---- 4) backupSnapshot() do React ---- */
-const STORE = fs.readFileSync(path.join(RAIZ, "webapp/src/store/useAppStore.ts"), "utf8");
+// backupSnapshot() saiu de useAppStore.ts para o slice de backup em 11/09/2026
+// (divisão da store em slices, ver docs/react-migration.md).
+const STORE = fs.readFileSync(path.join(RAIZ, "webapp/src/store/slices/backupSlice.ts"), "utf8");
 const CONSTANTS = fs.readFileSync(path.join(RAIZ, "webapp/src/lib/constants.ts"), "utf8");
 
 const constKReact = {};
@@ -97,7 +99,7 @@ const CAMPO_PARA_K = {
 };
 
 const snap = STORE.match(/backupSnapshot: \(\) => \{[\s\S]*?return \{([\s\S]*?)\};\s*\},/);
-assert(snap, "backupSnapshot() não encontrado em webapp/src/store/useAppStore.ts");
+assert(snap, "backupSnapshot() não encontrado em webapp/src/store/slices/backupSlice.ts");
 const camposSnap = [...snap[1].matchAll(/^\s*([a-zA-Z][a-zA-Z0-9]*):/gm)]
   .map((m) => m[1])
   .filter((c) => c !== "version" && c !== "exportedAt");

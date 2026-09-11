@@ -17,6 +17,13 @@ export const K_NUDGE = "rotinas_v2_nudge";
 export const K_OVERLAY = "rotinas_v2_overlay"; // legado booleano, só para migração de K_CRONOMODO
 export const K_CRONOMODO = "rotinas_v2_crono_modo";
 export const K_NUDGEDONE = "rotinas_v2_nudge_done";
+export const K_NUDGEMETAS = "rotinas_v2_nudge_metas"; // aviso de meta perto do prazo (React; o legado usa o mesmo K_NUDGE dos três)
+export const K_NUDGESTREAK = "rotinas_v2_nudge_streak"; // aviso de sequência em risco
+export const K_NUDGEMETASDONE = "rotinas_v2_nudge_metas_done";
+export const K_NUDGESTREAKDONE = "rotinas_v2_nudge_streak_done";
+export const K_SOMMODO = "rotinas_v2_som_modo"; // "mudo" | "suave" | "normal" — aviso sonoro do cronômetro
+export const K_VIBRAR = "rotinas_v2_vibrar"; // vibração nos avisos do cronômetro
+
 export const K_NUDGEDAYS = "rotinas_v2_nudge_days";
 export const K_DIARIO = "rotinas_v2_diario";
 export const K_NAOFEITAS = "rotinas_v2_naofeitas";

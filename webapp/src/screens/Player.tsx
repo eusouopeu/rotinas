@@ -14,6 +14,7 @@ import { activeCountdown, computeExRestRemaining, computeRemaining, filaOverlay,
 import { fmtTime } from "../lib/format";
 import { timeUpCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
+import { cancelarAlertaFundo, sincronizarAlertaFundo } from "../lib/notifications";
 import { NotaRotinaOverlay, QuickAddOverlay, StepsOverlay } from "../components/PlayerOverlays";
 
 export function Player() {
@@ -120,10 +121,29 @@ export function Player() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cronometroModo, appBackground, playerState?.idx, playerState?.paused, playerState?.pausedAt, cd?.endTs, cd?.auto, cd?.label]);
 
-  // Encerra o serviço/bolha ao sair da tela do Player (rotina concluída ou
-  // cancelada) — sem isso a notificação/bolha ficaria presa.
+  // Alerta nativo de fim de etapa (porta de sincronizarAlertaFundo,
+  // index.html:2708-2725). Independente da bolha e da preferência de
+  // cronômetro: é o único canal que avisa com o app fora da frente e a bolha
+  // desligada. Mesmas dependências do efeito da bolha, mais o estado de
+  // segundo plano.
   useEffect(() => {
-    return () => overlayHide();
+    void sincronizarAlertaFundo({
+      emSegundoPlano: appBackground,
+      pausado: !!playerState?.paused,
+      countdown: cd ? { endTs: cd.endTs, isRest: !!cd.isRest, label: cd.label || "" } : null,
+      routineName: playerState?.routineName || "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appBackground, playerState?.idx, playerState?.paused, cd?.endTs, cd?.isRest, cd?.label, playerState?.routineName]);
+
+  // Encerra o serviço/bolha ao sair da tela do Player (rotina concluída ou
+  // cancelada) — sem isso a notificação/bolha ficaria presa. O alerta de
+  // fundo pendente some junto: a etapa deixou de existir.
+  useEffect(() => {
+    return () => {
+      overlayHide();
+      void cancelarAlertaFundo();
+    };
   }, []);
 
   const step = playerState?.steps[playerState.idx];

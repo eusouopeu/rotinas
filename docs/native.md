@@ -13,3 +13,5 @@ A bolha do overlay (`TimerOverlayService`) nasce ancorada na borda direita, meio
 Electron é terceira casca do mesmo legado. Preload é ponte exclusiva, com `contextIsolation:true` e `nodeIntegration:false`; storage passa por IPC. `desktop:start` copia `www`, `desktop:build` usa electron-builder. O MCP local é Streamable HTTP em loopback, token em `userData`, e modo padrão somente leitura. Toda tool de escrita delega a `window.__britaMCP` e às mesmas funções de UI: nunca replique score ou regras. Atualize somente o card MCP quando apropriado, sem `render` global.
 
 Electron carregado por `file://` não tem service worker funcional. Notificações desktop usam `notifyDesktop`/`Notification`, e clique mostra janela. Scheduler permanece ativo com janela escondida.
+
+- Alerta de fim de etapa em segundo plano (canais `brita_timer`/`brita_timer_mudo` via LocalNotifications) passou a ser acionado pelo React em 11/09/2026 — gap fechado, ver `docs/react-migration.md`. É independente da bolha do cronômetro e da preferência `K_CRONOMODO`; o canal escolhido segue o modo de som de Ajustes.

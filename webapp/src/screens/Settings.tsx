@@ -21,6 +21,10 @@ import { DIAS_ABREV } from "../lib/constants";
 import { isDesktop, isNative } from "../lib/storage";
 import { inicioSemanaISO } from "../lib/gamificacao";
 import { simularDistribuicaoSemana } from "../lib/scoring";
+import { alarmCue } from "../lib/haptics";
+import type { SomModo } from "../lib/sound";
+import { agendaIcs } from "../lib/exportIcs";
+import { downloadFile } from "../lib/exportFile";
 
 const NUDGE_DIA_LABEL = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -39,6 +43,16 @@ export function Settings() {
   const setCronometroModo = useAppStore((s) => s.setCronometroModo);
   const nudgeDias = useAppStore((s) => s.nudgeDias);
   const toggleNudgeDia = useAppStore((s) => s.toggleNudgeDia);
+  const nudgeMetas = useAppStore((s) => s.nudgeMetas);
+  const setNudgeMetas = useAppStore((s) => s.setNudgeMetas);
+  const nudgeStreak = useAppStore((s) => s.nudgeStreak);
+  const setNudgeStreak = useAppStore((s) => s.setNudgeStreak);
+  const somModo = useAppStore((s) => s.somModo);
+  const setSomModo = useAppStore((s) => s.setSomModo);
+  const vibracao = useAppStore((s) => s.vibracao);
+  const setVibracao = useAppStore((s) => s.setVibracao);
+  const compromissos = useAppStore((s) => s.compromissos);
+  const showAlertBanner = useAppStore((s) => s.showAlertBanner);
 
   const gam = useAppStore((s) => s.gam);
   const updateGamConfig = useAppStore((s) => s.updateGamConfig);
@@ -135,6 +149,51 @@ export function Settings() {
                 {l}
               </span>
             ))}
+          </div>
+          <div className="stat-foot">Nos dias marcados, a partir das 9h, quando a semana está atrasada.</div>
+          <label className="switch-row" style={{ marginTop: 12 }}>
+            <span>Meta perto do prazo</span>
+            <input type="checkbox" checked={nudgeMetas} onChange={(e) => setNudgeMetas(e.target.checked)} />
+          </label>
+          <label className="switch-row" style={{ marginTop: 12 }}>
+            <span>Sequência em risco</span>
+            <input type="checkbox" checked={nudgeStreak} onChange={(e) => setNudgeStreak(e.target.checked)} />
+          </label>
+          <div className="stat-foot">
+            Meta: uma vez por dia quando falta até 2 dias para o prazo. Sequência: a partir das 18h, quando uma rotina de
+            hoje com sequência longa ainda não foi feita.
+          </div>
+        </div>
+
+        <div className="section-label">Som e vibração</div>
+        <div className="stat-card">
+          <div className="bar-row">
+            <div className="bar-name" style={{ width: "auto", flex: 1 }}>
+              Aviso sonoro
+            </div>
+            <div className="type-toggle">
+              {(["mudo", "suave", "normal"] as SomModo[]).map((m) => (
+                <span key={m} className={somModo === m ? "active" : ""} onClick={() => setSomModo(m)}>
+                  {m}
+                </span>
+              ))}
+            </div>
+          </div>
+          <label className="switch-row" style={{ marginTop: 12 }}>
+            <span>Vibrar</span>
+            <input type="checkbox" checked={vibracao} onChange={(e) => setVibracao(e.target.checked)} />
+          </label>
+          <div className="bar-row" style={{ marginTop: 12 }}>
+            <div className="bar-name" style={{ width: "auto", flex: 1 }}>
+              Testar
+            </div>
+            <button className="link-btn" onClick={() => alarmCue()}>
+              tocar
+            </button>
+          </div>
+          <div className="stat-foot">
+            Vale para a troca de etapa, o fim do tempo e a rotina concluída dentro do Player. Com o app em segundo plano
+            quem avisa é a notificação de fim de etapa, que segue este mesmo modo.
           </div>
         </div>
 
@@ -371,6 +430,30 @@ export function Settings() {
         <div className="section-label">Calendário externo</div>
         <div className="stat-card">
           <IcalCard />
+          <div className="bar-row" style={{ marginTop: 14 }}>
+            <div className="bar-name" style={{ width: "auto", flex: 1 }}>
+              Exportar agenda (.ics)
+            </div>
+            <button
+              className="link-btn"
+              onClick={() => {
+                const ics = agendaIcs(routines, compromissos);
+                if (!ics) {
+                  showAlertBanner("Nada agendado para exportar");
+                  return;
+                }
+                void downloadFile("rotinas-agenda.ics", ics, "text/calendar;charset=utf-8", "Dados").then((r) =>
+                  showAlertBanner(r.ok ? "Agenda exportada ✓" : "Não foi possível exportar a agenda")
+                );
+              }}
+            >
+              exportar
+            </button>
+          </div>
+          <div className="stat-foot">
+            Rotinas com horário viram eventos recorrentes e compromissos avulsos viram eventos únicos — para abrir em
+            outro calendário. É uma cópia, não uma sincronização: mudanças aqui não voltam para lá.
+          </div>
         </div>
 
         {isDesktop && (

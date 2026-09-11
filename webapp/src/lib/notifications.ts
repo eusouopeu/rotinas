@@ -5,6 +5,8 @@
 import { BADGE_NOME, K_DIGESTSEMANAL } from "./constants";
 import { metaRecHorarios } from "./metas";
 import { computeSchedule, rotinaAgendadaEm } from "./schedule";
+import type { LocalNotificationsPlugin } from "./nativeBridge";
+import { somModo } from "./sound";
 import { isDesktop, isNative, load } from "./storage";
 import type { Compromisso, MetaRecorrente, Routine } from "./types";
 
@@ -247,5 +249,101 @@ export function notifyDigestSemanal(sem: { dispensada?: boolean; nota: number; b
     } catch {
       /* ok */
     }
+  }
+}
+
+/* ---------------- ALERTA DE FIM DE ETAPA EM SEGUNDO PLANO ----------------
+   Porta de ensureTimerAlertChannels/cancelarAlertaFundo/sincronizarAlertaFundo
+   (index.html:2676-2726). Canal próprio de LocalNotifications, independente da
+   bolha do cronômetro (TimerOverlay) e da preferência K_CRONOMODO: é o que
+   avisa quando a etapa zera com o app fora da frente e a bolha desligada.
+   Tag própria (extra.brita:"stepAlert") pra não colidir com o
+   cancela-e-reagenda das notificações agendadas, que só mexem em "sched". */
+
+/** Faixa reservada, longe do espaço de notifIdFor (index.html:2686). */
+const STEPALERT_ID_BASE = 2000000000;
+
+function ln(): LocalNotificationsPlugin | undefined {
+  return window.Capacitor?.Plugins.LocalNotifications;
+}
+
+/** Cria os dois canais Android (com e sem som). Idempotente — chamar a cada
+ * boot é o que o legado faz. */
+export async function ensureTimerAlertChannels(): Promise<void> {
+  if (!isNative) return;
+  try {
+    const p = ln();
+    if (!p?.createChannel) return;
+    await p.createChannel({
+      id: "brita_timer",
+      name: "Fim de etapa/descanso",
+      description: "Avisa quando o tempo de uma etapa ou descanso da rotina acaba",
+      importance: 4,
+      vibration: true,
+    });
+    await p.createChannel({
+      id: "brita_timer_mudo",
+      name: "Fim de etapa/descanso (só vibrar)",
+      description: "Mesmo aviso, sem som",
+      importance: 2,
+      vibration: true,
+    });
+  } catch (e) {
+    console.error("ensureTimerAlertChannels:", e);
+  }
+}
+
+/** Cancela o alerta pendente, se houver (index.html:2694-2702). */
+export async function cancelarAlertaFundo(): Promise<void> {
+  if (!isNative) return;
+  try {
+    const p = ln();
+    if (!p) return;
+    const pending = await p.getPending();
+    const meus = (pending.notifications || []).filter((n) => n.extra && n.extra.brita === "stepAlert");
+    if (meus.length) await p.cancel({ notifications: meus.map((n) => ({ id: n.id })) });
+  } catch (e) {
+    console.error("cancelarAlertaFundo:", e);
+  }
+}
+
+export interface AlertaFundoEstado {
+  /** App fora da frente — só então vale agendar (index.html:2710). */
+  emSegundoPlano: boolean;
+  pausado: boolean;
+  /** Contagem ativa da etapa atual (lib/player > activeCountdown). */
+  countdown: { endTs: number; isRest: boolean; label: string } | null;
+  routineName: string;
+}
+
+/** Porta de sincronizarAlertaFundo (index.html:2708-2725): cancela sempre
+ * primeiro e só recria se nativo, em segundo plano, com rotina rodando, não
+ * pausada e com contagem em tempo. Como nenhuma etapa avança sozinha, um
+ * único alarme (o da etapa atual) basta. O canal segue o modo de som de
+ * Ajustes — "mudo" cai no canal silencioso, que ainda vibra. */
+export async function sincronizarAlertaFundo(estado: AlertaFundoEstado): Promise<void> {
+  await cancelarAlertaFundo();
+  if (!isNative || !estado.emSegundoPlano || estado.pausado) return;
+  const cd = estado.countdown;
+  if (!cd) return;
+  try {
+    const p = ln();
+    if (!p) return;
+    const perm = await p.checkPermissions();
+    if (perm.display !== "granted") return;
+    await p.schedule({
+      notifications: [
+        {
+          id: STEPALERT_ID_BASE,
+          channelId: somModo() === "mudo" ? "brita_timer_mudo" : "brita_timer",
+          title: cd.isRest ? "Descanso acabou" : "Tempo esgotado",
+          body: estado.routineName + (cd.label ? " — " + cd.label : ""),
+          extra: { brita: "stepAlert" },
+          schedule: { at: new Date(cd.endTs), allowWhileIdle: true },
+        },
+      ],
+    });
+  } catch (e) {
+    console.error("sincronizarAlertaFundo:", e);
   }
 }

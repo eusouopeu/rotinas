@@ -10,6 +10,9 @@
 
 ## Contratos visuais/funcionais existentes
 
+- Ajustes tem seção "Som e vibração" (modo mudo/suave/normal + vibrar + testar) desde 11/09/2026 — o som do cronômetro é preferência de verdade no React, ao contrário do legado, onde `soundMode()` está amarrado em "mudo". Notificações expõem três avisos separados: ritmo (com dias), meta perto do prazo e sequência em risco.
+- Exportar agenda (.ics) fica na seção Calendário externo de Ajustes: é cópia de mão única, não sincronização.
+
 - Home: roda inclui boletim; rotina concluída vai ao fim e exibe horário real; rotinas ordenam por horário; “só hoje” usa `rotinaCabeEmHoje`, enquanto `rotinaOcorreHoje` fica estrita para notificação/MCP.
 - Aba Rotinas (React): ordem das visões é Semana (padrão) / Dia / Lista, com um único FAB nas três que abre a escolha Rotina ou Evento. Card da visão Lista é compacto (ícones numa linha, sem chip de área — a bolinha já diz — e sem duração quando há horário). Clique em vão livre da grade Dia cria evento naquele horário.
 - Player: lançamento rápido oferece nota, despesa, nota diária e cartão; overlay de etapas permite reordenar somente futuro; notas vinculadas não interrompem timer.

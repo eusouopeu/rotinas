@@ -194,6 +194,14 @@ function persistQueue(fn: () => Promise<unknown> | void) {
   });
 }
 
+/** Cópia somente-leitura do cache síncrono — usada por lib/storageWarning
+ * para medir o volume guardado (index.html:11018, storageBytes varre `mem`).
+ * Não exponha `mem` direto: escrita fora de save/saveRaw/removeKey quebraria
+ * a persistência. */
+export function storageSnapshot(): ReadonlyMap<string, unknown> {
+  return new Map(mem);
+}
+
 export function load<T>(key: string, fallback: T): T {
   return mem.has(key) ? (mem.get(key) as T) : fallback;
 }

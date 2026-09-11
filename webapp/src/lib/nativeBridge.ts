@@ -125,6 +125,9 @@ export interface LocalNotificationsPlugin {
    * Android 13+, onde POST_NOTIFICATIONS é permissão de runtime. */
   requestPermissions?(): Promise<{ display: string }>;
   getPending(): Promise<{ notifications: Array<{ id: number; extra?: Record<string, unknown> }> }>;
+  /** Android: canal de notificação. Opcional — no-op/ausente no desktop e em
+   * versões antigas do plugin (index.html:2687-2692). */
+  createChannel?(args: { id: string; name: string; description?: string; importance?: number; vibration?: boolean }): Promise<void>;
   cancel(args: { notifications: Array<{ id: number }> }): Promise<void>;
   schedule(args: {
     notifications: Array<{
@@ -132,6 +135,8 @@ export interface LocalNotificationsPlugin {
       title: string;
       body: string;
       extra?: Record<string, unknown>;
+      /** Android: canal criado por createChannel (index.html:2717). */
+      channelId?: string;
       // ausente = dispara imediatamente (index.html:2771-2772, notifyDigestSemanal);
       // `at` = ocorrência única; `on` = recorrente (rotina agendada, index.html:2825).
       schedule?: { at: Date; allowWhileIdle?: boolean } | { on: { weekday?: number; hour: number; minute: number } };

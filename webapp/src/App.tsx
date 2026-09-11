@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useAppStore } from "./store/useAppStore";
 import { computeRemaining } from "./lib/player";
 import { isDesktop } from "./lib/storage";
+import { onAppStateChange } from "./lib/nativeBridge";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
 import { RoutineEditor } from "./screens/RoutineEditor";
@@ -164,6 +165,25 @@ export function App() {
   useEffect(() => {
     boot();
   }, [boot]);
+
+  // Avisos proativos também na volta ao primeiro plano — o app pode ficar
+  // aberto em segundo plano por dias, e o boot só roda uma vez
+  // (index.html: appStateChange + checarNudge*). Idempotente: cada aviso tem
+  // sua própria marca de "já avisei hoje".
+  useEffect(() => {
+    const checar = () => useAppStore.getState().checarNudgesAgora();
+    const onVis = () => {
+      if (!document.hidden) checar();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const unsubscribe = onAppStateChange((isActive) => {
+      if (isActive) checar();
+    });
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      unsubscribe();
+    };
+  }, []);
 
   useThemeEffect(theme);
   useFontScaleEffect(fontScale);
