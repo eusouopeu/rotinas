@@ -28,6 +28,7 @@ import {
   K_NOTES,
   K_NUDGE,
   K_NUDGEDAYS,
+  K_CRONOMODO,
   K_OVERLAY,
   K_ROUTINES,
   K_SIDEBARCOLLAPSED,
@@ -139,6 +140,25 @@ function criarMetaDoc(): CountdownDoc {
 
 type Theme = "auto" | "light" | "dark";
 
+/** Superfície do cronômetro fora do app (Android). Ver `cronometroModo`. */
+export type CronometroModo = "off" | "barra" | "bolha";
+
+/** Pede POST_NOTIFICATIONS pelo plugin LocalNotifications (mesma ponte já usada
+ * pelas notificações agendadas). Fora do Android, ou sem o plugin de pé, deixa
+ * passar: quem decide se algo aparece é o próprio sistema. */
+async function pedirPermissaoNotificacao(): Promise<boolean> {
+  const LN = isNative ? window.Capacitor?.Plugins.LocalNotifications : undefined;
+  if (!LN) return true;
+  try {
+    const atual = await LN.checkPermissions();
+    if (atual.display === "granted") return true;
+    const r = await LN.requestPermissions?.();
+    return !r || r.display === "granted";
+  } catch {
+    return true;
+  }
+}
+
 function novoDraft(): Routine {
   return {
     id: uid(),
@@ -163,9 +183,13 @@ export interface AppState {
   soHoje: boolean;
   digestSemanal: boolean;
   nudge: boolean;
-  /** Bolha do cronômetro sobre outros apps + notificação em primeiro plano
-   * com chronometer (Android, K_OVERLAY) — local-only, nunca em backup. */
-  overlayCronometro: boolean;
+  /** Onde o cronômetro aparece fora do app (Android, K_CRONOMODO) — local-only,
+   * nunca em backup. "off" = em lugar nenhum; "barra" = só a notificação em
+   * primeiro plano com chronometer, na barra de status/lock screen (como o
+   * timer do relógio da Samsung); "bolha" = a notificação mais a janelinha
+   * flutuante sobre outros apps, que exige permissão de sobreposição.
+   * Migrado do booleano K_OVERLAY (true = "bolha"). */
+  cronometroModo: CronometroModo;
   nudgeDias: number[];
   sidebarCollapsed: boolean;
   horasBudget: number;
@@ -219,8 +243,9 @@ export interface AppState {
   setSoHoje: (v: boolean) => void;
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
-  /** Resolve `false` sem persistir se a permissão de sobreposição for negada. */
-  setOverlayCronometro: (v: boolean) => Promise<boolean>;
+  /** Resolve `false` sem persistir se a permissão necessária ao modo for negada
+   * (sobreposição para "bolha", notificações para "barra"). */
+  setCronometroModo: (m: CronometroModo) => Promise<boolean>;
   toggleNudgeDia: (d: number) => void;
   toggleSidebarCollapsed: () => void;
   // Boletim (index.html:13342-13501, ver lib/boletim.ts).
@@ -368,7 +393,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   soHoje: false,
   digestSemanal: true,
   nudge: true,
-  overlayCronometro: false,
+  cronometroModo: "off",
   nudgeDias: [5],
   sidebarCollapsed: false,
   horasBudget: 40,
@@ -421,7 +446,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       soHoje: load<boolean>(K_SOHOJE, false),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
-      overlayCronometro: load<boolean>(K_OVERLAY, false),
+      cronometroModo: load<CronometroModo>(K_CRONOMODO, load<boolean>(K_OVERLAY, false) ? "bolha" : "off"),
       nudgeDias: load<number[]>(K_NUDGEDAYS, [5]),
       sidebarCollapsed: load<boolean>(K_SIDEBARCOLLAPSED, false),
       horasBudget: load<number>(K_HORASBUDGET, 40),
@@ -586,8 +611,9 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     save(K_NUDGE, nudge);
     set({ nudge });
   },
-  setOverlayCronometro: async (v) => {
-    if (v) {
+  setCronometroModo: async (m) => {
+    if (m === "bolha") {
+      // só a bolha desenha por cima de outros apps; a notificação da barra não
       const p = getTimerOverlayBridge();
       if (!p) return false;
       try {
@@ -596,11 +622,16 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       } catch {
         return false;
       }
+    } else if (m === "barra") {
+      // Android 13+ exige POST_NOTIFICATIONS até para a notificação do serviço
+      // em primeiro plano; sem ela o cronômetro rodaria invisível.
+      if (!(await pedirPermissaoNotificacao())) return false;
+      overlayHide(); // derruba uma bolha que já estivesse de pé antes da troca
     } else {
       overlayHide();
     }
-    save(K_OVERLAY, v);
-    set({ overlayCronometro: v });
+    save(K_CRONOMODO, m);
+    set({ cronometroModo: m });
     return true;
   },
   toggleNudgeDia: (d) => {

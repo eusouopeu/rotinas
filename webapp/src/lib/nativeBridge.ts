@@ -121,6 +121,9 @@ export interface SharePlugin {
  * fase. */
 export interface LocalNotificationsPlugin {
   checkPermissions(): Promise<{ display: string }>;
+  /** Opcional: ausente em versões antigas do plugin; só é necessário no
+   * Android 13+, onde POST_NOTIFICATIONS é permissão de runtime. */
+  requestPermissions?(): Promise<{ display: string }>;
   getPending(): Promise<{ notifications: Array<{ id: number; extra?: Record<string, unknown> }> }>;
   cancel(args: { notifications: Array<{ id: number }> }): Promise<void>;
   schedule(args: {

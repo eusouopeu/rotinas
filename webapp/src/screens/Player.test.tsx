@@ -92,7 +92,7 @@ describe("Player no Android — pontes nativas nunca podem derrubar a tela", () 
     useAppStore.setState({
       playerState: playerStateFake(),
       view: { tab: "home", screen: "player" },
-      overlayCronometro: true,
+      cronometroModo: "bolha",
     });
     render(<Player />);
     expect(chamadas).toHaveLength(1);

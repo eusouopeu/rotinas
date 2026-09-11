@@ -23,7 +23,10 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * show({endTs,label,paused,remainingMs,auto,visible,queue}) / update(...)
  *   -> sobe (ou atualiza) o serviço. `visible` decide se a bolha aparece:
  *      o serviço fica de pé durante toda a rotina, mas só mostra a janela
- *      quando o app sai de primeiro plano. `queue` é o JSON das etapas
+ *      quando o app sai de primeiro plano E a preferência é a bolha (no modo
+ *      "barra" só a notificação com chronometer aparece, e aí `visible` chega
+ *      sempre false — por isso a permissão de sobreposição só é exigida
+ *      quando visible=true). `queue` é o JSON das etapas
  *      seguintes, para o serviço rolar os descansos sozinho.
  * hide()              -> encerra o serviço e remove a bolha
  */
@@ -65,7 +68,13 @@ public class TimerOverlayPlugin extends Plugin {
 
     @PluginMethod
     public void show(PluginCall call) {
-        if (!canDraw()) {
+        boolean visible = Boolean.TRUE.equals(call.getBoolean("visible", false));
+        /* Só a bolha desenha por cima de outros apps. Com visible=false o
+           serviço sobe apenas para a notificação em primeiro plano com
+           chronometer (modo "barra" das configurações), que não precisa de
+           permissão de sobreposição — recusar aqui deixaria esse modo mudo
+           em quem nunca concedeu a permissão. */
+        if (visible && !canDraw()) {
             call.reject("sem permissão de sobreposição");
             return;
         }
@@ -81,7 +90,7 @@ public class TimerOverlayPlugin extends Plugin {
         i.putExtra(TimerOverlayService.EXTRA_PAUSED, Boolean.TRUE.equals(call.getBoolean("paused", false)));
         i.putExtra(TimerOverlayService.EXTRA_REMAINING, call.getData().optLong("remainingMs", 0L));
         i.putExtra(TimerOverlayService.EXTRA_AUTO, Boolean.TRUE.equals(call.getBoolean("auto", false)));
-        i.putExtra(TimerOverlayService.EXTRA_VISIBLE, Boolean.TRUE.equals(call.getBoolean("visible", false)));
+        i.putExtra(TimerOverlayService.EXTRA_VISIBLE, visible);
         i.putExtra(TimerOverlayService.EXTRA_QUEUE, call.getString("queue", ""));
         // iniciar foreground service em segundo plano é bloqueado no Android 12+:
         // se falhar, o serviço já está de pé (subiu junto com a rotina) ou volta

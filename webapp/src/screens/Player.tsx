@@ -32,7 +32,7 @@ export function Player() {
   const reiniciarTimerEtapaAtual = useAppStore((s) => s.reiniciarTimerEtapaAtual);
   const playerBanner = useAppStore((s) => s.playerBanner);
   const clearPlayerBanner = useAppStore((s) => s.clearPlayerBanner);
-  const overlayCronometro = useAppStore((s) => s.overlayCronometro);
+  const cronometroModo = useAppStore((s) => s.cronometroModo);
   const [, setTick] = useState(0);
   const [appBackground, setAppBackground] = useState(() => typeof document !== "undefined" && document.hidden);
   const [reps, setReps] = useState(0);
@@ -95,11 +95,14 @@ export function Player() {
   }, []);
 
   const cd = playerState ? activeCountdown(playerState) : null;
-  // Espelha a etapa atual na bolha nativa/notificação (porta de
+  // Espelha a etapa atual na notificação/bolha nativa (porta de
   // sincronizarOverlay, index.html:2642-2664) — só quando a preferência está
-  // ligada e há contagem ativa (timer de etapa ou descanso entre séries).
+  // ligada e há contagem ativa (timer de etapa ou descanso entre séries). O
+  // mesmo serviço Android cobre as duas superfícies: a notificação com
+  // chronometer sai sempre, e `visible` decide se a bolha flutuante também
+  // aparece — no modo "barra" ela nunca aparece.
   useEffect(() => {
-    if (!overlayCronometro || !playerState || !cd) {
+    if (cronometroModo === "off" || !playerState || !cd) {
       overlayHide();
       return;
     }
@@ -110,12 +113,12 @@ export function Player() {
       remainingMs: remMs,
       paused: !!playerState.paused,
       auto: cd.auto,
-      visible: appBackground,
+      visible: cronometroModo === "bolha" && appBackground,
       label: cd.label || playerState.routineName || "",
       queue: JSON.stringify(filaOverlay(playerState)),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlayCronometro, appBackground, playerState?.idx, playerState?.paused, playerState?.pausedAt, cd?.endTs, cd?.auto, cd?.label]);
+  }, [cronometroModo, appBackground, playerState?.idx, playerState?.paused, playerState?.pausedAt, cd?.endTs, cd?.auto, cd?.label]);
 
   // Encerra o serviço/bolha ao sair da tela do Player (rotina concluída ou
   // cancelada) — sem isso a notificação/bolha ficaria presa.

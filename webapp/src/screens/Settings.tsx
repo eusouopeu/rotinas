@@ -35,8 +35,8 @@ export function Settings() {
   const setDigestSemanal = useAppStore((s) => s.setDigestSemanal);
   const nudge = useAppStore((s) => s.nudge);
   const setNudge = useAppStore((s) => s.setNudge);
-  const overlayCronometro = useAppStore((s) => s.overlayCronometro);
-  const setOverlayCronometro = useAppStore((s) => s.setOverlayCronometro);
+  const cronometroModo = useAppStore((s) => s.cronometroModo);
+  const setCronometroModo = useAppStore((s) => s.setCronometroModo);
   const nudgeDias = useAppStore((s) => s.nudgeDias);
   const toggleNudgeDia = useAppStore((s) => s.toggleNudgeDia);
 
@@ -391,16 +391,28 @@ export function Settings() {
           <>
             <div className="section-label">Cronômetro</div>
             <div className="stat-card">
-              <label className="switch-row" style={{ marginTop: 0 }}>
-                <span>Mostrar sobre outros apps</span>
-                <input
-                  type="checkbox"
-                  checked={overlayCronometro}
-                  onChange={(e) => setOverlayCronometro(e.target.checked)}
-                />
-              </label>
+              <div className="bar-row">
+                <div className="bar-name" style={{ width: "auto", flex: 1 }}>
+                  Fora do app
+                </div>
+                <div className="type-toggle">
+                  {(["off", "barra", "bolha"] as const).map((m) => (
+                    <span
+                      key={m}
+                      className={cronometroModo === m ? "active" : ""}
+                      onClick={() => void setCronometroModo(m)}
+                    >
+                      {m === "off" ? "não mostrar" : m === "barra" ? "barra" : "bolha"}
+                    </span>
+                  ))}
+                </div>
+              </div>
               <div className="stat-foot">
-                Uma bolha flutuante com o tempo restante, visível fora do app. Exige a permissão "Sobrepor a outros apps".
+                {cronometroModo === "off"
+                  ? "O tempo restante só aparece dentro do app."
+                  : cronometroModo === "barra"
+                    ? "Contagem regressiva na barra de status e na tela de bloqueio, como o timer do relógio do celular."
+                    : "Além da notificação na barra, uma bolha flutuante com o tempo restante por cima de outros apps. Exige a permissão \u201CSobrepor a outros apps\u201D."}
               </div>
             </div>
           </>
