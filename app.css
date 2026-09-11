@@ -730,6 +730,33 @@
   .btn-cancel{ background:var(--card-2); border:1.5px solid var(--line); color:var(--ink); }
   .btn-confirm{ background:var(--erro); border:none; color:var(--on-caneta); font-weight:600; }
 
+  /* ---------- FORMULÁRIO DE META (prazo e recorrente) ----------
+     Linhas de "ícone + controle" no lugar de rótulos empilhados: o mesmo
+     modal fica bem mais curto e cada campo é identificado pelo ícone. */
+  .meta-form .mf-title{ margin:0 0 14px; font-family:'Lato', sans-serif; font-size:19px; font-weight:700; }
+  .mf-row{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 10px; margin-top:10px; }
+  .mf-cell{ display:flex; align-items:center; gap:8px; flex:1 1 auto; min-width:0; }
+  .mf-ico{ flex:0 0 auto; display:flex; color:var(--sub); }
+  .mf-grow{ flex:1 1 0; min-width:0; }
+  .mf-sep{ color:var(--sub); font-size:12px; flex:0 0 auto; }
+  .meta-form input[type=text], .meta-form input[type=number],
+  .meta-form input[type=time], .meta-form input[type=date]{
+    background:var(--card-2); border:1.5px solid var(--line); border-radius:9px; color:var(--ink);
+    font-family:'Montserrat', sans-serif; font-size:13px; padding:8px 10px; min-width:0; width:100%;
+  }
+  .meta-form input:focus{ outline:none; border-color:var(--caneta); }
+  .meta-form input:disabled{ opacity:.45; }
+  .mf-toggle-btn{
+    width:34px; height:34px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+    background:var(--card-2); border:1.5px solid var(--line); border-radius:9px; color:var(--sub); cursor:pointer;
+  }
+  .mf-toggle-btn.on{ background:var(--caneta); border-color:transparent; color:var(--on-caneta); }
+  .mf-areas{
+    background:var(--card-2); border:1.5px solid var(--line); border-radius:9px;
+    padding:5px 8px; min-height:34px; align-items:center;
+  }
+  .meta-form .day-chips{ margin-top:0; }
+
   /* ---------- TAGS & WIKILINKS ---------- */
   .tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
   .tag-chip{

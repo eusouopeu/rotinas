@@ -450,14 +450,14 @@ function MetaRecForm({
   const [pontua, setPontua] = useState(rec?.pontua ?? false);
   const [tagValor, setTagValor] = useState<Tag>(rec?.tagValor ?? "medio");
   const [area, setArea] = useState<string | null>(rec?.area ?? null);
-  const [notifOn, setNotifOn] = useState(!!rec?.notif);
-  const [notifIni, setNotifIni] = useState(rec?.notif?.inicio ?? "08:00");
-  const [notifFim, setNotifFim] = useState(rec?.notif?.fim ?? "18:00");
+  const [notifIni, setNotifIni] = useState(rec?.notif?.inicio ?? "");
+  const [notifFim, setNotifFim] = useState(rec?.notif?.fim ?? "");
 
   function handleSave() {
     const t = titulo.trim();
     if (!t) return;
-    const notif = tipo === "diaria" && notifOn ? { inicio: notifIni, fim: notifFim } : null;
+    const notif =
+      tipo === "diaria" && notifIni && notifFim ? { inicio: notifIni, fim: notifFim } : null;
     onSave({
       titulo: t,
       tipo,
@@ -472,129 +472,150 @@ function MetaRecForm({
 
   return (
     <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="confirm-box" style={{ textAlign: "left", maxHeight: "86vh", overflowY: "auto" }}>
-        <p style={{ margin: "0 0 12px", fontWeight: 600 }}>
-          {rec ? "Editar meta recorrente" : "Nova meta recorrente"}
-        </p>
-        <input
-          type="text"
-          placeholder="Ex: Beber água"
-          className="note-title-input"
-          style={{ width: "100%", marginBottom: 8 }}
-          autoFocus
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-        />
+      <div
+        className="confirm-box meta-form"
+        style={{ textAlign: "left", maxHeight: "86vh", overflowY: "auto" }}
+      >
+        <p className="mf-title">{rec ? "Editar meta" : "Nova meta"}</p>
 
-        <div className="section-label" style={{ margin: "8px 0 6px" }}>
-          Repete
-        </div>
-        <div className="type-toggle">
-          <span className={tipo === "diaria" ? "active" : ""} onClick={() => setTipo("diaria")}>
-            ao dia
-          </span>
-          <span className={tipo === "semanal" ? "active" : ""} onClick={() => setTipo("semanal")}>
-            na semana
-          </span>
+        <div className="mf-row" style={{ marginTop: 0 }}>
+          <input
+            type="text"
+            className="mf-grow"
+            placeholder="Meta (ex.: Beber água)"
+            autoFocus
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+          />
+          <button
+            type="button"
+            className={"mf-toggle-btn" + (negativa ? " on" : "")}
+            title="Meta negativa (limite de vezes)"
+            aria-label="Meta negativa"
+            aria-pressed={negativa}
+            onClick={() => {
+              const v = !negativa;
+              setNegativa(v);
+              if (v) setPontua(false);
+            }}
+          >
+            <Icon name="minusCircle" size={17} />
+          </button>
+          <button
+            type="button"
+            className={"mf-toggle-btn" + (!negativa && pontua ? " on" : "")}
+            title="Pontua no boletim"
+            aria-label="Pontua no boletim"
+            aria-pressed={!negativa && pontua}
+            disabled={negativa}
+            onClick={() => setPontua(!pontua)}
+          >
+            <Icon name="check" size={17} />
+          </button>
         </div>
 
-        <label className="switch-row" style={{ marginTop: 12 }}>
-          <span>Meta negativa</span>
-          <input type="checkbox" checked={negativa} onChange={(e) => setNegativa(e.target.checked)} />
-        </label>
-
-        <div className="section-label" style={{ margin: "12px 0 6px" }}>
-          {negativa ? "Limite (vezes)" : "Quantas vezes"}
+        <div className="mf-row">
+          <div className="mf-cell">
+            <span className="mf-ico" title="Frequência">
+              <Icon name="clock" size={17} />
+            </span>
+            <div className="type-toggle">
+              <span className={tipo === "diaria" ? "active" : ""} onClick={() => setTipo("diaria")}>
+                diária
+              </span>
+              <span className={tipo === "semanal" ? "active" : ""} onClick={() => setTipo("semanal")}>
+                semanal
+              </span>
+            </div>
+          </div>
+          <div className="mf-cell" style={{ flex: "0 1 auto" }}>
+            <span className="mf-ico" title={negativa ? "Peso da penalidade" : "Peso no boletim"}>
+              <Icon name="tag" size={17} />
+            </span>
+            <div className="type-toggle">
+              {TAGS.map((t, i) => (
+                <span
+                  key={t}
+                  className={tagValor === t ? "active" : ""}
+                  title={TAG_LABEL[t]}
+                  onClick={() => setTagValor(t)}
+                >
+                  {i}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={20}
-          style={{ width: 110 }}
-          value={vezes}
-          onChange={(e) => setVezes(Math.max(1, +e.target.value || 1))}
-        />
+
+        <div className="mf-row">
+          <div className="mf-cell" style={{ flex: "0 0 auto" }}>
+            <span className="mf-ico" title={negativa ? "Limite de vezes" : "Quantas vezes"}>
+              <Icon name="hashtag" size={17} />
+            </span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={20}
+              placeholder="ex.: 4"
+              aria-label={negativa ? "Limite de vezes" : "Quantas vezes"}
+              style={{ width: 84 }}
+              value={vezes}
+              onChange={(e) => setVezes(Math.max(1, +e.target.value || 1))}
+            />
+          </div>
+          <div className="mf-cell">
+            <span className="mf-ico" title="Lembretes (só quando é diária)">
+              <Icon name="bell" size={17} />
+            </span>
+            <input
+              type="time"
+              aria-label="Lembrar a partir de"
+              disabled={tipo !== "diaria"}
+              value={notifIni}
+              onChange={(e) => setNotifIni(e.target.value)}
+            />
+            <span className="mf-sep">até</span>
+            <input
+              type="time"
+              aria-label="Lembrar até"
+              disabled={tipo !== "diaria"}
+              value={notifFim}
+              onChange={(e) => setNotifFim(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {gam.config.roda.ativa && gam.config.roda.areas.length > 0 && (
+          <div className="mf-row">
+            <div className="mf-cell">
+              <span className="mf-ico" title="Área">
+                <Icon name="briefcase" size={17} />
+              </span>
+              <div className="area-chips mf-areas mf-grow">
+                <span className={`area-chip ${!area ? "sel" : ""}`} onClick={() => setArea(null)}>
+                  Sem área
+                </span>
+                {gam.config.roda.areas.map((a) => (
+                  <span
+                    key={a.id}
+                    className={`area-chip ${area === a.id ? "sel" : ""}`}
+                    style={{ "--chip": a.color } as React.CSSProperties}
+                    onClick={() => setArea(a.id)}
+                  >
+                    {a.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {negativa && (
-          <div className="dev-n" style={{ marginTop: 6 }}>
+          <div className="dev-n" style={{ marginTop: 10 }}>
             Marque cada vez que acontecer. Passar do limite desconta do boletim.
           </div>
         )}
-
-        {!negativa && (
-          <label className="switch-row" style={{ marginTop: 12 }}>
-            <span>Pontua no boletim</span>
-            <input type="checkbox" checked={pontua} onChange={(e) => setPontua(e.target.checked)} />
-          </label>
-        )}
-
-        {(negativa || pontua) && (
-          <div style={{ marginTop: 12 }}>
-            <div className="section-label" style={{ margin: "0 0 6px" }}>
-              {negativa ? "Peso da penalidade" : "Peso"}
-            </div>
-            <div className="type-toggle">
-              {TAGS.filter((t) => t !== "nenhum").map((t) => (
-                <span key={t} className={tagValor === t ? "active" : ""} onClick={() => setTagValor(t)}>
-                  {TAG_LABEL[t]}
-                </span>
-              ))}
-            </div>
-            <div className="dev-n" style={{ marginTop: 6 }}>
-              {negativa
-                ? "Cada vez que passar do limite desconta pontos do boletim da semana."
-                : "Cada vez marcada credita pontos no boletim da semana, até o limite de vezes."}
-            </div>
-          </div>
-        )}
-
-        {gam.config.roda.ativa && gam.config.roda.areas.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <div className="section-label" style={{ margin: "0 0 6px" }}>
-              Área
-            </div>
-            <div className="area-chips" style={{ flexWrap: "wrap", gap: 6 }}>
-              <span className={`area-chip ${!area ? "sel" : ""}`} onClick={() => setArea(null)}>
-                Sem área
-              </span>
-              {gam.config.roda.areas.map((a) => (
-                <span
-                  key={a.id}
-                  className={`area-chip ${area === a.id ? "sel" : ""}`}
-                  style={{ "--chip": a.color } as React.CSSProperties}
-                  onClick={() => setArea(a.id)}
-                >
-                  {a.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div style={{ marginTop: 12 }}>
-          <div
-            className="section-label"
-            style={{ margin: "0 0 6px", opacity: tipo === "diaria" ? 1 : 0.45 }}
-          >
-            Notificar (só quando é ao dia)
-          </div>
-          <label className="switch-row">
-            <span>Lembrar em horários fixos</span>
-            <input
-              type="checkbox"
-              disabled={tipo !== "diaria"}
-              checked={tipo === "diaria" && notifOn}
-              onChange={(e) => setNotifOn(e.target.checked)}
-            />
-          </label>
-          {tipo === "diaria" && notifOn && (
-            <div className="sched-time-row" style={{ marginTop: 6 }}>
-              <input type="time" value={notifIni} onChange={(e) => setNotifIni(e.target.value)} />
-              <span style={{ alignSelf: "center", color: "var(--sub)" }}>até</span>
-              <input type="time" value={notifFim} onChange={(e) => setNotifFim(e.target.value)} />
-            </div>
-          )}
-        </div>
 
         <div className="confirm-actions" style={{ marginTop: 18 }}>
           <button className="btn-cancel" onClick={onClose}>
@@ -605,7 +626,7 @@ function MetaRecForm({
             style={{ background: "var(--caneta)" }}
             onClick={handleSave}
           >
-            {rec ? "Salvar" : "Adicionar"}
+            Salvar
           </button>
         </div>
       </div>
@@ -792,69 +813,118 @@ function MetaPrazoForm({
 
   return (
     <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="confirm-box" style={{ textAlign: "left", maxHeight: "86vh", overflowY: "auto" }}>
-        <p style={{ margin: "0 0 10px" }}>{meta ? "Editar meta" : "Nova meta"}</p>
-        <input
-          className="mk-e-name"
-          style={{ width: "100%" }}
-          autoFocus
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-          placeholder="Alvo (ex: Prova SEFAZ-BA)"
-        />
-        <div className="section-label" style={{ margin: "12px 0 4px" }}>
-          Prazo
-        </div>
-        <input type="date" style={{ width: "100%" }} value={data} onChange={(e) => setData(e.target.value)} />
-        <div className="section-label" style={{ margin: "12px 0 4px" }}>
-          Quantidade (opcional)
-        </div>
-        <div className="market-form-row" style={{ display: "flex", gap: 8 }}>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            placeholder="quantos"
-            style={{ width: 110 }}
-            aria-label="Quantos itens"
-            value={qtd}
-            onChange={(e) => setQtd(e.target.value)}
-          />
+      <div
+        className="confirm-box meta-form"
+        style={{ textAlign: "left", maxHeight: "86vh", overflowY: "auto" }}
+      >
+        <p className="mf-title">{meta ? "Editar meta" : "Nova meta"}</p>
+
+        <div className="mf-row" style={{ marginTop: 0 }}>
           <input
             type="text"
-            placeholder="do quê? (ex: questões)"
-            style={{ flex: 1, minWidth: 0 }}
-            aria-label="Tipo do item"
-            value={unidade}
-            onChange={(e) => setUnidade(e.target.value)}
+            className="mf-grow"
+            autoFocus
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Alvo (ex.: Prova SEFAZ-BA)"
           />
         </div>
-        <div className="section-label" style={{ margin: "12px 0 4px" }}>
-          Áreas
+
+        <div className="mf-row">
+          <div className="mf-cell">
+            <span className="mf-ico" title="Prazo">
+              <Icon name="clock" size={17} />
+            </span>
+            <input
+              type="date"
+              aria-label="Prazo"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+            />
+          </div>
+          <div className="mf-cell" style={{ flex: "0 1 auto" }}>
+            <span className="mf-ico" title="Peso no boletim">
+              <Icon name="tag" size={17} />
+            </span>
+            <div className="type-toggle tagval-pills">
+              {TAGS.map((v, i) => (
+                <span
+                  key={v}
+                  className={tag === v ? "active" : ""}
+                  title={TAG_LABEL[v]}
+                  onClick={() => setTag(v)}
+                >
+                  {i}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="area-chips">
-          {areas.map((a) => {
-            const info = metaAreaInfo(a, areasRoda);
-            return (
-              <span key={a} className="area-chip sel" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(a)}>
-                {info.label}
-              </span>
-            );
-          })}
-          {sugestoes.map((a) => {
-            const info = metaAreaInfo(a, areasRoda);
-            return (
-              <span key={a} className="area-chip" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(info.label)}>
-                {info.label}
-              </span>
-            );
-          })}
+
+        <div className="mf-row">
+          <div className="mf-cell" style={{ flex: "0 0 auto" }}>
+            <span className="mf-ico" title="Quantidade (opcional)">
+              <Icon name="hashtag" size={17} />
+            </span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              placeholder="ex.: 4"
+              style={{ width: 84 }}
+              aria-label="Quantos itens"
+              value={qtd}
+              onChange={(e) => setQtd(e.target.value)}
+            />
+          </div>
+          <div className="mf-cell">
+            <span className="mf-ico" title="Do quê?">
+              <Icon name="infoCircle" size={17} />
+            </span>
+            <input
+              type="text"
+              placeholder="ex.: questões"
+              aria-label="Tipo do item"
+              value={unidade}
+              onChange={(e) => setUnidade(e.target.value)}
+            />
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+
+        <div className="mf-row">
+          <div className="mf-cell">
+            <span className="mf-ico" title="Áreas">
+              <Icon name="briefcase" size={17} />
+            </span>
+            <div className="area-chips mf-areas mf-grow">
+              {areas.map((a) => {
+                const info = metaAreaInfo(a, areasRoda);
+                return (
+                  <span key={a} className="area-chip sel" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(a)}>
+                    {info.label}
+                  </span>
+                );
+              })}
+              {sugestoes.map((a) => {
+                const info = metaAreaInfo(a, areasRoda);
+                return (
+                  <span key={a} className="area-chip" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(info.label)}>
+                    {info.label}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="mf-row">
+          <span className="mf-ico" style={{ visibility: "hidden" }}>
+            <Icon name="briefcase" size={17} />
+          </span>
           <input
             type="text"
+            className="mf-grow"
             placeholder="nova área"
-            style={{ flex: 1, minWidth: 0 }}
             aria-label="Nova área"
             value={novaArea}
             onChange={(e) => setNovaArea(e.target.value)}
@@ -869,30 +939,27 @@ function MetaPrazoForm({
             <Icon name="plus" size={14} />
           </button>
         </div>
-        <div className="section-label" style={{ margin: "12px 0 4px" }}>
-          Dias para trabalhar (nenhum marcado = todo dia)
-        </div>
-        <div className="day-chips" style={{ marginTop: 0 }}>
-          {DIAS_ABREV.map((lbl, d) => (
-            <span
-              key={d}
-              className={"day-chip" + (dias.includes(d) ? " active" : "")}
-              onClick={() => setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))}
-            >
-              {lbl.charAt(0).toUpperCase()}
+
+        <div className="mf-row">
+          <div className="mf-cell">
+            <span className="mf-ico" title="Dias para trabalhar (nenhum marcado = todo dia)">
+              <Icon name="calendar" size={17} />
             </span>
-          ))}
+            <div className="day-chips mf-grow">
+              {DIAS_ABREV.map((lbl, d) => (
+                <span
+                  key={d}
+                  className={"day-chip" + (dias.includes(d) ? " active" : "")}
+                  title={lbl}
+                  onClick={() => setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))}
+                >
+                  {lbl.charAt(0).toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="section-label" style={{ margin: "12px 0 4px" }}>
-          Peso no boletim
-        </div>
-        <div className="type-toggle tagval-pills">
-          {TAGS.map((v) => (
-            <span key={v} className={tag === v ? "active" : ""} onClick={() => setTag(v)}>
-              {TAG_LABEL[v]}
-            </span>
-          ))}
-        </div>
+
         {esc && (
           <div className="dev-n" style={{ marginTop: 12 }}>
             Vale <b>{total.toFixed(1)}</b> pontos no boletim <b>{ESCOPO_LABEL[esc]}</b>
@@ -904,7 +971,7 @@ function MetaPrazoForm({
             Cancelar
           </button>
           <button className="btn-confirm" style={{ background: "var(--caneta)" }} onClick={salvar}>
-            {meta ? "Salvar" : "Criar"}
+            Salvar
           </button>
         </div>
       </div>
