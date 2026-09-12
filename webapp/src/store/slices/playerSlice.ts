@@ -19,6 +19,7 @@ import {
 import { localKey } from "../../lib/gamificacao";
 import {
   adiarEtapaPlayer,
+  exercicioAnteriorComSeries,
   freshExState,
   limparNaoFeitaMap,
   marcarNaoFeitaMap,
@@ -96,6 +97,7 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
           pausedTotalMs: p.pausedTotalMs + delta,
           stepEndTs: p.stepEndTs != null ? p.stepEndTs + delta : null,
           stepStart: p.stepStart + delta,
+          ex: p.ex && p.ex.restEndTs != null ? { ...p.ex, restEndTs: p.ex.restEndTs + delta } : p.ex,
         },
       });
     }
@@ -353,6 +355,7 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     set({
       playerState: {
         ...p,
+        overtimeCueFired: false,
         ex: {
           setIdx: p.ex.setIdx + 1,
           phase: "rest",
@@ -371,9 +374,51 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
   },
   voltarSerieExercicio: () => {
     const p = get().playerState;
-    if (!p || !p.ex || !p.ex.results.length) return;
-    const results = p.ex.results.slice(0, -1);
-    set({ playerState: { ...p, ex: { setIdx: Math.max(0, p.ex.setIdx - 1), phase: "set", results, restEndTs: null } } });
+    if (!p) return;
+    if (p.ex && p.ex.results.length) {
+      const results = p.ex.results.slice(0, -1);
+      set({ playerState: { ...p, ex: { setIdx: Math.max(0, p.ex.setIdx - 1), phase: "set", results, restEndTs: null } } });
+      return;
+    }
+    // Sem série registrada na etapa atual (ex.: a última série concluída sem
+    // querer já levou ao descanso/próximo exercício): volta UMA série do
+    // exercício anterior — reabre a última série dele com as outras intactas,
+    // em vez de goPrevStep, que zera o exercício inteiro.
+    const alvo = exercicioAnteriorComSeries(p);
+    if (alvo < 0) return;
+    const series = p.stepActuals[alvo]!.series!;
+    let gam = get().gam;
+    let pontosGanhos = p.pontosGanhos;
+    let naoFeitas = get().naoFeitas;
+    const stepActuals = [...p.stepActuals];
+    for (let i = alvo; i <= p.idx; i++) {
+      const desfeita = stepActuals[i];
+      if (desfeita?.naoFeita) naoFeitas = limparNaoFeitaMap(naoFeitas, p.routineId, desfeita.id, localKey());
+      if (desfeita?.gamItemId) {
+        const creditado = gam.semanaAtual?.concluidos.find((c) => c.itemId === desfeita.gamItemId);
+        if (creditado) pontosGanhos = Math.max(0, pontosGanhos - creditado.pontos);
+        gam = desfazerConclusao(gam, desfeita.gamItemId);
+      }
+      stepActuals[i] = undefined;
+    }
+    if (gam !== get().gam) save(K_GAMIFICACAO, gam);
+    if (naoFeitas !== get().naoFeitas) save(K_NAOFEITAS, naoFeitas);
+    set({
+      gam,
+      naoFeitas,
+      playerState: {
+        ...p,
+        idx: alvo,
+        stepActuals,
+        pontosGanhos,
+        paused: false,
+        pausedAt: null,
+        stepStart: Date.now(),
+        stepEndTs: null,
+        overtimeCueFired: false,
+        ex: { setIdx: series.length - 1, phase: "set", results: series.slice(0, -1), restEndTs: null },
+      },
+    });
   },
 
   upsertExercicio: (ex) => {

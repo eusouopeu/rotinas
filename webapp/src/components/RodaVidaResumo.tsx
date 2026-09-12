@@ -48,6 +48,11 @@ export function RodaVidaResumo() {
   const temSetas = linhas.length > POR_PAGINA && isDesktop;
   const podeArrastar = linhas.length > POR_PAGINA && !isDesktop;
 
+  const valTxt = (l: (typeof linhas)[number]) => num(l.pontos) + (l.previsto ? " / " + l.previsto.toFixed(0) : "");
+  // coluna do valor com a mesma largura em todas as linhas (e páginas): o
+  // texto mais longo define a largura, então as barras ficam todas iguais.
+  const valCh = Math.max(0, ...linhas.map((l) => valTxt(l).length));
+
   const r = temNota ? ritmoInfo(gam.semanaAtual, gam.config, new Date(), weekStart) : null;
 
   function alternar(e: React.MouseEvent | React.KeyboardEvent) {
@@ -145,9 +150,8 @@ export function RodaVidaResumo() {
                       }}
                     />
                   </div>
-                  <div className="bar-val" style={{ width: "auto", whiteSpace: "nowrap", flex: "0 0 auto" }}>
-                    {num(l.pontos)}
-                    {l.previsto ? " / " + l.previsto.toFixed(0) : ""}
+                  <div className="bar-val" style={{ width: `${valCh + 0.5}ch`, whiteSpace: "nowrap", flex: "0 0 auto" }}>
+                    {valTxt(l)}
                   </div>
                 </div>
               ))}

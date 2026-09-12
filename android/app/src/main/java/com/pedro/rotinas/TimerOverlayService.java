@@ -185,7 +185,16 @@ public class TimerOverlayService extends Service {
             b.setContentText("Em andamento")
                     .setUsesChronometer(true)
                     .setChronometerCountDown(true)
+                    .setShowWhen(true)
                     .setWhen(endTs);
+        }
+        // Android 16+: pede promoção a "Live Update" — o sistema mostra um chip
+        // com o cronômetro na barra de status, logo depois da hora. Sem isso a
+        // contagem só aparecia puxando a gaveta de notificações.
+        if (Build.VERSION.SDK_INT >= 36) {
+            b.setCategory(Notification.CATEGORY_STOPWATCH);
+            b.setRequestPromotedOngoing(true);
+            if (paused) b.setShortCriticalText("Pausado");
         }
         return b.build();
     }
@@ -246,8 +255,9 @@ public class TimerOverlayService extends Service {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                // sem FLAG_LAYOUT_NO_LIMITS: com ele a bolha podia ficar metade
+                // fora da tela à direita (a largura real passa dos 96dp de recuo)
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
         // Ponto de partida: borda direita, meio da tela verticalmente — a posição
         // "chat head" clássica. Evita a faixa de cima (barra de status, título/
@@ -281,7 +291,7 @@ public class TimerOverlayService extends Service {
                         if (Math.abs(dx) > dp(6) || Math.abs(dy) > dp(6)) dragged = true;
                         params.x = startX + dx;
                         params.y = startY + dy;
-                        try { windowManager.updateViewLayout(bubble, params); } catch (Exception ignored) {}
+                        clampBubble();
                         return true;
                     case MotionEvent.ACTION_UP:
                         if (!dragged) {
@@ -294,6 +304,10 @@ public class TimerOverlayService extends Service {
                 return false;
             }
         });
+
+        // Mantém a bolha inteira dentro da tela sempre que o tamanho muda
+        // (texto do rótulo/relógio cresce) — clampa x/y pela largura real.
+        box.addOnLayoutChangeListener((v, l, t, r, bt, ol, ot, or, ob) -> clampBubble());
 
         bubble = box;
         try {
@@ -340,6 +354,14 @@ public class TimerOverlayService extends Service {
         clock.setText((over ? "+" : "") + String.format("%02d:%02d", mm, ss));
         clock.setTextColor(over ? Color.parseColor("#E2776A") : Color.parseColor("#E9EAE5"));
         caption.setText(paused ? "pausado" : label);
+    }
+
+    private void clampBubble() {
+        if (bubble == null || params == null || windowManager == null) return;
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        params.x = Math.max(0, Math.min(params.x, dm.widthPixels - bubble.getWidth()));
+        params.y = Math.max(0, Math.min(params.y, dm.heightPixels - bubble.getHeight()));
+        try { windowManager.updateViewLayout(bubble, params); } catch (Exception ignored) {}
     }
 
     /** Remove só a view: o serviço continua de pé para poder reaparecer depois. */

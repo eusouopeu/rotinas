@@ -84,6 +84,9 @@ describe("computeExRestRemaining", () => {
     const st = novoPlayerState(routine)!.playerState;
     st.ex = { setIdx: 1, phase: "rest", results: [{ reps: 10, peso: 20 }], restEndTs: Date.now() + 60000 };
     expect(computeExRestRemaining(st)).toBeGreaterThan(55);
+    // passou do fim: conta negativo em vez de travar em 0 (não avança sozinho)
+    st.ex.restEndTs = Date.now() - 5000;
+    expect(computeExRestRemaining(st)).toBe(-5);
   });
   it("pausado usa pausedAt como referência", () => {
     const st = novoPlayerState(routine)!.playerState;

@@ -37,6 +37,17 @@ function useThemeEffect(theme: "auto" | "light" | "dark") {
       document.body.classList.toggle("dark", eff === "dark");
       const meta = document.querySelector('meta[name="theme-color"]');
       if (meta) meta.setAttribute("content", eff === "dark" ? "#14181C" : "#FFFFFF");
+      // Android edge-to-edge: os ícones da barra de status seguiam o tema do
+      // SISTEMA, não o do app — tema claro com sistema escuro deixava hora,
+      // wifi etc. brancos sobre fundo branco (só a bateria aparecia).
+      // "DARK" = fundo escuro, ícones claros (SystemBars do Capacitor 8).
+      const bars = (window as unknown as { Capacitor?: { Plugins?: { SystemBars?: { setStyle(a: { style: string }): unknown } } } })
+        .Capacitor?.Plugins?.SystemBars;
+      try {
+        void Promise.resolve(bars?.setStyle({ style: eff === "dark" ? "DARK" : "LIGHT" })).catch(() => {});
+      } catch {
+        /* sem ponte nativa */
+      }
     }
     apply();
     if (theme === "auto" && mqDark) {

@@ -159,7 +159,9 @@ export function activeCountdown(state: PlayerState): ActiveCountdown | null {
     return { endTs: state.stepEndTs, auto: false, isRest: !!step.isRest, label: step.name || "" };
   }
   if (step.type === "exercicio" && state.ex?.phase === "rest" && state.ex.restEndTs) {
-    return { endTs: state.ex.restEndTs, auto: true, isRest: true, label: "Descanso" + (step.name ? " — " + step.name : "") };
+    // auto:false — o descanso entre séries não avança sozinho (nem no app nem
+    // na bolha nativa): zera, avisa e segue contando negativo até o toque.
+    return { endTs: state.ex.restEndTs, auto: false, isRest: true, label: "Descanso" + (step.name ? " — " + step.name : "") };
   }
   return null;
 }
@@ -183,6 +185,17 @@ export function filaOverlay(state: PlayerState): OverlayQueueItem[] {
   return out;
 }
 
+/** Índice do exercício concluído logo antes da etapa atual (pulando no máximo
+ * a pausa entre eles), com séries registradas — alvo do "voltar série" quando
+ * a etapa atual ainda não tem série. -1 se não houver. */
+export function exercicioAnteriorComSeries(state: PlayerState): number {
+  let j = state.idx - 1;
+  if (state.steps[j]?.isRest) j--;
+  if (j < 0 || state.steps[j]?.type !== "exercicio") return -1;
+  const a = state.stepActuals[j];
+  return a && !a.skipped && a.series?.length ? j : -1;
+}
+
 /** Porta de computeRemaining (index.html:11247-11252). */
 export function computeRemaining(state: PlayerState): number {
   const step = state.steps[state.idx];
@@ -193,12 +206,12 @@ export function computeRemaining(state: PlayerState): number {
 
 /** Porta do cálculo inline de descanso entre séries (index.html:12266,
  * 12345) — usa `pausedAt` como referência quando pausado, igual ao timer de
- * etapa acima. */
+ * etapa acima. Fica negativo depois do fim (não avança sozinho). */
 export function computeExRestRemaining(state: PlayerState): number {
   const restEndTs = state.ex?.restEndTs;
   if (state.ex?.phase !== "rest" || !restEndTs) return 0;
   const ref = state.paused && state.pausedAt ? state.pausedAt : Date.now();
-  return Math.max(0, Math.round((restEndTs - ref) / 1000));
+  return Math.round((restEndTs - ref) / 1000);
 }
 
 /* ---- Repescagem: etapas marcadas "não feita" hoje (index.html:11192-11223) ----

@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
-import { activeCountdown, computeExRestRemaining, computeRemaining, filaOverlay, parseRepsRange } from "../lib/player";
+import { activeCountdown, computeExRestRemaining, exercicioAnteriorComSeries, computeRemaining, filaOverlay, parseRepsRange } from "../lib/player";
 import { fmtTime } from "../lib/format";
 import { timeUpCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
@@ -51,12 +51,13 @@ export function Player() {
   useEffect(() => {
     const id = setInterval(() => {
       setTick((t) => t + 1);
-      // Descanso ENTRE SÉRIES avança sozinho ao zerar (index.html:11355-11363)
-      // — diferente do timer de etapa, que só avança no toque.
+      // Descanso ENTRE SÉRIES também não avança sozinho (pedido do Pedro,
+      // 12/09/2026 — diverge do legado index.html:11355-11363): avisa uma vez
+      // e segue contando negativo até o toque em "pular descanso".
       const p = useAppStore.getState().playerState;
-      if (!p?.paused && p?.ex?.phase === "rest" && p.ex.restEndTs != null && Date.now() >= p.ex.restEndTs) {
+      if (p && !p.paused && p.ex?.phase === "rest" && p.ex.restEndTs != null && Date.now() >= p.ex.restEndTs && !p.overtimeCueFired) {
         timeUpCue();
-        useAppStore.getState().pularDescansoExercicio();
+        useAppStore.setState({ playerState: { ...p, overtimeCueFired: true } });
         return;
       }
       // Etapa de tempo/pausa zerou: nunca avança sozinha (index.html:11418-
@@ -179,6 +180,16 @@ export function Player() {
   const curBlockLen = !step.isRest && playerState.steps[playerState.idx + 1]?.isRest ? 2 : 1;
   const podeAdiar = playerState.idx + curBlockLen < playerState.steps.length;
 
+  // Carga prevista do próximo exercício, já na pausa antes dele (legado
+  // index.html:12415-12421); pula a pausa se a próxima etapa for ela.
+  const proxima = playerState.steps[playerState.idx + 1];
+  const proximoEx = [proxima, proxima?.isRest ? playerState.steps[playerState.idx + 2] : undefined].find((s) => s?.type === "exercicio");
+  const proximoPeso = proximoEx ? exercicios.find((e) => e.id === proximoEx.exercicioId)?.pesoAtual || 0 : 0;
+  // no descanso entre séries: a carga da última série (vira a sugestão da próxima)
+  const pesoSerie = playerState.ex?.results[playerState.ex.results.length - 1]?.peso || 0;
+  const podeVoltarSerie =
+    (step.type === "exercicio" && (playerState.ex?.results.length || 0) > 0) || exercicioAnteriorComSeries(playerState) >= 0;
+
   return (
     <div className="screen" style={{ paddingBottom: 0 }}>
       <div className="player">
@@ -237,12 +248,16 @@ export function Player() {
             {exPhase === "rest" ? (
               <>
                 <div className="step-title">Descanso</div>
-                <div className="t" style={{ fontFamily: "'Montserrat'", fontSize: 48, fontWeight: 600, margin: "6px 0" }}>
+                <div
+                  className={"t" + (exRem < 0 ? " overtime" : "")}
+                  style={{ fontFamily: "'Montserrat'", fontSize: 48, fontWeight: 600, margin: "6px 0", color: exRem < 0 ? "var(--erro)" : undefined }}
+                >
                   {fmtTime(exRem)}
                 </div>
                 <h2>{step.name}</h2>
                 <div className="dev-n">
                   série {playerState.ex!.setIdx} de {step.sets || 1} concluída
+                  {pesoSerie ? ` · próxima: ${pesoSerie}kg` : ""}
                 </div>
               </>
             ) : (
@@ -294,9 +309,7 @@ export function Player() {
 
         <div style={{ width: "100%" }}>
           <div className="next-task-row">
-            {playerState.steps[playerState.idx + 1]
-              ? `próxima tarefa: ${playerState.steps[playerState.idx + 1].name}`
-              : "última etapa"}
+            {proxima ? `próxima tarefa: ${proxima.name}${proximoPeso ? ` — ${proximoPeso}kg` : ""}` : "última etapa"}
           </div>
         </div>
 
@@ -393,10 +406,10 @@ export function Player() {
           </div>
         )}
 
-        {(step.type === "exercicio" && (playerState.ex?.results.length || 0) > 0) || !step.isRest ? (
+        {podeVoltarSerie || !step.isRest ? (
           <div className="skip-row" style={{ padding: "10px 0 4px" }}>
-            {step.type === "exercicio" && (playerState.ex?.results.length || 0) > 0 && (
-              <button className="skip-btn" onClick={voltarSerieExercicio}>
+            {podeVoltarSerie && (
+              <button className="skip-btn" title="Reabre só a última série registrada" onClick={voltarSerieExercicio}>
                 <Icon name="arrowLeft" size={13} /> voltar série
               </button>
             )}
