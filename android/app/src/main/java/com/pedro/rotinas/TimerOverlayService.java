@@ -193,7 +193,11 @@ public class TimerOverlayService extends Service {
         // contagem só aparecia puxando a gaveta de notificações.
         if (Build.VERSION.SDK_INT >= 36) {
             b.setCategory(Notification.CATEGORY_STOPWATCH);
-            b.setRequestPromotedOngoing(true);
+            // = setRequestPromotedOngoing(true) (EXTRA_REQUEST_PROMOTED_ONGOING);
+            // via extra porque o SDK 36 instalado não expõe o setter.
+            android.os.Bundle promo = new android.os.Bundle();
+            promo.putBoolean("android.requestPromotedOngoing", true);
+            b.addExtras(promo);
             if (paused) b.setShortCriticalText("Pausado");
         }
         return b.build();
