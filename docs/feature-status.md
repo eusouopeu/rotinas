@@ -4,7 +4,8 @@
 
 - Gerenciador de tarefas de estudo foi removido; usar cartões Kanban/Metas, não quinta superfície.
 - Tipo de nota “Ideia”, Pomodoro e ciclo de repetição foram removidos.
-- Agenda antiga como tela separada, botão de boletim Home, filtro de área da Home, card Hoje, CSV e aba Dados foram removidos/substituídos.
+- Agenda antiga como tela separada, botão de boletim Home, filtro de área da Home, card Hoje e CSV foram removidos/substituídos.
+- Aba Dados **voltou** no React em 12/09/2026 (mockups do Pedro): `Stats.tsx` é a tela da aba `dados` na tabbar, não mais uma tela interna aberta pelo cabeçalho da Home. Não recriar o botão "Dados" no `home-header` nem o "voltar" no cabeçalho de Dados.
 - Aba Diário foi removida (legado, commit `c627f33`, 23/08/2026); a agenda semana/dia da aba Rotinas cobre o uso. Não recriar uma tela/aba "Diário" separada — ver nota em `react-migration.md`.
 - Excluir Meta continua acessível por swipe; mantenha o botão oculto `data-cddel` enquanto o wiring depender dele.
 

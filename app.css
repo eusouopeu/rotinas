@@ -113,7 +113,7 @@
     overflow:hidden;
   }
   .screen{ flex:1; display:flex; flex-direction:column; padding:0 20px; animation: fade .25s ease; min-height:0; }
-  .screen.with-tabbar{ padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 10px); }
+  .screen.with-tabbar{ padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 24px); }
   /* nó de rolagem que leva o cabeçalho da aba junto (Metas, Modelos) */
   .tab-scroll{ flex:1; overflow-y:auto; min-height:0; }
   @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
@@ -122,25 +122,37 @@
   h1,h2,h3{ font-family:'Lato', sans-serif; font-weight:600; margin:0; letter-spacing:-0.01em; }
 
   /* ---------- TABBAR ---------- */
+  /* Barra flutuante e vítrea em duas pílulas (abas de conteúdo + Ajustes).
+     O container em si não tem fundo: só posiciona e deixa o toque passar
+     pelo vão entre as pílulas (pointer-events). */
   .tabbar{
-    position:fixed; left:0; right:0; bottom:0; height:calc(var(--tabbar-h) + var(--safe-bottom));
-    background:var(--card-blur); border-top:1.5px solid var(--line);
-    backdrop-filter: blur(14px) saturate(1.1); -webkit-backdrop-filter: blur(14px) saturate(1.1);
-    display:flex; padding-bottom:var(--safe-bottom); z-index:30;
-    /* os 5 botões não têm rolagem horizontal própria; sem isso um arrasto
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    display:flex; align-items:center; gap:10px;
+    padding:0 14px calc(var(--safe-bottom) + 12px);
+    pointer-events:none;
+    /* os botões não têm rolagem horizontal própria; sem isso um arrasto
        lateral no dedo dava uma leve folga elástica nos botões (nativo do
        WebView tentando "arrastar" algo que não rola de verdade) */
     touch-action: pan-y;
   }
+  .tabbar-pill{
+    pointer-events:auto; display:flex; align-items:center;
+    flex:1 1 auto; height:var(--tabbar-h); padding:0 6px;
+    background:var(--card-blur); border:1.5px solid var(--line); border-radius:999px;
+    backdrop-filter: blur(16px) saturate(1.15); -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  }
+  .tabbar-pill-fim{ flex:0 0 auto; padding:0 5px; }
   .tabbar button{
     flex:1; background:none; border:none; color:var(--sub);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
     font-family:'Montserrat'; font-size:11.5px;
   }
+  /* no mobile a aba é só ícone; o rótulo continua no DOM para a sidebar do desktop */
+  .tabbar .tab-label{ display:none; }
   /* pílula atrás do ícone da aba ativa: marca o lugar sem depender só da cor */
   .tabbar button .ic{
     font-size:19px; display:flex; align-items:center; justify-content:center;
-    padding:3px 14px; border-radius:11px; transition: background .18s ease;
+    padding:7px 15px; border-radius:999px; transition: background .18s ease;
     position:relative; /* âncora do .sync-conflict-dot na aba Configurações */
   }
   /* SVGs são nativamente arrastáveis por padrão em vários navegadores (o mesmo
@@ -188,12 +200,14 @@
   .di-live{ min-height:150px; padding-bottom:14px; }
   /* agenda de time-blocking: régua de horas + blocos posicionados por minuto */
   .ag-wrap{ position:relative; padding-left:52px; margin:4px 0 20px; }
-  .ag-hora{ position:absolute; left:0; right:0; border-top:1.5px solid var(--line); }
-  .ag-hora span{ position:absolute; left:0; top:-8px; font-family:'Montserrat', sans-serif; font-size:11px; color:var(--sub); }
-  /* marcação de meia hora: mesma linha, mais apagada, para a hora cheia
-     continuar sendo a referência de leitura */
-  .ag-hora.ag-meia{ border-top-style:dashed; opacity:.5; }
-  .ag-hora.ag-meia span{ font-size:10px; }
+  .ag-hora{ position:absolute; left:0; right:0; border-top:1.5px solid var(--ink); }
+  /* o rótulo tem fundo próprio para a linha (agora escura) não atravessá-lo:
+     na prática a linha da hora começa logo depois do texto, como no mockup */
+  .ag-hora span{ position:absolute; left:0; top:-8px; font-family:'Montserrat', sans-serif; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--card); padding-right:7px; }
+  /* marcação de meia hora: linha fina e clara (sem tracejado), para a hora
+     cheia — escura e em negrito — continuar sendo a referência de leitura */
+  .ag-hora.ag-meia{ border-top:1px solid var(--line); }
+  .ag-hora.ag-meia span{ font-size:10px; font-weight:400; color:var(--sub); }
   .ag-blocos{ position:absolute; left:52px; right:0; top:0; bottom:0; }
   /* horário e nome na MESMA linha, o nome logo em seguida ao horário; só quebra
      para baixo quando o texto não cabe na largura do bloco */
@@ -886,6 +900,10 @@
   .ag-nav-row{ display:flex; align-items:center; gap:2px; justify-content:flex-start; flex-wrap:nowrap; }
   .ag-nav-row .ag-nav-gap{ flex:1 1 auto; min-width:6px; }
   .ag-nav-row > .dev-n{ white-space:nowrap; }
+  /* ponto do dia atual, no lugar do antigo sufixo "· hoje" */
+  .ag-dia-hoje-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--caneta); margin-right:6px; vertical-align:middle; }
+  /* ações da linha do dia (ir para hoje / nova tarefa) com borda, à direita */
+  .ag-nav-row > .icon-btn:not(.borderless){ margin-left:6px; }
   .ag-nav-row .link-btn{ white-space:nowrap; margin-left:10px; }
   .ag-nav-row .icon-btn{ width:28px; height:28px; }
   .ag-dia-head.ag-nav-row .ag-dia-nome{ flex:0 1 auto; margin-right:6px; }
@@ -894,6 +912,9 @@
   /* a grade do dia vai de 00:00 a 24:00 com o dobro do zoom: rola dentro da
      própria caixa, senão a aba inteira teria mais de 3000px */
   .ag-dia-scroll{ max-height:62vh; overflow-y:auto; background:var(--card); border:1.5px solid var(--line); border-radius:var(--radius-sm); padding:12px 10px 0 4px; }
+  /* view "Dia": grade sem moldura, linhas de ponta a ponta (mockup de 12/09/2026) */
+  .ag-dia-scroll.ag-dia-plana{ background:none; border:none; border-radius:0; padding:14px 0 0 2px; }
+  .ag-dia-plana .ag-hora span{ background:var(--paper); }
   .ag-dia-scroll .ag-wrap{ margin:0; }
 
   /* ---------- TREND ---------- */
@@ -1354,7 +1375,13 @@
       flex-direction:column; align-items:stretch; justify-content:flex-start;
       padding:22px 10px; gap:2px; border-top:none; border-right:1.5px solid var(--line);
       backdrop-filter:none; -webkit-backdrop-filter:none; background:var(--card);
+      pointer-events:auto;
     }
+    /* na sidebar não há pílulas: os botões voltam a ser filhos diretos da coluna */
+    .tabbar-pill{
+      display:contents;
+    }
+    .tabbar .tab-label{ display:inline; }
     .tabbar::before{
       content:"Rotinas"; display:block; font-family:'Lato', sans-serif; font-weight:600;
       font-size:18px; padding:0 10px 18px; color:var(--ink); letter-spacing:-.01em;

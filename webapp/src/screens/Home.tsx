@@ -590,14 +590,16 @@ function AgendaDia() {
 
   return (
     <div>
-      {/* tudo numa linha só: setas coladas no nome/data, e "hoje" no fim */}
+      {/* grupo "‹ Sexta 12/09 ›" compacto à esquerda e ações à direita; o ponto
+          marca o dia atual (era o sufixo "· hoje") e o botão de calendário é o
+          antigo link "hoje" — some quando a agenda já está no dia de hoje */}
       <div className="ag-dia-head ag-nav-row">
         <button className="icon-btn borderless" title="Dia anterior" aria-label="Dia anterior" onClick={() => setIso(addDaysISO(iso, -1))}>
           <Icon name="chevronLeft" size={15} />
         </button>
         <span className="ag-dia-nome">
+          {ehHoje && <span className="ag-dia-hoje-dot" aria-label="hoje" title="hoje" />}
           {DIAS_NOME[dow].charAt(0).toUpperCase() + DIAS_NOME[dow].slice(1)}
-          {ehHoje ? " · hoje" : ""}
         </span>
         <span className="dev-n">
           {iso.slice(8, 10)}/{iso.slice(5, 7)}
@@ -605,15 +607,15 @@ function AgendaDia() {
         <button className="icon-btn borderless" title="Próximo dia" aria-label="Próximo dia" onClick={() => setIso(addDaysISO(iso, 1))}>
           <Icon name="chevronRight" size={15} />
         </button>
-        <button className="icon-btn borderless" title="Nova tarefa" aria-label="Nova tarefa" onClick={() => setPopup({ ini: null })}>
-          <Icon name="plus" size={15} />
-        </button>
         <span className="ag-nav-gap" />
         {!ehHoje && (
-          <button className="link-btn" onClick={() => setIso(hojeISO)}>
-            hoje
+          <button className="icon-btn" title="Ir para hoje" aria-label="Ir para hoje" onClick={() => setIso(hojeISO)}>
+            <Icon name="calendar" size={15} />
           </button>
         )}
+        <button className="icon-btn" title="Nova tarefa" aria-label="Nova tarefa" onClick={() => setPopup({ ini: null })}>
+          <Icon name="plus" size={15} />
+        </button>
       </div>
       {popup && <TarefaPopup iso={iso} card={null} iniMin={popup.ini} onClose={() => setPopup(null)} />}
       {allDay.length > 0 && (
@@ -625,7 +627,7 @@ function AgendaDia() {
           ))}
         </div>
       )}
-      <div className="ag-dia-scroll">
+      <div className="ag-dia-scroll ag-dia-plana">
         <GradeDia
           layout={layout}
           onClique={clique}
@@ -693,9 +695,6 @@ export function Home() {
           <h1>Rotinas</h1>
           <button className="bell-btn" title="Boletim da semana" aria-label="Boletim da semana" onClick={() => goTo({ tab: "home", screen: "boletim" })}>
             <Icon name="trophy" size={16} />
-          </button>
-          <button className="bell-btn" title="Dados" aria-label="Dados" onClick={() => goTo({ tab: "home", screen: "stats" })}>
-            <Icon name="stats" size={14} />
           </button>
         </div>
 

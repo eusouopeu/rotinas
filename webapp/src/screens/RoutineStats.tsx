@@ -23,7 +23,7 @@ export function RoutineStats() {
         <div className="topbar">
           <button
             className="link-btn muted"
-            onClick={() => goTo({ tab: "stats", screen: "stats" })}
+            onClick={() => goTo({ tab: "dados", screen: "stats" })}
           >
             &larr; Dados
           </button>
@@ -62,7 +62,7 @@ export function RoutineStats() {
       <div className="topbar">
         <button
           className="link-btn muted"
-          onClick={() => goTo({ tab: "stats", screen: "stats" })}
+          onClick={() => goTo({ tab: "dados", screen: "stats" })}
         >
           &larr; Dados
         </button>

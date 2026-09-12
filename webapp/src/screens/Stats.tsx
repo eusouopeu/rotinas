@@ -19,6 +19,7 @@ import { fmtClock, fmtTime } from "../lib/format";
 import { relatorioFechamentoHtml } from "../lib/pdfExport";
 import { exportPdfView } from "../lib/exportFile";
 import type { CountdownDoc } from "../lib/types";
+import { Tabbar } from "../components/Tabbar";
 
 const DOWL = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -205,7 +206,7 @@ export function Stats() {
                 <div
                   key={g.routineId}
                   className="bar-row tappable"
-                  onClick={() => goTo({ tab: "stats", screen: "routineStats", id: g.routineId })}
+                  onClick={() => goTo({ tab: "dados", screen: "routineStats", id: g.routineId })}
                 >
                   <div className="bar-name">
                     {g.icon ? g.icon + " " : ""}
@@ -282,7 +283,7 @@ export function Stats() {
                 <div
                   key={s.routineId}
                   className="dev-row tappable"
-                  onClick={() => goTo({ tab: "stats", screen: "routineStats", id: s.routineId })}
+                  onClick={() => goTo({ tab: "dados", screen: "routineStats", id: s.routineId })}
                 >
                   <span>
                     {s.icon ? s.icon + " " : ""}
@@ -307,7 +308,7 @@ export function Stats() {
                 <div
                   key={x.routineId}
                   className="dev-row tappable"
-                  onClick={() => goTo({ tab: "stats", screen: "routineStats", id: x.routineId })}
+                  onClick={() => goTo({ tab: "dados", screen: "routineStats", id: x.routineId })}
                 >
                   <span>
                     {x.icon ? x.icon + " " : ""}
@@ -331,7 +332,7 @@ export function Stats() {
                 <div
                   key={i}
                   className="dev-row tappable"
-                  onClick={() => goTo({ tab: "stats", screen: "routineStats", id: s.routineId })}
+                  onClick={() => goTo({ tab: "dados", screen: "routineStats", id: s.routineId })}
                 >
                   <span>
                     {s.routineName} — {s.stepName}
@@ -597,21 +598,10 @@ export function Stats() {
   }
 
   return (
-    <div className="screen screen-wide">
+    <div className="screen screen-wide with-tabbar">
       <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
         <div className="home-header stats-sticky-head">
-          <h1>
-            <button
-              className="icon-btn borderless"
-              title="Voltar para Rotinas"
-              aria-label="Voltar para Rotinas"
-              onClick={() => goTo({ tab: "home", screen: "home" })}
-              style={{ marginRight: 6, verticalAlign: "-8px" }}
-            >
-              <Icon name="chevronLeft" size={18} />
-            </button>
-            Dados
-          </h1>
+          <h1>Dados</h1>
           <div className="header-right">
             <button
               className="bell-btn"
@@ -689,6 +679,7 @@ export function Stats() {
           )}
         </div>
       </div>
+      <Tabbar />
     </div>
   );
 }
