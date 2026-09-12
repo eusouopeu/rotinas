@@ -98,12 +98,11 @@ export function TemplateFolders() {
   );
 
   return (
-    <div className="screen with-tabbar">
+    <div className="screen with-tabbar com-modelos-pill">
       <div className="tab-scroll">
         <div className="home-header">
           <h1>Modelos</h1>
         </div>
-        <ModelosTabPill active="outros" />
         <div className="tmpl-folders">
           {secoes.map((s) => (
             <div key={s.key}>
@@ -126,6 +125,7 @@ export function TemplateFolders() {
         </div>
       </div>
 
+      <ModelosTabPill active="outros" />
       <button className="fab" title="Novo modelo" onClick={() => setCriando(true)}>
         +
       </button>

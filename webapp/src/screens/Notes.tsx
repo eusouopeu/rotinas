@@ -25,12 +25,11 @@ export function Notes() {
   const sorted = [...filtered].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.updatedAt - a.updatedAt);
 
   return (
-    <div className="screen with-tabbar">
+    <div className="screen with-tabbar com-modelos-pill">
       <div className="tab-scroll">
         <div className="home-header" style={{ marginBottom: 10 }}>
           <h1>Notas</h1>
         </div>
-        <ModelosTabPill active="notes" />
 
         <input
           type="search"
@@ -106,6 +105,7 @@ export function Notes() {
         </div>
       </div>
 
+      <ModelosTabPill active="notes" />
       <button className="fab" title="Novo" onClick={() => openNote(null)}>
         +
       </button>

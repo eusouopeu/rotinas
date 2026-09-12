@@ -21,8 +21,8 @@ import {
   syncRoutineNotifications,
 } from "./shared";
 
-// Re-exportado por compatibilidade: components/AlarmesCard.tsx importa daqui
-// desde antes da extração para store/shared.ts.
+// Re-exportado por compatibilidade com quem importava daqui antes da
+// extração para store/shared.ts.
 export { recorrentesAtuais };
 import { bootStorage, load, save } from "../lib/storage";
 import { getTimerOverlayBridge, overlayHide } from "../lib/nativeBridge";

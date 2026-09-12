@@ -15,7 +15,7 @@ import { IcalCard } from "../components/IcalCard";
 import { SyncCard } from "../components/SyncCard";
 import { McpCard } from "../components/McpCard";
 import { DiagnosticsCard } from "../components/DiagnosticsCard";
-import { AlarmesCard } from "../components/AlarmesCard";
+import { FiltroAjustes, SecaoAjuste } from "../components/SecaoAjuste";
 import { getMiniPlayerBridge } from "../lib/nativeBridge";
 import { DIAS_ABREV } from "../lib/constants";
 import { isDesktop, isNative } from "../lib/storage";
@@ -62,50 +62,51 @@ export function Settings() {
   const removeRodaArea = useAppStore((s) => s.removeRodaArea);
   const [novaArea, setNovaArea] = useState("");
   const [areaParaRemover, setAreaParaRemover] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
   const c = gam.config;
   const simulacao = useMemo(() => simularDistribuicaoSemana(routines, gam, inicioSemanaISO(new Date())), [routines, gam]);
 
   return (
+    <FiltroAjustes.Provider value={busca}>
     <div className="screen with-tabbar screen-wide">
       <div className="settings-scroll" style={{ overflowY: "auto", flex: 1, paddingBottom: 24 }}>
         <div className="home-header" style={{ marginBottom: 6 }}>
           <h1>Ajustes</h1>
         </div>
 
-        <div className="section-label">Aparência</div>
-        <div className="stat-card">
-          <div className="bar-row">
-            <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-              Tema
-            </div>
-            <div className="type-toggle">
-              {(["auto", "light", "dark"] as const).map((t) => (
-                <span key={t} className={theme === t ? "active" : ""} onClick={() => setTheme(t)}>
-                  {t === "auto" ? "sistema" : t === "light" ? "claro" : "escuro"}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="bar-row" style={{ marginTop: 10 }}>
-            <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-              Tamanho do texto
-            </div>
-            <div className="type-toggle">
-              {[
-                { v: 0.9, l: "P" },
-                { v: 1, l: "M" },
-                { v: 1.15, l: "G" },
-                { v: 1.3, l: "GG" },
-              ].map(({ v, l }) => (
-                <span key={v} className={fontScale === v ? "active" : ""} onClick={() => setFontScale(v)}>
-                  {l}
-                </span>
-              ))}
-            </div>
-          </div>
+        {/* Tema e tamanho ficam sempre à vista, em fileiras largas; o resto
+            da aba é uma pilha de seções retráteis filtrada pela busca. */}
+        <div className="section-label">Tema</div>
+        <div className="type-toggle mf-wide set-toggle">
+          {(["auto", "light", "dark"] as const).map((t) => (
+            <span key={t} className={theme === t ? "active" : ""} onClick={() => setTheme(t)}>
+              {t === "auto" ? "sistema" : t === "light" ? "claro" : "escuro"}
+            </span>
+          ))}
+        </div>
+        <div className="section-label">Tamanho do texto</div>
+        <div className="type-toggle mf-wide set-toggle">
+          {[
+            { v: 0.9, l: "P" },
+            { v: 1, l: "M" },
+            { v: 1.15, l: "G" },
+            { v: 1.3, l: "GG" },
+          ].map(({ v, l }) => (
+            <span key={v} className={fontScale === v ? "active" : ""} onClick={() => setFontScale(v)}>
+              {l}
+            </span>
+          ))}
         </div>
 
-        <div className="section-label">Início da semana</div>
+        <input
+          className="set-busca"
+          type="text"
+          placeholder="Buscar em Ajustes..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+        />
+
+        <SecaoAjuste titulo="Início da semana">
         <div className="stat-card">
           <div className="day-chips">
             {DIAS_ABREV.map((l, d) => (
@@ -120,12 +121,9 @@ export function Settings() {
           </div>
         </div>
 
-        <div className="section-label">Alarmes agendados</div>
-        <div className="stat-card">
-          <AlarmesCard />
-        </div>
+        </SecaoAjuste>
 
-        <div className="section-label">Notificações</div>
+        <SecaoAjuste titulo="Notificações">
         <div className="stat-card">
           <label className="switch-row" style={{ marginTop: 0 }}>
             <span>Resumo ao fechar a semana</span>
@@ -165,7 +163,9 @@ export function Settings() {
           </div>
         </div>
 
-        <div className="section-label">Som e vibração</div>
+        </SecaoAjuste>
+
+        <SecaoAjuste titulo="Som e vibração">
         <div className="stat-card">
           <div className="bar-row">
             <div className="bar-name" style={{ width: "auto", flex: 1 }}>
@@ -197,7 +197,9 @@ export function Settings() {
           </div>
         </div>
 
-        <div className="section-label">Roda da vida</div>
+        </SecaoAjuste>
+
+        <SecaoAjuste titulo="Roda da vida">
         <div className="stat-card">
           <label className="switch-row" style={{ marginTop: 0 }}>
             <span>Repartir os pontos por área</span>
@@ -289,7 +291,9 @@ export function Settings() {
           </div>
         </div>
 
-        <div className="section-label">Hábito consolidado</div>
+        </SecaoAjuste>
+
+        <SecaoAjuste titulo="Hábito consolidado">
         <div className="stat-card">
           <label className="switch-row" style={{ marginTop: 0 }}>
             <span>Descontar rotina que virou hábito</span>
@@ -326,7 +330,9 @@ export function Settings() {
           </div>
         </div>
 
-        <div className="section-label">Vagas por nível de peso</div>
+        </SecaoAjuste>
+
+        <SecaoAjuste titulo="Vagas por nível de peso">
         <div className="stat-card">
           {(["alto", "medio", "baixo"] as const).map((nivel) => (
             <div className="sched-time-row" style={{ marginTop: nivel === "alto" ? 0 : undefined }} key={nivel}>
@@ -345,7 +351,9 @@ export function Settings() {
           ))}
         </div>
 
-        <div className="section-label">Pontuação do boletim</div>
+        </SecaoAjuste>
+
+        <SecaoAjuste titulo="Pontuação do boletim">
         <div className="stat-card">
           {(["alto", "medio", "baixo"] as const).map((nivel) => (
             <div className="sched-time-row" style={{ marginTop: nivel === "alto" ? 0 : undefined }} key={nivel}>
@@ -425,9 +433,11 @@ export function Settings() {
           )}
         </div>
 
+        </SecaoAjuste>
+
         <BackupCard />
 
-        <div className="section-label">Calendário externo</div>
+        <SecaoAjuste titulo="Calendário externo">
         <div className="stat-card">
           <IcalCard />
           <div className="bar-row" style={{ marginTop: 14 }}>
@@ -456,9 +466,10 @@ export function Settings() {
           </div>
         </div>
 
+        </SecaoAjuste>
+
         {isDesktop && (
-          <>
-            <div className="section-label">Mini player</div>
+          <SecaoAjuste titulo="Mini player">
             <div className="stat-card">
               <div className="dev-n" style={{ marginBottom: 10 }}>
                 Uma janelinha sempre no topo com a etapa atual e o cronômetro, pra acompanhar a rotina enquanto usa outro app. Também abre pelo menu Ver → Mini player.
@@ -467,12 +478,11 @@ export function Settings() {
                 Abrir mini player
               </button>
             </div>
-          </>
+          </SecaoAjuste>
         )}
 
         {isNative && (
-          <>
-            <div className="section-label">Cronômetro</div>
+          <SecaoAjuste titulo="Cronômetro">
             <div className="stat-card">
               <div className="bar-row">
                 <div className="bar-name" style={{ width: "auto", flex: 1 }}>
@@ -498,29 +508,28 @@ export function Settings() {
                     : "Além da notificação na barra, uma bolha flutuante com o tempo restante por cima de outros apps. Exige a permissão \u201CSobrepor a outros apps\u201D."}
               </div>
             </div>
-          </>
+          </SecaoAjuste>
         )}
 
         {(isDesktop || isNative) && (
-          <>
-            <div className="section-label">Sincronização com nuvem</div>
+          <SecaoAjuste titulo="Sincronização com nuvem">
             <div className="stat-card">
               <SyncCard />
             </div>
-          </>
+          </SecaoAjuste>
         )}
 
         {isDesktop && (
-          <>
-            <div className="section-label">Integrações (MCP)</div>
+          <SecaoAjuste titulo="Integrações (MCP)">
             <div className="stat-card">
               <McpCard />
             </div>
-          </>
+          </SecaoAjuste>
         )}
 
-        <div className="section-label">Diagnóstico</div>
-        <DiagnosticsCard />
+        <SecaoAjuste titulo="Diagnóstico">
+          <DiagnosticsCard />
+        </SecaoAjuste>
       </div>
 
       {/* Confirmação de remoção de área — o legado (index.html:14097-14106)
@@ -558,5 +567,6 @@ export function Settings() {
 
       <Tabbar />
     </div>
+    </FiltroAjustes.Provider>
   );
 }

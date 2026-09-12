@@ -19,6 +19,7 @@ import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, rotinaCabeEmHoje, rotinasOrdenadas, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
 import { getIcalCache, icalEventosDoDia } from "../lib/ical";
+import { TimeKbInput } from "../components/CamposTexto";
 import { useIsDesktop } from "../lib/useIsDesktop";
 import type { DiaKanbanCard, Snooze, Tag } from "../lib/types";
 import { corDaRotina, fillStyle, rotinaEhHabito } from "../lib/scoring";
@@ -77,37 +78,6 @@ function AgendaLinha({ it, onClick, onDelete, onEdit }: { it: AgendaItemDia; onC
         <span className="agenda-edit-slot" />
       )}
     </div>
-  );
-}
-
-/* Máscara dos campos de hora do popup (timeKbInputHtml/wireTimeKbInputs,
-   index.html:1851-1868): digita números, ganha ":" sozinho, normaliza no blur. */
-function TimeKbInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      className="time-kb-input"
-      placeholder="--:--"
-      maxLength={5}
-      aria-label={label}
-      value={value}
-      onChange={(e) => {
-        let v = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
-        if (v.length >= 3) v = v.slice(0, 2) + ":" + v.slice(2);
-        onChange(v);
-      }}
-      onBlur={() => {
-        const m = value.match(/^(\d{1,2}):(\d{2})$/);
-        if (!m) {
-          onChange("");
-          return;
-        }
-        const h = Math.min(23, +m[1]);
-        const mi = Math.min(59, +m[2]);
-        onChange(String(h).padStart(2, "0") + ":" + String(mi).padStart(2, "0"));
-      }}
-    />
   );
 }
 
@@ -287,7 +257,7 @@ function AgendaSemana() {
 
   const fimISO = addDaysISO(inicioISO, 6);
   const rangeLabel =
-    inicioISO === hojeISO ? "próximos 7 dias" : `${inicioISO.slice(8, 10)}/${inicioISO.slice(5, 7)} – ${fimISO.slice(8, 10)}/${fimISO.slice(5, 7)}`;
+    `${inicioISO.slice(8, 10)}/${inicioISO.slice(5, 7)} – ${fimISO.slice(8, 10)}/${fimISO.slice(5, 7)}`;
   const snoozed = agendaSnoozed(snoozes);
 
   return (
@@ -298,24 +268,29 @@ function AgendaSemana() {
         <button className="icon-btn borderless" title="Semana anterior" aria-label="Semana anterior" onClick={() => setInicioISO(addDaysISO(inicioISO, -7))}>
           <Icon name="chevronLeft" size={15} />
         </button>
-        <span className="dev-n">{rangeLabel}</span>
+        <span className="dev-n">
+          {inicioISO === hojeISO && <span className="ag-dia-hoje-dot" aria-label="semana atual" title="semana atual" />}
+          {rangeLabel}
+        </span>
         <button className="icon-btn borderless" title="Próxima semana" aria-label="Próxima semana" onClick={() => setInicioISO(addDaysISO(inicioISO, 7))}>
           <Icon name="chevronRight" size={15} />
         </button>
         <span className="ag-nav-gap" />
         {inicioISO !== hojeISO && (
-          <button className="link-btn" onClick={() => setInicioISO(hojeISO)}>
-            hoje
+          <button className="icon-btn" title="Ir para a semana atual" aria-label="Ir para a semana atual" onClick={() => setInicioISO(hojeISO)}>
+            <Icon name="calendar" size={15} />
           </button>
         )}
         <button
-          className="link-btn"
+          className="icon-btn"
+          title={snoozed ? "Retomar agenda" : "Pausar agenda"}
+          aria-label={snoozed ? "Retomar agenda" : "Pausar agenda"}
           onClick={() => {
             if (snoozed) resumeAgenda();
             else setSnoozeModal(true);
           }}
         >
-          {snoozed ? "retomar" : "pausar"}
+          <Icon name={snoozed ? "play" : "pause"} size={15} />
         </button>
       </div>
       {snoozed && (

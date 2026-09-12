@@ -6,6 +6,7 @@
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
+import { AreaInput, DateKbInput, TimeKbInput } from "../components/CamposTexto";
 import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { exportPdfView } from "../lib/exportFile";
@@ -509,7 +510,7 @@ function MetaRecForm({
           />
         </div>
 
-        <div className="mf-row">
+        <div className="mf-row mf-row-fixa">
           <div className="mf-cell" style={{ flex: "0 0 auto" }}>
             <span className="mf-ico" title={negativa ? "Limite de vezes" : "Quantas vezes"}>
               <Icon name="hashtag" size={17} />
@@ -539,6 +540,8 @@ function MetaRecForm({
               </span>
             </div>
           </div>
+          {/* o toggle "pontua no boletim" saiu (12/09/2026): meta positiva
+              sempre pontua, negativa nunca — era um botão sem decisão real */}
           <button
             type="button"
             className={"mf-toggle-btn" + (negativa ? " on" : "")}
@@ -548,21 +551,10 @@ function MetaRecForm({
             onClick={() => {
               const v = !negativa;
               setNegativa(v);
-              if (v) setPontua(false);
+              setPontua(!v);
             }}
           >
             <Icon name="minusCircle" size={17} />
-          </button>
-          <button
-            type="button"
-            className={"mf-toggle-btn" + (!negativa && pontua ? " on" : "")}
-            title="Pontua no boletim"
-            aria-label="Pontua no boletim"
-            aria-pressed={!negativa && pontua}
-            disabled={negativa}
-            onClick={() => setPontua(!pontua)}
-          >
-            <Icon name="check" size={17} />
           </button>
         </div>
 
@@ -584,21 +576,17 @@ function MetaRecForm({
             <span className="mf-ico" title="Área">
               <Icon name="briefcase" size={17} />
             </span>
-            <div className="area-chips mf-areas mf-grow">
-              <span className={`area-chip ${!area ? "sel" : ""}`} onClick={() => setArea(null)}>
-                Sem área
-              </span>
-              {gam.config.roda.areas.map((a) => (
-                <span
-                  key={a.id}
-                  className={`area-chip ${area === a.id ? "sel" : ""}`}
-                  style={{ "--chip": a.color } as React.CSSProperties}
-                  onClick={() => setArea(a.id)}
-                >
-                  {a.label}
-                </span>
-              ))}
-            </div>
+            <AreaInput
+              className="mf-grow"
+              label="Área"
+              placeholder="Sem área"
+              valor={gam.config.roda.areas.find((a) => a.id === area)?.label || ""}
+              pool={gam.config.roda.areas.map((a) => a.label)}
+              onEscolher={(lbl) => {
+                const achada = gam.config.roda.areas.find((a) => a.label.toLowerCase() === lbl.trim().toLowerCase());
+                setArea(achada ? achada.id : null);
+              }}
+            />
           </div>
         )}
 
@@ -618,22 +606,20 @@ function MetaRecForm({
             <Icon name="check" size={17} />
           </button>
           <span className="mf-sep">das</span>
-          <input
-            type="time"
+          <TimeKbInput
             className="mf-grow"
-            aria-label="Lembrar a partir de"
+            label="Lembrar a partir de"
             disabled={tipo !== "diaria" || !notifOn}
             value={notifIni}
-            onChange={(e) => setNotifIni(e.target.value)}
+            onChange={setNotifIni}
           />
           <span className="mf-sep">até</span>
-          <input
-            type="time"
+          <TimeKbInput
             className="mf-grow"
-            aria-label="Lembrar até"
+            label="Lembrar até"
             disabled={tipo !== "diaria" || !notifOn}
             value={notifFim}
-            onChange={(e) => setNotifFim(e.target.value)}
+            onChange={setNotifFim}
           />
         </div>
 
@@ -709,20 +695,10 @@ function MetaCard({
                 </span>
               )}
             </div>
+            {/* "−" antes de "+": a inversão só vale para meta negativa,
+                que não existe em meta com prazo (ver RecCard) */}
             {t.topics != null && (
               <div className="cd-topics" style={{ marginTop: 6 }}>
-                <button
-                  className="ctrl-btn"
-                  style={{ width: 36, height: 36, fontSize: 15 }}
-                  onClick={() => onDone((t.done || 0) + 1)}
-                  title="Mais um"
-                  aria-label="Mais um"
-                >
-                  +
-                </button>
-                <span className="meta-count" style={{ color: feita ? "var(--ok)" : undefined }}>
-                  {(t.done || 0).toLocaleString("pt-BR")} / {t.topics.toLocaleString("pt-BR")}
-                </span>
                 <button
                   className="ctrl-btn"
                   style={{ width: 36, height: 36, fontSize: 15 }}
@@ -731,6 +707,18 @@ function MetaCard({
                   aria-label="Menos um"
                 >
                   &minus;
+                </button>
+                <span className="meta-count" style={{ color: feita ? "var(--ok)" : undefined }}>
+                  {(t.done || 0).toLocaleString("pt-BR")} / {t.topics.toLocaleString("pt-BR")}
+                </span>
+                <button
+                  className="ctrl-btn"
+                  style={{ width: 36, height: 36, fontSize: 15 }}
+                  onClick={() => onDone((t.done || 0) + 1)}
+                  title="Mais um"
+                  aria-label="Mais um"
+                >
+                  +
                 </button>
               </div>
             )}
@@ -815,13 +803,6 @@ function MetaPrazoForm({
     setAreas((prev) => (prev.some((x) => x.toLowerCase() === label.toLowerCase()) ? prev.filter((x) => x.toLowerCase() !== label.toLowerCase()) : [...prev, label]));
   }
 
-  function addNovaArea() {
-    const v = novaArea.trim();
-    if (!v) return;
-    if (!areas.some((x) => x.toLowerCase() === v.toLowerCase())) setAreas([...areas, v]);
-    setNovaArea("");
-  }
-
   function salvar() {
     if (!titulo.trim() || !data) return;
     onSalvar({
@@ -854,7 +835,7 @@ function MetaPrazoForm({
           />
         </div>
 
-        <div className="mf-row">
+        <div className="mf-row mf-row-fixa">
           <div className="mf-cell" style={{ flex: "0 0 auto" }}>
             <span className="mf-ico" title="Quantidade (opcional)">
               <Icon name="hashtag" size={17} />
@@ -897,55 +878,43 @@ function MetaPrazoForm({
           </div>
         </div>
 
+        {areas.length > 0 && (
+          <div className="area-chips mf-areas-sel">
+            {areas.map((a) => {
+              const info = metaAreaInfo(a, areasRoda);
+              return (
+                <span key={a} className="area-chip sel" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(a)}>
+                  {info.label}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         <div className="mf-row">
           <div className="mf-cell" style={{ flex: "0 1 auto" }}>
             <span className="mf-ico" title="Prazo">
               <Icon name="calendar" size={17} />
             </span>
-            <input
-              type="date"
-              aria-label="Prazo"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-            />
+            <DateKbInput label="Prazo" value={data} onChange={setData} />
           </div>
           <div className="mf-cell">
             <span className="mf-ico" title="Áreas">
               <Icon name="briefcase" size={17} />
             </span>
-            <div className="area-chips mf-areas mf-grow">
-              {areas.map((a) => {
-                const info = metaAreaInfo(a, areasRoda);
-                return (
-                  <span key={a} className="area-chip sel" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(a)}>
-                    {info.label}
-                  </span>
-                );
-              })}
-              {sugestoes.map((a) => {
-                const info = metaAreaInfo(a, areasRoda);
-                return (
-                  <span key={a} className="area-chip" style={{ "--chip": info.color } as React.CSSProperties} onClick={() => toggleArea(info.label)}>
-                    {info.label}
-                  </span>
-                );
-              })}
-              <input
-                type="text"
-                className="mf-area-nova"
-                placeholder="+ área"
-                aria-label="Nova área"
-                value={novaArea}
-                onChange={(e) => setNovaArea(e.target.value)}
-                onBlur={addNovaArea}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addNovaArea();
-                  }
-                }}
-              />
-            </div>
+            <AreaInput
+              className="mf-grow"
+              limpaAoEscolher
+              label="Adicionar área"
+              placeholder="+ área"
+              valor={novaArea}
+              pool={sugestoes}
+              onEscolher={(lbl) => {
+                const v = lbl.trim();
+                if (v && !areas.some((x) => x.toLowerCase() === v.toLowerCase())) setAreas([...areas, v]);
+                setNovaArea("");
+              }}
+            />
           </div>
         </div>
 

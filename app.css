@@ -23,6 +23,9 @@
     --card: #FFFFFF;
     --card-2: #EDF1F6;
     --line: #E3E2E8;
+    /* linha de hora cheia da agenda: só um degrau acima de --line, para a
+       régua ter hierarquia sem virar uma grade preta */
+    --line-forte: #BFBDC7;
     --ink: #1E1B26;
     --sub: #5B6472;
     --caneta: #6D28D9;
@@ -53,6 +56,7 @@
     --card: #1D2226;
     --card-2: #262C31;
     --line: #33383D;
+    --line-forte: #4C535A;
     --ink: #E9EAE5;
     --sub: #98A0A6;
     --caneta: #6C8EEF;
@@ -136,12 +140,12 @@
     touch-action: pan-y;
   }
   .tabbar-pill{
-    pointer-events:auto; display:flex; align-items:center;
-    flex:1 1 auto; height:var(--tabbar-h); padding:0 6px;
+    pointer-events:auto; display:flex; align-items:stretch;
+    flex:1 1 auto; height:var(--tabbar-h); padding:5px;
     background:var(--card-blur); border:1.5px solid var(--line); border-radius:999px;
     backdrop-filter: blur(16px) saturate(1.15); -webkit-backdrop-filter: blur(16px) saturate(1.15);
   }
-  .tabbar-pill-fim{ flex:0 0 auto; padding:0 5px; }
+  .tabbar-pill-fim{ flex:0 0 auto; }
   .tabbar button{
     flex:1; background:none; border:none; color:var(--sub);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
@@ -152,7 +156,7 @@
   /* pílula atrás do ícone da aba ativa: marca o lugar sem depender só da cor */
   .tabbar button .ic{
     font-size:19px; display:flex; align-items:center; justify-content:center;
-    padding:7px 15px; border-radius:999px; transition: background .18s ease;
+    flex:1 1 auto; width:100%; padding:0 15px; border-radius:999px; transition: background .18s ease;
     position:relative; /* âncora do .sync-conflict-dot na aba Configurações */
   }
   /* SVGs são nativamente arrastáveis por padrão em vários navegadores (o mesmo
@@ -200,10 +204,10 @@
   .di-live{ min-height:150px; padding-bottom:14px; }
   /* agenda de time-blocking: régua de horas + blocos posicionados por minuto */
   .ag-wrap{ position:relative; padding-left:52px; margin:4px 0 20px; }
-  .ag-hora{ position:absolute; left:0; right:0; border-top:1.5px solid var(--ink); }
+  .ag-hora{ position:absolute; left:0; right:0; border-top:1.5px solid var(--line-forte); }
   /* o rótulo tem fundo próprio para a linha (agora escura) não atravessá-lo:
      na prática a linha da hora começa logo depois do texto, como no mockup */
-  .ag-hora span{ position:absolute; left:0; top:-8px; font-family:'Montserrat', sans-serif; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--card); padding-right:7px; }
+  .ag-hora span{ position:absolute; left:0; top:-8px; font-family:'Montserrat', sans-serif; font-size:11.5px; font-weight:600; color:var(--sub); background:var(--card); padding-right:7px; }
   /* marcação de meia hora: linha fina e clara (sem tracejado), para a hora
      cheia — escura e em negrito — continuar sendo a referência de leitura */
   .ag-hora.ag-meia{ border-top:1px solid var(--line); }
@@ -740,9 +744,43 @@
   .confirm-box p{ margin:0 0 18px; font-size:15.5px; line-height:1.5; }
   .confirm-box small{ color:var(--sub); }
   .confirm-actions{ display:flex; gap:10px; }
-  .confirm-actions button{ flex:1; border-radius:12px; padding:13px; font-size:15px; font-family:'Montserrat'; }
+  .confirm-actions button{ flex:1; padding:13px; font-size:15px; }
+  /* a geometria mora no próprio botão: fora de .confirm-actions (Ajustes, por
+     exemplo) ele ficava sem padding/raio/fonte, com cara de botão nativo cru */
+  .btn-cancel, .btn-confirm{ border-radius:12px; padding:12px 16px; font-size:14.5px; font-family:'Montserrat'; transition: background .12s ease, transform .12s ease; }
   .btn-cancel{ background:var(--card-2); border:1.5px solid var(--line); color:var(--ink); }
+  .btn-cancel:active{ transform:scale(.98); background:var(--card); }
   .btn-confirm{ background:var(--erro); border:none; color:var(--on-caneta); font-weight:600; }
+  /* botão secundário compacto (ex.: "exportar" em Ajustes) — sem regra base
+     ele também caía no visual cru do navegador */
+  .link-btn{
+    background:var(--card-2); border:1.5px solid var(--line); color:var(--ink);
+    font-family:'Montserrat'; font-size:13px; padding:7px 13px; border-radius:999px;
+    transition: background .12s ease, transform .12s ease;
+  }
+  .link-btn:active{ transform:scale(.96); background:var(--card); }
+
+  /* ---------- AJUSTES: seções retráteis ---------- */
+  .set-secao{ background:var(--card); border:1.5px solid var(--line); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; }
+  .set-secao-head{
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:none; border:none; color:var(--ink); text-align:left;
+    padding:15px 16px; font-family:'Montserrat', sans-serif; font-size:15px;
+  }
+  .set-secao-head .icon-svg{ color:var(--sub); flex:0 0 auto; }
+  .set-secao.aberta .set-secao-head{ border-bottom:1.5px solid var(--line); }
+  .set-secao-body{ padding:4px 14px 14px; }
+  /* dentro da seção o cartão já está numa caixa: vira conteúdo plano */
+  .set-secao-body > .stat-card{ background:none; border:none; border-radius:0; padding:10px 0 0; margin:0; }
+  .set-secao-body > .section-label:first-child{ margin-top:10px; }
+  .set-toggle{ font-size:13px; padding:3px; margin-bottom:4px; }
+  .set-toggle span{ padding:9px 12px; }
+  .set-busca{
+    width:100%; margin:16px 0 14px; padding:12px 14px; border-radius:999px;
+    background:var(--card); border:1.5px solid var(--line); color:var(--ink);
+    font-family:'Montserrat', sans-serif; font-size:14px;
+  }
+  .set-busca:focus{ outline:none; border-color:var(--caneta); }
 
   /* ---------- FORMULÁRIO DE META (prazo e recorrente) ----------
      Linhas de "ícone + controle" no lugar de rótulos empilhados: o mesmo
@@ -753,11 +791,29 @@
   .mf-ico{ flex:0 0 auto; display:flex; color:var(--sub); }
   .mf-grow{ flex:1 1 0; min-width:0; }
   .mf-sep{ color:var(--sub); font-size:12px; flex:0 0 auto; }
+  /* campos de digitação com fundo do cartão (branco no tema claro): só os
+     controles de escolha — peso e dias da semana — ficam preenchidos */
   .meta-form input[type=text], .meta-form input[type=number],
   .meta-form input[type=time], .meta-form input[type=date]{
-    background:var(--card-2); border:1.5px solid var(--line); border-radius:9px; color:var(--ink);
+    background:var(--card); border:1.5px solid var(--line); border-radius:9px; color:var(--ink);
     font-family:'Montserrat', sans-serif; font-size:13px; padding:8px 10px; min-width:0; width:100%;
   }
+  /* linha que não pode quebrar (número + unidade, número + frequência) */
+  .mf-row-fixa{ flex-wrap:nowrap; }
+  .mf-row-fixa .type-toggle{ flex:1 1 auto; min-width:0; }
+  .mf-row-fixa .type-toggle span{ white-space:nowrap; }
+  /* campo de área com menu de sugestões */
+  .area-input{ position:relative; }
+  .area-sugestoes{
+    position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:5;
+    background:var(--card); border:1.5px solid var(--line); border-radius:9px;
+    padding:4px; display:flex; flex-direction:column; max-height:180px; overflow-y:auto;
+  }
+  .area-sugestoes span{
+    padding:8px 10px; border-radius:6px; font-family:'Montserrat', sans-serif; font-size:13px; cursor:pointer;
+  }
+  .area-sugestoes span:active{ background:var(--card-2); }
+  .mf-areas-sel{ margin-top:10px; }
   .meta-form input:focus{ outline:none; border-color:var(--caneta); }
   .meta-form input:disabled{ opacity:.45; }
   .mf-toggle-btn{
@@ -952,8 +1008,17 @@
      (--card-2) quase sumia ali. Borda + sombra + mais respiro vertical só
      nesta instância, sem mexer no .type-toggle genérico usado em pesos/toggles
      do app inteiro. */
-  .modelos-tab-pill{ background:var(--card); border:1.5px solid var(--line); }
-  .modelos-tab-pill span{ padding-top:9px; padding-bottom:9px; }
+  /* a pill de Modelos mora no rodapé (pedido de 12/09/2026): flutua logo
+     acima da tabbar, e o FAB da tela sobe para não disputar a mesma faixa */
+  .modelos-tab-pill{
+    position:fixed; left:50%; transform:translateX(-50%); z-index:29;
+    bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 26px);
+    width:auto; background:var(--card-blur); border:1.5px solid var(--line);
+    backdrop-filter: blur(16px) saturate(1.15); -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  }
+  .modelos-tab-pill span{ padding:9px 26px; }
+  .screen.com-modelos-pill .fab{ bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 86px); }
+  .screen.com-modelos-pill.with-tabbar{ padding-bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 86px); }
   .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
   .cal-title{ font-family:'Lato', sans-serif; font-size:20px; font-weight:600; }
   .mcal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
@@ -1369,6 +1434,9 @@
     #app{ padding-top:0; }
     .screen{ margin-left:var(--sidebar-w); max-width:1060px; padding:0 40px; }
     .screen.with-tabbar{ padding-bottom:28px; }
+    .screen.com-modelos-pill.with-tabbar{ padding-bottom:28px; }
+    .modelos-tab-pill{ position:fixed; left:auto; right:104px; bottom:28px; transform:none; }
+    .screen.com-modelos-pill .fab{ bottom:28px; }
 
     .tabbar{
       left:0; right:auto; top:0; bottom:0; width:var(--sidebar-w); height:auto;
