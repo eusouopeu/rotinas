@@ -438,6 +438,33 @@
   .type-toggle span.active{ background:var(--caneta); color:var(--on-caneta); }
   .dur-input{ background:none; border:none; color:var(--sub); font-family:'Montserrat', sans-serif; font-size:13px; width:52px; }
   .dur-input:focus{ outline:none; color:var(--caneta); }
+  /* etapa de exercício no editor: chip do exercício + grade séries/reps/peso */
+  .ex-escolha{
+    display:inline-flex; align-items:center; gap:6px; max-width:100%; margin-top:8px; padding:6px 10px;
+    border:1.5px dashed var(--line); border-radius:var(--radius-sm); background:none; color:var(--caneta);
+    font-family:'Montserrat', sans-serif; font-size:13px;
+  }
+  .ex-escolha span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ex-escolha.on{ border-style:solid; color:var(--ink); }
+  .ex-escolha.on svg:first-child{ color:var(--caneta); }
+  .ex-escolha svg:last-child{ color:var(--sub); flex-shrink:0; }
+  .ex-campos{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; margin-top:8px; width:100%; }
+  /* célula empilhada: ícone + unidade numa linha pequena, valor largo embaixo
+     — a coluna da etapa é estreita e em linha única o valor sumia */
+  .ex-campo{
+    display:grid; grid-template-columns:auto 1fr; align-items:center; column-gap:4px; row-gap:2px;
+    min-width:0; padding:6px 8px;
+    border:1.5px solid var(--line); border-radius:var(--radius-sm); background:var(--card-2); color:var(--sub);
+  }
+  .ex-campo:focus-within{ border-color:var(--caneta); color:var(--caneta); }
+  .ex-campo svg{ flex-shrink:0; }
+  .ex-campo input{
+    grid-column:1 / -1; grid-row:2; min-width:0; width:100%; background:none; border:none; padding:0;
+    color:var(--ink); font-family:'Montserrat', sans-serif; font-size:16px; font-weight:600;
+  }
+  .ex-campo input:focus{ outline:none; }
+  .ex-campo span{ font-family:'Montserrat', sans-serif; font-size:11px; }
+  .ex-campo.off{ opacity:.5; }
   .remove-step{ color:var(--erro); background:none; border:none; font-size:18px; padding:4px 6px; flex-shrink:0; }
   .order-btn{ background:none; border:none; color:var(--sub); font-size:13px; padding:4px 8px; }
   .order-btn:disabled{ opacity:.25; }

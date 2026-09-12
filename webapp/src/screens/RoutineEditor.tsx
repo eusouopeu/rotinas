@@ -416,62 +416,65 @@ export function RoutineEditor() {
                 )}
                 {s.type === "exercicio" && (
                   <>
-                    <div className="step-sub">
-                      {s.exercicioId ? (
-                        <>
-                          <span className="dev-n">{exercicios.find((e) => e.id === s.exercicioId)?.nome || "exercício removido"}</span>
-                          <button className="link-btn" style={{ padding: 0 }} onClick={() => setPickerFor(i)}>
-                            trocar
-                          </button>
-                        </>
-                      ) : (
-                        <button className="link-btn" style={{ padding: 0 }} onClick={() => setPickerFor(i)}>
-                          + escolher exercício
-                        </button>
-                      )}
-                    </div>
-                    <div className="step-sub">
-                      <input
-                        className="dur-input"
-                        style={{ width: 56 }}
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        value={s.sets || 3}
-                        onChange={(e) => patchStep(i, { sets: Math.max(1, +e.target.value || 1) })}
-                      />{" "}
-                      séries de{" "}
-                      <input
-                        type="text"
-                        style={{ width: 64 }}
-                        value={s.reps || "10"}
-                        onChange={(e) => patchStep(i, { reps: e.target.value })}
-                      />{" "}
-                      reps
-                    </div>
-                    {/* o peso mora na biblioteca (Exercicio.pesoAtual), não na
-                        etapa: editar aqui é um atalho para o mesmo campo que o
-                        player atualiza ao concluir a série. */}
-                    {s.exercicioId && (
-                      <div className="step-sub">
+                    {/* exercício escolhido como chip clicável (troca ao tocar) */}
+                    <button className={"ex-escolha" + (s.exercicioId ? " on" : "")} onClick={() => setPickerFor(i)}>
+                      <Icon name="trophy" size={14} />
+                      <span>
+                        {s.exercicioId
+                          ? exercicios.find((e) => e.id === s.exercicioId)?.nome || "exercício removido"
+                          : "escolher exercício"}
+                      </span>
+                      <Icon name="chevronRight" size={13} />
+                    </button>
+                    {/* séries · reps · peso numa grade de 3 campos com ícone e unidade */}
+                    <div className="ex-campos">
+                      <label className="ex-campo" title="Séries">
+                        <Icon name="arrowPath" size={14} />
                         <input
-                          className="dur-input"
-                          style={{ width: 64 }}
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          aria-label="Séries"
+                          value={s.sets || 3}
+                          onChange={(e) => patchStep(i, { sets: Math.max(1, +e.target.value || 1) })}
+                        />
+                        <span>séries</span>
+                      </label>
+                      <label className="ex-campo" title="Repetições (ex.: 10 ou 8-12)">
+                        <Icon name="hashtag" size={14} />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          aria-label="Repetições"
+                          value={s.reps || "10"}
+                          onChange={(e) => patchStep(i, { reps: e.target.value })}
+                        />
+                        <span>reps</span>
+                      </label>
+                      {/* o peso mora na biblioteca (Exercicio.pesoAtual), não na
+                          etapa: editar aqui é um atalho para o mesmo campo que o
+                          player atualiza ao concluir a série. Sem exercício
+                          escolhido não há onde guardar — campo desabilitado. */}
+                      <label className={"ex-campo" + (s.exercicioId ? "" : " off")} title={s.exercicioId ? "Peso atual" : "Escolha um exercício para definir o peso"}>
+                        <Icon name="scale" size={14} />
+                        <input
                           type="number"
                           inputMode="decimal"
                           min={0}
                           step="0.5"
                           aria-label="Peso atual do exercício"
-                          value={exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0}
+                          disabled={!s.exercicioId}
+                          value={s.exercicioId ? exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0 : ""}
+                          placeholder="–"
                           onChange={(e) => {
                             const ex = exercicios.find((x) => x.id === s.exercicioId);
                             if (!ex) return;
                             upsertExercicio({ ...ex, pesoAtual: Math.max(0, +e.target.value || 0) });
                           }}
-                        />{" "}
-                        kg
-                      </div>
-                    )}
+                        />
+                        <span>kg</span>
+                      </label>
+                    </div>
                   </>
                 )}
               </div>
