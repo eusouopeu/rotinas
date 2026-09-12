@@ -808,6 +808,20 @@
     color:var(--ink); font-family:'Montserrat', sans-serif; font-size:15.5px; line-height:1.65; padding:0;
   }
   .note-ap-body:focus{ outline:none; }
+  /* editor live (LiveMdEditor): linha ativa crua num textarea com a mesma
+     tipografia do corpo; demais linhas renderizadas */
+  .live-md{ cursor:text; }
+  .live-md-line{ min-height:1.65em; overflow-wrap:anywhere; }
+  .live-md-raw{
+    display:block; width:100%; background:none; border:none; resize:none; overflow:hidden; padding:0; margin:0;
+    color:var(--ink); font:inherit; line-height:inherit;
+  }
+  .live-md-raw:focus{ outline:none; }
+  .live-md-ph{ color:var(--sub); }
+  .live-md-h1, .live-md-h2, .live-md-h3{ font-family:'Lato', sans-serif; font-weight:700; }
+  .live-md-h1{ font-size:22px; } .live-md-h2{ font-size:19px; } .live-md-h3{ font-size:17px; }
+  .live-md-check{ display:flex; gap:8px; align-items:flex-start; }
+  .live-md-check input{ margin-top:5px; accent-color:var(--caneta); }
 
   /* ---------- AJUSTES: seções retráteis ---------- */
   .set-secao{ background:var(--card); border:1.5px solid var(--line); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; }
@@ -887,12 +901,14 @@
      .meta-card-inner — o .meta-card é só a faixa do swipe. */
   .meta-card.dragging{ opacity:.45; }
   .meta-card-inner{ margin-bottom:0; }
+  /* hierarquia igual ao card compacto de rotina: título 16px Lato, fatos
+     12px Montserrat --sub (.routine-meta); só título e contador maiores */
   .meta-card-title{
-    display:flex; align-items:center; margin:0; font-family:'Lato', sans-serif;
-    font-size:18.5px; font-weight:400; cursor:pointer;
+    display:flex; align-items:center; gap:6px; margin:0 0 4px; font-family:'Lato', sans-serif;
+    font-size:16px; font-weight:600; cursor:pointer;
   }
   .meta-card .meta-peso{ color:var(--caneta); font-weight:600; }
-  .meta-count{ font-family:'Lato', sans-serif; font-size:19px; font-weight:700; }
+  .meta-count{ font-family:'Lato', sans-serif; font-size:16px; font-weight:700; }
 
   /* ---------- TAGS & WIKILINKS ---------- */
   .tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
@@ -1057,16 +1073,15 @@
      (--card-2) quase sumia ali. Borda + sombra + mais respiro vertical só
      nesta instância, sem mexer no .type-toggle genérico usado em pesos/toggles
      do app inteiro. */
-  /* a pill de Modelos mora no rodapé (pedido de 12/09/2026): flutua logo
-     acima da tabbar, e o FAB da tela sobe para não disputar a mesma faixa */
+  /* a pill de Modelos flutua no rodapé na MESMA linha do FAB (pedido de
+     12/09/2026): centralizada na altura do FAB de 58px (pill ~40px) */
   .modelos-tab-pill{
     position:fixed; left:50%; transform:translateX(-50%); z-index:29;
-    bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 26px);
+    bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 29px);
     width:auto; background:var(--card-blur); border:1.5px solid var(--line);
     backdrop-filter: blur(16px) saturate(1.15); -webkit-backdrop-filter: blur(16px) saturate(1.15);
   }
   .modelos-tab-pill span{ padding:9px 26px; }
-  .screen.com-modelos-pill .fab{ bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 86px); }
   .screen.com-modelos-pill.with-tabbar{ padding-bottom:calc(var(--tabbar-h) + var(--safe-bottom) + 86px); }
   .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
   .cal-title{ font-family:'Lato', sans-serif; font-size:20px; font-weight:600; }

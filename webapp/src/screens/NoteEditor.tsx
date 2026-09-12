@@ -1,19 +1,15 @@
 // Porta parcial de renderNoteEditor (index.html:11038-11137) — título,
 // assuntos (input livre, sem sugestões/chips ainda), conteúdo, excluir.
-// Sem backlinks nem sinkChecked ainda. Editor contínuo (live preview,
-// renderLiveEditor/liveAplicar do legado) é decisão definitiva de NÃO
-// portar — ver docs/react-migration.md, 30/08/2026. Este textarea simples
-// é o editor de nota permanente no React.
-//
-// Recomendação 11 (08/09/2026): toolbar de negrito/lista/checkbox por
-// manipulação de seleção do textarea + toggle de preview renderizado —
-// ~80% do valor do editor contínuo sem nenhum contenteditable (ver
-// lib/mdPreview.ts).
+// Sem backlinks nem sinkChecked ainda. Desde 12/09/2026 (pedido explícito do
+// Pedro, revertendo a decisão de 30/08) o corpo é o editor live
+// (components/LiveMdEditor.tsx): linha ativa crua, demais renderizadas. A
+// toolbar de checkbox/lista/negrito age sobre a seleção da linha ativa.
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { criadoEmLabel } from "../lib/notes";
 import { parseMdLines, prefixLines, splitBold, wrapSelection } from "../lib/mdPreview";
 import { Icon } from "../components/Icon";
+import { LiveMdEditor, type LiveMdEditorHandle } from "../components/LiveMdEditor";
 
 export function Inline({ text }: { text: string }) {
   return (
@@ -78,13 +74,11 @@ export function NoteEditor() {
   const note = notes.find((n) => n.id === view.id);
   const [subjectsInput, setSubjectsInput] = useState((note?.subjects || []).join(", "));
   const [content, setContent] = useState(note?.content || "");
-  const [preview, setPreview] = useState(false);
-  const textRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<LiveMdEditorHandle>(null);
 
   useEffect(() => {
     setContent(note?.content || "");
     setSubjectsInput((note?.subjects || []).join(", "));
-    setPreview(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id]);
 
@@ -107,14 +101,7 @@ export function NoteEditor() {
   }
 
   function aplicarNaSelecao(fn: (value: string, start: number, end: number) => { value: string; start: number; end: number }) {
-    const el = textRef.current;
-    if (!el) return;
-    const { value, start, end } = fn(content, el.selectionStart, el.selectionEnd);
-    commitContent(value);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(start, end);
-    });
+    editorRef.current?.aplicar(fn);
   }
 
   return (
@@ -130,15 +117,6 @@ export function NoteEditor() {
         </div>
         <span className="ag-nav-gap" />
         <div className="note-ap-pill">
-          <button
-            className={preview ? "on" : ""}
-            title={preview ? "Editar" : "Visualizar"}
-            aria-label={preview ? "Editar" : "Visualizar"}
-            aria-pressed={preview}
-            onClick={() => setPreview((p) => !p)}
-          >
-            <Icon name="eye" size={17} />
-          </button>
           <button
             title="Excluir nota"
             aria-label="Excluir nota"
@@ -175,20 +153,7 @@ export function NoteEditor() {
           onBlur={commitSubjects}
         />
 
-        {preview ? (
-          <div className="note-ap-body">
-            <MdPreview text={content} />
-          </div>
-        ) : (
-          <textarea
-            ref={textRef}
-            className="note-ap-body"
-            placeholder="Escreva aqui..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onBlur={(e) => commitContent(e.target.value)}
-          />
-        )}
+        <LiveMdEditor ref={editorRef} value={content} onChange={commitContent} placeholder="Escreva aqui..." />
       </div>
 
       <div className="note-ap-bar note-ap-rodape">

@@ -191,10 +191,6 @@ export function Settings() {
               tocar
             </button>
           </div>
-          <div className="stat-foot">
-            Vale para a troca de etapa, o fim do tempo e a rotina concluída dentro do Player. Com o app em segundo plano
-            quem avisa é a notificação de fim de etapa, que segue este mesmo modo.
-          </div>
         </div>
 
         </SecaoAjuste>

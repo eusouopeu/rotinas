@@ -501,10 +501,7 @@ export function RoutineEditor() {
               value={draft.restSeconds || 0}
               onChange={(e) => updateDraft({ restSeconds: Math.max(0, +e.target.value || 0) })}
             />{" "}
-            segundos <span style={{ color: "var(--sub)", fontSize: 12.5 }}>(0 = sem descanso)</span>
-          </div>
-          <div className="dev-n" style={{ marginTop: 5 }}>
-            Vale também para o descanso entre séries em etapas de exercício.
+            segundos
           </div>
         </div>
 

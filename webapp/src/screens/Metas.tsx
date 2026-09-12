@@ -201,7 +201,6 @@ export function Metas() {
                   onExcluir={() => {
                     if (window.confirm(`Remover a meta "${t.title}"?`)) deleteMeta(t.id);
                   }}
-                  onNota={(nota) => updateMeta(t.id, { nota })}
                 />
               ))
             )}
@@ -211,32 +210,35 @@ export function Metas() {
 
       {escolhendoTipo && (
         <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setEscolhendoTipo(false)}>
-          <div className="confirm-box" style={{ textAlign: "left", maxWidth: 360 }}>
-            <p style={{ margin: "0 0 14px", fontWeight: 600 }}>Criar novo</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="confirm-box" style={{ textAlign: "left" }}>
+            {/* mesmo popup do FAB de Rotinas (Home.tsx: .novo-opcoes) */}
+            <p style={{ margin: "0 0 12px" }}>Criar</p>
+            <div className="novo-opcoes">
               <button
-                className="btn-primary"
-                style={{ textAlign: "left", padding: "12px 16px" }}
+                className="novo-opcao"
                 onClick={() => {
                   setEscolhendoTipo(false);
                   setCriandoRec(true);
                 }}
               >
+                <Icon name="arrowPath" size={16} />
                 <b>Meta recorrente</b>
-                <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>Hábito ou limite que repete no dia/semana</div>
+                <span className="dev-n">hábito ou limite que repete no dia/semana</span>
               </button>
               <button
-                className="btn-primary"
-                style={{ textAlign: "left", padding: "12px 16px" }}
+                className="novo-opcao"
                 onClick={() => {
                   setEscolhendoTipo(false);
                   setCriandoPrazo(true);
                 }}
               >
+                <Icon name="countdown" size={16} />
                 <b>Meta com prazo</b>
-                <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>Alvo com data de vencimento e tópicos</div>
+                <span className="dev-n">alvo com data de vencimento e tópicos</span>
               </button>
-              <button className="btn-cancel" style={{ marginTop: 4 }} onClick={() => setEscolhendoTipo(false)}>
+            </div>
+            <div className="confirm-actions" style={{ marginTop: 14 }}>
+              <button className="btn-cancel" onClick={() => setEscolhendoTipo(false)}>
                 Cancelar
               </button>
             </div>
@@ -418,7 +420,7 @@ function RecCard({
               <span className="r-dot" style={{ background: areaObj?.color || "var(--caneta)" }} />
               {rec.titulo}
             </h3>
-            <div className="routine-meta-line" style={{ marginTop: 2 }}>
+            <div className="routine-meta routine-meta-line">
               {(rec.negativa || rec.pontua) && (
                 <span className="rc-fact meta-peso" title={pesoTitle || undefined}>
                   <Icon name="ticket" size={13} /> {TAG_LABEL[rec.tagValor || "medio"]}
@@ -652,14 +654,12 @@ function MetaCard({
   onEditar,
   onDone,
   onExcluir,
-  onNota,
 }: {
   t: MetaTarget;
   gam: Parameters<typeof metaPontosTotais>[1];
   onEditar: () => void;
   onDone: (d: number) => void;
   onExcluir: () => void;
-  onNota: (nota: string) => void;
 }) {
   const d = daysUntil(t.date);
   const esc = metaEscopo(t);
@@ -682,7 +682,7 @@ function MetaCard({
               <span className="r-dot" style={{ background: dotColor }} />
               {t.title}
             </h3>
-            <div className="routine-meta-line" style={{ marginTop: 2 }}>
+            <div className="routine-meta routine-meta-line">
               <span
                 className="rc-fact meta-peso"
                 title={`Vale ${totalPts.toFixed(1)} pts no boletim ${ESCOPO_LABEL[esc]} · ${creditadoPts.toFixed(1)} creditados`}
@@ -722,7 +722,7 @@ function MetaCard({
                 </button>
               </div>
             )}
-            <div className="routine-meta-line" style={{ marginTop: 6 }}>
+            <div className="routine-meta routine-meta-line" style={{ marginTop: 6 }}>
               <span
                 className="rc-fact"
                 style={{ color: urgCor }}
@@ -737,16 +737,6 @@ function MetaCard({
                 </span>
               )}
             </div>
-            <textarea
-              className="mk-e-name"
-              placeholder="+ anotação"
-              defaultValue={t.nota || ""}
-              rows={t.nota ? 3 : 1}
-              style={{ width: "100%", marginTop: 10, resize: "vertical" }}
-              onBlur={(e) => {
-                if (e.target.value !== (t.nota || "")) onNota(e.target.value);
-              }}
-            />
           </div>
         </div>
       </SwipeItem>
