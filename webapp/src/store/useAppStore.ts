@@ -52,6 +52,7 @@ import {
   K_ROUTINES,
   K_SIDEBARCOLLAPSED,
   K_SNOOZES,
+  K_LISTAEXPANDIDA,
   K_SOHOJE,
   K_TEMPLATES,
   K_THEME,
@@ -112,6 +113,7 @@ export interface AppState {
   weekStart: number;
   homeView: "rotinas" | "semana" | "dia";
   soHoje: boolean;
+  listaExpandida: boolean;
   digestSemanal: boolean;
   nudge: boolean;
   nudgeMetas: boolean;
@@ -175,6 +177,7 @@ export interface AppState {
   setFontScale: (n: number) => void;
   setWeekStart: (d: number) => void;
   setHomeView: (v: "rotinas" | "semana" | "dia") => void;
+  setListaExpandida: (v: boolean) => void;
   setSoHoje: (v: boolean) => void;
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
@@ -233,7 +236,7 @@ export interface AppState {
 
   // Biblioteca de exercícios (K_EXERCICIOS, index.html:4207-4214) —
   // reaproveitada pela etapa de rotina "exercicio" (RoutineStep.exercicioId).
-  upsertExercicio: (ex: { id?: string; nome: string; grupos: string[]; pesoAtual: number }) => Exercicio;
+  upsertExercicio: (ex: { id?: string; nome: string; grupos: string[]; pesoAtual: number; composto?: boolean }) => Exercicio;
   deleteExercicio: (id: string) => void;
 
   metasSubview: MetasSubview[];
@@ -335,6 +338,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   weekStart: 0,
   homeView: "semana",
   soHoje: false,
+  listaExpandida: false,
   digestSemanal: true,
   nudge: true,
   nudgeMetas: true,
@@ -392,6 +396,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       weekStart: load<number>(K_WEEKSTART, 0),
       homeView: load<"rotinas" | "semana" | "dia">(K_HOMEVIEW, "semana"),
       soHoje: load<boolean>(K_SOHOJE, false),
+      listaExpandida: load<boolean>(K_LISTAEXPANDIDA, false),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
       nudgeMetas: load<boolean>(K_NUDGEMETAS, true),
@@ -559,6 +564,10 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   setHomeView: (homeView) => {
     save(K_HOMEVIEW, homeView);
     set({ homeView });
+  },
+  setListaExpandida: (listaExpandida) => {
+    save(K_LISTAEXPANDIDA, listaExpandida);
+    set({ listaExpandida });
   },
   setSoHoje: (soHoje) => {
     save(K_SOHOJE, soHoje);

@@ -121,8 +121,10 @@ describe("RodaVidaResumo", () => {
     const footer = container.querySelector(".roda-boletim");
     expect(footer).not.toBeNull();
     expect(footer?.textContent).toContain("Nota 50/100");
-    // Σ conta itens da semana (1 de 2 concluídos) e o relógio, dias restantes
-    expect(footer?.textContent).toContain("1/2");
+    // Σ = pontos que deveriam estar feitos a esta altura da semana (0-100),
+    // e não mais a contagem de itens concluídos
+    const sigma = Array.from(footer!.querySelectorAll(".rc-fact")).find((e) => e.textContent?.includes("Σ"));
+    expect(sigma?.textContent).toMatch(/Σ\s*[\d,]+\/100/);
     expect(footer?.textContent).toMatch(/\d+ dias?/);
   });
 
@@ -162,7 +164,7 @@ describe("RodaVidaResumo", () => {
     expect(container.querySelectorAll(".bar-row").length).toBe(2);
   });
 
-  it("pagina as áreas de duas em duas pelas setas, sem navegar", () => {
+  it("pagina as áreas de duas em duas arrastando no mobile, sem setas nem navegar", () => {
     const gam = baseGam({
       agendaCongelada: [
         { itemId: "a1", dia: 0, area: "saude", pontos: 25 },
@@ -179,21 +181,27 @@ describe("RodaVidaResumo", () => {
     ];
     useAppStore.setState({ gam });
 
+    // jsdom não implementa matchMedia: useIsDesktop devolve false, que é
+    // exatamente o caso "mobile" desta paginação
     const { container } = render(<RodaVidaResumo />);
-    const setas = container.querySelectorAll(".roda-seta");
-    expect(setas.length).toBe(2);
-    expect((setas[0] as HTMLButtonElement).disabled).toBe(true);
+    expect(container.querySelectorAll(".roda-seta").length).toBe(0);
 
     let rows = container.querySelectorAll(".bar-row");
     expect(rows.length).toBe(2);
     expect(rows[0]?.textContent).toContain("Saúde");
     expect(rows[1]?.textContent).toContain("Trabalho");
 
-    fireEvent.click(setas[1]);
+    const linhas = container.querySelector(".roda-linhas")!;
+    fireEvent.touchStart(linhas, { touches: [{ clientX: 200 }] });
+    fireEvent.touchEnd(linhas, { changedTouches: [{ clientX: 100 }] });
     rows = container.querySelectorAll(".bar-row");
     expect(rows[0]?.textContent).toContain("Estudo");
     expect(rows[1]?.textContent).toContain("Lazer");
-    expect((container.querySelectorAll(".roda-seta")[1] as HTMLButtonElement).disabled).toBe(true);
+
+    // arrasto curto não troca de página nem vaza o clique para o card
+    fireEvent.touchStart(linhas, { touches: [{ clientX: 200 }] });
+    fireEvent.touchEnd(linhas, { changedTouches: [{ clientX: 190 }] });
+    expect(container.querySelectorAll(".bar-row")[0]?.textContent).toContain("Estudo");
     expect(useAppStore.getState().view).toEqual({ tab: "home", screen: "home" });
   });
 });

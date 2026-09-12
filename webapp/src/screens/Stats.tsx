@@ -40,15 +40,19 @@ export function Stats() {
 
   const snoozes = useAppStore((s) => s.snoozes);
 
-  function renderDayDetail(key: string) {
+  /* `soFeitos` (aba Semana, pedido do Pedro em 12/09/2026): o dia só lista o
+     que foi executado — o que estava agendado e não foi feito já aparece no
+     contador da grade acima, e repetir isso aqui virava lista de cobrança. */
+  function renderDayDetail(key: string, soFeitos = false) {
     const data = getDayDetailData(key, history, routines, snoozes);
+    if (soFeitos && data.executed.length === 0) return null;
     return (
       <Fragment key={key}>
         <div className="section-label">
           {String(data.dateObj.getDate()).padStart(2, "0")}/{String(data.dateObj.getMonth() + 1).padStart(2, "0")}/{data.dateObj.getFullYear()}
         </div>
         <div className="stat-card">
-          {data.isEmpty ? (
+          {data.isEmpty && !soFeitos ? (
             <div className="dev-row">
               <span className="dev-n">Nada executado nem agendado.</span>
             </div>
@@ -63,13 +67,14 @@ export function Stats() {
                   <span className="dev-n">{h.ts ? fmtClock(new Date(h.ts)) : ""}</span>
                 </div>
               ))}
-              {data.planned.map((r, i) => (
-                <div className="dev-row" key={`plan-${i}`}>
-                  <span>○ {r.routineName}</span>
-                  <span className="dev-n">{r.startStr}</span>
-                  {r.status === "não feita" ? <b className="late">não feita</b> : <span className="dev-n">agendada</span>}
-                </div>
-              ))}
+              {!soFeitos &&
+                data.planned.map((r, i) => (
+                  <div className="dev-row" key={`plan-${i}`}>
+                    <span>○ {r.routineName}</span>
+                    <span className="dev-n">{r.startStr}</span>
+                    {r.status === "não feita" ? <b className="late">não feita</b> : <span className="dev-n">agendada</span>}
+                  </div>
+                ))}
             </>
           )}
         </div>
@@ -84,7 +89,13 @@ export function Stats() {
     weekEndObj.setDate(weekEndObj.getDate() + 6);
     const fmtDM = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
-    const diasMostrar = selectedDay ? [selectedDay] : gridData.days.filter((d) => d.temAlgo).map((d) => d.key);
+    // último dia da semana em cima, primeiro embaixo (pedido de 12/09/2026)
+    const diasMostrar = selectedDay
+      ? [selectedDay]
+      : gridData.days
+          .filter((d) => d.temAlgo)
+          .map((d) => d.key)
+          .reverse();
 
     return (
       <>
@@ -153,7 +164,7 @@ export function Stats() {
           </div>
         </div>
 
-        {diasMostrar.map(renderDayDetail)}
+        {diasMostrar.map((k) => renderDayDetail(k, true))}
         <div style={{ height: 20 }} />
       </>
     );

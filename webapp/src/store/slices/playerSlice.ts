@@ -6,6 +6,7 @@
 // compartilhados para store/shared.ts; a lógica abaixo é a mesma, sem
 // nenhuma mudança de comportamento.
 import type { StateCreator } from "zustand";
+import { descansoEntreSeries } from "../../lib/exercicios";
 import { uid } from "../../lib/uid";
 
 import { save } from "../../lib/storage";
@@ -115,7 +116,7 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     if (step.type === "exercicio") {
       // Pontuação proporcional a séries COMPLETAS, não a tempo gasto: cada
       // série "vale" o descanso planejado (index.html:11476-11491).
-      const rest = routine?.restSeconds || 120;
+      const rest = descansoEntreSeries(routine?.restSeconds ?? 120, get().exercicios.find((e) => e.id === step.exercicioId));
       const results = p.ex?.results || [];
       actual = {
         id: step.id,
@@ -183,7 +184,7 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
           startedTs: p.startedAt,
           routineId: routine.id,
           routineName: routine.name,
-          plannedSec: totalPlanejadoSegundos(routine),
+          plannedSec: totalPlanejadoSegundos(routine, get().exercicios),
           actualSec: Math.max(0, grossSec - Math.round(p.pausedTotalMs / 1000)),
           pauses: p.pauseCount,
           pausedSec: Math.round(p.pausedTotalMs / 1000),
@@ -352,7 +353,14 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     set({
       playerState: {
         ...p,
-        ex: { setIdx: p.ex.setIdx + 1, phase: "rest", results, restEndTs: Date.now() + (routine?.restSeconds || 120) * 1000 },
+        ex: {
+          setIdx: p.ex.setIdx + 1,
+          phase: "rest",
+          results,
+          restEndTs:
+            Date.now() +
+            descansoEntreSeries(routine?.restSeconds ?? 120, get().exercicios.find((e) => e.id === step.exercicioId)) * 1000,
+        },
       },
     });
   },
@@ -374,10 +382,10 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     let saved: Exercicio;
     let exercicios: Exercicio[];
     if (ex.id) {
-      saved = { id: ex.id, nome, grupos: ex.grupos, pesoAtual };
+      saved = { id: ex.id, nome, grupos: ex.grupos, pesoAtual, composto: ex.composto !== false };
       exercicios = get().exercicios.map((e) => (e.id === ex.id ? saved : e));
     } else {
-      saved = { id: uid(), nome, grupos: ex.grupos, pesoAtual };
+      saved = { id: uid(), nome, grupos: ex.grupos, pesoAtual, composto: ex.composto !== false };
       exercicios = [...get().exercicios, saved];
     }
     save(K_EXERCICIOS, exercicios);

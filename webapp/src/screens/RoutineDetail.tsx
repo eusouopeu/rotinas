@@ -15,11 +15,13 @@ import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
 import { computeSchedule, diasChipLabel } from "../lib/schedule";
 import { corDaRotina, fillStyle } from "../lib/scoring";
+import { descansoEntreSeries } from "../lib/exercicios";
 
 export function RoutineDetail() {
   const routines = useAppStore((s) => s.routines);
   const gam = useAppStore((s) => s.gam);
   const history = useAppStore((s) => s.history);
+  const exercicios = useAppStore((s) => s.exercicios);
   const goTo = useAppStore((s) => s.goTo);
   const openEditor = useAppStore((s) => s.openEditor);
   const startPlayer = useAppStore((s) => s.startPlayer);
@@ -90,7 +92,8 @@ export function RoutineDetail() {
             const iconName = s.type === "timer" ? "clock" : s.type === "exercicio" ? "trophy" : "check";
             let metaTxt: string;
             if (s.type === "timer") metaTxt = fmtTime(s.seconds || 0).replace("+", "");
-            else if (s.type === "exercicio") metaTxt = `${s.sets || 1}x · ${r.restSeconds || 120}s descanso`;
+            else if (s.type === "exercicio")
+              metaTxt = `${s.sets || 1}x · ${descansoEntreSeries(r.restSeconds ?? 120, exercicios.find((e) => e.id === s.exercicioId))}s descanso`;
             else metaTxt = "checklist";
             if (s.journaling) metaTxt += " · anotações";
             return (

@@ -644,6 +644,8 @@ export function Home() {
   const setHomeView = useAppStore((s) => s.setHomeView);
   const soHoje = useAppStore((s) => s.soHoje);
   const setSoHoje = useAppStore((s) => s.setSoHoje);
+  const listaExpandida = useAppStore((s) => s.listaExpandida);
+  const setListaExpandida = useAppStore((s) => s.setListaExpandida);
   const openSearch = useAppStore((s) => s.openSearch);
   const headerRef = useRef<HTMLDivElement>(null);
   const [novoAberto, setNovoAberto] = useState(false);
@@ -711,14 +713,25 @@ export function Home() {
         </div>
 
         {homeView === "rotinas" && (
-          <div className="header-right" style={{ marginBottom: 14 }}>
+          <div className="ag-nav-row" style={{ marginBottom: 14 }}>
+            <span className="ag-nav-gap" />
             <button
-              className={"bell-btn di-hoje" + (soHoje ? " on" : "")}
+              className={"icon-btn" + (soHoje ? " on" : "")}
               title="Mostrar só as rotinas de hoje"
+              aria-label="Mostrar só as rotinas de hoje"
               aria-pressed={soHoje}
               onClick={() => setSoHoje(!soHoje)}
             >
-              hoje
+              <Icon name="calendar" size={15} />
+            </button>
+            <button
+              className={"icon-btn" + (listaExpandida ? " on" : "")}
+              title={listaExpandida ? "Cards compactos" : "Cards expandidos"}
+              aria-label={listaExpandida ? "Cards compactos" : "Cards expandidos"}
+              aria-pressed={listaExpandida}
+              onClick={() => setListaExpandida(!listaExpandida)}
+            >
+              <Icon name={listaExpandida ? "arrowsPointingIn" : "arrowsPointingOut"} size={15} />
             </button>
           </div>
         )}
@@ -752,7 +765,7 @@ export function Home() {
                   key={r.id}
                   onLeft={() => deleteRoutineWithUndo(r.id)}
                   onRight={() => duplicateRoutine(r.id)}
-                  className="routine-card routine-card-compact"
+                  className={"routine-card " + (listaExpandida ? "routine-card-expandido" : "routine-card-compact")}
                 >
                   <div
                     className="routine-info"

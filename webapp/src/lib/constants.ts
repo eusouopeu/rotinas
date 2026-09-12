@@ -29,6 +29,9 @@ export const K_DIARIO = "rotinas_v2_diario";
 export const K_NAOFEITAS = "rotinas_v2_naofeitas";
 export const K_DIAKANBAN = "rotinas_v2_diakanban";
 export const K_SOHOJE = "rotinas_v2_so_hoje";
+// preferência de UI da view "Lista" (card compacto x card expandido) — como
+// K_SOHOJE/K_RODARESUMOABERTO, não entra no backup.
+export const K_LISTAEXPANDIDA = "rotinas_v2_lista_expandida";
 export const K_METASSOHOJE = "rotinas_v2_metas_so_hoje";
 export const K_METASSUBVIEW = "rotinas_v2_metas_subview"; // legado, só para migração
 export const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
@@ -60,7 +63,9 @@ export const DIAS_ABREV = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 // Nome por extenso do dia da semana — usado nos cabeçalhos das visões
 // "semana" e "dia" da aba Rotinas (a grade de 7 colunas do desktop segue
 // abreviada, não há largura de coluna para o nome inteiro).
-export const DIAS_NOME = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+// sem "-feira" (pedido do Pedro, 12/09/2026): o cabeçalho de dia e de semana
+// ficam mais curtos e a data cabe do lado sem apertar.
+export const DIAS_NOME = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 // Grupos musculares do editor de exercício (index.html:518) — chips
 // multi-seleção, opcionais, sem efeito em pontuação/agenda.

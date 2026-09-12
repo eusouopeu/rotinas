@@ -27,7 +27,8 @@ import {
 } from "./gamificacao";
 import { rotinaAgendadaEm } from "./schedule";
 import { playbackSteps } from "./player";
-import type { DiaKanbanCard, GamificacaoConfig, GamificacaoState, MetaRecorrente, Routine, RoutineStep, SemanaAtual, Tag } from "./types";
+import type { DiaKanbanCard, Exercicio, GamificacaoConfig, GamificacaoState, MetaRecorrente, Routine, RoutineStep, SemanaAtual, Tag } from "./types";
+import { descansoEntreSeries } from "./exercicios";
 
 export function areaDaRotina(r: Routine, gam: GamificacaoState): string {
   const id = r.eixo || "";
@@ -399,13 +400,16 @@ export function simularDistribuicaoSemana(routines: Routine[], gam: GamificacaoS
 /** Duração planejada da rotina em segundos, incluindo descansos entre etapas
  * — mesma conta de finishRoutine (index.html:11836): soma dos segundos de
  * playbackSteps (que já intercala os descansos) mais, por etapa "exercicio",
- * `sets * restSeconds` (o descanso ENTRE SÉRIES, que não aparece como etapa
- * própria) — usada pro registro de histórico. */
-export function totalPlanejadoSegundos(routine: Routine): number {
-  const rest = routine.restSeconds || 120;
+ * `sets * descanso entre séries` (que não aparece como etapa própria e
+ * depende de o exercício ser composto ou isolado, ver lib/exercicios.ts) —
+ * usada pro registro de histórico. Sem a biblioteca, todo exercício conta
+ * como composto (descanso cheio), que era a conta anterior. */
+export function totalPlanejadoSegundos(routine: Routine, exercicios: Exercicio[] = []): number {
+  const rest = routine.restSeconds ?? 120;
   return playbackSteps(routine).reduce((acc, s) => {
     if (s.type === "timer") return acc + (s.seconds || 0);
-    if (s.type === "exercicio") return acc + (s.sets || 1) * rest;
+    if (s.type === "exercicio")
+      return acc + (s.sets || 1) * descansoEntreSeries(rest, exercicios.find((e) => e.id === s.exercicioId));
     return acc;
   }, 0);
 }

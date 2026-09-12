@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { criadoEmLabel } from "../lib/notes";
 import { parseMdLines, prefixLines, splitBold, wrapSelection } from "../lib/mdPreview";
+import { Icon } from "../components/Icon";
 
 export function Inline({ text }: { text: string }) {
   return (
@@ -117,100 +118,118 @@ export function NoteEditor() {
   }
 
   return (
-    <div className="screen" style={{ paddingBottom: 16 }}>
-      <div className="note-topbar">
-        <button className="link-btn muted" onClick={closeNoteEditor}>
-          &larr; Notas
-        </button>
-        <button className="btn-save-note" onClick={closeNoteEditor}>
-          Salvar
-        </button>
+    /* Layout no formato do Apple Notes (mockup do Pedro, 12/09/2026): barras
+       flutuantes em pílula no topo e no rodapé, título grande e corpo sem
+       moldura — a mesma linguagem vítrea da tabbar. */
+    <div className="screen note-ap">
+      <div className="note-ap-bar note-ap-topo">
+        <div className="note-ap-pill">
+          <button title="Voltar para Notas" aria-label="Voltar para Notas" onClick={closeNoteEditor}>
+            <Icon name="chevronLeft" size={17} />
+          </button>
+        </div>
+        <span className="ag-nav-gap" />
+        <div className="note-ap-pill">
+          <button
+            className={preview ? "on" : ""}
+            title={preview ? "Editar" : "Visualizar"}
+            aria-label={preview ? "Editar" : "Visualizar"}
+            aria-pressed={preview}
+            onClick={() => setPreview((p) => !p)}
+          >
+            <Icon name="eye" size={17} />
+          </button>
+          <button
+            title="Excluir nota"
+            aria-label="Excluir nota"
+            onClick={() => {
+              if (window.confirm(`Excluir a nota "${note.title || "sem título"}"?`)) {
+                deleteNote(note.id);
+                closeNoteEditor();
+              }
+            }}
+          >
+            <Icon name="trash" size={17} />
+          </button>
+        </div>
       </div>
 
-      <input
-        className="note-title-input"
-        type="text"
-        placeholder="Título"
-        defaultValue={note.title}
-        onBlur={(e) => {
-          if (e.target.value !== note.title) updateNote(note.id, { title: e.target.value });
-        }}
-      />
-      <div className="created-stamp">{criadoEmLabel(note.createdAt)}</div>
-
-      <input
-        style={{ width: "100%", margin: "10px 0 4px" }}
-        className="note-title-input"
-        type="text"
-        placeholder="Assuntos (separados por vírgula)"
-        value={subjectsInput}
-        onChange={(e) => setSubjectsInput(e.target.value)}
-        onBlur={commitSubjects}
-      />
-
-      <div className="type-toggle" style={{ marginTop: 10, justifyContent: "space-between" }}>
-        <div style={{ display: "flex", gap: 4 }}>
-          <span
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, s, en) => wrapSelection(v, s, en, "**", "**"));
-            }}
-            title="Negrito"
-          >
-            <strong>B</strong>
-          </span>
-          <span
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, s, en) => prefixLines(v, s, en, "- "));
-            }}
-            title="Lista"
-          >
-            •
-          </span>
-          <span
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, s, en) => prefixLines(v, s, en, "- [ ] "));
-            }}
-            title="Checkbox"
-          >
-            ☑
-          </span>
-        </div>
-        <span className={preview ? "active" : ""} onClick={() => setPreview((p) => !p)}>
-          {preview ? "editar" : "visualizar"}
-        </span>
-      </div>
-
-      {preview ? (
-        <div className="mk-e-name" style={{ width: "100%", minHeight: "50vh", marginTop: 6, padding: 10, boxSizing: "border-box" }}>
-          <MdPreview text={content} />
-        </div>
-      ) : (
-        <textarea
-          ref={textRef}
-          className="mk-e-name"
-          style={{ width: "100%", minHeight: "50vh", resize: "vertical", lineHeight: 1.6, marginTop: 6 }}
-          placeholder="Escreva aqui..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onBlur={(e) => commitContent(e.target.value)}
-        />
-      )}
-
-      <div className="note-footer">
-        <button
-          className="btn-danger-outline"
-          onClick={() => {
-            if (window.confirm(`Excluir a nota "${note.title || "sem título"}"?`)) {
-              deleteNote(note.id);
-              closeNoteEditor();
-            }
+      <div className="note-ap-scroll">
+        <input
+          className="note-ap-title"
+          type="text"
+          placeholder="Título"
+          defaultValue={note.title}
+          onBlur={(e) => {
+            if (e.target.value !== note.title) updateNote(note.id, { title: e.target.value });
           }}
-        >
-          excluir
-        </button>
+        />
+        <div className="created-stamp">{criadoEmLabel(note.createdAt)}</div>
+
+        <input
+          className="note-ap-subjects"
+          type="text"
+          placeholder="Assuntos (separados por vírgula)"
+          value={subjectsInput}
+          onChange={(e) => setSubjectsInput(e.target.value)}
+          onBlur={commitSubjects}
+        />
+
+        {preview ? (
+          <div className="note-ap-body">
+            <MdPreview text={content} />
+          </div>
+        ) : (
+          <textarea
+            ref={textRef}
+            className="note-ap-body"
+            placeholder="Escreva aqui..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onBlur={(e) => commitContent(e.target.value)}
+          />
+        )}
+      </div>
+
+      <div className="note-ap-bar note-ap-rodape">
+        <div className="note-ap-pill">
+          <button
+            title="Checkbox"
+            aria-label="Checkbox"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              aplicarNaSelecao((v, st, en) => prefixLines(v, st, en, "- [ ] "));
+            }}
+          >
+            <Icon name="clipboard" size={17} />
+          </button>
+          <button
+            title="Lista"
+            aria-label="Lista"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              aplicarNaSelecao((v, st, en) => prefixLines(v, st, en, "- "));
+            }}
+          >
+            <Icon name="listBullet" size={17} />
+          </button>
+          <button
+            title="Negrito"
+            aria-label="Negrito"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              aplicarNaSelecao((v, st, en) => wrapSelection(v, st, en, "**", "**"));
+            }}
+          >
+            <strong style={{ fontSize: 16 }}>B</strong>
+          </button>
+        </div>
+        <span className="ag-nav-gap" />
+        <div className="note-ap-pill">
+          <button title="Concluir edição" aria-label="Concluir edição" onClick={closeNoteEditor}>
+            <Icon name="check" size={17} />
+          </button>
+        </div>
       </div>
     </div>
   );

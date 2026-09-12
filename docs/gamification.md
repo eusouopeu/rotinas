@@ -23,3 +23,9 @@ Kanban dia/semana entra na nota semanal; mês/ano entram em `metasPontos`. Use `
 ## Player e rotinas
 
 “Não fazer” encerra sem pontuar e deixa pendência reaproveitável no mesmo dia; “pular” não. Reordenar etapas só da atual em diante e deve salvar snapshot/sincronizar overlay. Pomodoro e ciclo foram removidos: não recriar. Pontos, metas, roda, hábito, vagas e alterações de score exigem `test/gamificacao.cjs` e testes da área.
+
+## Descanso entre séries de exercício (12/09/2026)
+
+A rotina guarda um único "descanso entre etapas" (`Routine.restSeconds`). O descanso ENTRE SÉRIES deriva dele conforme o exercício: composto usa o valor cheio, isolado usa 0,75x (`lib/exercicios.ts:descansoEntreSeries`). `Exercicio.composto` é opcional — ausente conta como composto, que era o comportamento único antes dessa data. Quem mexer no timer do player, na pontuação por série ou em `totalPlanejadoSegundos` precisa passar pelo helper, não pelo `restSeconds` cru.
+
+O fato Σ do resumo da Roda da Vida é `ritmoInfo().esperado` — os pontos que deveriam estar feitos a esta altura da semana —, não a contagem de itens concluídos.

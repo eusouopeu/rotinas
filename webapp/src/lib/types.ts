@@ -156,6 +156,10 @@ export interface Exercicio {
   nome: string;
   grupos: string[];
   pesoAtual: number;
+  /* multiarticular x monoarticular — só afeta o descanso entre séries
+     (lib/exercicios.ts). Ausente = composto, que era o comportamento único
+     antes de 12/09/2026. */
+  composto?: boolean;
 }
 
 export interface MetaRecProgresso {

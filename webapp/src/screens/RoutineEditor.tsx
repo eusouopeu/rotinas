@@ -44,6 +44,7 @@ function ExercicioEditorModal({
   const [nome, setNome] = useState(ex?.nome || "");
   const [grupos, setGrupos] = useState<string[]>(ex?.grupos || []);
   const [peso, setPeso] = useState(ex?.pesoAtual || 0);
+  const [composto, setComposto] = useState(ex?.composto !== false);
 
   function toggleGrupo(g: string) {
     setGrupos((cur) => (cur.includes(g) ? cur.filter((x) => x !== g) : [...cur, g]));
@@ -51,7 +52,7 @@ function ExercicioEditorModal({
   function salvar() {
     const n = nome.trim();
     if (!n) return;
-    const saved = upsertExercicio({ id: ex?.id, nome: n, grupos, pesoAtual: Math.max(0, peso || 0) });
+    const saved = upsertExercicio({ id: ex?.id, nome: n, grupos, pesoAtual: Math.max(0, peso || 0), composto });
     onSaved(saved);
   }
   function excluir() {
@@ -77,6 +78,19 @@ function ExercicioEditorModal({
               {g}
             </span>
           ))}
+        </div>
+        <div className="section-label" style={{ margin: "12px 0 6px" }}>
+          Tipo
+        </div>
+        {/* só muda o descanso entre séries: composto usa o descanso cheio da
+            rotina, isolado usa 0,75x dele (lib/exercicios.ts) */}
+        <div className="type-toggle">
+          <span className={composto ? "active" : ""} onClick={() => setComposto(true)}>
+            composto
+          </span>
+          <span className={!composto ? "active" : ""} onClick={() => setComposto(false)}>
+            isolado
+          </span>
         </div>
         <div className="section-label" style={{ margin: "12px 0 6px" }}>
           Carga atual (kg)
@@ -121,8 +135,8 @@ function ExercicioPickerModal({ onClose, onPick }: { onClose: () => void; onPick
   const nomesExistentes = new Set(exercicios.map((e) => e.nome.trim().toLowerCase()));
   const grupos = presetsPorGrupo();
 
-  function adicionarSugestao(nome: string, grupo: string) {
-    const saved = upsertExercicio({ nome, grupos: [grupo], pesoAtual: 0 });
+  function adicionarSugestao(nome: string, grupo: string, composto: boolean) {
+    const saved = upsertExercicio({ nome, grupos: [grupo], pesoAtual: 0, composto });
     onClose();
     onPick(saved);
   }
@@ -192,13 +206,15 @@ function ExercicioPickerModal({ onClose, onPick }: { onClose: () => void; onPick
                 {itens.map((it) => {
                   const jaExiste = nomesExistentes.has(it.nome.trim().toLowerCase());
                   return (
-                    <div key={it.nome} className="qa-idea-row" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "3px 0" }}>
+                    /* lista de leitura: sem moldura por item nem por botão —
+                       são dezenas de linhas e a carga visual dominava */
+                    <div key={it.nome} className="ex-sug-row">
                       <span style={{ flex: 1 }}>{it.nome}</span>
                       {jaExiste ? (
                         <span style={{ fontSize: 12, color: "var(--sub)" }}>já na biblioteca</span>
                       ) : (
-                        <button className="icon-btn" title="Adicionar" aria-label="Adicionar" style={{ width: 28, height: 28, flex: "0 0 auto" }} onClick={() => adicionarSugestao(it.nome, grupo)}>
-                          <Icon name="plus" size={12} />
+                        <button className="icon-btn borderless" title="Adicionar" aria-label="Adicionar" style={{ width: 28, height: 28, flex: "0 0 auto" }} onClick={() => adicionarSugestao(it.nome, grupo, it.composto)}>
+                          <Icon name="plus" size={14} />
                         </button>
                       )}
                     </div>
@@ -218,6 +234,7 @@ export function RoutineEditor() {
   const routines = useAppStore((s) => s.routines);
   const exercicios = useAppStore((s) => s.exercicios);
   const updateDraft = useAppStore((s) => s.updateDraft);
+  const upsertExercicio = useAppStore((s) => s.upsertExercicio);
   const cancelEdit = useAppStore((s) => s.cancelEdit);
   const saveDraft = useAppStore((s) => s.saveDraft);
   const deleteRoutine = useAppStore((s) => s.deleteRoutine);
@@ -432,6 +449,29 @@ export function RoutineEditor() {
                       />{" "}
                       reps
                     </div>
+                    {/* o peso mora na biblioteca (Exercicio.pesoAtual), não na
+                        etapa: editar aqui é um atalho para o mesmo campo que o
+                        player atualiza ao concluir a série. */}
+                    {s.exercicioId && (
+                      <div className="step-sub">
+                        <input
+                          className="dur-input"
+                          style={{ width: 64 }}
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step="0.5"
+                          aria-label="Peso atual do exercício"
+                          value={exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0}
+                          onChange={(e) => {
+                            const ex = exercicios.find((x) => x.id === s.exercicioId);
+                            if (!ex) return;
+                            upsertExercicio({ ...ex, pesoAtual: Math.max(0, +e.target.value || 0) });
+                          }}
+                        />{" "}
+                        kg
+                      </div>
+                    )}
                   </>
                 )}
               </div>
