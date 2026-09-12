@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { criadoEmLabel } from "../lib/notes";
-import { parseMdLines, prefixLines, splitBold, wrapSelection } from "../lib/mdPreview";
+import { parseMdLines, prefixLines, prefixOrdered, splitBold, wrapSelection } from "../lib/mdPreview";
 import { Icon } from "../components/Icon";
 import { LiveMdEditor, type LiveMdEditorHandle } from "../components/LiveMdEditor";
 
@@ -44,10 +44,10 @@ export function MdPreview({ text }: { text: string }) {
             </div>
           );
         }
-        if (l.type === "bullet") {
+        if (l.type === "bullet" || l.type === "ordered") {
           return (
             <div key={i} style={{ display: "flex", gap: 8, margin: "3px 0" }}>
-              <span>&bull;</span>
+              <span>{l.type === "ordered" ? l.marker : "•"}</span>
               <span>
                 <Inline text={l.text} />
               </span>
@@ -177,6 +177,26 @@ export function NoteEditor() {
             }}
           >
             <Icon name="listBullet" size={17} />
+          </button>
+          <button
+            title="Lista numerada"
+            aria-label="Lista numerada"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              aplicarNaSelecao((v, st, en) => prefixOrdered(v, st, en, "num"));
+            }}
+          >
+            <Icon name="numberedList" size={17} />
+          </button>
+          <button
+            title="Lista por letra"
+            aria-label="Lista por letra"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              aplicarNaSelecao((v, st, en) => prefixOrdered(v, st, en, "letra"));
+            }}
+          >
+            <Icon name="letterList" size={17} />
           </button>
           <button
             title="Negrito"

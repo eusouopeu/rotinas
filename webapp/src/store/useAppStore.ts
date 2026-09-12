@@ -255,6 +255,7 @@ export interface AppState {
   duplicarMetaRec: (id: string) => void;
   deleteMetaRec: (id: string) => void;
   reorderMetaRec: (fromIndex: number, toIndex: number) => void;
+  reorderMetas: (ids: string[]) => void;
 
   setDiarioTexto: (chave: string, texto: string) => void;
 

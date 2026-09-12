@@ -4,6 +4,7 @@
 // badges. Lógica pura em lib/boletim.ts.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
+import { Icon } from "../components/Icon";
 import { BADGE_NOME } from "../lib/constants";
 import { localKey, isoToDate, addDaysISO, trimestreDe } from "../lib/gamificacao";
 import {
@@ -97,15 +98,13 @@ export function Boletim() {
 
   return (
     <div className="screen">
-      <div className="topbar">
-        <button className="link-btn muted" onClick={() => goTo({ tab: "home", screen: "home" })}>
-          &larr; Rotinas
+      <div className="detail-bar" style={{ marginBottom: 12 }}>
+        <button className="icon-btn borderless" title="Voltar" aria-label="Voltar" onClick={() => goTo({ tab: "home", screen: "home" })}>
+          <Icon name="chevronLeft" size={18} />
         </button>
+        <h1 className="detail-title">Boletim</h1>
       </div>
       <div className="tab-scroll" style={{ paddingBottom: 24 }}>
-        <div className="home-header" style={{ marginBottom: 6 }}>
-          <h1>Boletim</h1>
-        </div>
 
         <div className="stat-card" style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 48, fontWeight: 600, color: disp ? "var(--sub)" : r.cor }}>

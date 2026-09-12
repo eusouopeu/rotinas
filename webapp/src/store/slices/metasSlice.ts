@@ -54,6 +54,7 @@ export type MetasSlice = Pick<
   | "duplicarMetaRec"
   | "deleteMetaRec"
   | "reorderMetaRec"
+  | "reorderMetas"
 >;
 
 export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set, get) => ({
@@ -245,6 +246,16 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
       recorrentes,
       updatedAt: Date.now(),
     };
+    const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
+    save(K_TEMPLATES, templates);
+    set({ templates });
+  },
+  reorderMetas: (ids) => {
+    const doc = get().metaDoc();
+    const pos = new Map(ids.map((id, i) => [id, i]));
+    // ids fora da lista (não deveria acontecer) vão para o fim, sem perder nada
+    const targets = [...doc.targets].sort((a, b) => (pos.get(a.id) ?? 1e9) - (pos.get(b.id) ?? 1e9));
+    const docNovo: CountdownDoc = { ...doc, targets, ordemManual: true, updatedAt: Date.now() };
     const templates = get().templates.map((t) => (t.id === doc.id ? docNovo : t));
     save(K_TEMPLATES, templates);
     set({ templates });

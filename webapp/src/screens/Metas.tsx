@@ -54,6 +54,7 @@ export function Metas() {
   const duplicarMetaRec = useAppStore((s) => s.duplicarMetaRec);
   const deleteMetaRec = useAppStore((s) => s.deleteMetaRec);
   const reorderMetaRec = useAppStore((s) => s.reorderMetaRec);
+  const reorderMetas = useAppStore((s) => s.reorderMetas);
 
   const [criandoPrazo, setCriandoPrazo] = useState(false);
   const [editandoPrazo, setEditandoPrazo] = useState<MetaTarget | null>(null);
@@ -69,12 +70,23 @@ export function Metas() {
   const ambos = mostraPrazos && mostraRecorrentes;
 
   const doc = templates.find((t): t is CountdownDoc => t.type === "countdown");
-  const metas = [...(doc?.targets ?? [])].sort((a, b) => daysUntil(a.date) - daysUntil(b.date));
+  const metas = doc?.ordemManual
+    ? [...doc.targets]
+    : [...(doc?.targets ?? [])].sort((a, b) => daysUntil(a.date) - daysUntil(b.date));
   const recorrentes = doc?.recorrentes ?? [];
 
   const recRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const metaRefs = useRef<Array<HTMLDivElement | null>>([]);
+  // container 0 = recorrentes, 1 = prazos
   const { dragFrom, dragHandleProps } = useDragReorder((from, to) => {
-    reorderMetaRec(from.index, to.index);
+    if (from.container === 0) {
+      reorderMetaRec(from.index, to.index);
+      return;
+    }
+    const ids = metas.map((m) => m.id);
+    const [movido] = ids.splice(from.index, 1);
+    ids.splice(to.index, 0, movido);
+    reorderMetas(ids);
   });
 
   function handleFabClick() {
@@ -153,7 +165,7 @@ export function Metas() {
                   rec={rec}
                   index={i}
                   gam={gam}
-                  isDragging={dragFrom?.index === i}
+                  isDragging={dragFrom?.container === 0 && dragFrom.index === i}
                   setRef={(el) => {
                     recRefs.current[i] = el;
                   }}
@@ -191,11 +203,23 @@ export function Metas() {
                 </button>
               </div>
             ) : (
-              metas.map((t) => (
+              metas.map((t, i) => (
                 <MetaCard
                   key={t.id}
                   t={t}
                   gam={gam}
+                  isDragging={dragFrom?.container === 1 && dragFrom.index === i}
+                  setRef={(el) => {
+                    metaRefs.current[i] = el;
+                  }}
+                  dragHandleProps={dragHandleProps({ container: 1, index: i }, (_x, y) => ({
+                    container: 1,
+                    index: computeStepDragTarget(
+                      metaRefs.current.filter(Boolean).map((el) => el!.getBoundingClientRect()),
+                      i,
+                      y
+                    ),
+                  }))}
                   onEditar={() => setEditandoPrazo(t)}
                   onDone={(d) => setMetaDone(t.id, d)}
                   onExcluir={() => {
@@ -651,12 +675,18 @@ function MetaRecForm({
 function MetaCard({
   t,
   gam,
+  isDragging,
+  setRef,
+  dragHandleProps,
   onEditar,
   onDone,
   onExcluir,
 }: {
   t: MetaTarget;
   gam: Parameters<typeof metaPontosTotais>[1];
+  isDragging: boolean;
+  setRef: (el: HTMLDivElement | null) => void;
+  dragHandleProps: Record<string, unknown>;
   onEditar: () => void;
   onDone: (d: number) => void;
   onExcluir: () => void;
@@ -674,9 +704,12 @@ function MetaCard({
   const cliqueEditar = useCliqueSemArrasto(onEditar);
 
   return (
-    <div style={{ marginBottom: 10 }}>
-      <SwipeItem className="meta-card" onLeft={onExcluir} leftLabel="Excluir">
-        <div className="stat-card meta-card-inner" style={{ borderColor: feita ? "var(--ok)" : undefined }}>
+    <div ref={setRef} style={{ marginBottom: 10 }}>
+      <SwipeItem className={`meta-card ${isDragging ? "dragging" : ""}`} onLeft={onExcluir} leftLabel="Excluir">
+        <div className="stat-card meta-card-inner rec-card" style={{ borderColor: feita ? "var(--ok)" : undefined }}>
+          <span className="rec-drag drag-handle" title="Arrastar para reordenar" aria-label="Arrastar para reordenar" {...dragHandleProps}>
+            <Icon name="bars3" size={15} />
+          </span>
           <div className="rec-card-body">
             <h3 className="meta-card-title" {...cliqueEditar} title="Editar meta">
               <span className="r-dot" style={{ background: dotColor }} />

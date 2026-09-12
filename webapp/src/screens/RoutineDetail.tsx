@@ -32,9 +32,9 @@ export function RoutineDetail() {
   if (!r) {
     return (
       <div className="screen">
-        <div className="topbar">
-          <button className="link-btn muted" onClick={() => goTo({ tab: "home", screen: "home" })}>
-            &larr; Rotinas
+        <div className="detail-bar">
+          <button className="icon-btn borderless" title="Voltar" aria-label="Voltar" onClick={() => goTo({ tab: "home", screen: "home" })}>
+            <Icon name="chevronLeft" size={18} />
           </button>
         </div>
         <div className="empty-state">
@@ -49,23 +49,22 @@ export function RoutineDetail() {
 
   return (
     <div className="screen">
-      <div className="topbar">
-        <button className="link-btn muted" onClick={() => goTo({ tab: "home", screen: "home" })}>
-          &larr; Rotinas
+      {/* barra superior: voltar (ícone) + título na mesma linha, subtítulo colado embaixo */}
+      <div className="detail-bar">
+        <button className="icon-btn borderless" title="Voltar" aria-label="Voltar" onClick={() => goTo({ tab: "home", screen: "home" })}>
+          <Icon name="chevronLeft" size={18} />
         </button>
+        <h1 className="detail-title">
+          <span className="r-dot" style={{ background: fillStyle(corDaRotina(r, gam)) }} />
+          {r.icon ? r.icon + " " : ""}
+          {r.name}
+        </h1>
       </div>
       <div
         className="routine-list"
         style={{ display: "flex", flexDirection: "column", flex: 1, overflowY: "auto", paddingBottom: 110 }}
       >
-        <div className="home-header" style={{ marginBottom: 14 }}>
-          <h1 style={{ fontSize: 26 }}>
-            <span className="r-dot" style={{ background: fillStyle(corDaRotina(r, gam)) }} />
-            {r.icon ? r.icon + " " : ""}
-            {r.name}
-          </h1>
-        </div>
-        <div className="routine-meta" style={{ marginBottom: 4 }}>
+        <div className="routine-meta detail-sub" style={{ marginBottom: 4 }}>
           {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} ·{" "}
           {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
           <StreakTag routineId={r.id} routines={routines} history={history} />

@@ -7,7 +7,7 @@
 // da linha trocam de linha; toque numa linha renderizada abre ela com o
 // cursor no ponto tocado; checkbox renderizado alterna sem abrir a linha.
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
-import { parseMdLines, splitBold } from "../lib/mdPreview";
+import { parseMdLines, proximoMarcador, splitBold } from "../lib/mdPreview";
 
 type Sel = { value: string; start: number; end: number };
 export interface LiveMdEditorHandle {
@@ -15,7 +15,7 @@ export interface LiveMdEditorHandle {
   aplicar(fn: (value: string, start: number, end: number) => Sel): void;
 }
 
-const RE_PREFIXO = /^(\s*)(#{1,3}\s+|-\s*\[[ xX]\]\s*|[-*]\s+)?/;
+const RE_PREFIXO = /^(\s*)(#{1,3}\s+|-\s*\[[ xX]\]\s*|[-*]\s+|(\d+|[a-zA-Z])[.)]\s+)?/;
 
 /** Offset no texto cru a partir do offset no texto visível (sem prefixo e sem `**`). */
 function offsetCru(linha: string, visivel: number): number {
@@ -31,10 +31,13 @@ function offsetCru(linha: string, visivel: number): number {
   return linha.length;
 }
 
-function continuacaoLista(linha: string): string | null {
+/** Prefixo que a linha atual "ocupa" e o que a próxima linha herda ao dar Enter. */
+function continuacaoLista(linha: string): { atual: string; proximo: string } | null {
   const m = linha.match(/^(\s*)(-\s*\[[ xX]\]\s*|[-*]\s+)/);
-  if (!m) return null;
-  return m[1] + (m[2].includes("[") ? "- [ ] " : m[2]);
+  if (m) return { atual: m[0], proximo: m[1] + (m[2].includes("[") ? "- [ ] " : m[2]) };
+  const o = linha.match(/^(\s*)(\d+|[a-zA-Z])([.)])(\s+)/);
+  if (o) return { atual: o[0], proximo: o[1] + proximoMarcador(o[2]) + o[3] + o[4] };
+  return null;
 }
 
 export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onChange: (v: string) => void; placeholder?: string }>(
@@ -90,13 +93,13 @@ export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onCh
         e.preventDefault();
         const cont = continuacaoLista(linha);
         const novas = [...linhas];
-        if (cont && linha.trim() === cont.trim()) {
+        if (cont && linha.trim() === cont.atual.trim()) {
           // item de lista vazio: Enter encerra a lista em vez de criar outro
           novas[i] = "";
           trocar(novas, i, 0);
           return;
         }
-        const pre = cont && st >= cont.length ? cont : "";
+        const pre = cont && st >= cont.atual.length ? cont.proximo : "";
         novas.splice(i, 1, linha.slice(0, st), pre + linha.slice(en));
         trocar(novas, i + 1, pre.length);
       } else if (e.key === "Backspace" && st === 0 && en === 0 && i > 0) {
@@ -134,7 +137,7 @@ export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onCh
         const pre = document.createRange();
         pre.selectNodeContents(e.currentTarget);
         pre.setEnd(r.startContainer, r.startOffset);
-        vis = pre.toString().replace(/^•/, "").length;
+        vis = pre.toString().replace(/^(•|(\d+|[a-zA-Z])[.)])/, "").length;
       }
       abrir(i, offsetCru(linhas[i], vis));
     }
@@ -198,10 +201,10 @@ function LinhaMd({ linha, onCheck }: { linha: string; onCheck: () => void }) {
         </span>
       </span>
     );
-  if (l.type === "bullet")
+  if (l.type === "bullet" || l.type === "ordered")
     return (
       <span className="live-md-check">
-        <span>•</span>
+        <span className={l.type === "ordered" ? "live-md-num" : undefined}>{l.type === "ordered" ? l.marker : "•"}</span>
         <span>
           <Negrito text={l.text} />
         </span>

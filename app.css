@@ -406,6 +406,14 @@
   .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; gap:12px; }
   .topbar .link-btn{ color:var(--caneta); font-size:15px; background:none; border:none; padding:8px 0; }
   .topbar .link-btn.muted{ color:var(--sub); }
+  /* telas de detalhe (rotina, boletim): voltar em ícone + título na mesma
+     linha; o subtítulo (.detail-sub) vem logo abaixo, sem respiro grande */
+  .detail-bar{ display:flex; align-items:center; gap:6px; margin:0 0 2px -8px; min-height:44px; }
+  .detail-title{
+    display:flex; align-items:center; gap:6px; min-width:0; font-size:24px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .detail-sub{ margin:0 0 14px; }
 
   input.name-input{
     background:none; border:none; border-bottom:2px solid var(--line);
@@ -822,6 +830,7 @@
   .live-md-h1{ font-size:22px; } .live-md-h2{ font-size:19px; } .live-md-h3{ font-size:17px; }
   .live-md-check{ display:flex; gap:8px; align-items:flex-start; }
   .live-md-check input{ margin-top:5px; accent-color:var(--caneta); }
+  .live-md-num{ min-width:1.2em; color:var(--sub); font-variant-numeric:tabular-nums; }
 
   /* ---------- AJUSTES: seções retráteis ---------- */
   .set-secao{ background:var(--card); border:1.5px solid var(--line); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; }

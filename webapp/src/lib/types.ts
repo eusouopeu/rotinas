@@ -187,6 +187,9 @@ export interface CountdownDoc {
   title: string;
   targets: MetaTarget[];
   recorrentes?: MetaRecorrente[];
+  /** true depois que o usuário arrasta uma meta com prazo: a lista passa a
+   * seguir a ordem de `targets` em vez de ordenar por data. */
+  ordemManual?: boolean;
   updatedAt: number;
   createdAt: number;
 }
