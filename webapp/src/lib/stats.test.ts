@@ -8,6 +8,7 @@ import {
   getPeriodExtrasData,
   getResumoPeriodo,
   getAreasAno,
+  getEvolucaoCumprimento,
   getRoutineDetailStats,
   computeStreakFor,
   computeStreak,
@@ -275,7 +276,18 @@ describe("getYearMonthlyBars e filtro por rotina", () => {
 });
 
 describe("gerarInsights", () => {
-  it("gera insight de atraso na rotina quando mediana > 10 min e n >= 3", () => {
+  it("usa a média (não a mediana) no atraso: um atraso grande puxa o insight", () => {
+    // mediana seria 5 (sem insight); média é 16,7 (> 10)
+    const rich = [
+      hist({ routineName: "Leitura", schedDelayMin: 5 }),
+      hist({ routineName: "Leitura", schedDelayMin: 5 }),
+      hist({ routineName: "Leitura", schedDelayMin: 40 }),
+    ];
+    const insights = gerarInsights(rich);
+    expect(insights.some((txt) => txt.includes("Leitura") && txt.includes("atrasa em média 17min"))).toBe(true);
+  });
+
+  it("gera insight de atraso na rotina quando média > 10 min e n >= 3", () => {
     const rich = [
       hist({ routineName: "Academia", schedDelayMin: 15 }),
       hist({ routineName: "Academia", schedDelayMin: 20 }),
@@ -285,7 +297,7 @@ describe("gerarInsights", () => {
     expect(insights.some((txt) => txt.includes("Academia") && txt.includes("atrasa em média"))).toBe(true);
   });
 
-  it("gera insight de estouro de duração quando mediana >= 25% e n >= 3", () => {
+  it("gera insight de estouro de duração quando média >= 25% e n >= 3", () => {
     const rich = [
       hist({ routineName: "Leitura", plannedSec: 1000, actualSec: 1500 }),
       hist({ routineName: "Leitura", plannedSec: 1000, actualSec: 1600 }),
@@ -327,6 +339,35 @@ describe("getPeriodExtrasData", () => {
 
     expect(extras.goals).toHaveLength(1);
     expect(extras.goals[0].routineId).toBe("r1");
+  });
+
+  it("resume pontualidade em % no horário, atrasos > 15 min e atraso médio", () => {
+    const r = routine({ id: "r1" });
+    const agora = Date.now();
+    const h = [0, 3, 20, 30].map((d, i) => hist({ routineId: "r1", ts: agora - i * 3600000, schedDelayMin: d }));
+    const { punctualityKpi } = getPeriodExtrasData("30d", h, [r], [], gam, null, 0);
+
+    expect(punctualityKpi).not.toBeNull();
+    expect(punctualityKpi!.total).toBe(4);
+    expect(punctualityKpi!.pctNoHorario).toBe(50);
+    expect(punctualityKpi!.atrasosGrandes).toBe(2);
+    expect(punctualityKpi!.mediaAtraso).toBe(13); // (0+3+20+30)/4 = 13,25
+  });
+});
+
+describe("getEvolucaoCumprimento", () => {
+  it("dá 12 meses de cumprimento, com null onde nada estava agendado", () => {
+    const r = routine({ id: "r1", createdAt: new Date(2026, 1, 1).getTime() });
+    // fevereiro/2026: 28 dias agendados, 7 feitos → 25%
+    const h = [2, 5, 9, 12, 16, 19, 23].map((d) =>
+      hist({ routineId: "r1", date: `2026-02-${String(d).padStart(2, "0")}`, ts: new Date(2026, 1, d, 8).getTime() }),
+    );
+    const pontos = getEvolucaoCumprimento("ano", h, [r], [], null, 0, new Date(2026, 2, 15, 12));
+
+    expect(pontos).toHaveLength(12);
+    expect(pontos[11].label).toBe("mar");
+    expect(pontos[10]).toEqual({ label: "fev", pct: 25 });
+    expect(pontos[9].pct).toBeNull(); // janeiro, antes de a rotina existir
   });
 });
 

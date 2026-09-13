@@ -35,6 +35,7 @@
     --on-caneta: #FFFFFF;
     --ok: #157A45;        --streak: #C2631A;
     --erro: #B23A2F;
+    --ok-soft: #E3F2EA;   --erro-soft: #F8E6E4;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --tabbar-h: 58px;
@@ -67,6 +68,7 @@
     --ok: #4FAE7C;
     --streak: #E0812F;
     --erro: #E2776A;
+    --ok-soft: #1B3226;   --erro-soft: #3A2320;
     --card-blur: rgba(29,34,38,.86);
     --heat-1: #581C87; --heat-2: #7E22CE; --heat-3: #A855F7; --heat-4: #D8B4FE;
     --kb-todo: #94A3B8;   --kb-todo-bg: rgba(148,163,184,.09);
@@ -1164,6 +1166,37 @@
   /* seções retráteis de Dados: o próprio rótulo abre/fecha o cartão */
   .secao-toggle{ display:flex; width:100%; align-items:center; justify-content:space-between; background:none; border:none; padding:0; cursor:pointer; }
   .stat-card[hidden]{ display:none; }
+  /* card de Dados com título e explicação dentro (padrão do Kuestion) */
+  .stat-card.com-titulo{ margin-bottom:10px; }
+  .stat-card-title{ font-family:'Montserrat', sans-serif; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--caneta); text-align:left; }
+  .stat-card-head{ color:var(--caneta); }
+  .stat-card-desc{ margin-top:4px; font-family:'Montserrat', sans-serif; font-size:13px; line-height:1.4; color:var(--sub); }
+  .stat-card-body{ margin-top:12px; }
+  /* três números grandes coloridos pelo significado */
+  .resumo-grid.kpi3{ grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
+  .kpi3 .resumo-tile{ padding:10px 4px; }
+  .kpi3 .resumo-v{ font-size:22px; }
+  .kpi3 .resumo-l{ text-transform:uppercase; letter-spacing:.03em; line-height:1.3; margin-top:2px; overflow:hidden; text-overflow:ellipsis; }
+  .resumo-v.bom{ color:var(--ok); }
+  .resumo-v.ruim{ color:var(--erro); }
+  .resumo-v.destaque{ color:var(--caneta); }
+  /* faixas que agrupam linhas no ritmo / abaixo */
+  .faixa{ border-radius:var(--radius-sm); padding:10px 12px; }
+  .faixa + .faixa{ margin-top:8px; }
+  .faixa-ok{ background:var(--ok-soft); }
+  .faixa-baixo{ background:var(--erro-soft); }
+  .faixa-lbl{ font-family:'Montserrat', sans-serif; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); margin-bottom:8px; }
+  .faixa .bar-track{ background:var(--card); }
+  /* linha tracejada de meta dentro da barra */
+  .bar-track.com-meta{ position:relative; overflow:visible; }
+  .meta-tracejada{ position:absolute; top:-4px; bottom:-4px; width:0; border-left:1.5px dashed var(--ok); pointer-events:none; }
+  /* gráfico de linha de percentual (GraficoLinhaPct) */
+  .linha-pct{ display:block; width:100%; max-width:560px; height:auto; margin:0 auto; }
+  .linha-pct .lp-grade{ stroke:var(--line); stroke-width:1; }
+  .linha-pct .lp-meta{ stroke:var(--ok); stroke-width:1.5; stroke-dasharray:4 4; }
+  .linha-pct .lp-linha{ fill:none; stroke:var(--caneta); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
+  .linha-pct .lp-ponto{ fill:var(--caneta); }
+  .linha-pct .lp-eixo{ fill:var(--sub); font-family:'Montserrat', sans-serif; font-size:10px; }
   /* barras com colunas alinhadas (nome · barra · valor) */
   .bar-grid{ display:grid; grid-template-columns:fit-content(45%) minmax(0,1fr) auto; column-gap:10px; row-gap:12px; align-items:center; }
   .bar-grid .bar-row{ display:contents; }

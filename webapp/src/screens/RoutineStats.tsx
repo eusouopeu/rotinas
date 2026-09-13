@@ -107,21 +107,21 @@ export function RoutineStats() {
               )}
               {stats.medDev != null && (
                 <div className="dev-row">
-                  <span>Desvio mediano</span>
+                  <span>Desvio médio</span>
                   <b className={stats.medDevClass}>{stats.medDevStr}</b>
                   <span className="dev-n">{stats.devsCount}x</span>
                 </div>
               )}
               {stats.medMood != null && stats.moodStars && (
                 <div className="dev-row">
-                  <span>Humor mediano</span>
+                  <span>Humor médio</span>
                   <b className="ontime">{stats.moodStars}</b>
                   <span className="dev-n">{stats.moodCount}x</span>
                 </div>
               )}
               {stats.medDelay != null && (
                 <div className="dev-row">
-                  <span>Atraso mediano no início</span>
+                  <span>Atraso médio no início</span>
                   <b className={stats.medDelay > 5 ? "late" : "ontime"}>{stats.medDelay}min</b>
                   <span className="dev-n">{stats.delayCount}x</span>
                 </div>
@@ -131,7 +131,7 @@ export function RoutineStats() {
             {/* 2. Análise por etapa */}
             {stats.stepRows.length > 0 && (
               <>
-                <div className="section-label">Por etapa (desvio mediano)</div>
+                <div className="section-label">Por etapa (desvio médio)</div>
                 <div className="stat-card">
                   {stats.stepRows.map((s, si) => (
                     <div key={`step-${si}`} style={{ marginBottom: s.suggestAdjust ? 8 : 0 }}>
@@ -144,7 +144,7 @@ export function RoutineStats() {
                       </div>
                       {s.suggestAdjust && (
                         <div className="suggest-row">
-                          <span className="dev-n">A mediana real é {fmtTime(s.medAct).replace("+", "")}.</span>
+                          <span className="dev-n">A média real é {fmtTime(s.medAct).replace("+", "")}.</span>
                           <button
                             className="suggest-btn"
                             onClick={() => handleAdjust(s.name, s.plan, s.newSec, s.newSecLabel)}
@@ -157,19 +157,17 @@ export function RoutineStats() {
                   ))}
                 </div>
 
-                {/* 3. Planejado − real (média · mediana) */}
-                <div className="section-label">Planejado &minus; real (média &middot; mediana)</div>
+                {/* 3. Planejado − real (média) */}
+                <div className="section-label">Planejado &minus; real (média)</div>
                 <div className="stat-card">
                   <div className="dev-row dev-head">
                     <span>tarefa</span>
                     <b>média</b>
-                    <b>mediana</b>
                   </div>
                   {stats.durRows.map((d, di) => (
                     <div className="dev-row" key={`dur-${di}`}>
                       <span>{d.name}</span>
                       <b className={d.statusMedia}>{d.difMediaStr}</b>
-                      <b className={d.statusMediana}>{d.difMedianaStr}</b>
                     </div>
                   ))}
                   <div className="stat-foot">Positivo sobrou tempo, negativo estourou o planejado.</div>

@@ -226,6 +226,36 @@ export interface PeriodExtrasData {
   delayTrend: TrendWeekData[];
   hasDelayTrend: boolean;
   recent: RecentExecutionData[];
+  punctualityKpi: PunctualityKpi | null;
+  stepKpi: StepKpi | null;
+  evolucao: EvolucaoPonto[];
+}
+
+/** Três números do card de Pontualidade (todas as execuções agendadas do período). */
+export interface PunctualityKpi {
+  total: number;
+  /** % de inícios com até 5 min de atraso (adiantado conta como no horário) */
+  pctNoHorario: number;
+  /** execuções que começaram mais de 15 min atrasadas */
+  atrasosGrandes: number;
+  mediaAtraso: number;
+  mediaLabel: string;
+}
+
+/** Três números do card de Etapas (etapas com 2+ execuções no período). */
+export interface StepKpi {
+  analisadas: number;
+  /** etapas cuja duração média passa de 15s acima do planejado */
+  estouram: number;
+  estouroMedioStr: string;
+  piorNome: string;
+  piorStr: string;
+}
+
+/** Um ponto da evolução do cumprimento (semana ou mês); null = nada agendado. */
+export interface EvolucaoPonto {
+  label: string;
+  pct: number | null;
 }
 
 export interface RoutineStepStat {
@@ -246,11 +276,8 @@ export interface RoutineDurRow {
   n: number;
   plan: number;
   difMedia: number;
-  difMediana: number;
   difMediaStr: string;
-  difMedianaStr: string;
   statusMedia: "early" | "ontime" | "late";
-  statusMediana: "early" | "ontime" | "late";
 }
 
 export interface ExerciseAggRow {
@@ -320,13 +347,11 @@ export function solidColor(c: string | undefined | null): string {
   return !c || c === "grad" || c === "#C98A3E" ? "#B96BC4" : c;
 }
 
-/** Porta de median (index.html:5323-5327) — usado pelas próximas fatias
- * (detalhe por rotina: desvio/humor/atraso mediano). */
-export function median(arr: number[]): number {
+/** Média aritmética — desde 13/09/2026 (pedido do Pedro) todas as análises de
+ * Dados usam média em vez da mediana do legado (desvio, humor, atraso, etapas). */
+export function media(arr: number[]): number {
   if (!arr.length) return 0;
-  const s = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  return arr.reduce((s, v) => s + v, 0) / arr.length;
 }
 
 /** Porta de renderWeekView (index.html:5842-5878), separando dado de HTML —
@@ -714,7 +739,7 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
   const insights: string[] = [];
   const DOW_NOME = ["domingos", "segundas", "terças", "quartas", "quintas", "sextas", "sábados"];
 
-  // 1. Rotina com atraso mediano alto no início (>10min, n>=3)
+  // 1. Rotina com atraso médio alto no início (>10min, n>=3)
   const porRotinaAtraso: Record<string, number[]> = {};
   rich.forEach((h) => {
     if (h.schedDelayMin === undefined) return;
@@ -722,23 +747,23 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
   });
   Object.entries(porRotinaAtraso).forEach(([nome, arr]) => {
     if (arr.length < 3) return;
-    const med = median(arr);
+    const med = media(arr);
     if (med > 10) {
       insights.push(`<b>${nome}</b> atrasa em média ${Math.round(med)}min pra começar — considere mudar o horário agendado.`);
     }
   });
 
-  // 2. Dia da semana com atraso bem acima da mediana geral (>=10min de diferença, comDelay>=6, dia>=3)
+  // 2. Dia da semana com atraso bem acima da média geral (>=10min de diferença, comDelay>=6, dia>=3)
   const comDelay = rich.filter((h) => h.schedDelayMin !== undefined);
   if (comDelay.length >= 6) {
     const porDow: number[][] = Array.from({ length: 7 }, () => []);
     comDelay.forEach((h) => porDow[new Date(h.ts).getDay()].push(h.schedDelayMin!));
-    const medGeral = median(comDelay.map((h) => h.schedDelayMin!));
+    const medGeral = media(comDelay.map((h) => h.schedDelayMin!));
     let pior: { dow: number; med: number } | null = null;
     for (let dow = 0; dow < porDow.length; dow++) {
       const arr = porDow[dow];
       if (arr.length < 3) continue;
-      const med = median(arr);
+      const med = media(arr);
       if (med - medGeral >= 10 && (!pior || med > pior.med)) pior = { dow, med };
     }
     if (pior) {
@@ -754,7 +779,7 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
   });
   Object.entries(porRotinaDur).forEach(([nome, arr]) => {
     if (arr.length < 3) return;
-    const med = median(arr.map((h) => ((h.actualSec || 0) - h.plannedSec!) / h.plannedSec!));
+    const med = media(arr.map((h) => ((h.actualSec || 0) - h.plannedSec!) / h.plannedSec!));
     if (med >= 0.25) {
       insights.push(`<b>${nome}</b> costuma estourar o tempo planejado em ${Math.round(med * 100)}% — talvez valha ajustar a duração.`);
     } else if (med <= -0.25) {
@@ -765,14 +790,14 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
   // 4. Rotina com humor sistematicamente mais baixo que a média geral (diferença >= 1, comMood>=6, n>=3)
   const comMood = rich.filter((h) => h.mood != null);
   if (comMood.length >= 6) {
-    const medGeralMood = median(comMood.map((h) => h.mood!));
+    const medGeralMood = media(comMood.map((h) => h.mood!));
     const porRotinaMood: Record<string, number[]> = {};
     comMood.forEach((h) => {
       (porRotinaMood[h.routineName] = porRotinaMood[h.routineName] || []).push(h.mood!);
     });
     Object.entries(porRotinaMood).forEach(([nome, arr]) => {
       if (arr.length < 3) return;
-      const med = median(arr);
+      const med = media(arr);
       if (medGeralMood - med >= 1) {
         insights.push(`<b>${nome}</b> costuma vir com humor mais baixo (${med.toFixed(1)} contra ${medGeralMood.toFixed(1)} da média) — vale olhar se ela está pesando mais do que deveria.`);
       }
@@ -785,8 +810,8 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
     const baixos = comMoodSkip.filter((h) => h.mood! <= 2);
     const altos = comMoodSkip.filter((h) => h.mood! >= 4);
     if (baixos.length >= 3 && altos.length >= 3) {
-      const medBaixo = median(baixos.map((h) => h.skippedCount!));
-      const medAlto = median(altos.map((h) => h.skippedCount!));
+      const medBaixo = media(baixos.map((h) => h.skippedCount!));
+      const medAlto = media(altos.map((h) => h.skippedCount!));
       if (medBaixo - medAlto >= 1) {
         insights.push(`Em dias de humor mais baixo você costuma pular ${Math.round(medBaixo - medAlto)} etapa(s) a mais do que em dias de humor alto.`);
       }
@@ -1040,6 +1065,40 @@ export function getResumoPeriodo(
   };
 }
 
+const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** Cumprimento do agendado ao longo do tempo, para o gráfico de linha de Dados:
+ * "30d" = últimas 12 semanas (rótulo dd/mm do início), "ano" = últimos 12 meses.
+ * Reusa `getResumoPeriodo`, então dias futuros do período atual não contam. */
+export function getEvolucaoCumprimento(
+  period: "30d" | "ano",
+  history: HistoryEntry[],
+  routines: Routine[],
+  snoozes: Snooze[],
+  routineFilter?: string | null,
+  weekStart = 0,
+  hoje = new Date(),
+): EvolucaoPonto[] {
+  const pontos: EvolucaoPonto[] = [];
+  for (let k = 11; k >= 0; k--) {
+    let from: Date;
+    let to: Date;
+    let label: string;
+    if (period === "30d") {
+      const ref = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 7 * k, 12);
+      from = isoToDate(inicioSemanaISO(ref, weekStart));
+      to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6, 12);
+      label = String(from.getDate()).padStart(2, "0") + "/" + String(from.getMonth() + 1).padStart(2, "0");
+    } else {
+      from = new Date(hoje.getFullYear(), hoje.getMonth() - k, 1, 12);
+      to = new Date(hoje.getFullYear(), hoje.getMonth() - k + 1, 0, 12);
+      label = MESES_CURTOS[from.getMonth()];
+    }
+    pontos.push({ label, pct: getResumoPeriodo(from, to, history, routines, snoozes, routineFilter).cumprimento });
+  }
+  return pontos;
+}
+
 export interface AreaAnoRow {
   id: string;
   label: string;
@@ -1254,7 +1313,7 @@ export function getPeriodExtrasData(
   const stepBottlenecks: StepBottleneckData[] = Object.values(stepAggAll)
     .filter((a) => a.n >= 2)
     .map((a) => {
-      const medAct = Math.round(median(a.acts));
+      const medAct = Math.round(media(a.acts));
       const medDev = medAct - a.plan;
       const statusClass: "early" | "ontime" | "late" = medDev > 15 ? "late" : medDev < -15 ? "early" : "ontime";
       return {
@@ -1272,14 +1331,14 @@ export function getPeriodExtrasData(
     .sort((a, b) => b.medDev - a.medDev)
     .slice(0, 8);
 
-  // 8. Pontualidade mediana
+  // 8. Pontualidade média
   const punc = rich.filter((h) => h.schedDelayMin !== undefined);
   const byR: Record<string, number[]> = {};
   punc.forEach((h) => {
     (byR[h.routineName] = byR[h.routineName] || []).push(h.schedDelayMin!);
   });
   const punctuality: PunctualityData[] = Object.entries(byR).map(([name, arr]) => {
-    const med = Math.round(median(arr));
+    const med = Math.round(media(arr));
     const statusClass: "early" | "ontime" | "late" = med > 5 ? "late" : med < -5 ? "early" : "ontime";
     return {
       routineName: name,
@@ -1289,6 +1348,33 @@ export function getPeriodExtrasData(
       statusClass,
     };
   });
+
+  const punctualityKpi: PunctualityKpi | null = punc.length
+    ? (() => {
+        const delays = punc.map((h) => h.schedDelayMin!);
+        const mediaAtraso = Math.round(media(delays));
+        return {
+          total: delays.length,
+          pctNoHorario: Math.round((delays.filter((d) => d <= 5).length / delays.length) * 100),
+          atrasosGrandes: delays.filter((d) => d > 15).length,
+          mediaAtraso,
+          mediaLabel: fmtMinLabel(mediaAtraso),
+        };
+      })()
+    : null;
+
+  const etapasAnalisadas = Object.values(stepAggAll).filter((a) => a.n >= 2);
+  const estouros = etapasAnalisadas.map((a) => Math.round(media(a.acts)) - a.plan).filter((dev) => dev > 15);
+  const pior = stepBottlenecks[0];
+  const stepKpi: StepKpi | null = etapasAnalisadas.length
+    ? {
+        analisadas: etapasAnalisadas.length,
+        estouram: estouros.length,
+        estouroMedioStr: estouros.length ? fmtSg(Math.round(media(estouros))) : "–",
+        piorNome: pior && pior.medDev > 15 ? pior.stepName : "nenhuma estoura",
+        piorStr: pior && pior.medDev > 15 ? pior.medDevStr : "–",
+      }
+    : null;
 
   // 9. Tendência da pontualidade (8 semanas)
   function weekKey(ts: number): number {
@@ -1308,7 +1394,7 @@ export function getPeriodExtrasData(
 
   const hasDelayTrend = Object.keys(delayByWeek).length > 0;
   const buckets = weeks.map((wk) => delayByWeek[wk] || null);
-  const vals = buckets.map((b) => (b ? median(b) : null));
+  const vals = buckets.map((b) => (b ? media(b) : null));
   const maxAbs = Math.max(1, ...vals.filter((v): v is number => v !== null).map((v) => Math.abs(v)));
 
   const delayTrend: TrendWeekData[] = vals.map((v, i) => {
@@ -1368,6 +1454,9 @@ export function getPeriodExtrasData(
     delayTrend,
     hasDelayTrend,
     recent,
+    punctualityKpi,
+    stepKpi,
+    evolucao: getEvolucaoCumprimento(period, history, routines, snoozes, routineFilter, weekStart),
   };
 }
 
@@ -1382,16 +1471,16 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
   const delays = entries.filter((h) => h.schedDelayMin !== undefined).map((h) => h.schedDelayMin!);
   const fmtS = (v: number) => (v >= 0 ? "+" : "−") + fmtTime(Math.abs(v)).replace("+", "");
 
-  const medDev = devs.length ? Math.round(median(devs)) : null;
+  const medDev = devs.length ? Math.round(media(devs)) : null;
   const medDevClass: "early" | "ontime" | "late" =
     medDev != null ? (medDev > 30 ? "late" : medDev < -30 ? "early" : "ontime") : "ontime";
 
   const moods = entries.filter((h) => h.mood).map((h) => h.mood!);
-  const medMood = moods.length ? Math.round(median(moods)) : null;
+  const medMood = moods.length ? Math.round(media(moods)) : null;
   const stars = ["★☆☆☆☆", "★★☆☆☆", "★★★☆☆", "★★★★☆", "★★★★★"];
   const moodStars = medMood ? stars[medMood - 1] : "";
 
-  const medDelay = delays.length ? Math.round(median(delays)) : null;
+  const medDelay = delays.length ? Math.round(media(delays)) : null;
 
   // Análise por etapa
   const stepAgg: Record<string, { n: number; acts: number[]; plan: number }> = {};
@@ -1408,7 +1497,7 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
 
   const stepRows: RoutineStepStat[] = Object.entries(stepAgg)
     .map(([name, a]) => {
-      const medAct = Math.round(median(a.acts));
+      const medAct = Math.round(media(a.acts));
       const dev = medAct - a.plan;
       const statusClass: "early" | "ontime" | "late" = dev > 15 ? "late" : dev < -15 ? "early" : "ontime";
       const suggestAdjust =
@@ -1434,27 +1523,18 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
     })
     .sort((a, b) => b.medDev - a.medDev);
 
-  // Planejado - real (média · mediana)
+  // Planejado - real (média)
   const durRows: RoutineDurRow[] = Object.entries(stepAgg)
     .map(([name, a]) => {
-      const soma = a.acts.reduce((s, v) => s + v, 0);
-      const media = soma / a.acts.length;
-      const medAct = median(a.acts);
-      const difMedia = a.plan - media;
-      const difMediana = a.plan - medAct;
+      const difMedia = a.plan - media(a.acts);
       const statusMedia: "early" | "ontime" | "late" = difMedia < -15 ? "late" : difMedia > 15 ? "early" : "ontime";
-      const statusMediana: "early" | "ontime" | "late" =
-        difMediana < -15 ? "late" : difMediana > 15 ? "early" : "ontime";
       return {
         name,
         n: a.n,
         plan: a.plan,
         difMedia: Math.round(difMedia),
-        difMediana: Math.round(difMediana),
         difMediaStr: fmtS(Math.round(difMedia)),
-        difMedianaStr: fmtS(Math.round(difMediana)),
         statusMedia,
-        statusMediana,
       };
     })
     .sort((x, y) => x.difMedia - y.difMedia);

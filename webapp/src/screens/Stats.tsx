@@ -26,6 +26,7 @@ import { relatorioFechamentoHtml } from "../lib/pdfExport";
 import { exportPdfView } from "../lib/exportFile";
 import type { CountdownDoc } from "../lib/types";
 import { Tabbar } from "../components/Tabbar";
+import { GraficoLinhaPct } from "../components/GraficoLinhaPct";
 
 const DOWL = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -56,17 +57,62 @@ export function Stats() {
   const snoozes = useAppStore((s) => s.snoozes);
 
   const aberta = (id: string) => abertas.includes(id);
-  function cab(id: string, titulo: ReactNode) {
+
+  /** Card de Dados com título e explicação dentro, no topo. Com `id`, o título
+   *  vira o botão que abre/fecha (seções secundárias começam fechadas). */
+  function card(titulo: ReactNode, desc: ReactNode, corpo: ReactNode, id?: string) {
+    const aberto = !id || aberta(id);
     return (
-      <button
-        className="section-label secao-toggle"
-        aria-expanded={aberta(id)}
-        onClick={() => setAbertas((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]))}
-      >
-        <span>{titulo}</span>
-        <Icon name={aberta(id) ? "chevronUp" : "chevronDown"} size={13} />
-      </button>
+      <div className="stat-card com-titulo">
+        {id ? (
+          <button
+            className="stat-card-head secao-toggle"
+            aria-expanded={aberto}
+            onClick={() => setAbertas((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]))}
+          >
+            <span className="stat-card-title">{titulo}</span>
+            <Icon name={aberto ? "chevronUp" : "chevronDown"} size={13} />
+          </button>
+        ) : (
+          <div className="stat-card-title">{titulo}</div>
+        )}
+        {aberto && (
+          <>
+            {desc && <div className="stat-card-desc">{desc}</div>}
+            <div className="stat-card-body">{corpo}</div>
+          </>
+        )}
+      </div>
     );
+  }
+
+  function kpis(tiles: Array<{ v: string; l: string; tom?: "bom" | "ruim" | "destaque" }>) {
+    return (
+      <div className="resumo-grid kpi3">
+        {tiles.map((t) => (
+          <div className="resumo-tile" key={t.l}>
+            <div className={"resumo-v" + (t.tom ? " " + t.tom : "")}>{t.v}</div>
+            <div className="resumo-l">{t.l}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  /** Divide linhas em duas faixas coloridas (bom / abaixo); faixa vazia some. */
+  function faixas<T>(itens: T[], ehBom: (x: T) => boolean, rotulos: [string, string], linha: (x: T) => ReactNode) {
+    const grupos: Array<[string, string, T[]]> = [
+      ["faixa-ok", rotulos[0], itens.filter(ehBom)],
+      ["faixa-baixo", rotulos[1], itens.filter((x) => !ehBom(x))],
+    ];
+    return grupos
+      .filter(([, , g]) => g.length > 0)
+      .map(([cls, lbl, g]) => (
+        <div className={`faixa ${cls}`} key={cls}>
+          <div className="faixa-lbl">{lbl}</div>
+          <div className="bar-grid">{g.map(linha)}</div>
+        </div>
+      ));
   }
 
   /** Nota do boletim da semana que começa em `iso` (semana atual = nota ao vivo). */
@@ -242,52 +288,52 @@ export function Stats() {
 
   function renderPeriodExtras(period: "30d" | "ano") {
     const extras = getPeriodExtrasData(period, history, routines, snoozes, gam, statsRoutineFilter, weekStart);
+    const periodo = period === "30d" ? "últimos 30 dias" : "últimos 12 meses";
+    const evolucaoValida = extras.evolucao.filter((p) => p.pct != null).length >= 2;
+    const irRotina = (id: string) => goTo({ tab: "dados", screen: "routineStats", id });
 
     return (
       <Fragment key={`extras-${period}-${statsRoutineFilter || "all"}`}>
         {/* 1. Insights */}
-        {extras.insights.length > 0 && (
-          <>
-            <div className="section-label">Insights ({extras.periodLbl})</div>
-            <div className="stat-card">
-              {extras.insights.map((txt, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 8,
-                    marginTop: i ? 10 : 0,
-                    paddingTop: i ? 10 : 0,
-                    borderTop: i ? "1.5px solid var(--line)" : undefined,
-                  }}
-                >
-                  <span style={{ flex: "0 0 auto", color: "var(--caneta)", marginTop: 1 }}>
-                    <Icon name="exclamationTriangle" size={14} />
-                  </span>
-                  <span
-                    className="routine-meta"
-                    style={{ fontSize: 13.5, color: "var(--ink)" }}
-                    dangerouslySetInnerHTML={{ __html: txt }}
-                  />
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        {extras.insights.length > 0 &&
+          card(
+            "Insights",
+            `Padrões encontrados no seu histórico dos ${periodo}.`,
+            extras.insights.map((txt, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  marginTop: i ? 10 : 0,
+                  paddingTop: i ? 10 : 0,
+                  borderTop: i ? "1.5px solid var(--line)" : undefined,
+                }}
+              >
+                <span style={{ flex: "0 0 auto", color: "var(--caneta)", marginTop: 1 }}>
+                  <Icon name="exclamationTriangle" size={14} />
+                </span>
+                <span
+                  className="routine-meta"
+                  style={{ fontSize: 13.5, color: "var(--ink)" }}
+                  dangerouslySetInnerHTML={{ __html: txt }}
+                />
+              </div>
+            )),
+          )}
 
         {/* 2. Metas da semana */}
-        {extras.goals.length > 0 && (
-          <>
-            {cab("metas", <>Metas da semana ({extras.janelaSemana}) &middot; | = esperado até hoje</>)}
-            <div className="stat-card" hidden={!aberta("metas")}>
-              <div className="bar-grid">
-              {extras.goals.map((g) => (
-                <div
-                  key={g.routineId}
-                  className="bar-row tappable"
-                  onClick={() => goTo({ tab: "dados", screen: "routineStats", id: g.routineId })}
-                >
+        {extras.goals.length > 0 &&
+          card(
+            <>Metas da semana ({extras.janelaSemana})</>,
+            "Execuções na semana contra a meta. A marca vertical é o esperado até hoje.",
+            faixas(
+              extras.goals,
+              (g) => g.onPace,
+              ["no ritmo", "atrás do ritmo"],
+              (g) => (
+                <div key={g.routineId} className="bar-row tappable" onClick={() => irRotina(g.routineId)}>
                   <div className="bar-name">
                     {g.icon ? g.icon + " " : ""}
                     {g.routineName}
@@ -296,125 +342,139 @@ export function Stats() {
                     <div className="bar-fill" style={{ width: `${Math.max(3, g.pct)}%`, background: g.color }} />
                     <span className="goal-marker" style={{ left: `${g.expPct}%` }} />
                   </div>
-                  <div
-                    className={`bar-val ${g.onPace ? "early" : "late"}`}
-                    style={{ color: g.onPace ? "var(--ok)" : "var(--erro)" }}
-                  >
+                  <div className="bar-val" style={{ color: g.onPace ? "var(--ok)" : "var(--erro)" }}>
                     {g.doneCount}/{g.weeklyGoalTimes}x
                   </div>
                 </div>
-              ))}
-              </div>
-            </div>
-          </>
-        )}
+              ),
+            ),
+            "metas",
+          )}
 
         {/* 3. Distribuição por dia da semana */}
-        {extras.hasDowTotals && (
-          <>
-            {cab("dow", `Por dia da semana (${extras.periodLbl})`)}
-            <div className="stat-card" hidden={!aberta("dow")}>
-              <div className="stack-chart">
-                {extras.dowCols.map((col) => (
-                  <div className="stack-col" key={col.dow}>
-                    <span className="trend-val">{col.totalSec ? `${col.totalMin}m` : ""}</span>
-                    <div className="stack-bars">
-                      {col.segs.map((seg, si) => (
-                        <div
-                          key={si}
-                          className="stack-seg"
-                          style={{ height: `${seg.height}px`, background: seg.color }}
-                          title={`${seg.routineName}: ${Math.round(seg.sec / 60)}min`}
-                        />
-                      ))}
-                    </div>
-                    <span className="trend-lbl">{col.dowLabel}</span>
+        {extras.hasDowTotals &&
+          card(
+            "Por dia da semana",
+            `Tempo executado em cada dia da semana, empilhado por rotina, nos ${periodo}.`,
+            <div className="stack-chart">
+              {extras.dowCols.map((col) => (
+                <div className="stack-col" key={col.dow}>
+                  <span className="trend-val">{col.totalSec ? `${col.totalMin}m` : ""}</span>
+                  <div className="stack-bars">
+                    {col.segs.map((seg, si) => (
+                      <div
+                        key={si}
+                        className="stack-seg"
+                        style={{ height: `${seg.height}px`, background: seg.color }}
+                        title={`${seg.routineName}: ${Math.round(seg.sec / 60)}min`}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+                  <span className="trend-lbl">{col.dowLabel}</span>
+                </div>
+              ))}
+            </div>,
+            "dow",
+          )}
 
         {/* 4. Horário real de início */}
-        {extras.hasHourCounts && (
-          <>
-            {cab("hora", `Horário real de início (${extras.periodLbl})`)}
-            <div className="stat-card" hidden={!aberta("hora")}>
-              <div className="hour-chart">
-                {extras.hourCols.map((c) => (
-                  <div className="hour-col" key={c.hour}>
-                    <span className="trend-lbl">{c.showLabel ? `${c.hour}h` : ""}</span>
-                    <div className="hour-bar-area">
-                      <div className="hour-bar" style={{ height: `${c.height}px` }} />
-                    </div>
+        {extras.hasHourCounts &&
+          card(
+            "Horário real de início",
+            `Quantas execuções começaram em cada hora do dia, nos ${periodo}.`,
+            <div className="hour-chart">
+              {extras.hourCols.map((c) => (
+                <div className="hour-col" key={c.hour}>
+                  <span className="trend-lbl">{c.showLabel ? `${c.hour}h` : ""}</span>
+                  <div className="hour-bar-area">
+                    <div className="hour-bar" style={{ height: `${c.height}px` }} />
                   </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+                </div>
+              ))}
+            </div>,
+            "hora",
+          )}
 
         {/* 5. Cumprimento do agendado */}
-        {extras.schedCompliance.length > 0 && (
-          <>
-            <div className="section-label">Cumprimento do agendado ({extras.periodLbl})</div>
-            <div className="stat-card">
-              {extras.schedCompliance.map((s) => (
-                <div
-                  key={s.routineId}
-                  className="dev-row tappable"
-                  onClick={() => goTo({ tab: "dados", screen: "routineStats", id: s.routineId })}
-                >
-                  <span>
+        {extras.schedCompliance.length > 0 &&
+          card(
+            "Cumprimento do agendado",
+            `Dias agendados em que a rotina foi feita, nos ${periodo}. Linha tracejada = 80%.`,
+            faixas(
+              extras.schedCompliance,
+              (s) => s.pct >= 80,
+              ["80% ou mais", "abaixo de 80%"],
+              (s) => (
+                <div key={s.routineId} className="bar-row tappable" onClick={() => irRotina(s.routineId)}>
+                  <div className="bar-name">
                     {s.icon ? s.icon + " " : ""}
                     {s.routineName}
-                  </span>
-                  <b className={s.statusClass}>{s.pct}%</b>
-                  <span className="dev-n">
-                    {s.doneDays}/{s.plannedDays} dias
-                  </span>
+                  </div>
+                  <div className="bar-track com-meta">
+                    <div
+                      className="bar-fill"
+                      style={{
+                        width: `${Math.max(3, s.pct)}%`,
+                        background: s.pct >= 80 ? "var(--ok)" : s.pct >= 50 ? "var(--caneta)" : "var(--erro)",
+                      }}
+                    />
+                    <span className="meta-tracejada" style={{ left: "80%" }} />
+                  </div>
+                  <div className="bar-val">
+                    {s.pct}% &middot; {s.doneDays}/{s.plannedDays}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
+              ),
+            ),
+          )}
 
-        {/* 6. Sequências por rotina */}
-        {extras.streaks.length > 0 && (
-          <>
-            {cab("seq", "Sequências por rotina")}
-            <div className="stat-card" hidden={!aberta("seq")}>
-              {extras.streaks.map((x) => (
-                <div
-                  key={x.routineId}
-                  className="dev-row tappable"
-                  onClick={() => goTo({ tab: "dados", screen: "routineStats", id: x.routineId })}
-                >
-                  <span>
-                    {x.icon ? x.icon + " " : ""}
-                    {x.routineName}
-                  </span>
-                  <b className="ontime">
-                    {x.streak} {x.streakUnidade === "semanas" ? `semana${x.streak > 1 ? "s" : ""}` : `dia${x.streak > 1 ? "s" : ""}`}
-                  </b>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        {/* 6. Evolução do cumprimento */}
+        {evolucaoValida &&
+          card(
+            "Evolução do cumprimento",
+            period === "30d"
+              ? "% das agendadas feitas em cada uma das últimas 12 semanas. Linha tracejada = 80%."
+              : "% das agendadas feitas em cada um dos últimos 12 meses. Linha tracejada = 80%.",
+            <GraficoLinhaPct pontos={extras.evolucao} meta={80} ariaLabel="Evolução do cumprimento do agendado" />,
+          )}
 
-        {/* 7. Etapas que mais estouram */}
-        {extras.stepBottlenecks.length > 0 && (
-          <>
-            {cab("etapas", `Etapas que mais estouram (${extras.periodLbl})`)}
-            <div className="stat-card" hidden={!aberta("etapas")}>
+        {/* 7. Sequências por rotina */}
+        {extras.streaks.length > 0 &&
+          card(
+            "Sequências por rotina",
+            "Sequência atual de cada rotina, da maior para a menor.",
+            extras.streaks.map((x) => (
+              <div key={x.routineId} className="dev-row tappable" onClick={() => irRotina(x.routineId)}>
+                <span>
+                  {x.icon ? x.icon + " " : ""}
+                  {x.routineName}
+                </span>
+                <b className="ontime">
+                  {x.streak} {x.streakUnidade === "semanas" ? `semana${x.streak > 1 ? "s" : ""}` : `dia${x.streak > 1 ? "s" : ""}`}
+                </b>
+              </div>
+            )),
+            "seq",
+          )}
+
+        {/* 8. Etapas que mais estouram */}
+        {extras.stepBottlenecks.length > 0 &&
+          card(
+            "Etapas que mais estouram",
+            "Diferença média entre o tempo real e o planejado de cada etapa (2+ execuções). Positivo = demora mais. Toque para ver a rotina.",
+            <>
+              {extras.stepKpi &&
+                kpis([
+                  {
+                    v: `${extras.stepKpi.estouram}/${extras.stepKpi.analisadas}`,
+                    l: "etapas estouram",
+                    tom: extras.stepKpi.estouram > 0 ? "ruim" : "bom",
+                  },
+                  { v: extras.stepKpi.estouroMedioStr, l: "estouro médio", tom: extras.stepKpi.estouram > 0 ? "ruim" : undefined },
+                  { v: extras.stepKpi.piorStr, l: extras.stepKpi.piorNome, tom: extras.stepKpi.estouram > 0 ? "destaque" : undefined },
+                ])}
               {extras.stepBottlenecks.map((s, i) => (
-                <div
-                  key={i}
-                  className="dev-row tappable"
-                  onClick={() => goTo({ tab: "dados", screen: "routineStats", id: s.routineId })}
-                >
+                <div key={i} className="dev-row tappable" onClick={() => irRotina(s.routineId)}>
                   <span>
                     {s.routineName} — {s.stepName}
                   </span>
@@ -424,16 +484,34 @@ export function Stats() {
                   </span>
                 </div>
               ))}
-              <div className="stat-foot">Positivo = etapa demora mais que o planejado. Toque para ver a rotina.</div>
-            </div>
-          </>
-        )}
+            </>,
+            "etapas",
+          )}
 
-        {/* 8. Pontualidade mediana */}
-        {extras.punctuality.length > 0 && (
-          <>
-            {cab("pont", `Pontualidade mediana (${extras.periodLbl})`)}
-            <div className="stat-card" hidden={!aberta("pont")}>
+        {/* 9. Pontualidade média */}
+        {extras.punctuality.length > 0 &&
+          card(
+            "Pontualidade",
+            "Atraso médio entre o horário agendado e o início real. No horário = até 5 min de atraso.",
+            <>
+              {extras.punctualityKpi &&
+                kpis([
+                  {
+                    v: extras.punctualityKpi.pctNoHorario + "%",
+                    l: "no horário",
+                    tom: extras.punctualityKpi.pctNoHorario >= 80 ? "bom" : extras.punctualityKpi.pctNoHorario < 50 ? "ruim" : "destaque",
+                  },
+                  {
+                    v: String(extras.punctualityKpi.atrasosGrandes),
+                    l: "atrasos > 15 min",
+                    tom: extras.punctualityKpi.atrasosGrandes > 0 ? "ruim" : "bom",
+                  },
+                  {
+                    v: extras.punctualityKpi.mediaLabel,
+                    l: "atraso médio",
+                    tom: extras.punctualityKpi.mediaAtraso > 5 ? "ruim" : "bom",
+                  },
+                ])}
               {extras.punctuality.map((p, i) => (
                 <div className="dev-row" key={i}>
                   <span>{p.routineName}</span>
@@ -441,52 +519,48 @@ export function Stats() {
                   <span className="dev-n">{p.count}x</span>
                 </div>
               ))}
-            </div>
-          </>
-        )}
+            </>,
+            "pont",
+          )}
 
-        {/* 9. Tendência da pontualidade (8 semanas) */}
-        {extras.hasDelayTrend && (
-          <>
-            {cab("tend", "Tendência da pontualidade (8 semanas)")}
-            <div className="stat-card" hidden={!aberta("tend")}>
-              <div className="trend-chart">
-                {extras.delayTrend.map((t, i) => (
-                  <div className="trend-col" key={i}>
-                    <div className="trend-bar-area">
-                      {t.val !== null && (
-                        <>
-                          <span className="trend-val">{t.valLabel}</span>
-                          <div className={`trend-bar ${t.statusClass}`} style={{ height: `${t.height}px` }} />
-                        </>
-                      )}
-                    </div>
-                    <span className="trend-lbl">{t.dateLabel}</span>
+        {/* 10. Tendência da pontualidade (8 semanas) */}
+        {extras.hasDelayTrend &&
+          card(
+            "Tendência da pontualidade",
+            "Atraso médio no início, em minutos, em cada uma das últimas 8 semanas.",
+            <div className="trend-chart">
+              {extras.delayTrend.map((t, i) => (
+                <div className="trend-col" key={i}>
+                  <div className="trend-bar-area">
+                    {t.val !== null && (
+                      <>
+                        <span className="trend-val">{t.valLabel}</span>
+                        <div className={`trend-bar ${t.statusClass}`} style={{ height: `${t.height}px` }} />
+                      </>
+                    )}
                   </div>
-                ))}
-              </div>
-              <div className="stat-foot">minutos de atraso no início &middot; mediana semanal</div>
-            </div>
-          </>
-        )}
-
-        {/* 10. Execuções recentes */}
-        {extras.recent.length > 0 && (
-          <>
-            {cab("recentes", `Execuções recentes (${extras.periodLbl})`)}
-            <div className="stat-card" hidden={!aberta("recentes")}>
-              {extras.recent.map((h) => (
-                <div className="dev-row exec-row" key={h.ts}>
-                  <span className="exec-name">{h.routineName}</span>
-                  <span className="dev-n">
-                    {h.dateStr} &middot; {h.timeStr} | <b>{h.plannedStr}</b> &rarr;{" "}
-                    <b className={h.statusClass}>{h.actualStr}</b>
-                  </span>
+                  <span className="trend-lbl">{t.dateLabel}</span>
                 </div>
               ))}
-            </div>
-          </>
-        )}
+            </div>,
+            "tend",
+          )}
+
+        {/* 11. Execuções recentes */}
+        {extras.recent.length > 0 &&
+          card(
+            "Execuções recentes",
+            "Últimas execuções: data, hora e duração planejada → real.",
+            extras.recent.map((h) => (
+              <div className="dev-row exec-row" key={h.ts}>
+                <span className="exec-name">{h.routineName}</span>
+                <span className="dev-n">
+                  {h.dateStr} &middot; {h.timeStr} | <b>{h.plannedStr}</b> &rarr; <b className={h.statusClass}>{h.actualStr}</b>
+                </span>
+              </div>
+            )),
+            "recentes",
+          )}
       </Fragment>
     );
   }
@@ -712,8 +786,10 @@ export function Stats() {
         {/* Tempo por mês */}
         {monthlyBars.totalMinutes > 0 ? (
           <>
-            <div className="section-label">Tempo por mês &middot; total {monthlyBars.totalHoursStr}</div>
-            <div className="stat-card">
+            {card(
+              <>Tempo por mês &middot; total {monthlyBars.totalHoursStr}</>,
+              "Horas executadas em cada mês. Linha tracejada = média mensal; o mês atual fica destacado.",
+              <>
               <div className="mes-plot">
                 {monthlyBars.bars.map((bar) => (
                   <div
@@ -737,12 +813,14 @@ export function Stats() {
                 - - média {fmtHorasMin(Math.round(mediaMin))}/mês
                 {anoAtual && ` · ${monthlyBars.bars[hoje.getMonth()].monthName}: ${monthlyBars.bars[hoje.getMonth()].valStr}`}
               </div>
-            </div>
+              </>,
+            )}
 
-            {areas.length > 0 && (
-              <>
-                <div className="section-label">Por área &middot; {calYear}</div>
-                <div className="stat-card">
+            {areas.length > 0 &&
+              card(
+                <>Por área &middot; {calYear}</>,
+                "Tempo executado no ano em cada área da roda da vida, pela área atual de cada rotina.",
+                <>
                   <div className="bar-grid">
                     {areas.map((a) => (
                       <div className="bar-row" key={a.id || "sem-area"}>
@@ -770,9 +848,8 @@ export function Stats() {
                       ))}
                     </div>
                   )}
-                </div>
-              </>
-            )}
+                </>,
+              )}
           </>
         ) : (
           <div className="stat-card">
