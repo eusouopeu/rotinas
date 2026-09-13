@@ -2,10 +2,9 @@
 // renderPeriodExtras/dayDetailHtml (index.html:5296-6028) — tela "Estatísticas"
 // (aba "Dados" no legado): visão semanal, mensal e anual com filtro por rotina,
 // heatmap anual, metas, gráficos, insights e relatório PDF.
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
-import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import {
   getDayDetailData,
   getWeekGridData,
@@ -13,8 +12,15 @@ import {
   getHeatmapData,
   getYearMonthlyBars,
   getPeriodExtrasData,
+  getResumoPeriodo,
+  getAreasAno,
+  computeStreak,
+  computeStreakFor,
+  type MonthDayData,
+  type ResumoPeriodo,
 } from "../lib/stats";
-import { ordemDiasSemana } from "../lib/gamificacao";
+import { inicioSemanaISO, ordemDiasSemana } from "../lib/gamificacao";
+import { ritmoInfo } from "../lib/boletim";
 import { fmtClock, fmtTime } from "../lib/format";
 import { relatorioFechamentoHtml } from "../lib/pdfExport";
 import { exportPdfView } from "../lib/exportFile";
@@ -22,6 +28,11 @@ import type { CountdownDoc } from "../lib/types";
 import { Tabbar } from "../components/Tabbar";
 
 const DOWL = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+/** 1,8h · 45m — mesmo formato das barras de tempo por mês. */
+function fmtHorasMin(min: number): string {
+  return min >= 60 ? (min / 60).toFixed(1).replace(".", ",") + "h" : min + "m";
+}
 
 export function Stats() {
   const goTo = useAppStore((s) => s.goTo);
@@ -37,8 +48,67 @@ export function Stats() {
   const [calMonth, setCalMonth] = useState<Date>(new Date());
   const [calYear, setCalYear] = useState<number>(new Date().getFullYear());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // quadrimestre do heatmap anual (1 = jan–abr, 2 = mai–ago, 3 = set–dez)
+  const [calQuad, setCalQuad] = useState<1 | 2 | 3>(() => (Math.floor(new Date().getMonth() / 4) + 1) as 1 | 2 | 3);
+  // seções secundárias de Mensal/Anual começam fechadas; Insights e Cumprimento ficam sempre abertos
+  const [abertas, setAbertas] = useState<string[]>([]);
 
   const snoozes = useAppStore((s) => s.snoozes);
+
+  const aberta = (id: string) => abertas.includes(id);
+  function cab(id: string, titulo: ReactNode) {
+    return (
+      <button
+        className="section-label secao-toggle"
+        aria-expanded={aberta(id)}
+        onClick={() => setAbertas((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]))}
+      >
+        <span>{titulo}</span>
+        <Icon name={aberta(id) ? "chevronUp" : "chevronDown"} size={13} />
+      </button>
+    );
+  }
+
+  /** Nota do boletim da semana que começa em `iso` (semana atual = nota ao vivo). */
+  function notaDaSemana(iso: string): number | null {
+    if (gam.semanaAtual?.inicioISO === iso) return ritmoInfo(gam.semanaAtual, gam.config, new Date(), weekStart).nota;
+    const s = gam.historico.semanas.find((x) => x.inicioISO === iso);
+    return s && !s.dispensada ? s.nota : null;
+  }
+
+  function renderResumo(atual: ResumoPeriodo, anterior: ResumoPeriodo, rotuloAnterior: string) {
+    const streak = statsRoutineFilter ? computeStreakFor(statsRoutineFilter, routines, history) : computeStreak(routines, history);
+    const pctDelta = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : null);
+    const tiles = [
+      { l: "horas", v: fmtHorasMin(atual.minutos), d: pctDelta(atual.minutos, anterior.minutos), u: "%" },
+      { l: "execuções", v: String(atual.execucoes), d: pctDelta(atual.execucoes, anterior.execucoes), u: "%" },
+      {
+        l: "cumprimento",
+        v: atual.cumprimento == null ? "–" : atual.cumprimento + "%",
+        d: atual.cumprimento != null && anterior.cumprimento != null ? atual.cumprimento - anterior.cumprimento : null,
+        u: " pp",
+      },
+      { l: "sequência", v: String(streak), d: null, u: "" },
+    ];
+    return (
+      <div className="resumo-grid">
+        {tiles.map((t) => (
+          <div className="resumo-tile" key={t.l}>
+            <div className="resumo-v">{t.v}</div>
+            <div className="resumo-l">{t.l}</div>
+            <div className={"resumo-d" + (t.d == null ? "" : t.d > 0 ? " up" : t.d < 0 ? " down" : "")}>
+              {t.d == null
+                ? t.l === "sequência"
+                  ? "dias"
+                  : " "
+                : `${t.d > 0 ? "▲" : t.d < 0 ? "▼" : "="} ${Math.abs(t.d)}${t.u}`}
+            </div>
+          </div>
+        ))}
+        <div className="resumo-foot">variação vs {rotuloAnterior}</div>
+      </div>
+    );
+  }
 
   /* `soFeitos` (aba Semana, pedido do Pedro em 12/09/2026): o dia só lista o
      que foi executado — o que estava agendado e não foi feito já aparece no
@@ -209,10 +279,9 @@ export function Stats() {
         {/* 2. Metas da semana */}
         {extras.goals.length > 0 && (
           <>
-            <div className="section-label">
-              Metas da semana ({extras.janelaSemana}) &middot; | = esperado até hoje
-            </div>
-            <div className="stat-card">
+            {cab("metas", <>Metas da semana ({extras.janelaSemana}) &middot; | = esperado até hoje</>)}
+            <div className="stat-card" hidden={!aberta("metas")}>
+              <div className="bar-grid">
               {extras.goals.map((g) => (
                 <div
                   key={g.routineId}
@@ -235,6 +304,7 @@ export function Stats() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           </>
         )}
@@ -242,8 +312,8 @@ export function Stats() {
         {/* 3. Distribuição por dia da semana */}
         {extras.hasDowTotals && (
           <>
-            <div className="section-label">Por dia da semana ({extras.periodLbl})</div>
-            <div className="stat-card">
+            {cab("dow", `Por dia da semana (${extras.periodLbl})`)}
+            <div className="stat-card" hidden={!aberta("dow")}>
               <div className="stack-chart">
                 {extras.dowCols.map((col) => (
                   <div className="stack-col" key={col.dow}>
@@ -269,8 +339,8 @@ export function Stats() {
         {/* 4. Horário real de início */}
         {extras.hasHourCounts && (
           <>
-            <div className="section-label">Horário real de início ({extras.periodLbl})</div>
-            <div className="stat-card">
+            {cab("hora", `Horário real de início (${extras.periodLbl})`)}
+            <div className="stat-card" hidden={!aberta("hora")}>
               <div className="hour-chart">
                 {extras.hourCols.map((c) => (
                   <div className="hour-col" key={c.hour}>
@@ -313,8 +383,8 @@ export function Stats() {
         {/* 6. Sequências por rotina */}
         {extras.streaks.length > 0 && (
           <>
-            <div className="section-label">Sequências por rotina</div>
-            <div className="stat-card">
+            {cab("seq", "Sequências por rotina")}
+            <div className="stat-card" hidden={!aberta("seq")}>
               {extras.streaks.map((x) => (
                 <div
                   key={x.routineId}
@@ -337,8 +407,8 @@ export function Stats() {
         {/* 7. Etapas que mais estouram */}
         {extras.stepBottlenecks.length > 0 && (
           <>
-            <div className="section-label">Etapas que mais estouram ({extras.periodLbl})</div>
-            <div className="stat-card">
+            {cab("etapas", `Etapas que mais estouram (${extras.periodLbl})`)}
+            <div className="stat-card" hidden={!aberta("etapas")}>
               {extras.stepBottlenecks.map((s, i) => (
                 <div
                   key={i}
@@ -362,8 +432,8 @@ export function Stats() {
         {/* 8. Pontualidade mediana */}
         {extras.punctuality.length > 0 && (
           <>
-            <div className="section-label">Pontualidade mediana ({extras.periodLbl})</div>
-            <div className="stat-card">
+            {cab("pont", `Pontualidade mediana (${extras.periodLbl})`)}
+            <div className="stat-card" hidden={!aberta("pont")}>
               {extras.punctuality.map((p, i) => (
                 <div className="dev-row" key={i}>
                   <span>{p.routineName}</span>
@@ -378,8 +448,8 @@ export function Stats() {
         {/* 9. Tendência da pontualidade (8 semanas) */}
         {extras.hasDelayTrend && (
           <>
-            <div className="section-label">Tendência da pontualidade (8 semanas)</div>
-            <div className="stat-card">
+            {cab("tend", "Tendência da pontualidade (8 semanas)")}
+            <div className="stat-card" hidden={!aberta("tend")}>
               <div className="trend-chart">
                 {extras.delayTrend.map((t, i) => (
                   <div className="trend-col" key={i}>
@@ -403,8 +473,8 @@ export function Stats() {
         {/* 10. Execuções recentes */}
         {extras.recent.length > 0 && (
           <>
-            <div className="section-label">Execuções recentes ({extras.periodLbl})</div>
-            <div className="stat-card">
+            {cab("recentes", `Execuções recentes (${extras.periodLbl})`)}
+            <div className="stat-card" hidden={!aberta("recentes")}>
               {extras.recent.map((h) => (
                 <div className="dev-row exec-row" key={h.ts}>
                   <span className="exec-name">{h.routineName}</span>
@@ -422,7 +492,17 @@ export function Stats() {
   }
 
   function renderMonthView() {
-    const gridData = getMonthGridData(calMonth, history, routines, snoozes, gam, weekStart);
+    const gridData = getMonthGridData(calMonth, history, routines, snoozes, gam, weekStart, statsRoutineFilter);
+    const y = calMonth.getFullYear();
+    const mo = calMonth.getMonth();
+    const resumo = getResumoPeriodo(new Date(y, mo, 1, 12), new Date(y, mo + 1, 0, 12), history, routines, snoozes, statsRoutineFilter);
+    const resumoAnt = getResumoPeriodo(new Date(y, mo - 1, 1, 12), new Date(y, mo, 0, 12), history, routines, snoozes, statsRoutineFilter);
+    const nomeAnterior = new Date(y, mo - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
+    // grade em semanas completas (vazios no começo e no fim) + coluna da nota
+    const celulas: Array<MonthDayData | null> = [...Array(gridData.voidCount).fill(null), ...gridData.days];
+    while (celulas.length % 7) celulas.push(null);
+    const semanas: Array<Array<MonthDayData | null>> = [];
+    for (let i = 0; i < celulas.length; i += 7) semanas.push(celulas.slice(i, i + 7));
 
     return (
       <>
@@ -439,6 +519,11 @@ export function Stats() {
           </button>
           <span className="cal-title">
             {gridData.monthName} {gridData.year}
+            {gridData.rate !== null && (
+              <span className="cal-rate" title={`cumprimento do mês: ${gridData.doneTotal}/${gridData.plannedTotal} agendadas`}>
+                {gridData.rate}%
+              </span>
+            )}
           </span>
           <button
             className="bell-btn"
@@ -452,43 +537,59 @@ export function Stats() {
           </button>
         </div>
 
+        {renderResumo(resumo, resumoAnt, nomeAnterior)}
+
         <div className="stat-card">
-          <div className="mcal-grid">
+          <div className="mcal-grid mcal-compact com-nota">
             {ordemDiasSemana(weekStart).map((dow) => (
               <span key={`lbl-${dow}`} className="mcal-dowlbl">
                 {DOWL[dow]}
               </span>
             ))}
-            {Array.from({ length: gridData.voidCount }).map((_, i) => (
-              <span key={`void-${i}`} className="mcal-cell mcal-void" />
-            ))}
-            {gridData.days.map((d) => (
-              <span
-                key={d.key}
-                className={`mcal-cell ${d.isToday ? "mcal-today" : ""} ${selectedDay === d.key ? "mcal-sel" : ""}`}
-                onClick={() => setSelectedDay(selectedDay === d.key ? null : d.key)}
-              >
-                <span className="mcal-num">{d.day}</span>
-                <span className="mcal-dots">
-                  {d.dotsColors.map((color, i) => (
-                    <span key={i} className="mcal-dot" style={{ background: color }} />
-                  ))}
-                </span>
-                {d.missedCount > 0 && <span className="mcal-missed">{d.missedCount}</span>}
-              </span>
-            ))}
+            <span className="mcal-dowlbl" title="Nota do boletim da semana">
+              nota
+            </span>
+            {semanas.map((sem, si) => {
+              const primeiro = sem.find((d): d is MonthDayData => !!d);
+              const nota = primeiro ? notaDaSemana(inicioSemanaISO(primeiro.dateObj, weekStart)) : null;
+              return (
+                <Fragment key={`sem-${si}`}>
+                  {sem.map((d, i) =>
+                    d ? (
+                      <span
+                        key={d.key}
+                        className={`mcal-cell ${d.intensity} ${d.isToday ? "mcal-today" : ""} ${selectedDay === d.key ? "mcal-sel" : ""}`}
+                        title={d.min ? `${d.day}: ${fmtHorasMin(d.min)}` : undefined}
+                        onClick={() => setSelectedDay(selectedDay === d.key ? null : d.key)}
+                      >
+                        <span className="mcal-num">{d.day}</span>
+                      </span>
+                    ) : (
+                      <span key={`void-${si}-${i}`} className="mcal-cell mcal-void" />
+                    )
+                  )}
+                  <span className="mcal-nota" title={nota == null ? "sem nota" : `nota da semana: ${nota.toFixed(1)}`}>
+                    {nota != null && (
+                      <>
+                        <span className="mcal-nota-bar">
+                          <span style={{ height: `${Math.max(4, Math.min(100, nota))}%` }} />
+                        </span>
+                        <span className="mcal-nota-n">{Math.round(nota)}</span>
+                      </>
+                    )}
+                  </span>
+                </Fragment>
+              );
+            })}
           </div>
-          <div className="stat-foot">
-            &#9679; executada &nbsp;{" "}
-            <span className="late" style={{ fontWeight: 600 }}>
-              n
-            </span>{" "}
-            agendadas não feitas
-            {gridData.rate !== null && (
-              <>
-                &nbsp;&middot;&nbsp; cumprimento do mês: {gridData.rate}% ({gridData.doneTotal}/{gridData.plannedTotal})
-              </>
-            )}
+          <div className="hm-legend">
+            <span>menos</span>
+            <span className="hm-cell lv0" />
+            <span className="hm-cell lv1" />
+            <span className="hm-cell lv2" />
+            <span className="hm-cell lv3" />
+            <span className="hm-cell lv4" />
+            <span>mais tempo</span>
           </div>
         </div>
 
@@ -500,8 +601,35 @@ export function Stats() {
   }
 
   function renderYearView() {
-    const heatmapData = getHeatmapData(calYear, history, weekStart);
+    const heatmapData = getHeatmapData(calYear, history, weekStart, statsRoutineFilter, calQuad);
     const monthlyBars = getYearMonthlyBars(calYear, history, statsRoutineFilter);
+    const resumo = getResumoPeriodo(new Date(calYear, 0, 1, 12), new Date(calYear, 11, 31, 12), history, routines, snoozes, statsRoutineFilter);
+    const resumoAnt = getResumoPeriodo(new Date(calYear - 1, 0, 1, 12), new Date(calYear - 1, 11, 31, 12), history, routines, snoozes, statsRoutineFilter);
+    const hoje = new Date();
+    const anoAtual = calYear === hoje.getFullYear();
+    const maxMin = Math.max(...monthlyBars.bars.map((b) => b.minutes), 1);
+    const mediaMin = monthlyBars.totalMinutes / (anoAtual ? hoje.getMonth() + 1 : 12);
+    const areas = getAreasAno(calYear, history, routines, gam, statsRoutineFilter);
+    const melhores = monthlyBars.bars
+      .filter((b) => b.minutes > 0)
+      .sort((a, b) => b.minutes - a.minutes)
+      .slice(0, 3);
+
+    function mudarQuad(delta: number) {
+      let q = calQuad + delta;
+      let ano = calYear;
+      if (q < 1) {
+        q = 3;
+        ano--;
+      }
+      if (q > 3) {
+        q = 1;
+        ano++;
+      }
+      setCalQuad(q as 1 | 2 | 3);
+      setCalYear(ano);
+      setSelectedDay(null);
+    }
 
     return (
       <>
@@ -527,8 +655,21 @@ export function Stats() {
           </button>
         </div>
 
-        <div className="stat-card" id="yearHm">
-          <div className="hm-scroll">
+        {renderResumo(resumo, resumoAnt, String(calYear - 1))}
+
+        <div className="stat-card hm-quad" id="yearHm">
+          <div className="hm-pager">
+            <button className="icon-btn borderless" title="Quadrimestre anterior" aria-label="Quadrimestre anterior" onClick={() => mudarQuad(-1)}>
+              <Icon name="chevronLeft" size={15} />
+            </button>
+            <span className="hm-pager-lbl">
+              {String(calYear).slice(2)}T{calQuad}
+            </span>
+            <button className="icon-btn borderless" title="Próximo quadrimestre" aria-label="Próximo quadrimestre" onClick={() => mudarQuad(1)}>
+              <Icon name="chevronRight" size={15} />
+            </button>
+          </div>
+          <div>
             <div className="hm-months">
               {heatmapData.columns.map((col, i) => (
                 <span key={i} className="hm-mlabel">
@@ -573,16 +714,65 @@ export function Stats() {
           <>
             <div className="section-label">Tempo por mês &middot; total {monthlyBars.totalHoursStr}</div>
             <div className="stat-card">
-              {monthlyBars.bars.map((bar) => (
-                <div className="bar-row" key={bar.monthIdx}>
-                  <div className="bar-name">{bar.monthName}</div>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${bar.pct}%` }} />
+              <div className="mes-plot">
+                {monthlyBars.bars.map((bar) => (
+                  <div
+                    key={bar.monthIdx}
+                    className={"mes-col" + (anoAtual && bar.monthIdx === hoje.getMonth() ? " atual" : "")}
+                    title={`${bar.monthName}: ${bar.valStr}`}
+                  >
+                    <div className="mes-bar" style={{ height: `${bar.minutes ? Math.max(3, (bar.minutes / maxMin) * 100) : 0}%` }} />
                   </div>
-                  <div className="bar-val">{bar.valStr}</div>
-                </div>
-              ))}
+                ))}
+                <div className="mes-media" style={{ bottom: `${(mediaMin / maxMin) * 100}%` }} />
+              </div>
+              <div className="mes-lbls">
+                {monthlyBars.bars.map((bar) => (
+                  <span key={bar.monthIdx} className="trend-lbl">
+                    {bar.monthName}
+                  </span>
+                ))}
+              </div>
+              <div className="stat-foot">
+                - - média {fmtHorasMin(Math.round(mediaMin))}/mês
+                {anoAtual && ` · ${monthlyBars.bars[hoje.getMonth()].monthName}: ${monthlyBars.bars[hoje.getMonth()].valStr}`}
+              </div>
             </div>
+
+            {areas.length > 0 && (
+              <>
+                <div className="section-label">Por área &middot; {calYear}</div>
+                <div className="stat-card">
+                  <div className="bar-grid">
+                    {areas.map((a) => (
+                      <div className="bar-row" key={a.id || "sem-area"}>
+                        <div className="bar-name" style={{ color: a.color }}>
+                          {a.label}
+                        </div>
+                        <div className="bar-track">
+                          <div className="bar-fill" style={{ width: `${Math.max(3, a.pct)}%`, background: a.color }} />
+                        </div>
+                        <div className="bar-val">
+                          {fmtHorasMin(a.minutos)} &middot; {a.pct}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {melhores.length > 0 && (
+                    <div className="routine-meta routine-meta-line" style={{ marginTop: 12 }}>
+                      <span className="rc-fact">
+                        <Icon name="trophy" size={13} /> melhores meses
+                      </span>
+                      {melhores.map((b) => (
+                        <span className="rc-fact" key={b.monthIdx}>
+                          <b>{b.monthName}</b> {b.valStr}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="stat-card">
@@ -626,7 +816,6 @@ export function Stats() {
         </div>
 
         <div id="statsHead">
-          <RodaVidaResumo />
           <div className="stats-nav">
             <div className="type-toggle view-toggle">
               <span

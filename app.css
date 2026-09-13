@@ -1134,6 +1134,57 @@
   .mcal-sel{ outline:2px solid var(--ink); }
   .mcal-dots{ display:flex; gap:2px; flex-wrap:wrap; justify-content:center; max-width:90%; }
   .mcal-dot{ width:6px; height:6px; border-radius:50%; }
+  /* Dados › Mensal compacto (12/09/2026): dia sem bolinha nem contador, cor
+     de fundo = tempo feito (mesma escala do heatmap) e coluna da nota da semana */
+  .mcal-grid.com-nota{ grid-template-columns:repeat(7, minmax(0,1fr)) 32px; }
+  .mcal-compact .mcal-cell{ aspect-ratio:auto; height:30px; padding:0; justify-content:center; cursor:pointer; }
+  .mcal-compact .mcal-cell.lv1{ background:var(--heat-1); }
+  .mcal-compact .mcal-cell.lv2{ background:var(--heat-2); }
+  .mcal-compact .mcal-cell.lv3{ background:var(--heat-3); }
+  .mcal-compact .mcal-cell.lv4{ background:var(--heat-4); }
+  .mcal-compact .mcal-cell.lv3 .mcal-num, .mcal-compact .mcal-cell.lv4 .mcal-num{ color:var(--card); }
+  .mcal-compact .mcal-cell.mcal-void{ cursor:default; }
+  .mcal-nota{ display:flex; align-items:center; justify-content:center; gap:2px; height:30px; }
+  .mcal-nota-bar{ width:3px; height:22px; border-radius:2px; background:var(--card-2); display:flex; align-items:flex-end; overflow:hidden; }
+  .mcal-nota-bar span{ width:100%; background:var(--caneta); }
+  .mcal-nota-n{ font-family:'Montserrat', sans-serif; font-size:9px; color:var(--sub); font-variant-numeric:tabular-nums; }
+  .cal-rate{
+    margin-left:8px; padding:2px 8px; border-radius:10px; background:var(--caneta-soft); color:var(--caneta);
+    font-family:'Montserrat', sans-serif; font-size:12px; font-weight:600; vertical-align:middle;
+  }
+  /* resumo do período (Mensal/Anual) */
+  .resumo-grid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; margin-bottom:12px; }
+  .resumo-tile{ background:var(--card); border:1.5px solid var(--line); border-radius:var(--radius-sm); padding:8px 4px; text-align:center; min-width:0; }
+  .resumo-v{ font-family:'Lato', sans-serif; font-size:18px; font-weight:700; color:var(--ink); white-space:nowrap; }
+  .resumo-l, .resumo-d, .resumo-foot{ font-family:'Montserrat', sans-serif; font-size:10px; color:var(--sub); }
+  .resumo-d{ margin-top:2px; white-space:nowrap; }
+  .resumo-d.up{ color:var(--ok); }
+  .resumo-d.down{ color:var(--erro); }
+  .resumo-foot{ grid-column:1 / -1; text-align:right; }
+  /* seções retráteis de Dados: o próprio rótulo abre/fecha o cartão */
+  .secao-toggle{ display:flex; width:100%; align-items:center; justify-content:space-between; background:none; border:none; padding:0; cursor:pointer; }
+  .stat-card[hidden]{ display:none; }
+  /* barras com colunas alinhadas (nome · barra · valor) */
+  .bar-grid{ display:grid; grid-template-columns:fit-content(45%) minmax(0,1fr) auto; column-gap:10px; row-gap:12px; align-items:center; }
+  .bar-grid .bar-row{ display:contents; }
+  .bar-grid .bar-name{ width:auto; }
+  .bar-grid .bar-val{ width:auto; white-space:nowrap; }
+  /* heatmap por quadrimestre: preenche a largura, sem rolagem lateral */
+  .hm-quad .hm-months, .hm-quad .hm-grid{ display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:3px; }
+  .hm-quad .hm-mlabel{ width:auto; }
+  .hm-quad .hm-col{ display:flex; flex-direction:column; gap:3px; }
+  .hm-quad .hm-grid .hm-cell{ width:auto; height:auto; aspect-ratio:1; }
+  .hm-cell.hm-futuro{ opacity:.45; }
+  .hm-pager{ display:flex; align-items:center; justify-content:space-between; margin:-4px 0 6px; }
+  .hm-pager-lbl{ font-family:'Montserrat', sans-serif; font-size:13px; font-weight:600; color:var(--ink); }
+  /* tempo por mês em colunas, mês atual destacado e linha da média */
+  .mes-plot{ position:relative; height:72px; display:flex; align-items:flex-end; gap:4px; }
+  .mes-col{ flex:1; height:100%; display:flex; align-items:flex-end; }
+  .mes-bar{ width:100%; border-radius:3px 3px 0 0; background:var(--heat-2); }
+  .mes-col.atual .mes-bar{ background:var(--caneta); }
+  .mes-media{ position:absolute; left:0; right:0; border-top:1.5px dashed var(--sub); pointer-events:none; }
+  .mes-lbls{ display:flex; gap:4px; margin-top:4px; }
+  .mes-lbls span{ flex:1; text-align:center; }
   .mcal-missed{
     position:absolute; top:2px; right:3px; font-family:'Montserrat', sans-serif;
     font-size:9px; color:var(--erro); font-weight:700;

@@ -6,6 +6,8 @@ import {
   getHeatmapData,
   getYearMonthlyBars,
   getPeriodExtrasData,
+  getResumoPeriodo,
+  getAreasAno,
   getRoutineDetailStats,
   computeStreakFor,
   computeStreak,
@@ -398,6 +400,49 @@ describe("relatorioFechamentoHtml", () => {
     const rep = relatorioFechamentoHtml("anual", gam, [hist({ date: "2026-08-10" })], [routine()], [], "2026-08-20");
     expect(rep.title).toContain("Relatório do ano");
     expect(rep.innerHtml).toContain("2026");
+  });
+});
+
+describe("resumo de período, áreas do ano e heatmap por quadrimestre", () => {
+  it("getResumoPeriodo soma só o intervalo e calcula o cumprimento das agendadas", () => {
+    const r = routine();
+    const h = [
+      hist({ routineId: "r1", date: "2026-01-05", actualSec: 1200 }),
+      hist({ routineId: "r1", date: "2026-02-10", actualSec: 600 }),
+    ];
+    const res = getResumoPeriodo(new Date(2026, 0, 1, 12), new Date(2026, 0, 31, 12), h, [r], []);
+    expect(res.execucoes).toBe(1);
+    expect(res.minutos).toBe(20);
+    expect(res.planejadas).toBe(31);
+    expect(res.feitas).toBe(1);
+    expect(res.cumprimento).toBe(3);
+  });
+
+  it("getHeatmapData com quadrimestre começa no mês certo e respeita o filtro de rotina", () => {
+    const h = [hist({ routineId: "r1", date: "2025-05-06", actualSec: 3600 }), hist({ routineId: "r2", date: "2025-05-07", actualSec: 3600 })];
+    const data = getHeatmapData(2025, h, 0, "r1", 2);
+    expect(data.columns[0].monthLabel).toBe("mai");
+    const cells = data.columns.flatMap((c) => c.cells);
+    expect(cells.find((c) => c.key === "2025-04-30")?.inRange).toBe(false);
+    expect(cells.find((c) => c.key === "2025-08-31")?.inRange).toBe(true);
+    expect(cells.find((c) => c.key === "2025-05-06")?.intensity).toBe("lv3");
+    expect(cells.find((c) => c.key === "2025-05-07")?.intensity).toBe("lv0");
+  });
+
+  it("getAreasAno agrupa minutos por área da roda com percentual", () => {
+    const gam = criarEstadoGamificacaoInicial();
+    // estado inicial não traz áreas: cria uma para o teste
+    const area = { id: "saude", label: "Saúde", color: "#6b8e6b", peso: 5 };
+    gam.config.roda.areas = [area as (typeof gam.config.roda.areas)[number]];
+    const rotinas = [routine({ id: "a", eixo: area.id }), routine({ id: "b" })];
+    const h = [
+      hist({ routineId: "a", date: "2026-03-01", actualSec: 1800 }),
+      hist({ routineId: "b", date: "2026-03-02", actualSec: 600 }),
+      hist({ routineId: "a", date: "2025-03-01", actualSec: 1800 }),
+    ];
+    const rows = getAreasAno(2026, h, rotinas, gam);
+    expect(rows[0]).toMatchObject({ id: area.id, label: area.label, minutos: 30, pct: 75 });
+    expect(rows[1]).toMatchObject({ label: "Sem área", minutos: 10, pct: 25 });
   });
 });
 

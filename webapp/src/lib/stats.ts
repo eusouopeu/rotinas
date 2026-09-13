@@ -14,7 +14,7 @@ import {
   weekStartDow,
 } from "./gamificacao";
 import { rotinaAgendadaEm, computeSchedule } from "./schedule";
-import { corDaRotina, fillStyle } from "./scoring";
+import { areaDaRotina, areaInfoRoda, corDaRotina, fillStyle } from "./scoring";
 import { fmtClock, fmtTime, fmtMinLabel } from "./format";
 
 export type { Snooze };
@@ -67,6 +67,9 @@ export interface MonthDayData {
   dotsColors: string[];
   missedCount: number;
   temAlgo: boolean;
+  /** minutos executados no dia (respeita o filtro de rotina) e a classe lv0–lv4 do heatmap */
+  min: number;
+  intensity: string;
 }
 
 export interface MonthGridData {
@@ -801,7 +804,12 @@ export function getMonthGridData(
   snoozes: Snooze[],
   gam: GamificacaoState,
   weekStart = 0,
+  routineFilter?: string | null,
 ): MonthGridData {
+  // filtro por rotina vale para o calendário inteiro (cor, cumprimento)
+  history = statsRoutineFiltered(history, routineFilter);
+  if (routineFilter) routines = routines.filter((r) => r.id === routineFilter);
+  const byDate = minutesByDate(history);
   const MONTH_NAMES = [
     "Janeiro",
     "Fevereiro",
@@ -864,6 +872,8 @@ export function getMonthGridData(
     days.push({
       key,
       day,
+      min: byDate[key] || 0,
+      intensity: intensityClass(byDate[key] || 0),
       dateObj: d,
       isToday: key === todayK,
       executedRoutineIds: Array.from(execIds),
@@ -886,17 +896,40 @@ export function getMonthGridData(
   };
 }
 
-/** Porta de heatmapHtml (index.html:5461-5487). */
-export function getHeatmapData(calYear: number, history: HistoryEntry[], weekStart = 0): HeatmapData {
-  const from = new Date(calYear, 0, 1, 12);
-  const to = calYear === new Date().getFullYear() ? new Date() : new Date(calYear, 11, 31, 12);
-  to.setHours(12, 0, 0, 0);
+/** Rotinas agendadas num dia (já existiam, fora de soneca) — base do cumprimento. */
+export function planejadasEm(d: Date, routines: Routine[], snoozes: Snooze[]): Routine[] {
+  return routines.filter((r) => {
+    if (!rotinaAgendadaEm(r, d)) return false;
+    if (r.createdAt && d.getTime() < new Date(new Date(r.createdAt).setHours(0, 0, 0, 0)).getTime()) return false;
+    if (snoozedOn(snoozes, d)) return false;
+    return true;
+  });
+}
+
+/** Porta de heatmapHtml (index.html:5461-5487). `quad` (1–3) limita a um
+ * quadrimestre (jan–abr, mai–ago, set–dez) com colunas até o fim dele; dias
+ * futuros ficam vazios. `routineFilter` filtra o histórico. */
+export function getHeatmapData(
+  calYear: number,
+  history: HistoryEntry[],
+  weekStart = 0,
+  routineFilter?: string | null,
+  quad?: 1 | 2 | 3,
+): HeatmapData {
+  const hoje = new Date();
+  hoje.setHours(12, 0, 0, 0);
+  const from = new Date(calYear, quad ? (quad - 1) * 4 : 0, 1, 12);
+  const fimPeriodo = quad ? new Date(calYear, quad * 4, 0, 12) : new Date(calYear, 11, 31, 12);
+  // sem quadrimestre: o ano atual para em hoje (comportamento antigo);
+  // com quadrimestre: desenha o período todo, mas só pinta até hoje
+  const to = quad ? fimPeriodo : calYear === hoje.getFullYear() ? hoje : fimPeriodo;
+  const ultimoPintado = fimPeriodo < hoje ? fimPeriodo : hoje;
 
   const startIso = inicioSemanaISO(from, weekStart);
   const start = isoToDate(startIso);
   start.setHours(12, 0, 0, 0);
 
-  const byDate = minutesByDate(history);
+  const byDate = minutesByDate(statsRoutineFiltered(history, routineFilter));
   const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
   const columns: HeatmapColumn[] = [];
@@ -904,20 +937,23 @@ export function getHeatmapData(calYear: number, history: HistoryEntry[], weekSta
   let lastMonth = -1;
 
   while (cur <= to) {
-    const weekStartMonth = cur.getMonth();
+    // rótulo pelo primeiro dia DO PERÍODO na coluna (a 1ª semana começa antes dele)
+    const weekStartMonth = (cur < from ? from : cur).getMonth();
     const monthLabel = weekStartMonth !== lastMonth ? MONTHS[weekStartMonth] : "";
     lastMonth = weekStartMonth;
 
     const cells: HeatmapCell[] = [];
     for (let dow = 0; dow < 7; dow++) {
       const key = localKey(cur);
-      const inRange = cur >= from && cur <= to;
+      const inRange = cur >= from && cur <= to && cur <= ultimoPintado;
       const min = byDate[key] || 0;
       cells.push({
         key,
         inRange,
         min,
-        intensity: inRange ? intensityClass(min) : "hm-void",
+        // dia do período ainda por vir: casa neutra (mostra o formato do
+        // quadrimestre), mas fora do intervalo clicável
+        intensity: inRange ? intensityClass(min) : cur >= from && cur <= to ? "lv0 hm-futuro" : "hm-void",
         dateObj: new Date(cur),
       });
       cur.setDate(cur.getDate() + 1);
@@ -954,6 +990,87 @@ export function getYearMonthlyBars(calYear: number, history: HistoryEntry[], rou
     totalMinutes,
     totalHoursStr: (totalMinutes / 60).toFixed(1).replace(".", ",") + "h",
   };
+}
+
+export interface ResumoPeriodo {
+  minutos: number;
+  execucoes: number;
+  planejadas: number;
+  feitas: number;
+  /** % de agendadas feitas até hoje dentro do período; null sem agendadas */
+  cumprimento: number | null;
+}
+
+/** Números do cabeçalho de Mensal/Anual para um intervalo [from, to] (dias
+ * inteiros, inclusive). Cumprimento só conta dias até hoje. */
+export function getResumoPeriodo(
+  from: Date,
+  to: Date,
+  history: HistoryEntry[],
+  routines: Routine[],
+  snoozes: Snooze[],
+  routineFilter?: string | null,
+): ResumoPeriodo {
+  const iniK = localKey(from);
+  const fimK = localKey(to);
+  const hist = statsRoutineFiltered(history, routineFilter).filter((h) => h.date >= iniK && h.date <= fimK);
+  const rots = routineFilter ? routines.filter((r) => r.id === routineFilter) : routines;
+  const todayK = localKey(new Date());
+  const porDia = new Map<string, Set<string>>();
+  hist.forEach((h) => {
+    if (!porDia.has(h.date)) porDia.set(h.date, new Set());
+    porDia.get(h.date)!.add(h.routineId);
+  });
+  let planejadas = 0;
+  let feitas = 0;
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 12);
+  while (localKey(d) <= fimK && localKey(d) <= todayK) {
+    const ids = porDia.get(localKey(d));
+    const plan = planejadasEm(d, rots, snoozes);
+    planejadas += plan.length;
+    feitas += plan.filter((r) => ids?.has(r.id)).length;
+    d.setDate(d.getDate() + 1);
+  }
+  return {
+    minutos: hist.reduce((s, h) => s + Math.round((h.actualSec || 0) / 60), 0),
+    execucoes: hist.length,
+    planejadas,
+    feitas,
+    cumprimento: planejadas > 0 ? Math.round((feitas / planejadas) * 100) : null,
+  };
+}
+
+export interface AreaAnoRow {
+  id: string;
+  label: string;
+  color: string;
+  minutos: number;
+  pct: number;
+}
+
+/** Tempo executado no ano por área da roda (pela área atual de cada rotina). */
+export function getAreasAno(
+  calYear: number,
+  history: HistoryEntry[],
+  routines: Routine[],
+  gam: GamificacaoState,
+  routineFilter?: string | null,
+): AreaAnoRow[] {
+  const porArea = new Map<string, number>();
+  statsRoutineFiltered(history, routineFilter).forEach((h) => {
+    if (!h.date.startsWith(String(calYear))) return;
+    const r = routines.find((x) => x.id === h.routineId);
+    const area = r ? areaDaRotina(r, gam) : "";
+    porArea.set(area, (porArea.get(area) || 0) + Math.round((h.actualSec || 0) / 60));
+  });
+  const total = [...porArea.values()].reduce((a, b) => a + b, 0);
+  return [...porArea.entries()]
+    .filter(([, min]) => min > 0)
+    .map(([id, minutos]) => {
+      const info = areaInfoRoda(id, gam);
+      return { id, label: info.label, color: info.color, minutos, pct: total ? Math.round((minutos / total) * 100) : 0 };
+    })
+    .sort((a, b) => b.minutos - a.minutos);
 }
 
 /** Porta das seções de período de renderPeriodExtras (index.html:5635-5835). */
