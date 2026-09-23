@@ -7,7 +7,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { criadoEmLabel } from "../lib/notes";
-import { noteToMarkdown } from "../lib/mdMirror";
 import { indentLines, inserirTabela, parseMdLines, prefixLines, prefixOrdered, splitBold, wrapSelection } from "../lib/mdPreview";
 import { Icon } from "../components/Icon";
 import { LiveMdEditor, type LiveMdEditorHandle } from "../components/LiveMdEditor";
@@ -77,7 +76,6 @@ export function NoteEditor() {
   /* Estilizado x cru: preferência de sessão, não de nota — o Pedro alterna
      para conferir sintaxe e volta, não é atributo do documento. */
   const [cru, setCru] = useState(false);
-  const [copiado, setCopiado] = useState(false);
   const [content, setContent] = useState(note?.content || "");
   const editorRef = useRef<LiveMdEditorHandle>(null);
 
@@ -105,32 +103,6 @@ export function NoteEditor() {
     if (v !== note!.content) updateNote(note!.id, { content: v });
   }
 
-  /* Copia o Markdown inteiro — título, corpo e assuntos, no mesmo formato do
-     espelho .md (lib/mdMirror.ts), para colar em outro app já formatado. */
-  async function copiarTudo() {
-    if (!note) return;
-    const texto = noteToMarkdown(note);
-    try {
-      await navigator.clipboard.writeText(texto);
-    } catch {
-      // WebView sem permissão de clipboard: cai no caminho antigo do DOM
-      const ta = document.createElement("textarea");
-      ta.value = texto;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        document.execCommand("copy");
-      } catch {
-        /* sem clipboard: o botão só não confirma */
-      }
-      document.body.removeChild(ta);
-    }
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 1600);
-  }
-
   function aplicarNaSelecao(fn: (value: string, start: number, end: number) => { value: string; start: number; end: number }) {
     editorRef.current?.aplicar(fn);
   }
@@ -141,7 +113,9 @@ export function NoteEditor() {
        moldura — a mesma linguagem vítrea da tabbar. */
     <div className="screen note-ap">
       <div className="note-ap-bar note-ap-topo">
-        <div className="note-ap-pill">
+        {/* Voltar é navegação, não ação: fica como ícone solto, sem a moldura
+            de pílula das ações (pedido do Pedro, 22/09/2026). */}
+        <div className="note-ap-pill sem-moldura">
           <button title="Voltar para Notas" aria-label="Voltar para Notas" onClick={closeNoteEditor}>
             <Icon name="chevronLeft" size={17} />
           </button>
@@ -161,13 +135,6 @@ export function NoteEditor() {
           <div className="created-stamp">{criadoEmLabel(note.createdAt)}</div>
         </div>
         <div className="note-ap-pill">
-          <button
-            title={copiado ? "Copiado!" : "Copiar o Markdown inteiro"}
-            aria-label="Copiar o Markdown inteiro"
-            onClick={copiarTudo}
-          >
-            <Icon name={copiado ? "check" : "copy"} size={17} />
-          </button>
           <button
             className="perigo"
             title="Excluir nota"
@@ -309,9 +276,6 @@ export function NoteEditor() {
             }}
           >
             <Icon name="arrowDownTray" size={17} />
-          </button>
-          <button title="Concluir edição" aria-label="Concluir edição" onClick={closeNoteEditor}>
-            <Icon name="check" size={17} />
           </button>
         </div>
       </div>

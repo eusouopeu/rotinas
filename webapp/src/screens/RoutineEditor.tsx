@@ -4,8 +4,8 @@
 // abrirEscolhaExercicioEtapa/abrirEditorExercicio, index.html:4109-4162) e
 // "checklist" (sem campos extra — mesmo fallback genérico do Player),
 // descanso entre etapas (index.html:4551-4565), reordenar etapa por
-// arrastar (useDragReorder, ver webapp/src/lib/dnd.ts) e agendamento (dias +
-// horário). Fica para depois: peso no boletim, área da roda da vida, hábito,
+// arrastar (useDragReorder, ver webapp/src/lib/dnd.ts), agendamento (dias +
+// horário), peso no boletim e área da roda da vida. Fica para depois: hábito,
 // nota anexada, meta semanal, modo "a cada N dias".
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
@@ -16,7 +16,7 @@ import { rotinaShareData } from "../lib/backup";
 import { downloadFile, slugify } from "../lib/exportFile";
 import { GRUPOS_MUSCULARES } from "../lib/constants";
 import { presetsPorGrupo } from "../lib/exercicioPresets";
-import type { Exercicio, RoutineStep } from "../lib/types";
+import type { Exercicio, RoutineStep, Tag } from "../lib/types";
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -233,6 +233,7 @@ export function RoutineEditor() {
   const draft = useAppStore((s) => s.editorDraft);
   const routines = useAppStore((s) => s.routines);
   const exercicios = useAppStore((s) => s.exercicios);
+  const gam = useAppStore((s) => s.gam);
   const updateDraft = useAppStore((s) => s.updateDraft);
   const upsertExercicio = useAppStore((s) => s.upsertExercicio);
   const cancelEdit = useAppStore((s) => s.cancelEdit);
@@ -332,6 +333,52 @@ export function RoutineEditor() {
           value={draft.name}
           onChange={(e) => updateDraft({ name: e.target.value })}
         />
+
+        {/* Porta de renderEditor > tagRow/areaRow (index.html:4341-4374): peso
+            no boletim (multiplicador da pontuação) e área da roda da vida (com
+            quem a rotina divide os pontos da semana). Mesmas pílulas do
+            lançamento rápido da Home, para não desenhar um seletor novo. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0 10px", flexWrap: "wrap" }}>
+          <span style={{ color: "var(--sub)", fontSize: 13 }}>peso no boletim:</span>
+          <div className="type-toggle tagval-pills">
+            {(["baixo", "medio", "alto"] as Tag[]).map((v) => (
+              <span
+                key={v}
+                className={(draft!.tagValor || "medio") === v ? "active" : ""}
+                onClick={() => updateDraft({ tagValor: v })}
+              >
+                {v === "baixo" ? "Baixo" : v === "medio" ? "Médio" : "Alto"}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* a área aparece mesmo com a roda desligada (igual ao legado): ela
+            continua classificando a rotina, só não divide fatia da semana */}
+        {gam.config.roda.areas.length > 0 && (
+          <div style={{ margin: "0 0 12px" }}>
+            <span style={{ color: "var(--sub)", fontSize: 13 }}>área:</span>
+            <div className="area-chips" style={{ marginTop: 6 }}>
+              <span
+                className={"area-chip" + (!draft.eixo ? " sel" : "")}
+                style={{ "--chip": "var(--sub)" } as React.CSSProperties}
+                onClick={() => updateDraft({ eixo: null })}
+              >
+                sem área
+              </span>
+              {gam.config.roda.areas.map((a) => (
+                <span
+                  key={a.id}
+                  className={"area-chip" + (draft!.eixo === a.id ? " sel" : "")}
+                  style={{ "--chip": a.color } as React.CSSProperties}
+                  onClick={() => updateDraft({ eixo: a.id })}
+                >
+                  {a.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="section-label">Etapas</div>
         <div className="steps-list">
