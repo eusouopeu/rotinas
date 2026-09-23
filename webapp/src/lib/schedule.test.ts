@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeSchedule, formatHM } from "./schedule";
+import { computeSchedule, diasChipLabel, formatHM } from "./schedule";
 import type { Routine } from "./types";
 
 describe("formatHM", () => {
@@ -36,5 +36,33 @@ describe("computeSchedule", () => {
     const sched = computeSchedule({ ...base, schedule: { ...base.schedule!, anchor: "end", time: "08:00" } });
     expect(sched?.startStr).toBe("07:50");
     expect(sched?.endStr).toBe("08:00");
+  });
+});
+
+describe("diasChipLabel — corridas de dias", () => {
+  const comDias = (days: number[]): Routine => ({
+    id: "r",
+    name: "R",
+    steps: [],
+    schedule: { enabled: true, anchor: "start", time: "07:00", mode: "dias", days },
+  });
+
+  it("3+ dias seguidos viram intervalo", () => {
+    expect(diasChipLabel(comDias([2, 3, 4, 5]))).toBe("ter → sex");
+    expect(diasChipLabel(comDias([1, 2, 3]))).toBe("seg → qua");
+  });
+
+  it("dois dias seguidos continuam listados", () => {
+    expect(diasChipLabel(comDias([2, 3]))).toBe("ter/qua");
+  });
+
+  it("grupos separados: só a corrida longa vira intervalo", () => {
+    expect(diasChipLabel(comDias([0, 2, 3, 4]))).toBe("dom/ter → qui");
+  });
+
+  it("os rótulos especiais continuam ganhando do intervalo", () => {
+    expect(diasChipLabel(comDias([1, 2, 3, 4, 5]))).toBe("dias úteis");
+    expect(diasChipLabel(comDias([0, 1, 2, 3, 4, 5, 6]))).toBe("todos os dias");
+    expect(diasChipLabel(comDias([0, 6]))).toBe("fim de semana");
   });
 });

@@ -15,13 +15,33 @@ function tituloStreak(info: StreakInfo): string {
   return info.recorde > info.atual ? `${base} · recorde: ${info.recorde}` : base;
 }
 
-export function StreakTag({ routineId, routines, history }: { routineId: string; routines: Routine[]; history: HistoryEntry[] }) {
+/** `feitaHoje`: o selo inverte as cores (fundo cheio na cor da sequência,
+ *  chama e número na cor do cartão) — o efeito de "preencher" do mockup de
+ *  22/09/2026, que marca o dia já cumprido sem apagar o selo. */
+export function StreakTag({
+  routineId,
+  routines,
+  history,
+  feitaHoje,
+}: {
+  routineId: string;
+  routines: Routine[];
+  history: HistoryEntry[];
+  feitaHoje?: boolean;
+}) {
   const info = streakInfoFor(routineId, routines, history);
   if (info.atual <= 0) return null;
   const marco = marcoStreak(info);
   const cor = marco ? BADGE_COR[marco] : undefined;
+  // sem marco a cor vem do CSS (var(--streak)); com marco, do badge. No estado
+  // preenchido a mesma cor vira fundo e o texto cai para a cor do cartão.
+  const estilo = feitaHoje
+    ? { background: cor || "var(--streak)", borderColor: cor || "var(--streak)", color: "var(--card)" }
+    : cor
+      ? { color: cor, borderColor: cor }
+      : undefined;
   return (
-    <span className="streak-tag" title={tituloStreak(info)} style={cor ? { color: cor, borderColor: cor } : undefined}>
+    <span className={"streak-tag" + (feitaHoje ? " cheia" : "")} title={tituloStreak(info)} style={estilo}>
       <Icon name="fire" size={12} />
       {info.atual}
     </span>

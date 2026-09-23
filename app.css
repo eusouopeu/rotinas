@@ -121,7 +121,17 @@
   .screen{ flex:1; display:flex; flex-direction:column; padding:0 20px; animation: fade .25s ease; min-height:0; }
   .screen.with-tabbar{ padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 24px); }
   /* nó de rolagem que leva o cabeçalho da aba junto (Metas, Modelos) */
-  .tab-scroll{ flex:1; overflow-y:auto; min-height:0; }
+  /* overflow-x:hidden é o que tira a "frouxidão" lateral das abas: a área de
+     toque ampliada dos botões-ícone (.icon-btn::after / .bell-btn::after,
+     inset:-5px) é invisível mas conta como conteúdo, e no botão encostado na
+     borda direita ela sobrava 5px — o bastante para o container de rolagem
+     VERTICAL virar também um container de rolagem horizontal (regra do CSS:
+     overflow-y:auto com overflow-x:visible computa o x como auto). Medido em
+     22/09/2026: .tab-scroll com scrollWidth 339 e clientWidth 335. Clipar aqui
+     preserva o alvo de toque ampliado de todos os botões que não encostam na
+     borda. */
+  .tab-scroll{ flex:1; overflow-y:auto; overflow-x:hidden; min-height:0; }
+  .settings-scroll{ overflow-x:hidden; }
   @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
   @media (prefers-reduced-motion: reduce){ .screen{ animation:none; } }
 
@@ -320,6 +330,13 @@
      em ícone, todos na MESMA linha logo abaixo (a área da roda saiu — já está
      dita pela cor da bolinha antes do nome). */
   .routine-card-compact{ padding:12px 14px; }
+  /* Rotina executada hoje: título riscado e esmaecido, igual ao resto do app
+     (.ag-bloco.feito, .agenda-row.feito, .pl-step.feita). A linha de meta
+     continua com o horário real em verde, e o botão de play segue em cor
+     cheia — dá para rodar de novo. */
+  .routine-card.feita .routine-info h3{ color:var(--sub); text-decoration:line-through; }
+  .routine-card.feita .routine-info h3 .r-dot{ opacity:.45; }
+  .routine-card.feita .routine-info h3 .streak-tag{ text-decoration:none; }
   .routine-card-compact .routine-info h3{ font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .routine-meta-line{ display:flex; align-items:center; flex-wrap:wrap; gap:4px 14px; }
   .rc-fact{ display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
@@ -817,6 +834,25 @@
   }
   .note-ap-topo{ top:calc(var(--safe-top) + 12px); }
   .note-ap-rodape{ bottom:calc(var(--safe-bottom) + 14px); }
+  /* A barra de baixo ganhou recuo, tabela, modo cru e arquivar (22/09/2026):
+     são 11 botões, que não cabem lado a lado num celular. O grupo da esquerda
+     encolhe e rola DENTRO da própria pílula — a página continua justa, que é o
+     ponto do overflow-x:hidden lá em cima. O grupo da direita nunca encolhe. */
+  .note-ap-rodape .note-ap-pill:first-child{
+    flex:0 1 auto; min-width:0; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none;
+  }
+  .note-ap-rodape .note-ap-pill:first-child::-webkit-scrollbar{ display:none; }
+  .note-ap-rodape .note-ap-pill:last-child{ flex:0 0 auto; }
+  .note-ap-rodape .note-ap-pill button{ flex:0 0 auto; width:34px; height:34px; }
+  /* sem vão elástico no rodapé: cada pixel sobrando vai para o grupo da
+     esquerda, que é o que tem botão demais */
+  .note-ap-rodape{ gap:8px; }
+  .note-ap-rodape .ag-nav-gap{ display:none; }
+  @media (max-width: 420px){
+    .note-ap-rodape{ padding:0 10px; }
+    .note-ap-rodape .note-ap-pill{ padding:4px; }
+    .note-ap-rodape .note-ap-pill button{ width:30px; height:30px; }
+  }
   .note-ap-pill{
     pointer-events:auto; display:flex; align-items:center; gap:2px; padding:5px;
     background:var(--card-blur); border:1.5px solid var(--line); border-radius:999px;
@@ -829,6 +865,19 @@
   }
   .note-ap-pill button:active{ background:var(--card-2); }
   .note-ap-pill button.on{ background:var(--caneta-soft); color:var(--caneta); }
+  .note-ap-pill button.perigo{ color:var(--erro); }
+  /* Título + data moram na barra do topo desde 22/09/2026 (mockup do Pedro):
+     continuam editáveis, mas param de rolar junto com o texto. min-width:0 é o
+     que deixa o título encolher em vez de empurrar as pílulas para fora. */
+  .note-ap-head{
+    pointer-events:auto; flex:1 1 auto; min-width:0; display:flex; flex-direction:column;
+    justify-content:center; gap:1px; padding:0 2px;
+  }
+  .note-ap-head .note-ap-title{
+    font-size:17px; margin:0; line-height:1.2;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .note-ap-head .created-stamp{ margin:0; font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .note-ap-title{
     width:100%; background:none; border:none; color:var(--ink);
     font-family:'Lato', sans-serif; font-size:28px; font-weight:700; letter-spacing:-.02em;
@@ -848,6 +897,12 @@
   /* editor live (LiveMdEditor): linha ativa crua num textarea com a mesma
      tipografia do corpo; demais linhas renderizadas */
   .live-md{ cursor:text; }
+  /* Modo cru do toggle </> : o Markdown como está gravado, num textarea só.
+     Monoespaçada de propósito — é para conferir sintaxe, não para ler. */
+  .live-md-cru{
+    min-height:60vh; white-space:pre-wrap; overflow-wrap:anywhere;
+    font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13.5px; line-height:1.6;
+  }
   .live-md-line{ min-height:1.65em; overflow-wrap:anywhere; }
   .live-md-raw{
     display:block; width:100%; background:none; border:none; resize:none; overflow:hidden; padding:0; margin:0;
@@ -1080,6 +1135,24 @@
   .ag-nav-row > .icon-btn:not(.borderless){ margin-left:6px; }
   .ag-nav-row .link-btn{ white-space:nowrap; margin-left:10px; }
   .ag-nav-row .icon-btn{ width:28px; height:28px; }
+  /* Filtro de área da visão Lista: ocupa a sobra da linha e NUNCA empurra a
+     largura. min-width:0 é o que permite o encolhimento dentro do flex (sem
+     ele o tamanho intrínseco da maior <option> vira o piso e vaza a tela);
+     text-overflow corta o rótulo longo no próprio campo. O menu aberto é
+     desenhado pelo sistema, então também não vaza. */
+  .ag-nav-area{
+    flex:1 1 auto; min-width:0; max-width:100%; width:100%;
+    appearance:none; -webkit-appearance:none;
+    font-family:'Montserrat', sans-serif; font-size:12.5px; color:var(--sub);
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:5px 26px 5px 12px; height:28px; line-height:1;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);
+    background-position:calc(100% - 14px) 12px, calc(100% - 9px) 12px;
+    background-size:5px 5px, 5px 5px;
+    background-repeat:no-repeat;
+  }
+  .ag-nav-area:focus{ outline:none; border-color:var(--caneta); }
   .ag-dia-head.ag-nav-row .ag-dia-nome{ flex:0 1 auto; margin-right:6px; }
   /* a grade do dia aceita clique no vão livre (cria evento naquele horário) */
   .ag-blocos-clicavel{ cursor:copy; }
@@ -1429,6 +1502,10 @@
     color:var(--streak); border:1.5px solid var(--streak); border-radius:999px; padding:2px 7px 2px 5px;
   }
   .streak-tag .icon-svg{ stroke-width:2; }
+  /* Rotina já cumprida hoje: o selo inverte (fundo cheio, conteúdo na cor do
+     cartão) em vez de apagar — mockup do Pedro, 22/09/2026. A cor sai do
+     inline style do StreakTag, aqui fica só o que não depende dela. */
+  .streak-tag.cheia{ background:var(--streak); color:var(--card); }
   /* Rodapé do card da roda da vida: absorveu o antigo card "Boletim da semana". */
   .roda-boletim{
     margin-top:10px; padding-top:10px; border-top:1.5px solid var(--line);

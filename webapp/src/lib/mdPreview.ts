@@ -138,3 +138,41 @@ export function prefixLines(value: string, start: number, end: number, prefix: s
   const newValue = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
   return { value: newValue, start: lineStart, end: lineStart + newBlock.length };
 }
+
+/* ---------- recuo e tabela da barra do editor (22/09/2026) ----------
+   Recuo: porta dos dois últimos botões de MD_TOOLBAR_BOTOES
+   (index.html:10160-10164) — 2 espaços por nível, no máximo 6, e linha vazia
+   nunca ganha recuo (viraria só espaço solto no texto). Existia no legado e
+   não tinha sido portado. */
+export const INDENT_PASSO = "  ";
+export const INDENT_MAX = 6;
+
+export function nivelIndent(linha: string): number {
+  return Math.floor((linha.match(/^ */) || [""])[0].length / INDENT_PASSO.length);
+}
+
+/** `dir` 1 aumenta o recuo das linhas da seleção, -1 diminui. */
+export function indentLines(value: string, start: number, end: number, dir: 1 | -1) {
+  const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+  let lineEnd = value.indexOf("\n", end > start ? end - 1 : end);
+  if (lineEnd === -1) lineEnd = value.length;
+  const block = value.slice(lineStart, lineEnd);
+  const novo = block
+    .split("\n")
+    .map((l) => {
+      if (dir === -1) return l.replace(new RegExp("^ {1," + INDENT_PASSO.length + "}"), "");
+      return l.trim() === "" || nivelIndent(l) >= INDENT_MAX ? l : INDENT_PASSO + l;
+    })
+    .join("\n");
+  const newValue = value.slice(0, lineStart) + novo + value.slice(lineEnd);
+  return { value: newValue, start: lineStart, end: lineStart + novo.length };
+}
+
+/** Esqueleto de tabela Markdown de 2 colunas, inserido como bloco próprio. */
+export function inserirTabela(value: string, start: number, end: number) {
+  const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+  const precisaQuebra = lineStart < start || (lineStart > 0 && value[lineStart - 1] !== "\n");
+  const tabela = (precisaQuebra ? "\n\n" : "") + "| Coluna | Coluna |\n| --- | --- |\n|  |  |\n";
+  const newValue = value.slice(0, end) + tabela + value.slice(end);
+  return { value: newValue, start: end + tabela.length, end: end + tabela.length };
+}

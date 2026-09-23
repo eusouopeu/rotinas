@@ -17,10 +17,15 @@ export function Notes() {
   const addNoteAt = useAppStore((s) => s.addNoteAt);
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState<string | null>(null);
+  /* Arquivadas somem da lista mas continuam existindo e buscáveis por aqui —
+     arquivar não é excluir (22/09/2026). */
+  const [verArquivadas, setVerArquivadas] = useState(false);
+  const arquivadas = notes.filter((n) => n.arquivada).length;
 
-  const tags = allTags(notes);
+  const visiveis = notes.filter((n) => !!n.arquivada === verArquivadas);
+  const tags = allTags(visiveis);
   const q = query.trim().toLowerCase();
-  let filtered = notes.filter((n) => !q || (n.title || "").toLowerCase().includes(q) || (n.content || "").toLowerCase().includes(q));
+  let filtered = visiveis.filter((n) => !q || (n.title || "").toLowerCase().includes(q) || (n.content || "").toLowerCase().includes(q));
   if (tag) filtered = filtered.filter((n) => extractTags(n).includes(tag));
   const sorted = [...filtered].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.updatedAt - a.updatedAt);
 
@@ -38,6 +43,15 @@ export function Notes() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+
+        {(arquivadas > 0 || verArquivadas) && (
+          <div className="ag-nav-row" style={{ marginBottom: 10 }}>
+            <span className="ag-nav-gap" />
+            <button className="link-btn" onClick={() => setVerArquivadas((v) => !v)}>
+              {verArquivadas ? "ver notas ativas" : `ver arquivadas (${arquivadas})`}
+            </button>
+          </div>
+        )}
 
         {tags.length > 0 && (
           <div className="tag-bar">

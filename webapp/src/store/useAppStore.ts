@@ -54,6 +54,8 @@ import {
   K_SIDEBARCOLLAPSED,
   K_SNOOZES,
   K_LISTAEXPANDIDA,
+  K_OCULTARFEITAS,
+  K_FILTROAREA,
   K_SOHOJE,
   K_TEMPLATES,
   K_THEME,
@@ -115,6 +117,10 @@ export interface AppState {
   homeView: "rotinas" | "semana" | "dia";
   soHoje: boolean;
   listaExpandida: boolean;
+  /** Visão Lista: esconde as rotinas já executadas hoje. */
+  ocultarFeitas: boolean;
+  /** Visão Lista: id da área da roda para filtrar ("" = todas). */
+  filtroArea: string;
   digestSemanal: boolean;
   nudge: boolean;
   nudgeMetas: boolean;
@@ -187,6 +193,8 @@ export interface AppState {
   setHomeView: (v: "rotinas" | "semana" | "dia") => void;
   setListaExpandida: (v: boolean) => void;
   setSoHoje: (v: boolean) => void;
+  setOcultarFeitas: (v: boolean) => void;
+  setFiltroArea: (v: string) => void;
   setDigestSemanal: (v: boolean) => void;
   setNudge: (v: boolean) => void;
   setNudgeMetas: (v: boolean) => void;
@@ -354,6 +362,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   homeView: "semana",
   soHoje: false,
   listaExpandida: false,
+  ocultarFeitas: false,
+  filtroArea: "",
   digestSemanal: true,
   nudge: true,
   nudgeMetas: true,
@@ -413,6 +423,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       homeView: load<"rotinas" | "semana" | "dia">(K_HOMEVIEW, "semana"),
       soHoje: load<boolean>(K_SOHOJE, false),
       listaExpandida: load<boolean>(K_LISTAEXPANDIDA, false),
+      ocultarFeitas: load<boolean>(K_OCULTARFEITAS, false),
+      filtroArea: load<string>(K_FILTROAREA, ""),
       digestSemanal: load<boolean>(K_DIGESTSEMANAL, true),
       nudge: load<boolean>(K_NUDGE, true),
       nudgeMetas: load<boolean>(K_NUDGEMETAS, true),
@@ -594,6 +606,14 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   setListaExpandida: (listaExpandida) => {
     save(K_LISTAEXPANDIDA, listaExpandida);
     set({ listaExpandida });
+  },
+  setOcultarFeitas: (ocultarFeitas) => {
+    save(K_OCULTARFEITAS, ocultarFeitas);
+    set({ ocultarFeitas });
+  },
+  setFiltroArea: (filtroArea) => {
+    save(K_FILTROAREA, filtroArea);
+    set({ filtroArea });
   },
   setSoHoje: (soHoje) => {
     save(K_SOHOJE, soHoje);

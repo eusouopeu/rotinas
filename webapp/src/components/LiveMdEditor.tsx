@@ -51,9 +51,9 @@ type MapaColapso = Record<string, string[]>;
 
 export const LiveMdEditor = forwardRef<
   LiveMdEditorHandle,
-  { value: string; onChange: (v: string) => void; placeholder?: string; colapsoKey?: string }
+  { value: string; onChange: (v: string) => void; placeholder?: string; colapsoKey?: string; cru?: boolean }
 >(
-  function LiveMdEditor({ value, onChange, placeholder, colapsoKey }, ref) {
+  function LiveMdEditor({ value, onChange, placeholder, colapsoKey, cru }, ref) {
     const linhas = value.split("\n");
     const [ativa, setAtiva] = useState<number | null>(null);
     const [recolhidos, setRecolhidos] = useState<Set<string>>(
@@ -61,6 +61,7 @@ export const LiveMdEditor = forwardRef<
     );
     const cursor = useRef<number | null>(null);
     const taRef = useRef<HTMLTextAreaElement>(null);
+    const cruRef = useRef<HTMLTextAreaElement>(null);
     const { chaves, ocultaPor } = titulosRecolhidos(linhas, recolhidos);
 
     function gravarRecolhidos(s: Set<string>) {
@@ -120,6 +121,22 @@ export const LiveMdEditor = forwardRef<
 
     useImperativeHandle(ref, () => ({
       aplicar(fn) {
+        /* Modo cru: um textarea só, com o texto inteiro — a seleção dele já é
+           o offset absoluto que a toolbar espera, sem a conta de linha ativa. */
+        if (cru) {
+          const el = cruRef.current;
+          const st = el ? el.selectionStart : value.length;
+          const en = el ? el.selectionEnd : value.length;
+          const r = fn(value, st, en);
+          onChange(r.value);
+          requestAnimationFrame(() => {
+            const e2 = cruRef.current;
+            if (!e2) return;
+            e2.focus();
+            e2.setSelectionRange(r.end, r.end);
+          });
+          return;
+        }
         const i = ativa ?? linhas.length - 1;
         const el = taRef.current;
         const base = linhas.slice(0, i).reduce((s, l) => s + l.length + 1, 0);
@@ -204,6 +221,21 @@ export const LiveMdEditor = forwardRef<
     }
 
     const vazio = !value;
+    /* Toggle "estilizado x cru" (mockup do Pedro, 22/09/2026): o modo cru
+       mostra o Markdown como ele é gravado, num textarea único, para editar
+       sintaxe que o modo live esconde (tabela, link, `**`). O texto é o mesmo
+       nos dois — o modo só muda como ele aparece. */
+    if (cru) {
+      return (
+        <textarea
+          ref={cruRef}
+          className="note-ap-body live-md-cru"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    }
     // quantas linhas com conteúdo cada título recolhido está escondendo
     const escondidas = new Map<number, number>();
     ocultaPor.forEach((dono, i) => {

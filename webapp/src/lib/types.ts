@@ -356,6 +356,12 @@ export interface Note {
   content: string;
   subjects?: string[];
   pinned?: boolean;
+  /** Fora da lista principal de Notas, sem ser excluída (22/09/2026). */
+  arquivada?: boolean;
+  /** Caminho do espelho .md já gravado em Documentos (lib/mdMirror.ts) — o
+   *  app usa para apagar o arquivo antigo quando o título muda. Mesmo campo
+   *  `_mdPath` que o legado grava no objeto (index.html:10651). */
+  _mdPath?: string;
   createdAt?: number;
   updatedAt: number;
 }

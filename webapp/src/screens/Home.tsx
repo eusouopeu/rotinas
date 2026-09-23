@@ -22,7 +22,7 @@ import { atualizarIcal, getIcalCache, getIcalUrl, icalEventosDoDia, icalStale } 
 import { TimeKbInput } from "../components/CamposTexto";
 import { useIsDesktop } from "../lib/useIsDesktop";
 import type { DiaKanbanCard, Snooze, Tag } from "../lib/types";
-import { corDaRotina, fillStyle, rotinaEhHabito } from "../lib/scoring";
+import { areaDaRotina, corDaRotina, fillStyle, rotinaEhHabito } from "../lib/scoring";
 import { addDaysISO, isoToDate, localKey } from "../lib/gamificacao";
 import { computeSchedule, diasChipLabel, formatHM } from "../lib/schedule";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV, DIAS_NOME } from "../lib/constants";
@@ -672,6 +672,10 @@ export function Home() {
   const setSoHoje = useAppStore((s) => s.setSoHoje);
   const listaExpandida = useAppStore((s) => s.listaExpandida);
   const setListaExpandida = useAppStore((s) => s.setListaExpandida);
+  const ocultarFeitas = useAppStore((s) => s.ocultarFeitas);
+  const setOcultarFeitas = useAppStore((s) => s.setOcultarFeitas);
+  const filtroArea = useAppStore((s) => s.filtroArea);
+  const setFiltroArea = useAppStore((s) => s.setFiltroArea);
   const openSearch = useAppStore((s) => s.openSearch);
   const headerRef = useRef<HTMLDivElement>(null);
   const [novoAberto, setNovoAberto] = useState(false);
@@ -684,7 +688,12 @@ export function Home() {
   const hojeISO = localKey();
   /* Mesma ordem do legado (index.html:3645-3646): sempre por horário de início,
      e o filtro "hoje" esconde só quem tem dia fixo em outro dia. */
-  const visiveis = rotinasOrdenadas(routines).filter((r) => !soHoje || rotinaCabeEmHoje(r));
+  /* Três filtros independentes da visão Lista: "só hoje" (dia), área da roda
+     e "esconder as já feitas hoje". Os dois últimos entraram em 22/09/2026. */
+  const visiveis = rotinasOrdenadas(routines)
+    .filter((r) => !soHoje || rotinaCabeEmHoje(r))
+    .filter((r) => !filtroArea || (filtroArea === "sem" ? !areaDaRotina(r, gam) : areaDaRotina(r, gam) === filtroArea))
+    .filter((r) => !ocultarFeitas || !execucaoDoDia(history, r.id, hojeISO));
 
   // Puxar o cabeçalho pra baixo abre a busca global (wireSwipeDownSearch,
   // index.html:2955-2966) — só no topo da tela mesmo, sem scroll acima dele.
@@ -769,7 +778,39 @@ export function Home() {
 
         {homeView === "rotinas" && (
           <div className="ag-nav-row" style={{ marginBottom: 14 }}>
-            <span className="ag-nav-gap" />
+            {/* Filtro por área ocupa a sobra da linha. <select> nativo de
+                propósito: no Android o menu é desenhado pelo sistema, então
+                nunca vaza da largura da tela por mais longo que seja o nome da
+                área — e o próprio campo é clampado por min-width:0 + ellipsis
+                (ver .ag-nav-area em app.css). */}
+            {gam.config.roda.areas.length > 0 ? (
+              <select
+                className="ag-nav-area"
+                aria-label="Filtrar rotinas por área da roda da vida"
+                title="Filtrar por área da roda da vida"
+                value={filtroArea}
+                onChange={(e) => setFiltroArea(e.target.value)}
+              >
+                <option value="">Todas as áreas</option>
+                {gam.config.roda.areas.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+                <option value="sem">Sem área</option>
+              </select>
+            ) : (
+              <span className="ag-nav-gap" />
+            )}
+            <button
+              className={"icon-btn" + (ocultarFeitas ? " on" : "")}
+              title={ocultarFeitas ? "Mostrar as rotinas já feitas hoje" : "Ocultar as rotinas já feitas hoje"}
+              aria-label={ocultarFeitas ? "Mostrar as rotinas já feitas hoje" : "Ocultar as rotinas já feitas hoje"}
+              aria-pressed={ocultarFeitas}
+              onClick={() => setOcultarFeitas(!ocultarFeitas)}
+            >
+              <Icon name="eye" size={15} />
+            </button>
             <button
               className={"icon-btn" + (soHoje ? " on" : "")}
               title="Mostrar só as rotinas de hoje"
@@ -820,7 +861,11 @@ export function Home() {
                   key={r.id}
                   onLeft={() => deleteRoutineWithUndo(r.id)}
                   onRight={() => duplicateRoutine(r.id)}
-                  className={"routine-card " + (listaExpandida ? "routine-card-expandido" : "routine-card-compact")}
+                  className={
+                    "routine-card " +
+                    (listaExpandida ? "routine-card-expandido" : "routine-card-compact") +
+                    (execHoje ? " feita" : "")
+                  }
                 >
                   <div
                     className="routine-info"
@@ -831,7 +876,7 @@ export function Home() {
                       <span className="r-dot" style={{ background: fillStyle(corDaRotina(r, gam)) }} />
                       {r.icon ? r.icon + " " : ""}
                       {r.name}
-                      <StreakTag routineId={r.id} routines={routines} history={history} />
+                      <StreakTag routineId={r.id} routines={routines} history={history} feitaHoje={!!execHoje} />
                     </h3>
                     {/* etapas · horário (ou duração, só quando não há horário) ·
                         dias, tudo em ícone e numa linha só. A área da roda saiu:

@@ -7,7 +7,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { criadoEmLabel } from "../lib/notes";
-import { parseMdLines, prefixLines, prefixOrdered, splitBold, wrapSelection } from "../lib/mdPreview";
+import { noteToMarkdown } from "../lib/mdMirror";
+import { indentLines, inserirTabela, parseMdLines, prefixLines, prefixOrdered, splitBold, wrapSelection } from "../lib/mdPreview";
 import { Icon } from "../components/Icon";
 import { LiveMdEditor, type LiveMdEditorHandle } from "../components/LiveMdEditor";
 
@@ -73,6 +74,10 @@ export function NoteEditor() {
 
   const note = notes.find((n) => n.id === view.id);
   const [subjectsInput, setSubjectsInput] = useState((note?.subjects || []).join(", "));
+  /* Estilizado x cru: preferência de sessão, não de nota — o Pedro alterna
+     para conferir sintaxe e volta, não é atributo do documento. */
+  const [cru, setCru] = useState(false);
+  const [copiado, setCopiado] = useState(false);
   const [content, setContent] = useState(note?.content || "");
   const editorRef = useRef<LiveMdEditorHandle>(null);
 
@@ -100,6 +105,32 @@ export function NoteEditor() {
     if (v !== note!.content) updateNote(note!.id, { content: v });
   }
 
+  /* Copia o Markdown inteiro — título, corpo e assuntos, no mesmo formato do
+     espelho .md (lib/mdMirror.ts), para colar em outro app já formatado. */
+  async function copiarTudo() {
+    if (!note) return;
+    const texto = noteToMarkdown(note);
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch {
+      // WebView sem permissão de clipboard: cai no caminho antigo do DOM
+      const ta = document.createElement("textarea");
+      ta.value = texto;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+      } catch {
+        /* sem clipboard: o botão só não confirma */
+      }
+      document.body.removeChild(ta);
+    }
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 1600);
+  }
+
   function aplicarNaSelecao(fn: (value: string, start: number, end: number) => { value: string; start: number; end: number }) {
     editorRef.current?.aplicar(fn);
   }
@@ -115,9 +146,30 @@ export function NoteEditor() {
             <Icon name="chevronLeft" size={17} />
           </button>
         </div>
-        <span className="ag-nav-gap" />
+        {/* Título e data ficam na barra do topo (mockup do Pedro, 22/09/2026):
+            continuam editáveis, mas param de rolar junto com o texto. */}
+        <div className="note-ap-head">
+          <input
+            className="note-ap-title"
+            type="text"
+            placeholder="Título"
+            defaultValue={note.title}
+            onBlur={(e) => {
+              if (e.target.value !== note.title) updateNote(note.id, { title: e.target.value });
+            }}
+          />
+          <div className="created-stamp">{criadoEmLabel(note.createdAt)}</div>
+        </div>
         <div className="note-ap-pill">
           <button
+            title={copiado ? "Copiado!" : "Copiar o Markdown inteiro"}
+            aria-label="Copiar o Markdown inteiro"
+            onClick={copiarTudo}
+          >
+            <Icon name={copiado ? "check" : "copy"} size={17} />
+          </button>
+          <button
+            className="perigo"
             title="Excluir nota"
             aria-label="Excluir nota"
             onClick={() => {
@@ -134,17 +186,6 @@ export function NoteEditor() {
 
       <div className="note-ap-scroll">
         <input
-          className="note-ap-title"
-          type="text"
-          placeholder="Título"
-          defaultValue={note.title}
-          onBlur={(e) => {
-            if (e.target.value !== note.title) updateNote(note.id, { title: e.target.value });
-          }}
-        />
-        <div className="created-stamp">{criadoEmLabel(note.createdAt)}</div>
-
-        <input
           className="note-ap-subjects"
           type="text"
           placeholder="Assuntos (separados por vírgula)"
@@ -160,20 +201,21 @@ export function NoteEditor() {
           onChange={commitContent}
           placeholder="Escreva aqui..."
           colapsoKey={note.id}
+          cru={cru}
         />
       </div>
 
       <div className="note-ap-bar note-ap-rodape">
         <div className="note-ap-pill">
           <button
-            title="Checkbox"
-            aria-label="Checkbox"
+            title="Negrito"
+            aria-label="Negrito"
             onMouseDown={(e) => {
               e.preventDefault();
-              aplicarNaSelecao((v, st, en) => prefixLines(v, st, en, "- [ ] "));
+              aplicarNaSelecao((v, st, en) => wrapSelection(v, st, en, "**", "**"));
             }}
           >
-            <Icon name="clipboard" size={17} />
+            <strong style={{ fontSize: 16 }}>B</strong>
           </button>
           <button
             title="Lista"
@@ -206,18 +248,68 @@ export function NoteEditor() {
             <Icon name="letterList" size={17} />
           </button>
           <button
-            title="Negrito"
-            aria-label="Negrito"
+            title="Checkbox"
+            aria-label="Checkbox"
             onMouseDown={(e) => {
               e.preventDefault();
-              aplicarNaSelecao((v, st, en) => wrapSelection(v, st, en, "**", "**"));
+              aplicarNaSelecao((v, st, en) => prefixLines(v, st, en, "- [ ] "));
             }}
           >
-            <strong style={{ fontSize: 16 }}>B</strong>
+            <Icon name="clipboard" size={17} />
+          </button>
+          <button
+            title="Diminuir recuo"
+            aria-label="Diminuir recuo"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              aplicarNaSelecao((v, st, en) => indentLines(v, st, en, -1));
+            }}
+          >
+            <Icon name="chevronDoubleLeft" size={17} />
+          </button>
+          <button
+            title="Aumentar recuo"
+            aria-label="Aumentar recuo"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              aplicarNaSelecao((v, st, en) => indentLines(v, st, en, 1));
+            }}
+          >
+            <Icon name="chevronDoubleRight" size={17} />
+          </button>
+          <button
+            title="Inserir tabela"
+            aria-label="Inserir tabela"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              aplicarNaSelecao(inserirTabela);
+            }}
+          >
+            <Icon name="table" size={17} />
           </button>
         </div>
         <span className="ag-nav-gap" />
         <div className="note-ap-pill">
+          <button
+            className={cru ? "on" : undefined}
+            title={cru ? "Ver o texto formatado" : "Ver o Markdown cru"}
+            aria-label={cru ? "Ver o texto formatado" : "Ver o Markdown cru"}
+            aria-pressed={cru}
+            onClick={() => setCru((v) => !v)}
+          >
+            <Icon name="code" size={17} />
+          </button>
+          <button
+            title={note.arquivada ? "Desarquivar nota" : "Arquivar nota"}
+            aria-label={note.arquivada ? "Desarquivar nota" : "Arquivar nota"}
+            aria-pressed={!!note.arquivada}
+            onClick={() => {
+              updateNote(note.id, { arquivada: !note.arquivada });
+              if (!note.arquivada) closeNoteEditor();
+            }}
+          >
+            <Icon name="arrowDownTray" size={17} />
+          </button>
           <button title="Concluir edição" aria-label="Concluir edição" onClick={closeNoteEditor}>
             <Icon name="check" size={17} />
           </button>

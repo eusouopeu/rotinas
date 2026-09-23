@@ -910,7 +910,7 @@ export function Stats() {
 
   return (
     <div className="screen screen-wide with-tabbar">
-      <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+      <div className="tab-scroll">
         <div className="home-header stats-sticky-head">
           <h1>Dados</h1>
           <div className="header-right">

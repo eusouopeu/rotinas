@@ -77,7 +77,22 @@ export function diasChipLabel(r: Routine): string {
   if (dias.length === 7) return "todos os dias";
   if (dias.length === 5 && dias.every((d) => d >= 1 && d <= 5)) return "dias úteis";
   if (dias.length === 2 && dias[0] === 0 && dias[1] === 6) return "fim de semana";
-  return dias.map((d) => DIAS_ABREV[d]).join("/");
+  /* Corrida de 3+ dias seguidos vira intervalo ("ter → sex" em vez de
+     "ter/qua/qui/sex") — pedido do Pedro em 22/09/2026, para o card não
+     encher de barras. Dois dias seguidos continuam listados: "ter/qua" é mais
+     curto que "ter → qua" e não ganha nada. Grupos separados se juntam com
+     "/", então [dom, ter, qua, qui] sai como "dom/ter → qui". Não há volta ao
+     início da semana: sáb+dom+seg fica "dom/seg/sáb", que é o que a ordem
+     literal dos dias descreve. */
+  const grupos: number[][] = [];
+  dias.forEach((d) => {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && d === ultimo[ultimo.length - 1] + 1) ultimo.push(d);
+    else grupos.push([d]);
+  });
+  return grupos
+    .map((g) => (g.length >= 3 ? DIAS_ABREV[g[0]] + " → " + DIAS_ABREV[g[g.length - 1]] : g.map((d) => DIAS_ABREV[d]).join("/")))
+    .join("/");
 }
 
 function isoOf(d: Date): string {

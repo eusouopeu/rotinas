@@ -18,7 +18,9 @@ export function slugify(s: string | undefined): string {
   );
 }
 
-function dataFolderName(): string {
+/** Pasta de dados em Documentos (K_DATAFOLDER) — compartilhada com o
+ *  espelho Markdown das notas (lib/mdMirror.ts). */
+export function dataFolderName(): string {
   return load(K_DATAFOLDER, "Rotinas");
 }
 

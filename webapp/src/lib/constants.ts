@@ -32,6 +32,10 @@ export const K_SOHOJE = "rotinas_v2_so_hoje";
 // preferência de UI da view "Lista" (card compacto x card expandido) — como
 // K_SOHOJE/K_RODARESUMOABERTO, não entra no backup.
 export const K_LISTAEXPANDIDA = "rotinas_v2_lista_expandida";
+// filtros da visão Lista da aba Rotinas (22/09/2026) — preferências de UI,
+// local-only como K_SOHOJE/K_LISTAEXPANDIDA, fora do backup.
+export const K_OCULTARFEITAS = "rotinas_v2_ocultar_feitas";
+export const K_FILTROAREA = "rotinas_v2_filtro_area";
 export const K_METASSOHOJE = "rotinas_v2_metas_so_hoje";
 export const K_METASSUBVIEW = "rotinas_v2_metas_subview"; // legado, só para migração
 export const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
