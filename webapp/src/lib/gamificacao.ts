@@ -90,24 +90,56 @@ export function fatorNormalizacaoPara(totalBruto: number, config: GamificacaoCon
   return base > 0 ? 100 / base : 0;
 }
 
-/** Roda da vida: reparte os 100 pontos ENTRE áreas antes de repartir dentro
- * de cada uma. Área sem nada agendado não reserva fatia. */
-export function fatoresPorArea(
-  porArea: Record<string, number>,
-  config: GamificacaoConfig
-): Record<string, number> {
+function pesoDaArea(id: string, config: GamificacaoConfig): number {
+  const a = config.roda.areas.find((x) => x.id === id);
+  return a ? Math.max(0.1, +a.peso || 0.1) : Math.max(0.1, +config.roda.pesoSemArea || 0.1);
+}
+
+/** Áreas que reservam fatia da semana: TODAS as áreas cadastradas na roda,
+ * mais "sem área" apenas quando existe algo agendado sem área, mais qualquer
+ * área órfã que ainda tenha peso agendado.
+ *
+ * Antes de 22/09/2026 só entravam as áreas com peso agendado na semana. Como
+ * o conjunto de rotinas agendadas muda de semana para semana, a mesma área
+ * ganhava fatia numa semana e virava "extra" na outra — era o relato do Pedro
+ * de "área que aparece numa semana e some na seguinte". */
+export function areasComFatia(porArea: Record<string, number>, config: GamificacaoConfig): string[] {
+  const out = config.roda.areas.map((a) => a.id);
+  Object.keys(porArea).forEach((k) => {
+    if (porArea[k] > 0 && !out.includes(k)) out.push(k);
+  });
+  return out;
+}
+
+/** Quanto dos 100 pontos da semana cabe a cada área, pelo peso configurado. */
+export function fatiasPorArea(porArea: Record<string, number>, config: GamificacaoConfig): Record<string, number> {
   if (!config.roda.ativa) return {};
-  const ativas = Object.keys(porArea).filter((k) => porArea[k] > 0);
-  if (!ativas.length) return {};
-  const pesoDaArea = (id: string) => {
-    const a = config.roda.areas.find((x) => x.id === id);
-    return a ? Math.max(0.1, +a.peso || 0.1) : Math.max(0.1, +config.roda.pesoSemArea || 0.1);
-  };
-  const somaPesos = ativas.reduce((s, k) => s + pesoDaArea(k), 0);
+  const areas = areasComFatia(porArea, config);
+  if (!areas.length) return {};
+  const somaPesos = areas.reduce((s, k) => s + pesoDaArea(k, config), 0);
   if (somaPesos <= 0) return {};
   const out: Record<string, number> = {};
-  ativas.forEach((k) => {
-    out[k] = (100 * pesoDaArea(k)) / somaPesos / porArea[k];
+  areas.forEach((k) => {
+    out[k] = (100 * pesoDaArea(k, config)) / somaPesos;
+  });
+  return out;
+}
+
+/** Roda da vida: reparte os 100 pontos ENTRE áreas antes de repartir dentro
+ * de cada uma. Área com agenda divide a fatia dela entre o que está agendado;
+ * área sem nada agendado mantém a fatia reservada e pontua no ritmo normal da
+ * semana (`fatorPadrao`), para itens avulsos — kanban, meta recorrente,
+ * rotina fora do dia. */
+export function fatoresPorArea(
+  porArea: Record<string, number>,
+  config: GamificacaoConfig,
+  fatorPadrao = 0
+): Record<string, number> {
+  const fatias = fatiasPorArea(porArea, config);
+  const out: Record<string, number> = {};
+  Object.keys(fatias).forEach((k) => {
+    const bruto = porArea[k] || 0;
+    out[k] = bruto > 0 ? fatias[k] / bruto : fatorPadrao;
   });
   return out;
 }

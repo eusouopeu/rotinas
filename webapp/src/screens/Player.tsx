@@ -34,6 +34,7 @@ export function Player() {
   const playerBanner = useAppStore((s) => s.playerBanner);
   const clearPlayerBanner = useAppStore((s) => s.clearPlayerBanner);
   const cronometroModo = useAppStore((s) => s.cronometroModo);
+  const salvarPlayerSnapshot = useAppStore((s) => s.salvarPlayerSnapshot);
   const [, setTick] = useState(0);
   const [appBackground, setAppBackground] = useState(() => typeof document !== "undefined" && document.hidden);
   const [reps, setReps] = useState(0);
@@ -96,6 +97,13 @@ export function Player() {
     };
   }, []);
 
+  /* Guarda o ponto da execução a cada mudança (etapa, pausa, série) — é o que
+     permite fechar o app ou sair da tela e voltar no mesmo lugar
+     (savePlayerSnapshot do legado, index.html:11238). */
+  useEffect(() => {
+    if (playerState) salvarPlayerSnapshot();
+  }, [playerState, salvarPlayerSnapshot]);
+
   const cd = playerState ? activeCountdown(playerState) : null;
   // Espelha a etapa atual na notificação/bolha nativa (porta de
   // sincronizarOverlay, index.html:2642-2664) — só quando a preferência está
@@ -116,6 +124,7 @@ export function Player() {
       paused: !!playerState.paused,
       auto: cd.auto,
       visible: cronometroModo === "bolha" && appBackground,
+      modo: cronometroModo === "bolha" ? "bolha" : "barra",
       label: cd.label || playerState.routineName || "",
       queue: JSON.stringify(filaOverlay(playerState)),
     });
@@ -171,7 +180,9 @@ export function Player() {
   const strokeColor = step.isRest ? "var(--ok)" : "var(--caneta)";
 
   function handleExit() {
-    if (window.confirm("Sair da rotina em andamento?")) exitPlayer();
+    const ganhos = playerState?.pontosGanhos || 0;
+    const nota = ganhos > 0 ? `\nOs ${ganhos.toFixed(1)} pontos das etapas já concluídas ficam no boletim.` : "";
+    if (window.confirm("Sair da rotina em andamento?\nO progresso fica salvo para retomar depois." + nota)) exitPlayer();
   }
 
   const temNota = !!routine?.notaId;

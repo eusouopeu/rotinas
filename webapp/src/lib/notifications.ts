@@ -321,11 +321,24 @@ export interface AlertaFundoEstado {
  * pausada e com contagem em tempo. Como nenhuma etapa avança sozinha, um
  * único alarme (o da etapa atual) basta. O canal segue o modo de som de
  * Ajustes — "mudo" cai no canal silencioso, que ainda vibra. */
-export async function sincronizarAlertaFundo(estado: AlertaFundoEstado): Promise<void> {
+/* Serializa as chamadas: o efeito do Player dispara a cada troca de app, e
+   duas execuções concorrentes intercalavam "cancela" de uma com "agenda" da
+   outra, deixando alarme órfão na bandeja. */
+let filaAlertaFundo: Promise<void> = Promise.resolve();
+
+export function sincronizarAlertaFundo(estado: AlertaFundoEstado): Promise<void> {
+  filaAlertaFundo = filaAlertaFundo.then(() => sincronizarAlertaFundoAgora(estado)).catch(() => {});
+  return filaAlertaFundo;
+}
+
+async function sincronizarAlertaFundoAgora(estado: AlertaFundoEstado): Promise<void> {
   await cancelarAlertaFundo();
   if (!isNative || !estado.emSegundoPlano || estado.pausado) return;
   const cd = estado.countdown;
-  if (!cd) return;
+  /* Etapa já estourada: agendar `at` no passado faz o LocalNotifications
+     disparar NA HORA. Como o efeito roda a cada alternância de app, isso
+     reemitia "Tempo esgotado" toda vez que o Pedro voltava e saía do app. */
+  if (!cd || cd.endTs <= Date.now()) return;
   try {
     const p = ln();
     if (!p) return;

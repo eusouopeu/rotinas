@@ -165,9 +165,20 @@ export function pontosPorAreaSemana(sem: SemanaAtual, config: GamificacaoConfig)
     previsto[k] = (previsto[k] || 0) + a.pontos;
   });
 
-  const chaves = Array.from(new Set([...Object.keys(ganhos), ...Object.keys(previsto)])).filter(
-    (k) => (ganhos[k] || 0) > 0 || (previsto[k] || 0) > 0,
-  );
+  const rodaAtivaCfg = !!config.roda.ativa;
+  /* Com a roda ligada, TODA área cadastrada aparece, mesmo sem nada agendado
+     nem concluído na semana — é a fatia reservada dela (sem.fatiasArea). Antes
+     só apareciam as áreas com pontos ou agenda naquela semana, então a lista
+     mudava de uma semana para a outra. "Sem área" continua condicional: só
+     aparece quando tem algo de fato. */
+  const chaves = Array.from(
+    new Set([
+      ...(rodaAtivaCfg ? config.roda.areas.map((a) => a.id) : []),
+      ...Object.keys(ganhos),
+      ...Object.keys(previsto),
+      ...Object.keys(sem.fatiasArea || {}),
+    ]),
+  ).filter((k) => (k && rodaAtivaCfg) || (ganhos[k] || 0) > 0 || (previsto[k] || 0) > 0);
   if (chaves.length <= 1 && !chaves.some((k) => k)) return { linhas: [], max: 0 };
 
   const ordemArea = (k: string): number => {
@@ -179,7 +190,17 @@ export function pontosPorAreaSemana(sem: SemanaAtual, config: GamificacaoConfig)
   const linhas: LinhaRodaSemana[] = chaves
     .map((k) => {
       const info = obterAreaInfo(config, k);
-      return { label: info.label, color: info.color, pontos: ganhos[k] || 0, previsto: rodaAtiva ? previsto[k] || 0 : 0, _ordem: ordemArea(k) };
+      /* previsto = fatia reservada da área. A agenda congelada só cobre o que
+         estava marcado na semana; `fatiasArea` cobre também a área que não teve
+         nada agendado (semanas antigas não têm o campo e caem na agenda). */
+      const fatia = sem.fatiasArea?.[k];
+      return {
+        label: info.label,
+        color: info.color,
+        pontos: ganhos[k] || 0,
+        previsto: rodaAtiva ? (fatia != null ? fatia : previsto[k] || 0) : 0,
+        _ordem: ordemArea(k),
+      };
     })
     .sort((a, b) => a._ordem - b._ordem || b.pontos - a.pontos);
 

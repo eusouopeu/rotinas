@@ -9,8 +9,8 @@ import type { StateCreator } from "zustand";
 import { descansoEntreSeries } from "../../lib/exercicios";
 import { uid } from "../../lib/uid";
 
-import { save } from "../../lib/storage";
-import { K_NAOFEITAS } from "../../lib/constants";
+import { load, removeKey, save } from "../../lib/storage";
+import { K_NAOFEITAS, K_PLAYER } from "../../lib/constants";
 import {
   K_EXERCICIOS,
   K_GAMIFICACAO,
@@ -26,6 +26,7 @@ import {
   moverGrupoPlayer,
   naoFeitasDe,
   novoPlayerState,
+  type PlayerState,
   type StepActual,
 } from "../../lib/player";
 import { finishCue, stepTransitionCue } from "../../lib/haptics";
@@ -50,6 +51,9 @@ export type PlayerSlice = Pick<
   | "advanceStep"
   | "goPrevStep"
   | "exitPlayer"
+  | "resumePlayer"
+  | "descartarPlayerSnapshot"
+  | "salvarPlayerSnapshot"
   | "naoFazerEtapaAtual"
   | "adiarEtapaAtual"
   | "reiniciarTimerEtapaAtual"
@@ -60,6 +64,23 @@ export type PlayerSlice = Pick<
   | "upsertExercicio"
   | "deleteExercicio"
 >;
+
+/* Snapshot da execução (K_PLAYER) — porta de savePlayerSnapshot/
+   clearPlayerSnapshot (index.html:11236-11254). O legado já guardava o ponto
+   exato da rotina ao sair do player e oferecia "Rotina em andamento" na Home;
+   a migração para o React tinha perdido isso (exitPlayer zerava o estado sem
+   gravar nada). Fica no mesmo formato do PlayerState em memória — nenhuma
+   coleção nova, nenhuma conversão. */
+function gravarSnapshot(p: PlayerState | null): PlayerState | null {
+  if (!p) return null;
+  save(K_PLAYER, p);
+  return p;
+}
+
+function apagarSnapshot(): null {
+  removeKey(K_PLAYER);
+  return null;
+}
 
 export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (set, get) => ({
   // index.html:11279-11829 (startPlayer/togglePause/advanceStep/goPrevStep/
@@ -77,6 +98,9 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     const n = playerState.steps.filter((s) => !s.isRest).length;
     set({
       playerState,
+      // uma execução nova substitui a que estava guardada (mesmo comportamento
+      // do legado, cujo savePlayerSnapshot sobrescreve K_PLAYER)
+      playerSnapshot: gravarSnapshot(playerState),
       view: { tab: "home", screen: "player" },
       playerBanner: repescagem ? `Repescagem: só ${n} etapa${n > 1 ? "s" : ""} não feita${n > 1 ? "s" : ""} de hoje` : null,
     });
@@ -195,9 +219,9 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
         };
         const history = [...get().history, entry];
         save(K_HISTORY, history);
-        set({ history, gam, naoFeitas, playerState: null, view: { tab: "home", screen: "done" } });
+        set({ history, gam, naoFeitas, playerState: null, playerSnapshot: apagarSnapshot(), view: { tab: "home", screen: "done" } });
       } else {
-        set({ gam, naoFeitas, playerState: null, view: { tab: "home", screen: "done" } });
+        set({ gam, naoFeitas, playerState: null, playerSnapshot: apagarSnapshot(), view: { tab: "home", screen: "done" } });
       }
       return;
     }
@@ -265,7 +289,30 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
       },
     });
   },
-  exitPlayer: () => set({ playerState: null, view: { tab: "home", screen: "home" } }),
+  /* Sair do player NÃO descarta mais a rotina: grava o ponto exato e volta
+     para a Home, que oferece "Rotina em andamento" para retomar — era assim no
+     legado (index.html:12239-12247) e se perdeu na migração. */
+  exitPlayer: () =>
+    set({ playerSnapshot: gravarSnapshot(get().playerState), playerState: null, view: { tab: "home", screen: "home" } }),
+
+  resumePlayer: () => {
+    const snap = get().playerSnapshot || load<PlayerState | null>(K_PLAYER, null);
+    if (!snap) return;
+    // rotina apagada enquanto estava guardada: o snapshot não tem mais sentido
+    if (!get().routines.some((r) => r.id === snap.routineId)) {
+      set({ playerSnapshot: apagarSnapshot() });
+      return;
+    }
+    set({ playerState: snap, playerSnapshot: snap, view: { tab: "home", screen: "player" } });
+  },
+
+  descartarPlayerSnapshot: () => set({ playerSnapshot: apagarSnapshot() }),
+
+  salvarPlayerSnapshot: () => {
+    const p = get().playerState;
+    if (!p) return;
+    set({ playerSnapshot: gravarSnapshot(p) });
+  },
 
   naoFazerEtapaAtual: () => {
     const p = get().playerState;

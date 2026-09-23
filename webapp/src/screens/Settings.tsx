@@ -63,6 +63,8 @@ export function Settings() {
   const [novaArea, setNovaArea] = useState("");
   const [areaParaRemover, setAreaParaRemover] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  // regras finas de pontuação ficam recolhidas (recomendação 3, 13/09/2026)
+  const [pontuacaoAvancada, setPontuacaoAvancada] = useState(false);
   const c = gam.config;
   const simulacao = useMemo(() => simularDistribuicaoSemana(routines, gam, inicioSemanaISO(new Date())), [routines, gam]);
 
@@ -123,7 +125,14 @@ export function Settings() {
 
         </SecaoAjuste>
 
-        <SecaoAjuste titulo="Notificações">
+        {/* Notificações, som/vibração e cronômetro num único accordion
+            (pedido do Pedro, 22/09/2026): são três faces do mesmo assunto —
+            como o app te avisa. */}
+        <SecaoAjuste
+          titulo="Avisos e cronômetro"
+          busca="notificações resumo semanal aviso de ritmo meta perto do prazo sequência em risco som vibração aviso sonoro mudo suave cronômetro barra bolha fora do app"
+        >
+        <div className="section-label" style={{ marginTop: 0 }}>Notificações</div>
         <div className="stat-card">
           <label className="switch-row" style={{ marginTop: 0 }}>
             <span>Resumo ao fechar a semana</span>
@@ -163,9 +172,7 @@ export function Settings() {
           </div>
         </div>
 
-        </SecaoAjuste>
-
-        <SecaoAjuste titulo="Som e vibração">
+        <div className="section-label">Som e vibração</div>
         <div className="stat-card">
           <div className="bar-row">
             <div className="bar-name" style={{ width: "auto", flex: 1 }}>
@@ -192,6 +199,37 @@ export function Settings() {
             </button>
           </div>
         </div>
+
+        {isNative && (
+          <>
+            <div className="section-label">Cronômetro</div>
+            <div className="stat-card">
+              <div className="bar-row">
+                <div className="bar-name" style={{ width: "auto", flex: 1 }}>
+                  Fora do app
+                </div>
+                <div className="type-toggle">
+                  {(["off", "barra", "bolha"] as const).map((m) => (
+                    <span
+                      key={m}
+                      className={cronometroModo === m ? "active" : ""}
+                      onClick={() => void setCronometroModo(m)}
+                    >
+                      {m === "off" ? "não mostrar" : m === "barra" ? "barra" : "bolha"}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="stat-foot">
+                {cronometroModo === "off"
+                  ? "O tempo restante só aparece dentro do app."
+                  : cronometroModo === "barra"
+                    ? "Contagem regressiva na barra de status e na tela de bloqueio, como o timer do relógio do celular."
+                    : "Bolha flutuante com o tempo restante por cima de outros apps. Exige a permissão \u201CSobrepor a outros apps\u201D. A notificação obrigatória do Android fica discreta — e só vira contagem na barra quando a tela apaga, quando a bolha não dá para ver."}
+              </div>
+            </div>
+          </>
+        )}
 
         </SecaoAjuste>
 
@@ -289,7 +327,33 @@ export function Settings() {
 
         </SecaoAjuste>
 
-        <SecaoAjuste titulo="Hábito consolidado">
+        {/* Pontuação: o dia a dia só precisa da nota mínima; hábito consolidado,
+            vagas, multiplicadores, bônus e simulação ficam em "Avançado". */}
+        <SecaoAjuste titulo="Pontuação do boletim" busca="avançado hábito consolidado vagas nível de peso multiplicadores bônus meta simulação">
+        <div className="stat-card">
+          <div className="sched-time-row" style={{ marginTop: 0 }}>
+            <span style={{ flex: 1 }}>Nota mínima para aprovar</span>
+            <input
+              className="dur-input"
+              type="number"
+              min={1}
+              max={100}
+              value={c.notaMinima}
+              onChange={(e) => updateGamConfig({ notaMinima: Math.max(1, +e.target.value || 60) })}
+            />
+          </div>
+          <button
+            className="link-btn set-avancado"
+            aria-expanded={pontuacaoAvancada || !!busca.trim()}
+            onClick={() => setPontuacaoAvancada((v) => !v)}
+          >
+            Avançado
+            <Icon name={pontuacaoAvancada || busca.trim() ? "chevronUp" : "chevronDown"} size={13} />
+          </button>
+        </div>
+        {(pontuacaoAvancada || !!busca.trim()) && (
+        <>
+        <div className="section-label">Hábito consolidado</div>
         <div className="stat-card">
           <label className="switch-row" style={{ marginTop: 0 }}>
             <span>Descontar rotina que virou hábito</span>
@@ -326,9 +390,7 @@ export function Settings() {
           </div>
         </div>
 
-        </SecaoAjuste>
-
-        <SecaoAjuste titulo="Vagas por nível de peso">
+        <div className="section-label">Vagas por nível de peso</div>
         <div className="stat-card">
           {(["alto", "medio", "baixo"] as const).map((nivel) => (
             <div className="sched-time-row" style={{ marginTop: nivel === "alto" ? 0 : undefined }} key={nivel}>
@@ -347,9 +409,7 @@ export function Settings() {
           ))}
         </div>
 
-        </SecaoAjuste>
-
-        <SecaoAjuste titulo="Pontuação do boletim">
+        <div className="section-label">Valor de cada nível de peso</div>
         <div className="stat-card">
           {(["alto", "medio", "baixo"] as const).map((nivel) => (
             <div className="sched-time-row" style={{ marginTop: nivel === "alto" ? 0 : undefined }} key={nivel}>
@@ -370,17 +430,6 @@ export function Settings() {
             </div>
           ))}
           <div className="sched-time-row" style={{ marginTop: 14 }}>
-            <span style={{ flex: 1 }}>Nota mínima para aprovar</span>
-            <input
-              className="dur-input"
-              type="number"
-              min={1}
-              max={100}
-              value={c.notaMinima}
-              onChange={(e) => updateGamConfig({ notaMinima: Math.max(1, +e.target.value || 60) })}
-            />
-          </div>
-          <div className="sched-time-row">
             <span style={{ flex: 1 }}>Duração de referência (min)</span>
             <input
               className="dur-input"
@@ -428,10 +477,34 @@ export function Settings() {
             </div>
           )}
         </div>
+        </>
+        )}
 
         </SecaoAjuste>
 
-        <BackupCard />
+        {/* Dados, backup, nuvem e diagnóstico num accordion só (pedido do
+            Pedro, 22/09/2026). montarSempre porque o BackupCard precisa
+            checar/avisar sobre backup mais recente de outro aparelho mesmo com
+            a seção fechada. */}
+        <SecaoAjuste
+          titulo="Dados e backup"
+          busca="dados rotinas notas modelos execuções backup exportar importar arquivo automático sincronização nuvem drive google conflito diagnóstico pontes nativas teste"
+          montarSempre
+        >
+          <BackupCard />
+
+          {(isDesktop || isNative) && (
+            <>
+              <div className="section-label">Sincronização com nuvem</div>
+              <div className="stat-card">
+                <SyncCard />
+              </div>
+            </>
+          )}
+
+          <div className="section-label">Diagnóstico</div>
+          <DiagnosticsCard />
+        </SecaoAjuste>
 
         <SecaoAjuste titulo="Calendário externo">
         <div className="stat-card">
@@ -477,44 +550,6 @@ export function Settings() {
           </SecaoAjuste>
         )}
 
-        {isNative && (
-          <SecaoAjuste titulo="Cronômetro">
-            <div className="stat-card">
-              <div className="bar-row">
-                <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                  Fora do app
-                </div>
-                <div className="type-toggle">
-                  {(["off", "barra", "bolha"] as const).map((m) => (
-                    <span
-                      key={m}
-                      className={cronometroModo === m ? "active" : ""}
-                      onClick={() => void setCronometroModo(m)}
-                    >
-                      {m === "off" ? "não mostrar" : m === "barra" ? "barra" : "bolha"}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="stat-foot">
-                {cronometroModo === "off"
-                  ? "O tempo restante só aparece dentro do app."
-                  : cronometroModo === "barra"
-                    ? "Contagem regressiva na barra de status e na tela de bloqueio, como o timer do relógio do celular."
-                    : "Além da notificação na barra, uma bolha flutuante com o tempo restante por cima de outros apps. Exige a permissão \u201CSobrepor a outros apps\u201D."}
-              </div>
-            </div>
-          </SecaoAjuste>
-        )}
-
-        {(isDesktop || isNative) && (
-          <SecaoAjuste titulo="Sincronização com nuvem">
-            <div className="stat-card">
-              <SyncCard />
-            </div>
-          </SecaoAjuste>
-        )}
-
         {isDesktop && (
           <SecaoAjuste titulo="Integrações (MCP)">
             <div className="stat-card">
@@ -523,9 +558,6 @@ export function Settings() {
           </SecaoAjuste>
         )}
 
-        <SecaoAjuste titulo="Diagnóstico">
-          <DiagnosticsCard />
-        </SecaoAjuste>
       </div>
 
       {/* Confirmação de remoção de área — o legado (index.html:14097-14106)

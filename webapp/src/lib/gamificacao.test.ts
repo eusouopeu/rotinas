@@ -10,6 +10,7 @@ import {
   pesoBruto,
   tagMultiplicador,
   trimestreDe,
+  fatiasPorArea,
 } from "./gamificacao";
 
 // Mesmos invariantes que test/gamificacao.cjs cobre no app antigo — porta o
@@ -136,15 +137,35 @@ describe("fatoresPorArea", () => {
     const config = criarEstadoGamificacaoInicial().config;
     expect(fatoresPorArea({ estudo: 10 }, config)).toEqual({});
   });
-  it("área sem nada agendado não reserva fatia", () => {
+  /* Regra mudou em 22/09/2026: toda área cadastrada reserva fatia, tenha ou
+     não agenda na semana. Antes o conjunto de áreas com fatia mudava de semana
+     para semana conforme o que estava agendado. */
+  it("toda área cadastrada reserva fatia, mesmo sem nada agendado", () => {
     const config = criarEstadoGamificacaoInicial().config;
     config.roda.ativa = true;
     config.roda.areas = [
       { id: "estudo", label: "Estudo", color: "#000", peso: 5 },
       { id: "saude", label: "Saúde", color: "#111", peso: 5 },
     ];
-    const fatores = fatoresPorArea({ estudo: 10 }, config);
-    expect(fatores.saude).toBeUndefined();
-    expect(fatores.estudo).toBeGreaterThan(0);
+    const fatias = fatiasPorArea({ estudo: 10 }, config);
+    expect(fatias.estudo).toBeCloseTo(50, 6);
+    expect(fatias.saude).toBeCloseTo(50, 6);
+    // a área agendada divide a fatia dela entre o que está agendado...
+    const fatores = fatoresPorArea({ estudo: 10 }, config, 7);
+    expect(fatores.estudo).toBeCloseTo(5, 6);
+    // ...e a sem agenda pontua no ritmo normal da semana (fatorPadrao)
+    expect(fatores.saude).toBe(7);
+  });
+
+  it("pesos diferentes repartem os 100 na proporção configurada", () => {
+    const config = criarEstadoGamificacaoInicial().config;
+    config.roda.ativa = true;
+    config.roda.areas = [
+      { id: "estudo", label: "Estudo", color: "#000", peso: 3 },
+      { id: "saude", label: "Saúde", color: "#111", peso: 1 },
+    ];
+    const fatias = fatiasPorArea({ estudo: 10, saude: 2 }, config);
+    expect(fatias.estudo).toBeCloseTo(75, 6);
+    expect(fatias.saude).toBeCloseTo(25, 6);
   });
 });

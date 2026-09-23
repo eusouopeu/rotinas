@@ -56,6 +56,7 @@ public class TimerOverlayService extends Service {
     public static final String EXTRA_AUTO = "auto";           // etapa atual avança sozinha
     public static final String EXTRA_VISIBLE = "visible";     // app em segundo plano
     public static final String EXTRA_QUEUE = "queue";         // JSON das etapas seguintes
+    public static final String EXTRA_MODO = "modo";           // "barra" | "bolha" (preferencia do usuario)
 
     private static final String CHANNEL_ID = "brita_overlay";
     private static final int NOTIF_ID = 4771;
@@ -85,6 +86,24 @@ public class TimerOverlayService extends Service {
     private boolean auto = false;
     private boolean visible = false;
     private boolean exhausted = false;   // fila acabou: só o app resolve daqui
+    private String modo = "barra";       // preferência de Ajustes: "barra" ou "bolha"
+    /* startForeground uma única vez por serviço. Repetir a chamada a cada
+       show() reposta a notificação inteira — no Android 16 isso faz o chip da
+       Now Bar reanimar a cada alt-tab, que era o "aparece múltiplas vezes". */
+    private boolean emPrimeiroPlano = false;
+    /* Só reposta quando o conteúdo realmente muda (mesma razão acima). */
+    private String ultimaAssinatura = null;
+    /* Com a tela apagada a bolha não é visível; aí a contagem tem que ir para
+       a barra/Now Bar mesmo no modo "bolha" (pedido do Pedro, 22/09/2026). */
+    private boolean telaLigada = true;
+
+    private final android.content.BroadcastReceiver telaReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent i) {
+            telaLigada = !Intent.ACTION_SCREEN_OFF.equals(i.getAction());
+            refreshNotification();
+        }
+    };
     private final java.util.List<Etapa> queue = new java.util.ArrayList<>();
 
     private final Runnable tick = new Runnable() {
@@ -113,6 +132,8 @@ public class TimerOverlayService extends Service {
         String l = intent.getStringExtra(EXTRA_LABEL);
         label = l == null ? "" : l;
         parseQueue(intent.getStringExtra(EXTRA_QUEUE));
+        String m = intent.getStringExtra(EXTRA_MODO);
+        modo = (m == null || m.isEmpty()) ? "barra" : m;
         exhausted = false;
 
         startForegroundCompat();
@@ -146,12 +167,29 @@ public class TimerOverlayService extends Service {
             ch.setShowBadge(false);
             nm.createNotificationChannel(ch);
         }
+        if (emPrimeiroPlano) {
+            /* Já somos foreground service: atualizar em vez de repostar. */
+            refreshNotification();
+            return;
+        }
         Notification n = buildNotification();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(NOTIF_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         } else {
             startForeground(NOTIF_ID, n);
         }
+        emPrimeiroPlano = true;
+        ultimaAssinatura = assinaturaNotificacao();
+        android.content.IntentFilter f = new android.content.IntentFilter();
+        f.addAction(Intent.ACTION_SCREEN_OFF);
+        f.addAction(Intent.ACTION_SCREEN_ON);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(telaReceiver, f, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(telaReceiver, f);
+            }
+        } catch (Exception ignored) {}
     }
 
     /**
@@ -176,22 +214,40 @@ public class TimerOverlayService extends Service {
                 .setSmallIcon(android.R.drawable.ic_menu_recent_history)
                 .setContentIntent(pi)
                 .setOngoing(true);
+        /* Android 12+ posta a notificação de foreground service só depois de 10s
+           (janela de tolerância para serviços curtos). Era exatamente o "só
+           aparece depois de 10 segundos" — IMMEDIATE desliga essa espera. */
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            b.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE);
+        }
+
+        /* A notificação de foreground service é obrigatória (sem ela o Android
+           mata o serviço e a bolha some), mas no modo "bolha" ela não deve
+           competir com a bolha: fica muda, sem cronômetro, fora da tela de
+           bloqueio e sem chip na Now Bar. A exceção é a tela apagada — aí a
+           bolha não é visível e a contagem precisa ir para a Now Bar. */
+        boolean naBarra = "barra".equals(modo) || !telaLigada;
 
         if (exhausted) {
             b.setContentText("Toque para continuar");
         } else if (paused) {
             b.setContentText("Pausado");
-        } else {
+        } else if (naBarra) {
             b.setContentText("Em andamento")
                     .setUsesChronometer(true)
                     .setChronometerCountDown(true)
                     .setShowWhen(true)
                     .setWhen(endTs);
+        } else {
+            b.setContentText("Cronômetro na bolha flutuante").setShowWhen(false);
         }
+        // fora da barra: some da tela de bloqueio (o canal já é IMPORTANCE_LOW,
+        // então não há som nem heads-up em nenhum dos dois modos)
+        if (!naBarra) b.setVisibility(Notification.VISIBILITY_SECRET);
         // Android 16+: pede promoção a "Live Update" — o sistema mostra um chip
-        // com o cronômetro na barra de status, logo depois da hora. Sem isso a
-        // contagem só aparecia puxando a gaveta de notificações.
-        if (Build.VERSION.SDK_INT >= 36) {
+        // com o cronômetro na barra de status/Now Bar, logo depois da hora. Sem
+        // isso a contagem só aparecia puxando a gaveta de notificações.
+        if (Build.VERSION.SDK_INT >= 36 && naBarra) {
             b.setCategory(Notification.CATEGORY_STOPWATCH);
             // = setRequestPromotedOngoing(true) (EXTRA_REQUEST_PROMOTED_ONGOING);
             // via extra porque o SDK 36 instalado não expõe o setter.
@@ -203,7 +259,18 @@ public class TimerOverlayService extends Service {
         return b.build();
     }
 
+    /** Identidade do que a notificação mostra — só o que muda o conteúdo dela,
+     *  nunca o tempo corrente (o chronometer conta sozinho). Sem isso cada
+     *  alt-tab repostava a mesma notificação e o chip da Now Bar reanimava. */
+    private String assinaturaNotificacao() {
+        boolean naBarra = "barra".equals(modo) || !telaLigada;
+        return label + "|" + endTs + "|" + paused + "|" + exhausted + "|" + naBarra;
+    }
+
     private void refreshNotification() {
+        String assinatura = assinaturaNotificacao();
+        if (assinatura.equals(ultimaAssinatura)) return;
+        ultimaAssinatura = assinatura;
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         try { nm.notify(NOTIF_ID, buildNotification()); } catch (Exception ignored) {}
     }
@@ -380,6 +447,11 @@ public class TimerOverlayService extends Service {
 
     private void stopSelfSafely() {
         handler.removeCallbacks(tick);
+        if (emPrimeiroPlano) {
+            try { unregisterReceiver(telaReceiver); } catch (Exception ignored) {}
+            emPrimeiroPlano = false;
+        }
+        ultimaAssinatura = null;
         removeBubble();
         try { stopForeground(true); } catch (Exception ignored) {}
         stopSelf();

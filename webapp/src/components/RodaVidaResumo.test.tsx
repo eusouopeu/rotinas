@@ -105,8 +105,11 @@ describe("RodaVidaResumo", () => {
 
     const { container } = render(<RodaVidaResumo />);
     const rows = container.querySelectorAll(".bar-row");
-    expect(rows.length).toBe(1);
+    // "Trabalho" continua listada mesmo sem pontos nem agenda nesta semana
+    // (fatia reservada, 22/09/2026); "Sem área" nunca vira linha.
+    expect(rows.length).toBe(2);
     expect(rows[0]?.textContent).toContain("Saúde");
+    expect(rows[1]?.textContent).toContain("Trabalho");
     expect(container.textContent).not.toContain("Sem área");
   });
 

@@ -1,5 +1,4 @@
 // Porta de exportBackup/importBackup/oferecerImportarBackup (index.html:
-import { SecaoAjuste } from "./SecaoAjuste";
 // 10774-11005), incluindo import de item avulso ("rotina-share"/
 // "modelo-share"), e do backup automático em arquivo no navegador
 // (index.html:10812-10914, ver lib/fileBackup.ts) — exportar/importar um
@@ -127,15 +126,16 @@ export function BackupCard() {
 
   return (
     <>
-      <SecaoAjuste titulo="Dados">
-        <div className="stat-card">
-          <div className="routine-meta">
-            {routines.length} rotina(s) · {notes.length} nota(s) · {templates.length} modelo(s) · {history.length} execução(ões)
-          </div>
+      <div className="section-label" style={{ marginTop: 0 }}>
+        Dados
+      </div>
+      <div className="stat-card">
+        <div className="routine-meta">
+          {routines.length} rotina(s) · {notes.length} nota(s) · {templates.length} modelo(s) · {history.length} execução(ões)
         </div>
-      </SecaoAjuste>
+      </div>
 
-      <SecaoAjuste titulo="Backup">
+      <div className="section-label">Backup</div>
       <div className="stat-card">
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn-cancel" style={{ flex: 1 }} onClick={exportar}>
@@ -164,10 +164,10 @@ export function BackupCard() {
         {aviso && <div className="stat-foot">{aviso}</div>}
         <div className="stat-foot">{lastBackupAt ? "Último backup: " + new Date(lastBackupAt).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
       </div>
-      </SecaoAjuste>
 
       {supportsFileBackup() && (
-        <SecaoAjuste titulo="Backup automático em arquivo">
+        <>
+          <div className="section-label">Backup automático em arquivo</div>
           <div className="stat-card">
             {ativo ? (
               <>
@@ -189,7 +189,7 @@ export function BackupCard() {
               </>
             )}
           </div>
-        </SecaoAjuste>
+        </>
       )}
 
       {maisRecente && (

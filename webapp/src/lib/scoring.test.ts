@@ -33,6 +33,44 @@ describe("congelarSemana", () => {
     expect(totalPontos).toBeCloseTo(100, 0);
   });
 
+  /* Regressão de 22/09/2026: o React só contava etapas "timer", então rotina
+     de academia pesava ZERO na semana — a área dela não reservava fatia e as
+     séries concluídas caíam fora da agenda congelada (viravam "extra"). */
+  it("rotina só de exercícios entra na agenda congelada e reserva a fatia da área", () => {
+    const gam = criarEstadoGamificacaoInicial();
+    gam.config.roda.ativa = true;
+    gam.config.roda.areas = [{ id: "corpo", label: "Corpo", color: "#000", peso: 1 }];
+    const academia: Routine = {
+      id: "r2",
+      name: "Academia",
+      eixo: "corpo",
+      tagValor: "medio",
+      restSeconds: 120,
+      steps: [{ id: "e1", name: "Supino", type: "exercicio", exercicioId: "x1", sets: 4, reps: "8-12" }],
+      schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] },
+    };
+    const sem = congelarSemana([academia], gam, inicioSemanaISO(new Date(), 0)).semanaAtual!;
+    expect(sem.totalBrutoAgendado).toBeGreaterThan(0);
+    expect(sem.agendaCongelada.length).toBe(3); // seg, qua, sex
+    expect(sem.fatiasArea?.corpo).toBeCloseTo(100, 6);
+    expect(sem.agendaCongelada.reduce((a, x) => a + x.pontos, 0)).toBeCloseTo(100, 0);
+  });
+
+  it("área cadastrada sem nada agendado mantém a fatia reservada", () => {
+    const gam = criarEstadoGamificacaoInicial();
+    gam.config.roda.ativa = true;
+    gam.config.roda.areas = [
+      { id: "corpo", label: "Corpo", color: "#000", peso: 1 },
+      { id: "mente", label: "Mente", color: "#111", peso: 1 },
+    ];
+    const r = { ...rotinaDiariaTimer(30), eixo: "corpo" };
+    const sem = congelarSemana([r], gam, inicioSemanaISO(new Date(), 0)).semanaAtual!;
+    expect(sem.fatiasArea?.corpo).toBeCloseTo(50, 6);
+    expect(sem.fatiasArea?.mente).toBeCloseTo(50, 6);
+    // o que está agendado agora vale metade da semana, não a semana inteira
+    expect(sem.agendaCongelada.reduce((a, x) => a + x.pontos, 0)).toBeCloseTo(50, 0);
+  });
+
   it("sem nada agendado usa a escala padrão (fator > 0, não quebra em 0)", () => {
     const gam = criarEstadoGamificacaoInicial();
     const inicio = inicioSemanaISO(new Date(), 0);

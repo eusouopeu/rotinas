@@ -4,13 +4,15 @@
 
 `K_GAMIFICACAO` armazena `config`, `semanaAtual`, histórico e badges. Pontue etapa a etapa, nunca em lote. Cada crédito armazena `pb`; o fator semanal é congelado na abertura e não pode ser recalculado durante a semana. Sem etapas agendadas, use a escala padrão de 20 blocos médios de 30 min = 100; fator zero é inválido. `repararFatorSemanaAtual` reescala legado. `avancarGamificacaoAteAgora` resolve viradas se o app ficou fechado.
 
+Etapa de tipo `exercicio` entra na agenda congelada como etapa de tempo, valendo `sets * restSeconds` (mesma conta do legado, `index.html:1327-1328`, e do crédito em `advanceStep`). Portar só `type === "timer"` — o que o React fez até 22/09/2026 — faz rotina de academia pesar zero na semana: a área dela não reserva fatia e as séries concluídas caem fora da agenda, creditadas pelo fator global como "extra".
+
 `tagValor:"nenhum"` vale sempre zero, não entra na agenda congelada nem no total. A rotina continua executável sem pontuar. Não exponha multiplicador editável para “nenhum”.
 
 ## Semana e áreas
 
 Início da semana vem somente de `weekStartDow`/`inicioSemanaISO`; nunca recalcule com `getDay()` solto. Dias literais atendem `schedule.days`; offsets da semana configurada atendem agenda congelada, esperado e chaves kanban. Converta com `offsetSemana` e ordene com `ordemDiasSemana`. A semana pertence ao mês em que termina. A alteração de início reancora pela rotina própria e preserva migrações de legado.
 
-Com Roda da Vida ativa, distribua os 100 pontos primeiro entre áreas proporcionais ao peso e depois entre rotinas da área. Área sem item agendado não reserva fatia. `r.eixo` e itens ligados preservam área; cada conclusão guarda `area`. Sem roda, use fator global.
+Com Roda da Vida ativa, distribua os 100 pontos primeiro entre áreas proporcionais ao peso e depois entre rotinas da área. **Desde 22/09/2026 toda área cadastrada reserva fatia**, tenha ou não item agendado na semana (`areasComFatia`/`fatiasPorArea` em `lib/gamificacao.ts`): antes só entravam as áreas com peso agendado, então o conjunto de áreas com fatia mudava a cada semana conforme a agenda, e a mesma área ora dividia os 100, ora entrava como extra sobre eles. A fatia reservada fica gravada em `semanaAtual.fatiasArea` (opcional — semanas congeladas antes dessa data não têm) e é o que o boletim mostra como "previsto". Área com agenda divide a fatia dela entre o que está agendado; área sem agenda mantém a fatia reservada e pontua itens avulsos no fator global da semana. Consequência aceita: fatia de área sem nada agendado nem feito fica por preencher e o teto prático da semana cai — é o significado da roda, área negligenciada custa pontos. "Sem área" só reserva fatia quando existe peso agendado sem área. `r.eixo` e itens ligados preservam área; cada conclusão guarda `area`. Sem roda, use fator global.
 
 Hábito consolidado decide desconto no congelamento e grava `semanaAtual.habitos`; não derive do streak vivo durante a semana. Respeite `semHabito`. Vagas por peso são limites globais sem roda e por área com roda; validar no salvar, não no clique. `vagaHintHtml` só informa.
 

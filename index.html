@@ -1,10 +1,11 @@
 <!--
-  LEGADO CONGELADO (05/09/2026) — Android e Electron carregam o build React
-  (webapp-dist), não este arquivo (ver docs/react-migration.md). Este
-  index.html permanece como fonte de leitura/referência para lógica ainda
-  não portada e pode seguir servindo como PWA de navegador à parte via
-  `npm run copy:www`, mas não é mais produção nativa. Não reverta o corte
-  nem empacote este arquivo no lugar do build React sem pedido explícito.
+  LEGADO APOSENTADO — congelado em 05/09/2026 (Android e Electron carregam o
+  build React, webapp-dist) e retirado do navegador em 13/09/2026: o PWA de
+  navegador agora é o próprio build React (manifest + service worker em
+  webapp/pwa/, publicado pelo GitHub Pages) e o script `copy:www` saiu. Este
+  index.html fica só como referência de leitura para lógica ainda não
+  portada e para os testes CJS de test/. Não volte a distribuí-lo nem o
+  empacote no lugar do build React sem pedido explícito.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -1043,7 +1044,7 @@ window.addEventListener("unhandledrejection", function(e){
   /* Selo de build: só existe para diagnosticar "instalei de novo e não mudou
      nada" — sem isso não há como o Pedro confirmar, olhando o app, se o APK
      que ele abriu é realmente o que foi gerado agora. Atualizar a cada build. */
-  const BUILD_STAMP = "2026-09-13 (v56)";
+  const BUILD_STAMP = "2026-09-22 (v57)";
 
   function uid(){ return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }

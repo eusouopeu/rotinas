@@ -45,6 +45,7 @@ import {
   K_NUDGEDAYS,
   K_NUDGEMETAS,
   K_NUDGESTREAK,
+  K_PLAYER,
   K_SOMMODO,
   K_VIBRAR,
   K_CRONOMODO,
@@ -133,6 +134,11 @@ export interface AppState {
   gam: GamificacaoState;
   editorDraft: Routine | null;
   playerState: PlayerState | null;
+  /** Rotina deixada pela metade (K_PLAYER, porta de savePlayerSnapshot/
+   *  getPlayerSnapshot, index.html:11238-11254). Sair do Player guarda o
+   *  ponto exato; a Home mostra o cartão "Rotina em andamento" para retomar.
+   *  Sobrevive a fechar e reabrir o app. */
+  playerSnapshot: PlayerState | null;
   naoFeitas: NaoFeitasMap;
   playerBanner: string | null;
   // Toast global (index.html:2484-2508) — topo da tela, texto neutro ou
@@ -165,6 +171,8 @@ export interface AppState {
   duplicateRoutine: (id: string) => void;
   deleteHistoryEntry: (ts: number) => void;
   adjustRoutineStep: (routineId: string, stepName: string, newSec: number) => void;
+  /** Troca só os dias da semana do agendamento (revisão da Semana fechada). */
+  setRoutineDays: (id: string, days: number[]) => void;
 
   openEditor: (id?: string | null) => void;
   updateDraft: (patch: Partial<Routine>) => void;
@@ -207,6 +215,12 @@ export interface AppState {
   advanceStep: (skipped?: boolean, naoFeita?: boolean) => void;
   goPrevStep: () => void;
   exitPlayer: () => void;
+  /** Volta para a rotina guardada no snapshot, na etapa em que parou. */
+  resumePlayer: () => void;
+  /** Descarta a rotina em andamento guardada (cartão da Home). */
+  descartarPlayerSnapshot: () => void;
+  /** Grava o ponto atual da execução (chamado pelo Player a cada mudança). */
+  salvarPlayerSnapshot: () => void;
   // "não fazer" (index.html:11542-11548): encerra sem concluir/pontuar e
   // marca a etapa como pendente do dia — a rotina reabre só com as
   // pendentes (repescagem, ver startPlayer/novoPlayerState).
@@ -353,6 +367,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   gam: criarEstadoGamificacaoInicial(),
   editorDraft: null,
   playerState: null,
+  playerSnapshot: load<PlayerState | null>(K_PLAYER, null),
   naoFeitas: {},
   playerBanner: null,
   banner: null,
@@ -511,6 +526,16 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     });
     save(K_ROUTINES, routines);
     set({ routines });
+  },
+
+  setRoutineDays: (id, days) => {
+    if (!days.length) return;
+    const routines = get().routines.map((r) =>
+      r.id === id && r.schedule ? { ...r, schedule: { ...r.schedule, days: [...days].sort((a, b) => a - b) } } : r
+    );
+    save(K_ROUTINES, routines);
+    set({ routines });
+    syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
   },
 
   openEditor: (id) => {

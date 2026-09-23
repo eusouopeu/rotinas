@@ -76,6 +76,11 @@ export interface SemanaAtual {
   fatorNormalizacao: number;
   totalBrutoAgendado: number;
   fatoresArea: Record<string, number>;
+  /** Fatia dos 100 pontos reservada a cada área da roda no congelamento da
+   *  semana (opcional: semanas fechadas antes de 22/09/2026 não têm). É o que
+   *  o boletim mostra como "previsto" — inclusive para área que ficou sem
+   *  nada agendado, que antes sumia do resumo. */
+  fatiasArea?: Record<string, number>;
   habitos: Record<string, boolean>;
   agendaCongelada: Array<{ itemId: string; dia: number; area: string; pontos: number }>;
   concluidos: Array<{

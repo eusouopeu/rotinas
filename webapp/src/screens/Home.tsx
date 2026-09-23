@@ -18,7 +18,7 @@ import { StreakTag } from "../components/StreakTag";
 import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, rotinaCabeEmHoje, rotinasOrdenadas, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
-import { getIcalCache, icalEventosDoDia } from "../lib/ical";
+import { atualizarIcal, getIcalCache, getIcalUrl, icalEventosDoDia, icalStale } from "../lib/ical";
 import { TimeKbInput } from "../components/CamposTexto";
 import { useIsDesktop } from "../lib/useIsDesktop";
 import type { DiaKanbanCard, Snooze, Tag } from "../lib/types";
@@ -32,13 +32,18 @@ import { attachSwipeDownSearch } from "../lib/swipe";
 import { execucaoDoDia, execucaoMinutos } from "../lib/history";
 
 function AgendaLinha({ it, onClick, onDelete, onEdit }: { it: AgendaItemDia; onClick: () => void; onDelete?: () => void; onEdit?: () => void }) {
+  const ical = it.tipo === "ical";
   return (
-    <div className={"dev-row agenda-row" + (it.feito ? " feito" : "")} onClick={onClick} style={{ cursor: "pointer" }}>
+    <div
+      className={"dev-row agenda-row" + (it.feito ? " feito" : "") + (ical ? " ical" : "")}
+      onClick={onClick}
+      title={ical ? "Calendário externo (só leitura)" : undefined}
+    >
       {/* início SEMPRE acima do término, sem travessão: as duas linhas alinham
           em coluna entre os itens do dia, e o item sem fim ocupa só uma. */}
       <span className="agenda-time">
         {it.ini == null ? (
-          <span>sem hora</span>
+          <span>{it.diaTodo ? "dia todo" : "sem hora"}</span>
         ) : (
           <>
             <span>{formatHM(it.ini)}</span>
@@ -47,7 +52,11 @@ function AgendaLinha({ it, onClick, onDelete, onEdit }: { it: AgendaItemDia; onC
         )}
       </span>
       <span className="agenda-nome">
-        {it.tipo === "rotina" ? <span className="r-dot" style={{ background: fillStyle(it.cor) }} /> : <span className="ag-square" />}
+        {it.tipo === "rotina" ? (
+          <span className="r-dot" style={{ background: fillStyle(it.cor) }} />
+        ) : (
+          <span className={"ag-square" + (ical ? " ical" : "")} />
+        )}
         {it.texto}
       </span>
       {onEdit ? (
@@ -253,6 +262,20 @@ function AgendaSemana() {
   const hojeISO = localKey();
   const [inicioISO, setInicioISO] = useState(hojeISO);
   const [popup, setPopup] = useState<{ iso: string; card: DiaKanbanCard | null } | null>(null);
+  // calendário externo na lista da semana (só leitura); cache velho (>30 min)
+  // é renovado em segundo plano ao abrir a visão, falha fica silenciosa
+  const [icalCache, setIcalCache] = useState(getIcalCache);
+  useEffect(() => {
+    const url = getIcalUrl();
+    if (!icalStale(url, getIcalCache())) return;
+    let vivo = true;
+    atualizarIcal(url)
+      .then((c) => vivo && setIcalCache(c))
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
   const [snoozeModal, setSnoozeModal] = useState(false);
 
   const fimISO = addDaysISO(inicioISO, 6);
@@ -352,7 +375,7 @@ function AgendaSemana() {
         const iso = addDaysISO(inicioISO, d);
         const ehHoje = iso === hojeISO;
         const dow = isoToDate(iso).getDay();
-        const itens = itensAgendaDoDia(iso, isoToDate(iso), routines, gam, history, diaKanban, compromissos);
+        const itens = itensAgendaDoDia(iso, isoToDate(iso), routines, gam, history, diaKanban, compromissos, icalCache);
         return (
           <div key={iso}>
             <div className="ag-dia-head">
@@ -382,7 +405,7 @@ function AgendaSemana() {
                     onClick={() => {
                       if (it.tipo === "rotina") goTo({ tab: "home", screen: "routineDetail", id: it.id });
                       else if (it.tipo === "cartao") toggleDiaKanbanCard(it.id);
-                      else toggleCompromisso(it.id);
+                      else if (it.tipo === "compromisso") toggleCompromisso(it.id);
                     }}
                     onEdit={it.tipo === "cartao" ? () => setPopup({ iso, card: diaKanban.find((c) => c.id === it.id) || null }) : undefined}
                     onDelete={it.tipo === "compromisso" ? () => deleteCompromisso(it.id) : undefined}
@@ -639,6 +662,9 @@ export function Home() {
   const duplicateRoutine = useAppStore((s) => s.duplicateRoutine);
   const openEditor = useAppStore((s) => s.openEditor);
   const startPlayer = useAppStore((s) => s.startPlayer);
+  const playerSnapshot = useAppStore((s) => s.playerSnapshot);
+  const resumePlayer = useAppStore((s) => s.resumePlayer);
+  const descartarPlayerSnapshot = useAppStore((s) => s.descartarPlayerSnapshot);
   const goTo = useAppStore((s) => s.goTo);
   const homeView = useAppStore((s) => s.homeView);
   const setHomeView = useAppStore((s) => s.setHomeView);
@@ -652,6 +678,9 @@ export function Home() {
   const [novoEvento, setNovoEvento] = useState(false);
 
   const semFechada = semanaFechadaPendente(gam);
+  /* Rotina deixada pela metade (index.html:3616-3637): só vale se a rotina
+     ainda existir — apagada, o snapshot é lixo e some do cartão. */
+  const rotinaEmAndamento = playerSnapshot && routines.some((r) => r.id === playerSnapshot.routineId) ? playerSnapshot : null;
   const hojeISO = localKey();
   /* Mesma ordem do legado (index.html:3645-3646): sempre por horário de início,
      e o filtro "hoje" esconde só quem tem dia fixo em outro dia. */
@@ -676,6 +705,32 @@ export function Home() {
         </div>
 
         <RodaVidaResumo />
+
+        {rotinaEmAndamento && (
+          <div className="routine-card resume-card pinned-card" style={{ marginBottom: 14 }}>
+            <div className="routine-info">
+              <h3>Rotina em andamento</h3>
+              <div className="routine-meta">
+                {rotinaEmAndamento.routineName} · etapa {rotinaEmAndamento.idx + 1}/{rotinaEmAndamento.steps.length}
+              </div>
+            </div>
+            <div className="routine-actions">
+              <button
+                className="icon-btn"
+                title="Descartar rotina em andamento"
+                aria-label="Descartar rotina em andamento"
+                onClick={() => {
+                  if (window.confirm("Descartar a rotina em andamento?")) descartarPlayerSnapshot();
+                }}
+              >
+                <Icon name="xmark" size={14} />
+              </button>
+              <button className="play-btn" title="Retomar rotina" aria-label="Retomar rotina" onClick={resumePlayer}>
+                <Icon name="play" size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {semFechada && (
           <div

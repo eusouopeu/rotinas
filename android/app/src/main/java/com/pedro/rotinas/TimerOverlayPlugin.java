@@ -92,6 +92,9 @@ public class TimerOverlayPlugin extends Plugin {
         i.putExtra(TimerOverlayService.EXTRA_AUTO, Boolean.TRUE.equals(call.getBoolean("auto", false)));
         i.putExtra(TimerOverlayService.EXTRA_VISIBLE, visible);
         i.putExtra(TimerOverlayService.EXTRA_QUEUE, call.getString("queue", ""));
+        // "barra" | "bolha": no modo bolha a notificação fica discreta (sem
+        // cronômetro, sem chip na Now Bar) enquanto a tela estiver ligada
+        i.putExtra(TimerOverlayService.EXTRA_MODO, call.getString("modo", "barra"));
         // iniciar foreground service em segundo plano é bloqueado no Android 12+:
         // se falhar, o serviço já está de pé (subiu junto com a rotina) ou volta
         // na próxima vez que o app estiver na frente

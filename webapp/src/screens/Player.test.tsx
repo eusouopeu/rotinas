@@ -113,3 +113,43 @@ describe("Player fora do Android", () => {
     expect(() => render(<Player />)).not.toThrow();
   });
 });
+
+/* Sair da rotina guarda o ponto exato e a Home oferece retomar — o legado
+   (index.html:11238-11254, 3616-3637) fazia isso e a migração para o React
+   tinha perdido: exitPlayer zerava o estado sem gravar nada. */
+describe("snapshot da rotina em andamento", () => {
+  it("exitPlayer guarda o ponto e resumePlayer volta na mesma etapa", async () => {
+    vi.resetModules();
+    const { useAppStore } = await import("../store/useAppStore");
+    const { K_PLAYER } = await import("../lib/constants");
+    const { load } = await import("../lib/storage");
+
+    const p = { ...playerStateFake(), idx: 1 };
+    useAppStore.setState({
+      playerState: p,
+      playerSnapshot: null,
+      routines: [{ id: "r1", name: "Rotina de teste", steps: p.steps }],
+      view: { tab: "home", screen: "player" },
+    });
+
+    useAppStore.getState().exitPlayer();
+    expect(useAppStore.getState().playerState).toBeNull();
+    expect(useAppStore.getState().view.screen).toBe("home");
+    expect(useAppStore.getState().playerSnapshot?.idx).toBe(1);
+    expect(load<PlayerState | null>(K_PLAYER, null)?.idx).toBe(1);
+
+    useAppStore.getState().resumePlayer();
+    expect(useAppStore.getState().view.screen).toBe("player");
+    expect(useAppStore.getState().playerState?.idx).toBe(1);
+    expect(useAppStore.getState().playerState?.routineName).toBe("Rotina de teste");
+  });
+
+  it("descarta o snapshot se a rotina não existe mais", async () => {
+    vi.resetModules();
+    const { useAppStore } = await import("../store/useAppStore");
+    useAppStore.setState({ playerSnapshot: playerStateFake(), playerState: null, routines: [] });
+    useAppStore.getState().resumePlayer();
+    expect(useAppStore.getState().playerSnapshot).toBeNull();
+    expect(useAppStore.getState().playerState).toBeNull();
+  });
+});

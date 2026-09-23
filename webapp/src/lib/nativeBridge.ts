@@ -159,6 +159,12 @@ export interface TimerOverlayShowArgs {
   visible: boolean;
   /** JSON de TimerOverlayQueueItem[] — etapas seguintes, para o serviço rolar os descansos sozinho. */
   queue: string;
+  /** Preferência de Ajustes (K_CRONOMODO). No modo "bolha" o serviço mantém a
+   * notificação obrigatória do foreground service discreta — sem cronômetro,
+   * fora da tela de bloqueio e sem chip na Now Bar — enquanto a tela estiver
+   * ligada; com a tela apagada ela volta a ser a contagem na barra, porque a
+   * bolha não é visível nesse momento. */
+  modo: "barra" | "bolha";
 }
 
 /** Ponte do plugin Capacitor TimerOverlay

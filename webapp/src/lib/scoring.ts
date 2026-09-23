@@ -15,6 +15,7 @@ import {
   anoMesDoFimDaSemana,
   badgeParaNota,
   destaquesDaSemana,
+  fatiasPorArea,
   fatoresPorArea,
   fatorNormalizacaoPara,
   fatorParaArea,
@@ -96,8 +97,14 @@ export function construirAgendaSemana(
       if (!rotinaAgendadaEm(r, dataDia)) return;
       const area = areaDaRotina(r, gam);
       r.steps.forEach((s) => {
-        if (s.isRest || s.type !== "timer") return;
-        const minutos = (s.seconds || 0) / 60;
+        /* Etapa de exercício entra na agenda da semana como no legado
+           (index.html:1327-1328): cada série "vale" o descanso planejado. O
+           React tinha portado só `type === "timer"`, então uma rotina só de
+           exercícios pesava ZERO na semana — a área dela nunca reservava fatia
+           e as séries concluídas caíam no fator de fora da agenda (viravam
+           "extra"). Era o bug relatado pelo Pedro em 22/09/2026. */
+        if (s.isRest || (s.type !== "timer" && s.type !== "exercicio")) return;
+        const minutos = s.type === "exercicio" ? ((s.sets || 1) * (r.restSeconds ?? 120)) / 60 : (s.seconds || 0) / 60;
         const tag = stepTagEfetiva(s, r);
         const pb = pesoBruto(tag, minutos, gam.config);
         if (pb <= 0) return;
@@ -114,12 +121,13 @@ export function construirAgendaSemana(
 export function congelarSemana(routines: Routine[], gam: GamificacaoState, inicioISO: string): GamificacaoState {
   const { itens, totalBruto, porArea } = construirAgendaSemana(routines, gam, inicioISO);
   const fator = fatorNormalizacaoPara(totalBruto, gam.config);
-  const fatoresArea = fatoresPorArea(porArea, gam.config);
+  const fatoresArea = fatoresPorArea(porArea, gam.config, fator);
   const semanaAtual: SemanaAtual = {
     inicioISO,
     fatorNormalizacao: fator,
     totalBrutoAgendado: totalBruto,
     fatoresArea,
+    fatiasArea: fatiasPorArea(porArea, gam.config),
     habitos: {},
     agendaCongelada: itens.map((it) => ({
       itemId: it.itemId,
@@ -384,7 +392,7 @@ export interface SimulacaoRotina {
 export function simularDistribuicaoSemana(routines: Routine[], gam: GamificacaoState, inicioISO: string): SimulacaoRotina[] {
   const { itens, totalBruto, porArea } = construirAgendaSemana(routines, gam, inicioISO);
   const fator = fatorNormalizacaoPara(totalBruto, gam.config);
-  const fatoresArea = fatoresPorArea(porArea, gam.config);
+  const fatoresArea = fatoresPorArea(porArea, gam.config, fator);
   const porRotina = new Map<string, number>();
   itens.forEach((it) => {
     const routineId = it.itemId.slice(0, it.itemId.indexOf(":"));
