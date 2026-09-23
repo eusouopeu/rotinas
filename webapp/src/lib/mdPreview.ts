@@ -79,6 +79,44 @@ export function splitBold(text: string): Array<{ bold: boolean; text: string }> 
   return out.length ? out : [{ bold: false, text: "" }];
 }
 
+/** Títulos recolhíveis (toggle) do editor live. Para cada linha devolve a
+ * chave estável do título ("nível|texto|ocorrência" — não depende da posição,
+ * então sobrevive a linhas inseridas acima) e o índice do título recolhido
+ * que a esconde. Um título recolhido esconde tudo até o próximo título de
+ * nível igual ou maior (`#` encerra a seção de um `##`); títulos dentro de
+ * uma seção recolhida somem junto, sem avaliar o próprio estado. */
+export function titulosRecolhidos(
+  linhas: string[],
+  recolhidos: ReadonlySet<string>
+): { chaves: Array<string | null>; ocultaPor: Array<number | null> } {
+  const chaves: Array<string | null> = [];
+  const ocultaPor: Array<number | null> = [];
+  const ocorrencias = new Map<string, number>();
+  let dono: { nivel: number; i: number } | null = null;
+  for (let i = 0; i < linhas.length; i++) {
+    const m = linhas[i].trim().match(RE_HEAD);
+    if (!m) {
+      chaves.push(null);
+      ocultaPor.push(dono ? dono.i : null);
+      continue;
+    }
+    const nivel = m[1].length;
+    const base = nivel + "|" + m[2].trim();
+    const n = ocorrencias.get(base) ?? 0;
+    ocorrencias.set(base, n + 1);
+    const chave = base + "|" + n;
+    chaves.push(chave);
+    if (dono && nivel <= dono.nivel) dono = null;
+    if (dono) {
+      ocultaPor.push(dono.i);
+      continue;
+    }
+    ocultaPor.push(null);
+    if (recolhidos.has(chave)) dono = { nivel, i };
+  }
+  return { chaves, ocultaPor };
+}
+
 /** Manipulação de seleção do textarea para os botões da toolbar — nunca
  * contenteditable, só `selectionStart`/`selectionEnd` de um `<textarea>`
  * comum. */

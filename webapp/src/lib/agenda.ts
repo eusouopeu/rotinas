@@ -228,21 +228,26 @@ export function horaParaMin(h: string | undefined | null): number | null {
 }
 
 export interface AgendaItemDia {
-  tipo: "rotina" | "cartao" | "compromisso";
+  tipo: "rotina" | "cartao" | "compromisso" | "ical";
   id: string;
   texto: string;
   cor?: string;
   ini: number | null;
   fim: number | null;
   feito: boolean;
+  /** evento iCal de dia inteiro — vai para o topo do dia */
+  diaTodo?: boolean;
 }
 
 /** Porta de itensAgendaDoDia (index.html:4915-4939) — fonte única da agenda
  * inline da Home: mescla rotinas agendadas (com horário real se já
  * executadas hoje), cartões do kanban do dia e compromissos avulsos, tudo
- * ordenado por horário (sem horário vai por último). Não inclui eventos iCal
- * nem blocos de nota Markdown — esses só entram na grade completa
- * (blocosAgendaDia), fora do escopo desta fase (ver comentário no topo). */
+ * ordenado por horário (sem horário vai por último). Com `icalCache`
+ * (13/09/2026, diverge do legado) entram também os eventos do calendário
+ * externo, só leitura: não pontuam, não abrem nada e nunca vão para o
+ * backup — dia inteiro no topo. blocosAgendaDia chama sem cache porque
+ * já desenha o iCal por conta própria. Blocos de nota Markdown continuam
+ * só na grade completa (blocosAgendaDia). */
 export function itensAgendaDoDia(
   iso: string,
   data: Date,
@@ -250,7 +255,8 @@ export function itensAgendaDoDia(
   gam: GamificacaoState,
   history: HistoryEntry[],
   diaKanban: DiaKanbanCard[],
-  compromissos: Compromisso[]
+  compromissos: Compromisso[],
+  icalCache: IcalCache | null = null
 ): AgendaItemDia[] {
   const out: AgendaItemDia[] = [];
   routines.forEach((r) => {
@@ -283,7 +289,19 @@ export function itensAgendaDoDia(
       const ini = horaParaMin(c.time);
       out.push({ tipo: "compromisso", id: c.id, texto: c.title, ini, fim: ini == null ? null : ini + 30, feito: !!c.feito });
     });
-  return out.sort((a, b) => (a.ini == null ? 1 : 0) - (b.ini == null ? 1 : 0) || (a.ini || 0) - (b.ini || 0));
+  const d0 = isoToDate(iso).getTime();
+  icalEventosDoDia(icalCache, iso).forEach((e, n) => {
+    const id = e.startMs + ":" + n;
+    if (e.allDay) {
+      out.push({ tipo: "ical", id, texto: e.title, ini: null, fim: null, feito: false, diaTodo: true });
+      return;
+    }
+    const ini = Math.max(0, Math.round((e.startMs - d0) / 60000));
+    const fim = Math.min(24 * 60, Math.max(ini + 15, Math.round((e.endMs - d0) / 60000)));
+    out.push({ tipo: "ical", id, texto: e.title, ini, fim, feito: false });
+  });
+  const ordem = (it: AgendaItemDia) => (it.diaTodo ? 0 : it.ini == null ? 2 : 1);
+  return out.sort((a, b) => ordem(a) - ordem(b) || (a.ini || 0) - (b.ini || 0));
 }
 
 /** Porta de blocosAgendaDia (index.html:5068-5077) + blocosDoKanban/

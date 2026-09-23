@@ -24,6 +24,8 @@ export interface ElectronBridge {
   ical?: import("./nativeBridge").IcalBridge;
   miniPlayer?: import("./nativeBridge").MiniPlayerBridge;
   onPlayerCall?: (handler: import("./nativeBridge").PlayerCallHandler) => void;
+  /** Atende as tools do servidor MCP embutido (ver lib/mcpDispatch.ts). */
+  onMcpCall?: (handler: (tool: string, args: unknown) => Promise<unknown>) => void;
 }
 
 interface CapacitorFilesystem {

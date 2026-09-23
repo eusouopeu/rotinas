@@ -860,6 +860,17 @@
   .live-md-check{ display:flex; gap:8px; align-items:flex-start; }
   .live-md-check input{ margin-top:5px; accent-color:var(--caneta); }
   .live-md-num{ min-width:1.2em; color:var(--sub); font-variant-numeric:tabular-nums; }
+  /* título como toggle: seta antes do texto, contagem do que está escondido */
+  .live-md-titulo{ display:flex; align-items:center; gap:4px; }
+  .live-md-toggle{
+    flex:0 0 auto; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;
+    background:none; border:none; padding:0; margin-left:-4px; border-radius:6px; color:var(--sub); cursor:pointer;
+  }
+  @media (any-hover:hover){ .live-md-toggle:hover{ color:var(--ink); background:var(--card-2); } }
+  .live-md-ocultas{
+    margin-left:6px; padding:0 7px; border:1.5px solid var(--line); border-radius:999px;
+    font-family:'Montserrat', sans-serif; font-size:12px; font-weight:500; color:var(--sub); font-variant-numeric:tabular-nums;
+  }
 
   /* ---------- AJUSTES: seções retráteis ---------- */
   .set-secao{ background:var(--card); border:1.5px solid var(--line); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; }
@@ -875,6 +886,7 @@
   .set-secao-body > .stat-card{ background:none; border:none; border-radius:0; padding:10px 0 0; margin:0; }
   .set-secao-body > .section-label:first-child{ margin-top:10px; }
   .set-toggle{ font-size:13px; padding:3px; margin-bottom:4px; }
+  .set-avancado{ display:inline-flex; align-items:center; gap:6px; margin-top:12px; }
   .set-toggle span{ padding:9px 12px; }
   .set-busca{
     width:100%; margin:16px 0 14px; padding:12px 14px; border-radius:999px;
@@ -1032,6 +1044,8 @@
 
   /* ---------- AGENDA ---------- */
   .agenda-row{ cursor:pointer; }
+  .agenda-row.ical{ cursor:default; }
+  .agenda-row.ical .agenda-nome, .agenda-row.ical .agenda-time{ color:var(--sub); }
   /* Largura FIXA (não auto): rotina mostra "07:00–07:40", compromisso só
      "18:00" — com largura automática cada linha começava o nome numa coluna
      diferente. Fixando a coluna, hora e nome alinham como tabela entre as
@@ -1046,6 +1060,7 @@
      rotina, mas quadrado: distingue "programado na rotina" de "adicionado na
      agenda" sem precisar de texto. */
   .ag-square{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; flex:0 0 auto; background:var(--sub); }
+  .ag-square.ical{ background:none; border:1.5px solid var(--sub); }
   /* slot do lápis: mesma largura do botão exista ele ou não, pra a borda
      direita de todas as linhas do dia ficar na mesma coluna. */
   .agenda-edit-slot{ display:block; width:34px; flex:0 0 auto; }

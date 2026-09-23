@@ -5,7 +5,64 @@
 import { addDaysISO, isoToDate } from "./gamificacao";
 import { load, save } from "./storage";
 import { K_GAMIFICACAO } from "./constants";
-import type { GamificacaoState } from "./types";
+import { planejadasEm } from "./stats";
+import { daysUntil, metaConcluida } from "./metas";
+import type { HistoryEntry } from "./history";
+import type { CountdownDoc, GamificacaoState, MetaTarget, Routine, Snooze } from "./types";
+
+/* ---------- Revisão guiada (recomendação 6, 13/09/2026 — diverge do legado) ----------
+   A tela deixa de ser só números: resultado + reflexão, rotinas que ficaram
+   para trás (com troca de dias ali mesmo) e metas da semana que começa. */
+
+export interface RotinaAtrasada {
+  id: string;
+  nome: string;
+  planejadas: number;
+  feitas: number;
+}
+
+/** Rotinas agendadas na semana `inicioISO` que tiveram menos execuções do
+ * que o planejado (mesma regra de "planejada" do cumprimento em Dados:
+ * agendada, já existia e fora de pausa). Maior falta primeiro. */
+export function rotinasAtrasadasSemana(
+  inicioISO: string,
+  routines: Routine[],
+  history: HistoryEntry[],
+  snoozes: Snooze[]
+): RotinaAtrasada[] {
+  const feitasSet = new Set(history.map((h) => h.routineId + "|" + h.date));
+  const out: RotinaAtrasada[] = [];
+  routines.forEach((r) => {
+    let planejadas = 0;
+    let feitas = 0;
+    for (let k = 0; k < 7; k++) {
+      const iso = addDaysISO(inicioISO, k);
+      if (!planejadasEm(isoToDate(iso), [r], snoozes).length) continue;
+      planejadas++;
+      if (feitasSet.has(r.id + "|" + iso)) feitas++;
+    }
+    if (planejadas > 0 && feitas < planejadas) out.push({ id: r.id, nome: r.name, planejadas, feitas });
+  });
+  return out.sort((a, b) => b.planejadas - b.feitas - (a.planejadas - a.feitas));
+}
+
+/** Metas com prazo ainda abertas que vencem nos próximos 14 dias, por data. */
+export function metasProximasSemana(templates: unknown[]): MetaTarget[] {
+  return (templates as Array<{ type?: string }>)
+    .filter((t) => t.type === "countdown")
+    .flatMap((d) => (d as CountdownDoc).targets || [])
+    .filter((t) => !metaConcluida(t) && daysUntil(t.date) >= 0 && daysUntil(t.date) <= 14)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Conteúdo da nota da revisão: seções com título (viram toggles no editor). */
+export function notaRevisaoSemana(p: { reflexao: string; ajustes: string[]; foco: string }): string {
+  const partes: string[] = [];
+  if (p.reflexao.trim()) partes.push("## O que levo da semana\n" + p.reflexao.trim());
+  if (p.ajustes.length) partes.push("## Ajustes nas rotinas\n" + p.ajustes.map((a) => "- " + a).join("\n"));
+  if (p.foco.trim()) partes.push("## Foco da próxima semana\n" + p.foco.trim());
+  return partes.join("\n\n");
+}
 
 export type HistoricoSemana = GamificacaoState["historico"]["semanas"][number];
 

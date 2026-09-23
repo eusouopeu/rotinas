@@ -6,8 +6,15 @@
 // outras são renderizadas por parseMdLines. Enter/Backspace/setas nas bordas
 // da linha trocam de linha; toque numa linha renderizada abre ela com o
 // cursor no ponto tocado; checkbox renderizado alterna sem abrir a linha.
+// Títulos são toggles (13/09/2026): a seta recolhe a seção até o próximo
+// título de nível igual ou maior; abrir uma linha escondida (Enter, colar,
+// setas) expande de volta. O estado é só de UI (K_NOTACOLAPSO), o texto
+// da nota nunca muda.
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
-import { parseMdLines, proximoMarcador, splitBold } from "../lib/mdPreview";
+import { parseMdLines, proximoMarcador, splitBold, titulosRecolhidos } from "../lib/mdPreview";
+import { load, save } from "../lib/storage";
+import { K_NOTACOLAPSO } from "../lib/constants";
+import { Icon } from "./Icon";
 
 type Sel = { value: string; start: number; end: number };
 export interface LiveMdEditorHandle {
@@ -40,21 +47,62 @@ function continuacaoLista(linha: string): { atual: string; proximo: string } | n
   return null;
 }
 
-export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onChange: (v: string) => void; placeholder?: string }>(
-  function LiveMdEditor({ value, onChange, placeholder }, ref) {
+type MapaColapso = Record<string, string[]>;
+
+export const LiveMdEditor = forwardRef<
+  LiveMdEditorHandle,
+  { value: string; onChange: (v: string) => void; placeholder?: string; colapsoKey?: string }
+>(
+  function LiveMdEditor({ value, onChange, placeholder, colapsoKey }, ref) {
     const linhas = value.split("\n");
     const [ativa, setAtiva] = useState<number | null>(null);
+    const [recolhidos, setRecolhidos] = useState<Set<string>>(
+      () => new Set(colapsoKey ? load<MapaColapso>(K_NOTACOLAPSO, {})[colapsoKey] || [] : [])
+    );
     const cursor = useRef<number | null>(null);
     const taRef = useRef<HTMLTextAreaElement>(null);
+    const { chaves, ocultaPor } = titulosRecolhidos(linhas, recolhidos);
 
-    function abrir(i: number, pos: number) {
+    function gravarRecolhidos(s: Set<string>) {
+      setRecolhidos(s);
+      if (!colapsoKey) return;
+      const mapa = { ...load<MapaColapso>(K_NOTACOLAPSO, {}) };
+      if (s.size) mapa[colapsoKey] = [...s];
+      else delete mapa[colapsoKey];
+      save(K_NOTACOLAPSO, mapa);
+    }
+
+    function alternarTitulo(i: number) {
+      const chave = chaves[i];
+      if (!chave) return;
+      const s = new Set(recolhidos);
+      if (s.has(chave)) s.delete(chave);
+      else s.add(chave);
+      gravarRecolhidos(s);
+    }
+
+    /** Linha que ficaria escondida por um título recolhido: expande quem a cobre. */
+    function revelar(ls: string[], i: number) {
+      const s = new Set(recolhidos);
+      const { chaves: cs } = titulosRecolhidos(ls, s);
+      let dono = titulosRecolhidos(ls, s).ocultaPor[i];
+      if (dono == null) return;
+      while (dono != null) {
+        s.delete(cs[dono]!);
+        dono = titulosRecolhidos(ls, s).ocultaPor[i];
+      }
+      gravarRecolhidos(s);
+    }
+
+    function abrir(i: number, pos: number, ls: string[] = linhas) {
       cursor.current = pos;
       setAtiva(i);
+      revelar(ls, i);
     }
 
     function trocar(novas: string[], i: number, pos: number) {
       onChange(novas.join("\n"));
-      abrir(i, pos);
+      abrir(i, pos, novas);
     }
 
     useLayoutEffect(() => {
@@ -80,7 +128,7 @@ export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onCh
         const r = fn(value, st, en);
         onChange(r.value);
         const antes = r.value.slice(0, r.end).split("\n");
-        abrir(antes.length - 1, antes[antes.length - 1].length);
+        abrir(antes.length - 1, antes[antes.length - 1].length, r.value.split("\n"));
       },
     }));
 
@@ -108,12 +156,19 @@ export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onCh
         const pos = novas[i - 1].length;
         novas.splice(i - 1, 2, novas[i - 1] + linha);
         trocar(novas, i - 1, pos);
-      } else if (e.key === "ArrowUp" && st === 0 && i > 0) {
+      } else if (e.key === "ArrowUp" && st === 0) {
+        // pula as linhas de seções recolhidas
+        let j = i - 1;
+        while (j >= 0 && ocultaPor[j] != null) j--;
+        if (j < 0) return;
         e.preventDefault();
-        abrir(i - 1, linhas[i - 1].length);
-      } else if (e.key === "ArrowDown" && en === linha.length && i < linhas.length - 1) {
+        abrir(j, linhas[j].length);
+      } else if (e.key === "ArrowDown" && en === linha.length) {
+        let j = i + 1;
+        while (j < linhas.length && ocultaPor[j] != null) j++;
+        if (j >= linhas.length) return;
         e.preventDefault();
-        abrir(i + 1, 0);
+        abrir(j, 0);
       }
     }
 
@@ -124,7 +179,7 @@ export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onCh
       onChange(novas.join("\n"));
       if (partes.length > 1) {
         const ultima = partes[partes.length - 1];
-        abrir(i + partes.length - 1, ultima.length - (v.length - el.selectionEnd));
+        abrir(i + partes.length - 1, ultima.length - (v.length - el.selectionEnd), novas);
       }
     }
 
@@ -149,6 +204,11 @@ export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onCh
     }
 
     const vazio = !value;
+    // quantas linhas com conteúdo cada título recolhido está escondendo
+    const escondidas = new Map<number, number>();
+    ocultaPor.forEach((dono, i) => {
+      if (dono != null && linhas[i].trim()) escondidas.set(dono, (escondidas.get(dono) || 0) + 1);
+    });
     return (
       <div
         className="note-ap-body live-md"
@@ -157,7 +217,7 @@ export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onCh
         }}
       >
         {linhas.map((linha, i) =>
-          i === ativa ? (
+          i !== ativa && ocultaPor[i] != null ? null : i === ativa ? (
             <textarea
               key={i}
               ref={taRef}
@@ -171,7 +231,19 @@ export const LiveMdEditor = forwardRef<LiveMdEditorHandle, { value: string; onCh
             />
           ) : (
             <div key={i} className="live-md-line" onClick={(e) => tocarLinha(e, i)}>
-              {vazio ? <span className="live-md-ph">{placeholder}</span> : <LinhaMd linha={linha} onCheck={() => alternarCheck(i)} />}
+              {vazio ? (
+                <span className="live-md-ph">{placeholder}</span>
+              ) : (
+                <LinhaMd
+                  linha={linha}
+                  onCheck={() => alternarCheck(i)}
+                  toggle={
+                    chaves[i]
+                      ? { aberto: !recolhidos.has(chaves[i]!), ocultas: escondidas.get(i) || 0, onToggle: () => alternarTitulo(i) }
+                      : undefined
+                  }
+                />
+              )}
             </div>
           )
         )}
@@ -188,10 +260,42 @@ function Negrito({ text }: { text: string }) {
   );
 }
 
-function LinhaMd({ linha, onCheck }: { linha: string; onCheck: () => void }) {
+function LinhaMd({
+  linha,
+  onCheck,
+  toggle,
+}: {
+  linha: string;
+  onCheck: () => void;
+  toggle?: { aberto: boolean; ocultas: number; onToggle: () => void };
+}) {
   const l = parseMdLines(linha)[0] ?? { type: "blank" as const };
   if (l.type === "blank") return <br />;
-  if (l.type === "heading") return <span className={"live-md-h" + l.level}><Negrito text={l.text} /></span>;
+  if (l.type === "heading")
+    return (
+      <span className={"live-md-titulo live-md-h" + l.level}>
+        {toggle && (
+          <button
+            type="button"
+            className="live-md-toggle"
+            aria-expanded={toggle.aberto}
+            aria-label={toggle.aberto ? "Recolher seção" : "Expandir seção"}
+            title={toggle.aberto ? "Recolher seção" : "Expandir seção"}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle.onToggle();
+            }}
+          >
+            <Icon name={toggle.aberto ? "chevronDown" : "chevronRight"} size={14} />
+          </button>
+        )}
+        <span>
+          <Negrito text={l.text} />
+        </span>
+        {toggle && !toggle.aberto && toggle.ocultas > 0 && <span className="live-md-ocultas">{toggle.ocultas}</span>}
+      </span>
+    );
   if (l.type === "checkbox")
     return (
       <span className="live-md-check">

@@ -1,9 +1,9 @@
 // Porta de mcpCardHtml/wireMcpCard/refreshMcpCard (index.html:14142-14215) —
 // card de status do servidor MCP local (Electron, desktop). Só a UI de
-// status/modo/porta/token/log: os handlers de tool (list_routines,
-// append_diario etc., index.html:14520-14620) continuam fora do escopo —
-// dependem de kanban do Diário, exercícios e outras coleções ainda não
-// portadas ao React (ver docs/react-migration.md).
+// status/modo/porta/token/log. Os handlers de tool (list_routines,
+// append_diario etc.) moram em lib/mcpDispatch.ts desde 13/09/2026; o aviso
+// de "indisponível" abaixo só aparece se o main process desligar o disjuntor
+// MCP_DISPATCH_WIRED.
 import { useEffect, useState } from "react";
 import { getMcpBridge, mcpConfigJson, type McpStatus } from "../lib/nativeBridge";
 import { isDesktop } from "../lib/storage";

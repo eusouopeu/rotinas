@@ -37,6 +37,9 @@ export const K_METASSUBVIEW = "rotinas_v2_metas_subview"; // legado, só para mi
 export const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
 export const K_HOMEVIEW = "rotinas_v2_homeview";
 export const K_RODARESUMOABERTO = "rotinas_v2_roda_resumo_aberto";
+// títulos recolhidos das notas simples ({ [noteId]: chaves de título }) —
+// preferência de UI, fora do backup como K_RODARESUMOABERTO.
+export const K_NOTACOLAPSO = "rotinas_v2_nota_colapso";
 export const K_MOTIVAKEY = "rotinas_v2_motiva_key";
 export const K_MOTIVACFG = "rotinas_v2_motiva_cfg";
 export const K_MOTIVA = "rotinas_v2_motiva_hist";

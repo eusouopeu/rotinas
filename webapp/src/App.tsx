@@ -7,6 +7,7 @@ import { useAppStore } from "./store/useAppStore";
 import { computeRemaining } from "./lib/player";
 import { isDesktop } from "./lib/storage";
 import { onAppStateChange } from "./lib/nativeBridge";
+import { criarDispatcherMcp } from "./lib/mcpDispatch";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
 import { RoutineEditor } from "./screens/RoutineEditor";
@@ -124,6 +125,19 @@ function useMiniPlayerBridge() {
   }, []);
 }
 
+// Servidor MCP embutido (desktop, index.html:14629-14633): o main process
+// repassa cada chamada de tool por IPC e espera a resposta daqui. Registro
+// único por janela — ipcRenderer.on acumularia handlers se o efeito rodasse
+// de novo (StrictMode em dev), e cada um responderia a mesma chamada.
+let mcpRegistrado = false;
+function useMcpBridge() {
+  useEffect(() => {
+    if (mcpRegistrado || !isDesktop || !window.electronBridge?.onMcpCall) return;
+    mcpRegistrado = true;
+    window.electronBridge.onMcpCall(criarDispatcherMcp(() => useAppStore.getState()));
+  }, []);
+}
+
 function Screen({ screen }: { screen: string }) {
   switch (screen) {
     case "settings":
@@ -201,6 +215,7 @@ export function App() {
   useSidebarCollapsedEffect(sidebarCollapsed);
   useGlobalSearchShortcut(openSearch);
   useMiniPlayerBridge();
+  useMcpBridge();
 
   if (!booted) return null;
 

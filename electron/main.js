@@ -23,12 +23,11 @@ const pendingMcpCalls = new Map();
 let mcpCallSeq = 0;
 let syncIntervalHandle = null;
 
-// O React (webapp-dist, produção desde 05/09/2026) ainda não registra onMcpCall
-// (nenhum handler de tool no lado do renderer — ver docs/react-migration.md).
-// Enquanto isso não for portado, qualquer chamada MCP trava até o timeout de
-// callRenderer. Mantenha o servidor desligado, independente do modo salvo,
-// até o dispatcher ser portado; ligue esta flag quando isso acontecer.
-const MCP_DISPATCH_WIRED = false;
+// O React (webapp-dist) registra onMcpCall desde 13/09/2026
+// (webapp/src/lib/mcpDispatch.ts, ligado em App.tsx:useMcpBridge). A flag
+// continua existindo como disjuntor: se o renderer voltar a não responder,
+// desligue-a e o servidor fica parado em vez de travar até o timeout.
+const MCP_DISPATCH_WIRED = true;
 
 /* ---------------- Storage: um arquivo JSON por chave, igual ao Capacitor Filesystem no APK ---------------- */
 

@@ -16,6 +16,8 @@ import {
 import { rotinaAgendadaEm, computeSchedule } from "./schedule";
 import { areaDaRotina, areaInfoRoda, corDaRotina, fillStyle } from "./scoring";
 import { fmtClock, fmtTime, fmtMinLabel } from "./format";
+import { daysUntil, metaConcluida } from "./metas";
+import type { MetaTarget } from "./types";
 
 export type { Snooze };
 
@@ -819,6 +821,107 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
   }
 
   return insights.slice(0, 5);
+}
+
+function escHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+}
+
+/** Dicas automáticas da aba Dados (recomendação 10, 13/09/2026 — não existe
+ * no legado). Estatística local simples sobre o que já está guardado, sem
+ * IA: (1) rotina que falha num dia da semana bem mais que nos outros
+ * (últimas 8 semanas, ≥3 ocorrências planejadas nesse dia, ≥60% de falta e
+ * ≥30 p.p. acima dos outros dias); (2) período do dia em que a rotina sai
+ * mais completa (últimos 90 dias, média de etapas puladas por manhã/tarde/
+ * noite, diferença ≥1); (3) meta com prazo parada (nada feito 21+ dias após
+ * criada) ou atrás do ritmo (≥30 p.p. entre prazo decorrido e progresso).
+ * Devolve HTML curto com o nome em <b>, igual a gerarInsights. */
+export function gerarDicas(
+  routines: Routine[],
+  history: HistoryEntry[],
+  snoozes: Snooze[],
+  metas: MetaTarget[],
+  hoje: Date = new Date(),
+): string[] {
+  const dicas: string[] = [];
+  const DOW_NOME = ["domingos", "segundas", "terças", "quartas", "quintas", "sextas", "sábados"];
+
+  // 1. falha concentrada num dia da semana
+  const feitas = new Set(history.map((h) => h.routineId + "|" + h.date));
+  routines.forEach((r) => {
+    const plan = Array(7).fill(0);
+    const falta = Array(7).fill(0);
+    for (let k = 1; k <= 56; k++) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - k, 12);
+      if (!planejadasEm(d, [r], snoozes).length) continue;
+      plan[d.getDay()]++;
+      if (!feitas.has(r.id + "|" + localKey(d))) falta[d.getDay()]++;
+    }
+    let pior = -1;
+    let piorTaxa = 0;
+    for (let dow = 0; dow < 7; dow++) {
+      if (plan[dow] < 3) continue;
+      const taxa = falta[dow] / plan[dow];
+      if (taxa >= 0.6 && taxa > piorTaxa) {
+        pior = dow;
+        piorTaxa = taxa;
+      }
+    }
+    if (pior < 0) return;
+    const outrosPlan = plan.reduce((s, n) => s + n, 0) - plan[pior];
+    const outrosFalta = falta.reduce((s, n) => s + n, 0) - falta[pior];
+    if (outrosPlan > 0 && piorTaxa - outrosFalta / outrosPlan < 0.3) return;
+    dicas.push(`<b>${escHtml(r.name)}</b> falha em ${Math.round(piorTaxa * 100)}% das ${DOW_NOME[pior]} — mover para outro dia?`);
+  });
+
+  // 2. período do dia em que a rotina rende mais (menos etapas puladas)
+  const BANDA = ["de manhã", "à tarde", "à noite"];
+  const desde = hoje.getTime() - 90 * 86400000;
+  const porRotina: Record<string, HistoryEntry[]> = {};
+  history
+    .filter((h) => h.ts >= desde && h.skippedCount != null)
+    .forEach((h) => (porRotina[h.routineId] = porRotina[h.routineId] || []).push(h));
+  Object.values(porRotina).forEach((arr) => {
+    if (arr.length < 6) return;
+    const bandas: number[][] = [[], [], []];
+    arr.forEach((h) => {
+      const hora = new Date(h.startedTs || h.ts).getHours();
+      bandas[hora < 12 ? 0 : hora < 18 ? 1 : 2].push(h.skippedCount);
+    });
+    const medias = bandas.map((b) => (b.length >= 3 ? media(b) : null));
+    const validas = medias.map((m, i) => ({ m, i })).filter((x): x is { m: number; i: number } => x.m != null);
+    if (validas.length < 2) return;
+    const melhor = validas.reduce((a, b) => (b.m < a.m ? b : a));
+    const pior = validas.reduce((a, b) => (b.m > a.m ? b : a));
+    const dif = pior.m - melhor.m;
+    if (dif < 1) return;
+    const n = Math.round(dif);
+    dicas.push(
+      `<b>${escHtml(arr[arr.length - 1].routineName)}</b> rende mais ${BANDA[melhor.i]}: em média ${n} etapa${n > 1 ? "s" : ""} pulada${n > 1 ? "s" : ""} a menos que ${BANDA[pior.i]}.`,
+    );
+  });
+
+  // 3. metas com prazo paradas ou atrás do ritmo
+  metas.forEach((t) => {
+    if (t.topics == null || t.topics <= 0 || metaConcluida(t) || daysUntil(t.date) < 0) return;
+    const diasCriada = Math.floor((hoje.getTime() - t.createdAt) / 86400000);
+    const feito = t.done || 0;
+    if (feito === 0) {
+      if (diasCriada >= 21) dicas.push(`A meta <b>${escHtml(t.title)}</b> não andou desde que foi criada, há ${diasCriada} dias.`);
+      return;
+    }
+    const prazoMs = new Date(t.date + "T12:00:00").getTime() - t.createdAt;
+    if (prazoMs <= 0) return;
+    const tempo = (hoje.getTime() - t.createdAt) / prazoMs;
+    const progresso = feito / t.topics;
+    if (tempo - progresso >= 0.3) {
+      dicas.push(
+        `<b>${escHtml(t.title)}</b> está atrás do ritmo: ${Math.round(progresso * 100)}% feito com ${Math.round(Math.min(1, tempo) * 100)}% do prazo já passado.`,
+      );
+    }
+  });
+
+  return dicas.slice(0, 4);
 }
 
 /** Porta de renderMonthView (index.html:5916-5970). */

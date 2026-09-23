@@ -16,6 +16,7 @@ import {
   getAreasAno,
   computeStreak,
   computeStreakFor,
+  gerarDicas,
   type MonthDayData,
   type ResumoPeriodo,
 } from "../lib/stats";
@@ -195,6 +196,38 @@ export function Stats() {
           )}
         </div>
       </Fragment>
+    );
+  }
+
+  /** Dicas (recomendação 10): sugestões de ajuste a partir do histórico e
+   *  das metas, iguais nas três visões — não dependem do período escolhido. */
+  function renderDicas() {
+    const metas = (templates as Array<{ type?: string }>)
+      .filter((t) => t.type === "countdown")
+      .flatMap((d) => (d as CountdownDoc).targets || []);
+    const dicas = gerarDicas(routines, history, snoozes, metas);
+    if (!dicas.length) return null;
+    return card(
+      "Dicas",
+      "Sugestões de ajuste tiradas do seu histórico recente e das metas.",
+      dicas.map((txt, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+            marginTop: i ? 10 : 0,
+            paddingTop: i ? 10 : 0,
+            borderTop: i ? "1.5px solid var(--line)" : undefined,
+          }}
+        >
+          <span style={{ flex: "0 0 auto", color: "var(--caneta)", marginTop: 1 }}>
+            <Icon name="infoCircle" size={14} />
+          </span>
+          <span className="routine-meta" style={{ fontSize: 13.5, color: "var(--ink)" }} dangerouslySetInnerHTML={{ __html: txt }} />
+        </div>
+      )),
     );
   }
 
@@ -948,11 +981,20 @@ export function Stats() {
               <p>Conclua rotinas para ver seu histórico, desvios de tempo e pontualidade aqui.</p>
             </div>
           ) : statsView === "mensal" ? (
-            renderMonthView()
+            <>
+              {renderDicas()}
+              {renderMonthView()}
+            </>
           ) : statsView === "anual" ? (
-            renderYearView()
+            <>
+              {renderDicas()}
+              {renderYearView()}
+            </>
           ) : (
-            renderWeekView()
+            <>
+              {renderDicas()}
+              {renderWeekView()}
+            </>
           )}
         </div>
       </div>

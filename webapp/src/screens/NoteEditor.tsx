@@ -153,7 +153,14 @@ export function NoteEditor() {
           onBlur={commitSubjects}
         />
 
-        <LiveMdEditor ref={editorRef} value={content} onChange={commitContent} placeholder="Escreva aqui..." />
+        <LiveMdEditor
+          key={note.id}
+          ref={editorRef}
+          value={content}
+          onChange={commitContent}
+          placeholder="Escreva aqui..."
+          colapsoKey={note.id}
+        />
       </div>
 
       <div className="note-ap-bar note-ap-rodape">
