@@ -7,38 +7,45 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { criadoEmLabel } from "../lib/notes";
-import { indentLines, inserirTabela, parseMdLines, prefixLines, prefixOrdered, splitBold, wrapSelection } from "../lib/mdPreview";
+import {
+  indentLines,
+  inserirTabela,
+  parseMdLines,
+  prefixLines,
+  prefixOrdered,
+  splitBold,
+  wrapSelection,
+} from "../lib/mdPreview";
 import { Icon } from "../components/Icon";
 import { LiveMdEditor, type LiveMdEditorHandle } from "../components/LiveMdEditor";
+import { BarraNota, BotaoNota, CabecaNota, PilulaNota } from "../features/notas/BarrasNota";
 
 export function Inline({ text }: { text: string }) {
   return (
-    <>
-      {splitBold(text).map((p, i) => (p.bold ? <strong key={i}>{p.text}</strong> : <span key={i}>{p.text}</span>))}
-    </>
+    <>{splitBold(text).map((p, i) => (p.bold ? <strong key={i}>{p.text}</strong> : <span key={i}>{p.text}</span>))}</>
   );
 }
 
 export function MdPreview({ text }: { text: string }) {
   const linhas = parseMdLines(text);
-  if (!text.trim()) return <p style={{ color: "var(--sub)" }}>Nota vazia.</p>;
+  if (!text.trim()) return <p className="text-sub">Nota vazia.</p>;
   return (
-    <div style={{ lineHeight: 1.6 }}>
+    <div className="leading-[1.6]">
       {linhas.map((l, i) => {
-        if (l.type === "blank") return <div key={i} style={{ height: 10 }} />;
+        if (l.type === "blank") return <div key={i} className="h-2.5" />;
         if (l.type === "heading") {
-          const Tag = (`h${l.level}`) as "h1" | "h2" | "h3";
+          const Tag = `h${l.level}` as "h1" | "h2" | "h3";
           return (
-            <Tag key={i} style={{ margin: "10px 0 4px" }}>
+            <Tag key={i} className="mt-2.5 mb-1">
               <Inline text={l.text} />
             </Tag>
           );
         }
         if (l.type === "checkbox") {
           return (
-            <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "3px 0" }}>
-              <input type="checkbox" checked={l.checked} readOnly style={{ marginTop: 4 }} />
-              <span style={{ textDecoration: l.checked ? "line-through" : "none", color: l.checked ? "var(--sub)" : "inherit" }}>
+            <div key={i} className="my-[3px] flex items-start gap-2">
+              <input type="checkbox" checked={l.checked} readOnly className="mt-1" />
+              <span className={l.checked ? "text-sub line-through" : undefined}>
                 <Inline text={l.text} />
               </span>
             </div>
@@ -46,7 +53,7 @@ export function MdPreview({ text }: { text: string }) {
         }
         if (l.type === "bullet" || l.type === "ordered") {
           return (
-            <div key={i} style={{ display: "flex", gap: 8, margin: "3px 0" }}>
+            <div key={i} className="my-[3px] flex gap-2">
               <span>{l.type === "ordered" ? l.marker : "•"}</span>
               <span>
                 <Inline text={l.text} />
@@ -55,7 +62,7 @@ export function MdPreview({ text }: { text: string }) {
           );
         }
         return (
-          <div key={i} style={{ margin: "3px 0" }}>
+          <div key={i} className="my-[3px]">
             <Inline text={l.text} />
           </div>
         );
@@ -103,7 +110,9 @@ export function NoteEditor() {
     if (v !== note!.content) updateNote(note!.id, { content: v });
   }
 
-  function aplicarNaSelecao(fn: (value: string, start: number, end: number) => { value: string; start: number; end: number }) {
+  function aplicarNaSelecao(
+    fn: (value: string, start: number, end: number) => { value: string; start: number; end: number }
+  ) {
     editorRef.current?.aplicar(fn);
   }
 
@@ -111,20 +120,20 @@ export function NoteEditor() {
     /* Layout no formato do Apple Notes (mockup do Pedro, 12/09/2026): barras
        flutuantes em pílula no topo e no rodapé, título grande e corpo sem
        moldura — a mesma linguagem vítrea da tabbar. */
-    <div className="screen note-ap">
-      <div className="note-ap-bar note-ap-topo">
+    <div className="screen h-full p-0 desktop:px-10 paisagem:px-4">
+      <BarraNota posicao="topo">
         {/* Voltar é navegação, não ação: fica como ícone solto, sem a moldura
             de pílula das ações (pedido do Pedro, 22/09/2026). */}
-        <div className="note-ap-pill sem-moldura">
-          <button title="Voltar para Notas" aria-label="Voltar para Notas" onClick={closeNoteEditor}>
+        <PilulaNota forma="solta">
+          <BotaoNota title="Voltar para Notas" aria-label="Voltar para Notas" onClick={closeNoteEditor}>
             <Icon name="chevronLeft" size={17} />
-          </button>
-        </div>
+          </BotaoNota>
+        </PilulaNota>
         {/* Título e data ficam na barra do topo (mockup do Pedro, 22/09/2026):
             continuam editáveis, mas param de rolar junto com o texto. */}
-        <div className="note-ap-head">
+        <CabecaNota>
           <input
-            className="note-ap-title"
+            className="m-0 w-full border-0 bg-transparent p-0 font-titulo text-[17px] leading-[1.2] font-bold tracking-[-0.02em] text-ellipsis text-ink focus:outline-none"
             type="text"
             placeholder="Título"
             defaultValue={note.title}
@@ -132,11 +141,13 @@ export function NoteEditor() {
               if (e.target.value !== note.title) updateNote(note.id, { title: e.target.value });
             }}
           />
-          <div className="created-stamp">{criadoEmLabel(note.createdAt)}</div>
-        </div>
-        <div className="note-ap-pill">
-          <button
-            className="perigo"
+          <div className="truncate font-sans text-[10.5px] tracking-[0.01em] text-sub">
+            {criadoEmLabel(note.createdAt)}
+          </div>
+        </CabecaNota>
+        <PilulaNota>
+          <BotaoNota
+            tom="perigo"
             title="Excluir nota"
             aria-label="Excluir nota"
             onClick={() => {
@@ -147,13 +158,16 @@ export function NoteEditor() {
             }}
           >
             <Icon name="trash" size={17} />
-          </button>
-        </div>
-      </div>
+          </BotaoNota>
+        </PilulaNota>
+      </BarraNota>
 
-      <div className="note-ap-scroll">
+      <div
+        className="min-h-0 flex-auto overflow-y-auto px-[18px] pt-[calc(var(--safe-top)+66px)] pb-[calc(var(--safe-bottom)+90px)]"
+        data-rolagem
+      >
         <input
-          className="note-ap-subjects"
+          className="mt-2.5 mb-3.5 w-full border-0 bg-transparent p-0 font-sans text-md text-sub focus:outline-none"
           type="text"
           placeholder="Assuntos (separados por vírgula)"
           value={subjectsInput}
@@ -172,101 +186,36 @@ export function NoteEditor() {
         />
       </div>
 
-      <div className="note-ap-bar note-ap-rodape">
-        <div className="note-ap-pill">
-          <button
-            title="Negrito"
-            aria-label="Negrito"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, st, en) => wrapSelection(v, st, en, "**", "**"));
-            }}
-          >
-            <strong style={{ fontSize: 16 }}>B</strong>
-          </button>
-          <button
-            title="Lista"
-            aria-label="Lista"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, st, en) => prefixLines(v, st, en, "- "));
-            }}
-          >
-            <Icon name="listBullet" size={17} />
-          </button>
-          <button
-            title="Lista numerada"
-            aria-label="Lista numerada"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, st, en) => prefixOrdered(v, st, en, "num"));
-            }}
-          >
-            <Icon name="numberedList" size={17} />
-          </button>
-          <button
-            title="Lista por letra"
-            aria-label="Lista por letra"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, st, en) => prefixOrdered(v, st, en, "letra"));
-            }}
-          >
-            <Icon name="letterList" size={17} />
-          </button>
-          <button
-            title="Checkbox"
-            aria-label="Checkbox"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, st, en) => prefixLines(v, st, en, "- [ ] "));
-            }}
-          >
-            <Icon name="clipboard" size={17} />
-          </button>
-          <button
-            title="Diminuir recuo"
-            aria-label="Diminuir recuo"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, st, en) => indentLines(v, st, en, -1));
-            }}
-          >
-            <Icon name="chevronDoubleLeft" size={17} />
-          </button>
-          <button
-            title="Aumentar recuo"
-            aria-label="Aumentar recuo"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao((v, st, en) => indentLines(v, st, en, 1));
-            }}
-          >
-            <Icon name="chevronDoubleRight" size={17} />
-          </button>
-          <button
-            title="Inserir tabela"
-            aria-label="Inserir tabela"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              aplicarNaSelecao(inserirTabela);
-            }}
-          >
-            <Icon name="table" size={17} />
-          </button>
-        </div>
-        <span className="ag-nav-gap" />
-        <div className="note-ap-pill">
-          <button
-            className={cru ? "on" : undefined}
+      <BarraNota posicao="rodape">
+        <PilulaNota rodape rolavel>
+          {FERRAMENTAS.map((f) => (
+            <BotaoNota
+              key={f.titulo}
+              rodape
+              title={f.titulo}
+              aria-label={f.titulo}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                aplicarNaSelecao(f.aplica);
+              }}
+            >
+              {f.icone}
+            </BotaoNota>
+          ))}
+        </PilulaNota>
+        <PilulaNota rodape>
+          <BotaoNota
+            rodape
+            tom={cru ? "ligado" : "normal"}
             title={cru ? "Ver o texto formatado" : "Ver o Markdown cru"}
             aria-label={cru ? "Ver o texto formatado" : "Ver o Markdown cru"}
             aria-pressed={cru}
             onClick={() => setCru((v) => !v)}
           >
             <Icon name="code" size={17} />
-          </button>
-          <button
+          </BotaoNota>
+          <BotaoNota
+            rodape
             title={note.arquivada ? "Desarquivar nota" : "Arquivar nota"}
             aria-label={note.arquivada ? "Desarquivar nota" : "Arquivar nota"}
             aria-pressed={!!note.arquivada}
@@ -276,9 +225,47 @@ export function NoteEditor() {
             }}
           >
             <Icon name="arrowDownTray" size={17} />
-          </button>
-        </div>
-      </div>
+          </BotaoNota>
+        </PilulaNota>
+      </BarraNota>
     </div>
   );
 }
+
+type Aplica = (value: string, start: number, end: number) => { value: string; start: number; end: number };
+
+/** Botões de formatação do rodapé, na ordem em que aparecem. */
+const FERRAMENTAS: Array<{ titulo: string; icone: React.ReactNode; aplica: Aplica }> = [
+  {
+    titulo: "Negrito",
+    icone: <strong className="text-xl">B</strong>,
+    aplica: (v, st, en) => wrapSelection(v, st, en, "**", "**"),
+  },
+  { titulo: "Lista", icone: <Icon name="listBullet" size={17} />, aplica: (v, st, en) => prefixLines(v, st, en, "- ") },
+  {
+    titulo: "Lista numerada",
+    icone: <Icon name="numberedList" size={17} />,
+    aplica: (v, st, en) => prefixOrdered(v, st, en, "num"),
+  },
+  {
+    titulo: "Lista por letra",
+    icone: <Icon name="letterList" size={17} />,
+    aplica: (v, st, en) => prefixOrdered(v, st, en, "letra"),
+  },
+  {
+    titulo: "Checkbox",
+    icone: <Icon name="clipboard" size={17} />,
+    aplica: (v, st, en) => prefixLines(v, st, en, "- [ ] "),
+  },
+  {
+    titulo: "Diminuir recuo",
+    icone: <Icon name="chevronDoubleLeft" size={17} />,
+    aplica: (v, st, en) => indentLines(v, st, en, -1),
+  },
+  {
+    titulo: "Aumentar recuo",
+    icone: <Icon name="chevronDoubleRight" size={17} />,
+    aplica: (v, st, en) => indentLines(v, st, en, 1),
+  },
+  { titulo: "Inserir tabela", icone: <Icon name="table" size={17} />, aplica: inserirTabela },
+];
