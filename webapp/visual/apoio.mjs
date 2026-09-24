@@ -4,14 +4,14 @@
 import { expect } from "@playwright/test";
 import { HOJE, seedLocalStorage } from "./seed.mjs";
 
-export async function preparar(page, { comDados = true } = {}) {
+export async function preparar(page, { comDados = true, extra = {} } = {}) {
   await page.addInitScript(
     ({ seed, comDados }) => {
       if (comDados && !localStorage.getItem("rotinas_v2_migrated")) {
         for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, JSON.stringify(v));
       }
     },
-    { seed: seedLocalStorage, comDados }
+    { seed: { ...seedLocalStorage, ...extra }, comDados }
   );
   await page.clock.setFixedTime(new Date(HOJE));
   await page.goto("/", { waitUntil: "domcontentloaded" });
