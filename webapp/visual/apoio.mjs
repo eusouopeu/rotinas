@@ -15,12 +15,12 @@ export async function preparar(page, { comDados = true, extra = {} } = {}) {
   );
   await page.clock.setFixedTime(new Date(HOJE));
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.locator(".tabbar").waitFor();
+  await page.locator('button[aria-label="Ajustes"]').first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   await page.addStyleTag({ content: "* { caret-color: transparent !important; }" });
 }
 
-export const aba = (page, nome) => page.locator(".tabbar button", { hasText: nome }).first().click();
+export const aba = (page, nome) => page.locator(`button[aria-label="${nome}"]`).first().click();
 
 /** `desfocar`: tira o foco do campo (autoFocus de formulário) — o anel de foco
  *  varia 1px entre execuções sob carga e não é o que se quer comparar. */

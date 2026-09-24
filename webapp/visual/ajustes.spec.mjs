@@ -64,10 +64,10 @@ async function preparar(page, { ponte } = {}) {
   );
   await page.clock.setFixedTime(new Date(HOJE));
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.locator(".tabbar").waitFor();
+  await page.locator('button[aria-label="Ajustes"]').first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   await page.addStyleTag({ content: "* { caret-color: transparent !important; }" });
-  await page.locator(".tabbar button", { hasText: "Ajustes" }).first().click();
+  await page.locator('button[aria-label="Ajustes"]').first().click();
   await page.getByPlaceholder("Buscar em Ajustes...").waitFor();
 }
 

@@ -14,11 +14,11 @@ async function preparar(page, { comDados = true, extra = {} } = {}) {
   );
   await page.clock.setFixedTime(new Date(HOJE));
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.locator(".tabbar").waitFor();
+  await page.locator('button[aria-label="Ajustes"]').first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   await page.addStyleTag({ content: "* { caret-color: transparent !important; }" });
 }
-const aba = (page, nome) => page.locator(".tabbar button", { hasText: nome }).first().click();
+const aba = (page, nome) => page.locator(`button[aria-label="${nome}"]`).first().click();
 async function foto(page, nome) {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(400);
