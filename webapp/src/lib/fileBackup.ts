@@ -79,7 +79,10 @@ let bakWriting = false;
 
 /** Porta de gravarBackupArquivo (index.html:10859-10869) — no máximo a cada
  * 5min salvo `forcar`; nunca sobrescreve com dados vazios. */
-export async function gravarBackupArquivo(snapshot: () => BackupPayload, opts: { forcar?: boolean } = {}): Promise<boolean> {
+export async function gravarBackupArquivo(
+  snapshot: () => BackupPayload,
+  opts: { forcar?: boolean } = {}
+): Promise<boolean> {
   if (bakWriting) return false;
   const h = backupHandle();
   if (!h) return false;

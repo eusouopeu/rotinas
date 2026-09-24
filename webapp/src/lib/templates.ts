@@ -5,7 +5,16 @@
 import type { IconName } from "./icons";
 import { nomeAutoDoc } from "./notes";
 import { sbTotais } from "./scoreboard";
-import type { AnyTemplateDoc, KanbanDoc, MarketDoc, MatrixDoc, ProsConsDoc, ScoreboardDoc, ThoughtRecordDoc, TravelDoc } from "./types";
+import type {
+  AnyTemplateDoc,
+  KanbanDoc,
+  MarketDoc,
+  MatrixDoc,
+  ProsConsDoc,
+  ScoreboardDoc,
+  ThoughtRecordDoc,
+  TravelDoc,
+} from "./types";
 
 export interface TmplTypeInfo {
   type: string;
@@ -40,16 +49,151 @@ export const TMPL_SECOES: TmplSecao[] = [
 ];
 
 export const GROCERY_DB: Record<string, string[]> = {
-  "Hortifrúti": ["banana","maçã","laranja","limão","mamão","abacate","manga","uva","tomate","cebola","alho","batata","batata doce","cenoura","abobrinha","abóbora","chuchu","pimentão","alface","couve","brócolis","espinafre","coentro","cebolinha","salsinha","gengibre","aipim","macaxeira","inhame","pepino","beterraba","repolho","quiabo","maracujá","melancia","abacaxi"],
-  "Açougue e Peixaria": ["frango","peito de frango","coxa de frango","carne moída","patinho","alcatra","picanha","costela","linguiça","peixe","tilápia","salmão","camarão","carne de sol","fígado"],
-  "Frios e Laticínios": ["leite","queijo","queijo mussarela","queijo coalho","requeijão","manteiga","margarina","iogurte","creme de leite","leite condensado","presunto","peito de peru","ovos","ricota","nata"],
-  "Padaria": ["pão","pão francês","pão de forma","pão integral","bolo","biscoito","torrada","tapioca"],
-  "Mercearia": ["arroz","feijão","macarrão","farinha","farinha de trigo","farinha de mandioca","açúcar","sal","café","óleo","azeite","vinagre","molho de tomate","extrato de tomate","milho","ervilha","atum","sardinha","aveia","granola","mel","amendoim","castanha","cuscuz","flocão","rapadura","tempero","pimenta","canela","achocolatado","gelatina"],
-  "Bebidas": ["água","água mineral","suco","refrigerante","cerveja","vinho","água de coco","energético","chá"],
-  "Congelados": ["pizza congelada","lasanha congelada","açaí","sorvete","polpa de fruta","pão de queijo congelado","hambúrguer"],
-  "Limpeza": ["detergente","sabão em pó","sabão em barra","amaciante","água sanitária","desinfetante","esponja","saco de lixo","papel toalha","álcool","limpa vidro","lustra móveis"],
-  "Higiene": ["papel higiênico","sabonete","shampoo","condicionador","creme dental","pasta de dente","escova de dente","desodorante","absorvente","fio dental","cotonete","fralda"],
-  "Pet": ["ração","areia de gato","petisco"],
+  Hortifrúti: [
+    "banana",
+    "maçã",
+    "laranja",
+    "limão",
+    "mamão",
+    "abacate",
+    "manga",
+    "uva",
+    "tomate",
+    "cebola",
+    "alho",
+    "batata",
+    "batata doce",
+    "cenoura",
+    "abobrinha",
+    "abóbora",
+    "chuchu",
+    "pimentão",
+    "alface",
+    "couve",
+    "brócolis",
+    "espinafre",
+    "coentro",
+    "cebolinha",
+    "salsinha",
+    "gengibre",
+    "aipim",
+    "macaxeira",
+    "inhame",
+    "pepino",
+    "beterraba",
+    "repolho",
+    "quiabo",
+    "maracujá",
+    "melancia",
+    "abacaxi",
+  ],
+  "Açougue e Peixaria": [
+    "frango",
+    "peito de frango",
+    "coxa de frango",
+    "carne moída",
+    "patinho",
+    "alcatra",
+    "picanha",
+    "costela",
+    "linguiça",
+    "peixe",
+    "tilápia",
+    "salmão",
+    "camarão",
+    "carne de sol",
+    "fígado",
+  ],
+  "Frios e Laticínios": [
+    "leite",
+    "queijo",
+    "queijo mussarela",
+    "queijo coalho",
+    "requeijão",
+    "manteiga",
+    "margarina",
+    "iogurte",
+    "creme de leite",
+    "leite condensado",
+    "presunto",
+    "peito de peru",
+    "ovos",
+    "ricota",
+    "nata",
+  ],
+  Padaria: ["pão", "pão francês", "pão de forma", "pão integral", "bolo", "biscoito", "torrada", "tapioca"],
+  Mercearia: [
+    "arroz",
+    "feijão",
+    "macarrão",
+    "farinha",
+    "farinha de trigo",
+    "farinha de mandioca",
+    "açúcar",
+    "sal",
+    "café",
+    "óleo",
+    "azeite",
+    "vinagre",
+    "molho de tomate",
+    "extrato de tomate",
+    "milho",
+    "ervilha",
+    "atum",
+    "sardinha",
+    "aveia",
+    "granola",
+    "mel",
+    "amendoim",
+    "castanha",
+    "cuscuz",
+    "flocão",
+    "rapadura",
+    "tempero",
+    "pimenta",
+    "canela",
+    "achocolatado",
+    "gelatina",
+  ],
+  Bebidas: ["água", "água mineral", "suco", "refrigerante", "cerveja", "vinho", "água de coco", "energético", "chá"],
+  Congelados: [
+    "pizza congelada",
+    "lasanha congelada",
+    "açaí",
+    "sorvete",
+    "polpa de fruta",
+    "pão de queijo congelado",
+    "hambúrguer",
+  ],
+  Limpeza: [
+    "detergente",
+    "sabão em pó",
+    "sabão em barra",
+    "amaciante",
+    "água sanitária",
+    "desinfetante",
+    "esponja",
+    "saco de lixo",
+    "papel toalha",
+    "álcool",
+    "limpa vidro",
+    "lustra móveis",
+  ],
+  Higiene: [
+    "papel higiênico",
+    "sabonete",
+    "shampoo",
+    "condicionador",
+    "creme dental",
+    "pasta de dente",
+    "escova de dente",
+    "desodorante",
+    "absorvente",
+    "fio dental",
+    "cotonete",
+    "fralda",
+  ],
+  Pet: ["ração", "areia de gato", "petisco"],
 };
 export const AISLES = Object.keys(GROCERY_DB).concat(["Outros"]);
 export function guessAisle(name: string): string {
@@ -75,7 +219,10 @@ export interface MkFreqEntry {
 }
 export type MkFreqMap = Record<string, MkFreqEntry>;
 
-export function bumpMkFreq(mkFreq: MkFreqMap, item: { name: string; unit: string; qty: number; price: number; aisle: string }): MkFreqMap {
+export function bumpMkFreq(
+  mkFreq: MkFreqMap,
+  item: { name: string; unit: string; qty: number; price: number; aisle: string }
+): MkFreqMap {
   const k = item.name.toLowerCase();
   const f = { ...(mkFreq[k] || { name: item.name, count: 0 }) };
   f.count++;
@@ -96,15 +243,36 @@ export function topMkFreq(mkFreq: MkFreqMap, items: Array<{ name: string }>): Mk
 
 /** Texto de compartilhamento da lista de mercado (index.html:7379-7386) —
  * só pendentes, agrupados por gôndola na ordem do doc. */
-export function marketShareText(doc: { title: string; items: Array<{ name: string; qty: number; unit: string; price?: number; aisle?: string; checked?: boolean }>; aisleOrder: string[] }): string {
+export function marketShareText(doc: {
+  title: string;
+  items: Array<{ name: string; qty: number; unit: string; price?: number; aisle?: string; checked?: boolean }>;
+  aisleOrder: string[];
+}): string {
   const byAisle: Record<string, typeof doc.items> = {};
-  doc.items.filter((i) => !i.checked).forEach((it) => {
-    (byAisle[it.aisle || "Outros"] = byAisle[it.aisle || "Outros"] || []).push(it);
-  });
+  doc.items
+    .filter((i) => !i.checked)
+    .forEach((it) => {
+      (byAisle[it.aisle || "Outros"] = byAisle[it.aisle || "Outros"] || []).push(it);
+    });
   let txt = doc.title + "\n";
   doc.aisleOrder.concat(Object.keys(byAisle).filter((a) => !doc.aisleOrder.includes(a))).forEach((a) => {
     if (!byAisle[a] || !byAisle[a].length) return;
-    txt += "\n" + a + "\n" + byAisle[a].map((it) => "• " + it.name + " — " + it.qty + (it.unit === "un" ? " un" : it.unit) + (it.price ? " — " + brl(it.price) : "")).join("\n") + "\n";
+    txt +=
+      "\n" +
+      a +
+      "\n" +
+      byAisle[a]
+        .map(
+          (it) =>
+            "• " +
+            it.name +
+            " — " +
+            it.qty +
+            (it.unit === "un" ? " un" : it.unit) +
+            (it.price ? " — " + brl(it.price) : "")
+        )
+        .join("\n") +
+      "\n";
   });
   return txt;
 }
@@ -113,13 +281,73 @@ export const MATRIX_COLORS = ["#EC6AA8", "#5B8DEF", "#6B8F71", "#C9B23E", "#B25B
 
 // Porta de TRAVEL_DB/TRAVEL_CATS/guessTravelCat (index.html:9524-9540).
 export const TRAVEL_DB: Record<string, string[]> = {
-  "Documentos": ["passaporte","rg","cnh","passagens","reserva do hotel","cartão de embarque","seguro viagem","dinheiro","cartão de crédito","vistos","comprovante de vacina"],
-  "Roupas": ["camisas","camisetas","calças","shorts","roupa íntima","cuecas","calcinhas","meias","casaco","blusa de frio","pijama","roupa de banho","biquíni","sunga","vestido"],
-  "Calçados": ["tênis","chinelo","sandália","sapato social","bota"],
-  "Higiene": ["escova de dente","pasta de dente","shampoo","condicionador","sabonete","desodorante","protetor solar","escova de cabelo","aparelho de barbear","absorvente","fio dental","cotonete"],
-  "Saúde": ["remédios","analgésico","band-aid","álcool gel","repelente","antialérgico","pomada"],
-  "Eletrônicos": ["carregador","power bank","fones de ouvido","adaptador de tomada","câmera","cabo usb","notebook","kindle"],
-  "Acessórios": ["óculos de sol","boné","chapéu","guarda-chuva","mochila","cadeado","garrafa de água","travesseiro de pescoço","necessaire"],
+  Documentos: [
+    "passaporte",
+    "rg",
+    "cnh",
+    "passagens",
+    "reserva do hotel",
+    "cartão de embarque",
+    "seguro viagem",
+    "dinheiro",
+    "cartão de crédito",
+    "vistos",
+    "comprovante de vacina",
+  ],
+  Roupas: [
+    "camisas",
+    "camisetas",
+    "calças",
+    "shorts",
+    "roupa íntima",
+    "cuecas",
+    "calcinhas",
+    "meias",
+    "casaco",
+    "blusa de frio",
+    "pijama",
+    "roupa de banho",
+    "biquíni",
+    "sunga",
+    "vestido",
+  ],
+  Calçados: ["tênis", "chinelo", "sandália", "sapato social", "bota"],
+  Higiene: [
+    "escova de dente",
+    "pasta de dente",
+    "shampoo",
+    "condicionador",
+    "sabonete",
+    "desodorante",
+    "protetor solar",
+    "escova de cabelo",
+    "aparelho de barbear",
+    "absorvente",
+    "fio dental",
+    "cotonete",
+  ],
+  Saúde: ["remédios", "analgésico", "band-aid", "álcool gel", "repelente", "antialérgico", "pomada"],
+  Eletrônicos: [
+    "carregador",
+    "power bank",
+    "fones de ouvido",
+    "adaptador de tomada",
+    "câmera",
+    "cabo usb",
+    "notebook",
+    "kindle",
+  ],
+  Acessórios: [
+    "óculos de sol",
+    "boné",
+    "chapéu",
+    "guarda-chuva",
+    "mochila",
+    "cadeado",
+    "garrafa de água",
+    "travesseiro de pescoço",
+    "necessaire",
+  ],
 };
 export const TRAVEL_CATS = Object.keys(TRAVEL_DB).concat(["Outros"]);
 export function guessTravelCat(name: string): string {
@@ -210,7 +438,12 @@ export function newMatrixDoc(preset: MatrixPreset = "eisenhower"): MatrixDoc {
       type: "matrix",
       axisX: "",
       axisY: "",
-      quadrants: [1, 2, 3, 4].map((i) => ({ title: "Quadrante " + i, color: MATRIX_COLORS[i - 1], mode: "ul" as const, items: [] })),
+      quadrants: [1, 2, 3, 4].map((i) => ({
+        title: "Quadrante " + i,
+        color: MATRIX_COLORS[i - 1],
+        mode: "ul" as const,
+        items: [],
+      })),
     };
   }
   return {
@@ -333,4 +566,3 @@ export const TIPO_SUBPASTA: Record<string, string> = {
 export function subpastaDoTipo(type: string): string {
   return TIPO_SUBPASTA[type] || "Notas simples";
 }
-

@@ -63,7 +63,8 @@ export function agendaIcs(routines: Routine[], compromissos: Compromisso[], agor
       dtStart.setHours(Math.floor(sched.startMin / 60), sched.startMin % 60, 0, 0);
       rrule = "RRULE:FREQ=DAILY;INTERVAL=" + Math.max(1, r.schedule?.intervaloDias || 1);
     } else {
-      const dias = r.schedule?.days && r.schedule.days.length ? [...r.schedule.days].sort((a, b) => a - b) : [0, 1, 2, 3, 4, 5, 6];
+      const dias =
+        r.schedule?.days && r.schedule.days.length ? [...r.schedule.days].sort((a, b) => a - b) : [0, 1, 2, 3, 4, 5, 6];
       let delta = 0;
       while (!dias.includes((agora.getDay() + delta) % 7)) delta++;
       dtStart = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + delta);

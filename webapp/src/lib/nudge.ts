@@ -163,7 +163,12 @@ export function checarNudgeStreak(ctx: NudgeCtx): boolean {
   const s0 = streakDe(r0.id);
   const body =
     emRisco.length > 1
-      ? r0.name + " está em " + s0 + " dia(s) seguidos e mais " + (emRisco.length - 1) + " rotina(s) ainda não feita(s) hoje"
+      ? r0.name +
+        " está em " +
+        s0 +
+        " dia(s) seguidos e mais " +
+        (emRisco.length - 1) +
+        " rotina(s) ainda não feita(s) hoje"
       : r0.name + " está em " + s0 + " dia(s) seguidos — não quebre hoje";
   dispararNudge("🔥 Sequência em risco", body, "nudge-streak", ctx.onBanner);
   return true;

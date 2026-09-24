@@ -53,13 +53,25 @@ export function SyncCard() {
       <>
         <LinhaValor rotulo="Google Drive" valor="não configurado" corValor="var(--sub)" />
         <Legenda className="mt-2">
-          Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a Drive API ativada. Fica guardado só neste
-          computador, nunca no repositório.
+          Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a Drive
+          API ativada. Fica guardado só neste computador, nunca no repositório.
         </Legenda>
         <RotuloSecao className="mt-3.5 mb-1">Client ID</RotuloSecao>
-        <Campo variante="modelo" type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" value={clientId} onChange={(e) => setClientId(e.target.value)} />
+        <Campo
+          variante="modelo"
+          type="text"
+          placeholder="xxxxxxxx.apps.googleusercontent.com"
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+        />
         <RotuloSecao className="mt-3.5 mb-1">Client Secret</RotuloSecao>
-        <Campo variante="modelo" type="text" placeholder="GOCSPX-..." value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} />
+        <Campo
+          variante="modelo"
+          type="text"
+          placeholder="GOCSPX-..."
+          value={clientSecret}
+          onChange={(e) => setClientSecret(e.target.value)}
+        />
         <Botao
           className="mt-3 w-full"
           onClick={async () => {
@@ -147,11 +159,17 @@ export function SyncCard() {
 
       {conflitos.length > 0 && (
         <>
-          <RotuloSecao className="mt-3.5 mb-1">Conflitos pendentes — os dois lados mudaram desde o último sync</RotuloSecao>
+          <RotuloSecao className="mt-3.5 mb-1">
+            Conflitos pendentes — os dois lados mudaram desde o último sync
+          </RotuloSecao>
           {conflitos.map((k) => (
             <div className="my-2 flex items-center gap-2.5 py-1.5" key={k}>
               <span className="flex-1">{k}</span>
-              <Botao variante="neutro" className="px-2.5 py-1 text-sm" onClick={() => bridge.resolveConflict(k, "local").then(refresh)}>
+              <Botao
+                variante="neutro"
+                className="px-2.5 py-1 text-sm"
+                onClick={() => bridge.resolveConflict(k, "local").then(refresh)}
+              >
                 manter local
               </Botao>
               <Botao
@@ -169,15 +187,22 @@ export function SyncCard() {
       {keys.length > 0 && (
         <>
           <RotuloSecao className="mt-4 mb-1">
-            Saúde do sync — {keys.length} chave(s){nuncaSincronizadas ? ` · ${nuncaSincronizadas} nunca sincronizada(s)` : ""}
+            Saúde do sync — {keys.length} chave(s)
+            {nuncaSincronizadas ? ` · ${nuncaSincronizadas} nunca sincronizada(s)` : ""}
           </RotuloSecao>
           <Cartao className="m-0">
             {keys.map((k) => {
-              const quando = k.conflito ? "conflito" : k.syncedAt ? new Date(k.syncedAt).toLocaleString("pt-BR") : "nunca";
+              const quando = k.conflito
+                ? "conflito"
+                : k.syncedAt
+                  ? new Date(k.syncedAt).toLocaleString("pt-BR")
+                  : "nunca";
               const cor = k.conflito ? "var(--erro)" : k.syncedAt ? "var(--sub)" : "var(--caneta)";
               return <LinhaDado key={k.key} rotulo={k.key.replace("rotinas_v2_", "")} valor={quando} cor={cor} />;
             })}
-            <Legenda className="mt-3">Chave "nunca" que já tem dado local é sinal de coleção nova que ficou fora de SYNCED_KEYS.</Legenda>
+            <Legenda className="mt-3">
+              Chave "nunca" que já tem dado local é sinal de coleção nova que ficou fora de SYNCED_KEYS.
+            </Legenda>
           </Cartao>
         </>
       )}

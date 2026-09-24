@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 import { attachDragHandle, computeKanbanDragTarget, computeStepDragTarget, type DragTarget } from "./dnd";
 
 function rect(top: number, height: number): DOMRect {
-  return { top, height, bottom: top + height, left: 0, right: 100, x: 0, y: top, width: 100, toJSON: () => ({}) } as DOMRect;
+  return {
+    top,
+    height,
+    bottom: top + height,
+    left: 0,
+    right: 100,
+    x: 0,
+    y: top,
+    width: 100,
+    toJSON: () => ({}),
+  } as DOMRect;
 }
 
 describe("computeStepDragTarget", () => {

@@ -27,13 +27,24 @@ export function dataFolderName(): string {
 /** Porta de nativeWriteExport (index.html:10556-10562). */
 async function nativeWriteExport(filename: string, text: string, subpasta?: string): Promise<string> {
   const path = dataFolderName() + (subpasta ? "/" + subpasta : "") + "/" + filename;
-  const r = await window.Capacitor!.Plugins.Filesystem.writeFile({ path, directory: "DOCUMENTS", encoding: "utf8", data: text, recursive: true });
+  const r = await window.Capacitor!.Plugins.Filesystem.writeFile({
+    path,
+    directory: "DOCUMENTS",
+    encoding: "utf8",
+    data: text,
+    recursive: true,
+  });
   return (r as unknown as { uri: string }).uri;
 }
 
 /** Porta de downloadFile (index.html:10665-10678) — nativo grava em
  * Documentos; navegador baixa via blob. */
-export async function downloadFile(filename: string, text: string, mime: string, subpasta?: string): Promise<{ ok: boolean; local?: string }> {
+export async function downloadFile(
+  filename: string,
+  text: string,
+  mime: string,
+  subpasta?: string
+): Promise<{ ok: boolean; local?: string }> {
   if (isNative) {
     try {
       await nativeWriteExport(filename, text, subpasta);
@@ -59,7 +70,12 @@ export async function downloadFile(filename: string, text: string, mime: string,
 
 /** Porta de shareOrDownload (index.html:10679-10702) — nativo grava e abre
  * o share sheet; navegador tenta `navigator.share`, senão baixa. */
-export async function shareOrDownload(filename: string, text: string, mime: string, subpasta?: string): Promise<boolean> {
+export async function shareOrDownload(
+  filename: string,
+  text: string,
+  mime: string,
+  subpasta?: string
+): Promise<boolean> {
   if (isNative) {
     try {
       const uri = await nativeWriteExport(filename, text, subpasta);
@@ -104,7 +120,11 @@ const PDF_STYLE =
  * navegador abre uma aba e chama `window.print()`. Devolve um aviso
  * (`erro`) quando pop-ups estão bloqueados — quem chama decide como
  * mostrar. */
-export async function exportPdfView(title: string, innerHtml: string, subpasta?: string): Promise<{ ok: boolean; erro?: string }> {
+export async function exportPdfView(
+  title: string,
+  innerHtml: string,
+  subpasta?: string
+): Promise<{ ok: boolean; erro?: string }> {
   if (isNative) {
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${title}</title></head><body style="font-family:Georgia,serif;color:#222;margin:28px;line-height:1.5;">${innerHtml}</body></html>`;
     const ok = await shareOrDownload(slugify(title) + ".html", html, "text/html", subpasta);
@@ -113,7 +133,7 @@ export async function exportPdfView(title: string, innerHtml: string, subpasta?:
   const w = window.open("", "_blank");
   if (!w) return { ok: false, erro: "Permita pop-ups para gerar o PDF" };
   w.document.write(
-    `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${title}</title><style>${PDF_STYLE}</style></head><body>${innerHtml}</body></html>`,
+    `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${title}</title><style>${PDF_STYLE}</style></head><body>${innerHtml}</body></html>`
   );
   w.document.close();
   setTimeout(() => {

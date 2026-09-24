@@ -36,7 +36,17 @@ export function AgendaDia() {
   const icalCache = getIcalCache();
   const ehHoje = iso === hojeISO;
   const dow = isoToDate(iso).getDay();
-  const blocos = blocosAgendaDia(iso, isoToDate(iso), diario["dia:" + iso] || "", routines, gam, history, diaKanban, compromissos, icalCache);
+  const blocos = blocosAgendaDia(
+    iso,
+    isoToDate(iso),
+    diario["dia:" + iso] || "",
+    routines,
+    gam,
+    history,
+    diaKanban,
+    compromissos,
+    icalCache
+  );
   const agora = new Date();
   const layout = computeGradeLayout(blocos, ehHoje ? agora.getHours() * 60 + agora.getMinutes() : null, {
     pxMin: AG_PX_MIN_ZOOM,
@@ -89,7 +99,10 @@ export function AgendaDia() {
       {allDay.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {allDay.map((e, i) => (
-            <span key={i} className="rounded-xl border-[1.5px] border-line bg-card-2 px-[9px] py-[3px] text-[11.5px] text-sub">
+            <span
+              key={i}
+              className="rounded-xl border-[1.5px] border-line bg-card-2 px-[9px] py-[3px] text-[11.5px] text-sub"
+            >
               {e.title}
             </span>
           ))}
@@ -109,7 +122,8 @@ export function AgendaDia() {
             if (!card) return;
             const iniOrig = horaParaMin(card.hIni);
             if (iniOrig == null) return;
-            const fimOrig = card.hFim && (horaParaMin(card.hFim) ?? 0) > iniOrig ? horaParaMin(card.hFim)! : iniOrig + 60;
+            const fimOrig =
+              card.hFim && (horaParaMin(card.hFim) ?? 0) > iniOrig ? horaParaMin(card.hFim)! : iniOrig + 60;
             upsertDiaKanbanCard(iso, {
               id: card.id,
               text: card.text,

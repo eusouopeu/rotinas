@@ -47,7 +47,13 @@ export function ExercicioEditorModal({
     <Modal onFechar={onClose} className="text-left">
       <ModalTexto className="mb-2.5">{ex ? "Editar" : "Novo"} exercício</ModalTexto>
       <RotuloSecao className="my-1.5">Nome</RotuloSecao>
-      <Campo variante="modelo" type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Supino reto" />
+      <Campo
+        variante="modelo"
+        type="text"
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+        placeholder="Ex.: Supino reto"
+      />
       <RotuloSecao className="mt-3 mb-1.5">Grupos musculares (opcional)</RotuloSecao>
       <div className="flex flex-wrap gap-1.5">
         {GRUPOS_MUSCULARES.map((g) => (

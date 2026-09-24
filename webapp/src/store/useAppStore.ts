@@ -61,27 +61,16 @@ import {
   K_THEME,
   K_WEEKSTART,
 } from "../lib/constants";
-import {
-  type BackupPayload,
-} from "../lib/backup";
+import { type BackupPayload } from "../lib/backup";
 import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import type { MatrixPreset } from "../lib/templates";
 import { novoDraftSchedule } from "../lib/schedule";
-import {
-  podarNaoFeitasDeOutrosDias,
-  type NaoFeitasMap,
-  type PlayerState,
-} from "../lib/player";
+import { podarNaoFeitasDeOutrosDias, type NaoFeitasMap, type PlayerState } from "../lib/player";
 import type { SomModo } from "../lib/sound";
 import { checarNudges } from "../lib/nudge";
 import { checkStorageWarning } from "../lib/storageWarning";
-import {
-  loadMetasSubviewSel,
-  type MetasSubview,
-} from "../lib/metas";
-import {
-  avancarGamificacaoAteAgora,
-} from "../lib/scoring";
+import { loadMetasSubviewSel, type MetasSubview } from "../lib/metas";
+import { avancarGamificacaoAteAgora } from "../lib/scoring";
 import type { HistoryEntry } from "../lib/history";
 import type {
   AnyTemplateDoc,
@@ -258,7 +247,13 @@ export interface AppState {
 
   // Biblioteca de exercícios (K_EXERCICIOS, index.html:4207-4214) —
   // reaproveitada pela etapa de rotina "exercicio" (RoutineStep.exercicioId).
-  upsertExercicio: (ex: { id?: string; nome: string; grupos: string[]; pesoAtual: number; composto?: boolean }) => Exercicio;
+  upsertExercicio: (ex: {
+    id?: string;
+    nome: string;
+    grupos: string[];
+    pesoAtual: number;
+    composto?: boolean;
+  }) => Exercicio;
   deleteExercicio: (id: string) => void;
 
   metasSubview: MetasSubview[];
@@ -293,7 +288,10 @@ export interface AppState {
   // Porta de abrirPopupTarefa#tfSave (index.html:5222-5246), sem o crédito de
   // pontos do cartão (sincronizarPontosCartao ainda não portado — mesma
   // lacuna do toggle). id ausente cria; presente edita.
-  upsertDiaKanbanCard: (iso: string, card: { id?: string; text: string; hIni?: string; hFim?: string; tagValor?: Tag; eixo?: string | null }) => void;
+  upsertDiaKanbanCard: (
+    iso: string,
+    card: { id?: string; text: string; hIni?: string; hFim?: string; tagValor?: Tag; eixo?: string | null }
+  ) => void;
   toggleDiaKanbanCard: (id: string) => void;
   deleteDiaKanbanCard: (id: string) => void;
 
@@ -470,9 +468,17 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     }
     if (badgesGanhasNoBoot.length) {
       const b = badgesGanhasNoBoot[badgesGanhasNoBoot.length - 1];
-      const escLabel: Record<string, string> = { semanal: "da semana", mensal: "do mês", trimestral: "do trimestre", anual: "do ano" };
+      const escLabel: Record<string, string> = {
+        semanal: "da semana",
+        mensal: "do mês",
+        trimestral: "do trimestre",
+        anual: "do ano",
+      };
       setTimeout(
-        () => get().showCelebrationBanner(`Badge <b style="color:${BADGE_COR[b.tipo]};">${BADGE_NOME[b.tipo]}</b> ${escLabel[b.escopo] || ""} · nota ${b.nota.toFixed(1)}`),
+        () =>
+          get().showCelebrationBanner(
+            `Badge <b style="color:${BADGE_COR[b.tipo]};">${BADGE_NOME[b.tipo]}</b> ${escLabel[b.escopo] || ""} · nota ${b.nota.toFixed(1)}`
+          ),
         500
       );
     }

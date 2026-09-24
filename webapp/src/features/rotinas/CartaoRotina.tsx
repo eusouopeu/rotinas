@@ -30,7 +30,18 @@ type Props = {
   onIniciar: () => void;
 };
 
-export function CartaoRotina({ r, routines, gam, history, hojeISO, expandido, onExcluir, onDuplicar, onAbrir, onIniciar }: Props) {
+export function CartaoRotina({
+  r,
+  routines,
+  gam,
+  history,
+  hojeISO,
+  expandido,
+  onExcluir,
+  onDuplicar,
+  onAbrir,
+  onIniciar,
+}: Props) {
   const dur = routineDurationRaw(r, EXERCICIO_SET_SEG);
   const sched = computeSchedule(r);
   const execHoje = execucaoDoDia(history, r.id, hojeISO);

@@ -335,7 +335,6 @@ export interface RoutineDetailStats {
   recent: RoutineExecutionItem[];
 }
 
-
 /** Porta de snoozedOn (index.html:11027-11030) — dia (não "agora") dentro de
  * algum período de agenda pausada. */
 export function snoozedOn(snoozes: Snooze[], dateObj: Date): boolean {
@@ -366,7 +365,7 @@ export function getWeekGridData(
   routines: Routine[],
   snoozes: Snooze[],
   gam: GamificacaoState,
-  weekStart = 0,
+  weekStart = 0
 ): WeekGridData {
   const weekStartIso = inicioSemanaISO(calWeek, weekStart);
   const weekStartDate = isoToDate(weekStartIso);
@@ -431,7 +430,12 @@ export function getWeekGridData(
 
 /** Porta de dayDetailHtml (index.html:5433-5455) — execuções do dia e
  * rotinas planejadas ainda não feitas (com status "agendada"/"não feita"). */
-export function getDayDetailData(key: string, history: HistoryEntry[], routines: Routine[], snoozes: Snooze[]): DayDetailData {
+export function getDayDetailData(
+  key: string,
+  history: HistoryEntry[],
+  routines: Routine[],
+  snoozes: Snooze[]
+): DayDetailData {
   const d = new Date(key + "T12:00:00");
   const executed = history.filter((h) => h.date === key);
   const isPastOrToday = key <= localKey(new Date());
@@ -563,8 +567,18 @@ function execucoesNaSemana(inicioISO: string, execDates: Set<string>): number {
  * de dia dentro da mesma semana: quem cumpre `days.length` execuções na
  * semana bateu a meta, mesmo que não tenha sido exatamente nos dias
  * marcados. */
-function restritaPorDiasDaSemana(r: Routine | undefined): r is Routine & { schedule: NonNullable<Routine["schedule"]> } {
-  return !!(r && r.schedule && r.schedule.enabled && r.schedule.mode !== "intervalo" && r.schedule.days && r.schedule.days.length > 0 && r.schedule.days.length < 7);
+function restritaPorDiasDaSemana(
+  r: Routine | undefined
+): r is Routine & { schedule: NonNullable<Routine["schedule"]> } {
+  return !!(
+    r &&
+    r.schedule &&
+    r.schedule.enabled &&
+    r.schedule.mode !== "intervalo" &&
+    r.schedule.days &&
+    r.schedule.days.length > 0 &&
+    r.schedule.days.length < 7
+  );
 }
 
 /** Streak semanal (recomendação de 08/09/2026: "fiz a rotina o número certo
@@ -727,12 +741,12 @@ export function richParaPeriodo(
   period: "30d" | "ano",
   history: HistoryEntry[],
   routineFilter?: string | null,
-  now = Date.now(),
+  now = Date.now()
 ): HistoryEntry[] {
   const startTs = period === "30d" ? now - 30 * 86400000 : now - 365 * 86400000;
   return statsRoutineFiltered(
     history.filter((h) => h.ts && h.ts >= startTs),
-    routineFilter,
+    routineFilter
   );
 }
 
@@ -751,7 +765,9 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
     if (arr.length < 3) return;
     const med = media(arr);
     if (med > 10) {
-      insights.push(`<b>${nome}</b> atrasa em média ${Math.round(med)}min pra começar — considere mudar o horário agendado.`);
+      insights.push(
+        `<b>${nome}</b> atrasa em média ${Math.round(med)}min pra começar — considere mudar o horário agendado.`
+      );
     }
   });
 
@@ -769,7 +785,9 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
       if (med - medGeral >= 10 && (!pior || med > pior.med)) pior = { dow, med };
     }
     if (pior) {
-      insights.push(`Você atrasa mais às <b>${DOW_NOME[pior.dow]}</b> — média de ${Math.round(pior.med)}min, contra ${Math.round(medGeral)}min nos outros dias.`);
+      insights.push(
+        `Você atrasa mais às <b>${DOW_NOME[pior.dow]}</b> — média de ${Math.round(pior.med)}min, contra ${Math.round(medGeral)}min nos outros dias.`
+      );
     }
   }
 
@@ -783,9 +801,13 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
     if (arr.length < 3) return;
     const med = media(arr.map((h) => ((h.actualSec || 0) - h.plannedSec!) / h.plannedSec!));
     if (med >= 0.25) {
-      insights.push(`<b>${nome}</b> costuma estourar o tempo planejado em ${Math.round(med * 100)}% — talvez valha ajustar a duração.`);
+      insights.push(
+        `<b>${nome}</b> costuma estourar o tempo planejado em ${Math.round(med * 100)}% — talvez valha ajustar a duração.`
+      );
     } else if (med <= -0.25) {
-      insights.push(`<b>${nome}</b> costuma terminar bem antes do planejado (${Math.round(-med * 100)}% mais rápido) — talvez valha encurtar o tempo agendado.`);
+      insights.push(
+        `<b>${nome}</b> costuma terminar bem antes do planejado (${Math.round(-med * 100)}% mais rápido) — talvez valha encurtar o tempo agendado.`
+      );
     }
   });
 
@@ -801,7 +823,9 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
       if (arr.length < 3) return;
       const med = media(arr);
       if (medGeralMood - med >= 1) {
-        insights.push(`<b>${nome}</b> costuma vir com humor mais baixo (${med.toFixed(1)} contra ${medGeralMood.toFixed(1)} da média) — vale olhar se ela está pesando mais do que deveria.`);
+        insights.push(
+          `<b>${nome}</b> costuma vir com humor mais baixo (${med.toFixed(1)} contra ${medGeralMood.toFixed(1)} da média) — vale olhar se ela está pesando mais do que deveria.`
+        );
       }
     });
   }
@@ -815,7 +839,9 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
       const medBaixo = media(baixos.map((h) => h.skippedCount!));
       const medAlto = media(altos.map((h) => h.skippedCount!));
       if (medBaixo - medAlto >= 1) {
-        insights.push(`Em dias de humor mais baixo você costuma pular ${Math.round(medBaixo - medAlto)} etapa(s) a mais do que em dias de humor alto.`);
+        insights.push(
+          `Em dias de humor mais baixo você costuma pular ${Math.round(medBaixo - medAlto)} etapa(s) a mais do que em dias de humor alto.`
+        );
       }
     }
   }
@@ -841,7 +867,7 @@ export function gerarDicas(
   history: HistoryEntry[],
   snoozes: Snooze[],
   metas: MetaTarget[],
-  hoje: Date = new Date(),
+  hoje: Date = new Date()
 ): string[] {
   const dicas: string[] = [];
   const DOW_NOME = ["domingos", "segundas", "terças", "quartas", "quintas", "sextas", "sábados"];
@@ -871,7 +897,9 @@ export function gerarDicas(
     const outrosPlan = plan.reduce((s, n) => s + n, 0) - plan[pior];
     const outrosFalta = falta.reduce((s, n) => s + n, 0) - falta[pior];
     if (outrosPlan > 0 && piorTaxa - outrosFalta / outrosPlan < 0.3) return;
-    dicas.push(`<b>${escHtml(r.name)}</b> falha em ${Math.round(piorTaxa * 100)}% das ${DOW_NOME[pior]} — mover para outro dia?`);
+    dicas.push(
+      `<b>${escHtml(r.name)}</b> falha em ${Math.round(piorTaxa * 100)}% das ${DOW_NOME[pior]} — mover para outro dia?`
+    );
   });
 
   // 2. período do dia em que a rotina rende mais (menos etapas puladas)
@@ -897,7 +925,7 @@ export function gerarDicas(
     if (dif < 1) return;
     const n = Math.round(dif);
     dicas.push(
-      `<b>${escHtml(arr[arr.length - 1].routineName)}</b> rende mais ${BANDA[melhor.i]}: em média ${n} etapa${n > 1 ? "s" : ""} pulada${n > 1 ? "s" : ""} a menos que ${BANDA[pior.i]}.`,
+      `<b>${escHtml(arr[arr.length - 1].routineName)}</b> rende mais ${BANDA[melhor.i]}: em média ${n} etapa${n > 1 ? "s" : ""} pulada${n > 1 ? "s" : ""} a menos que ${BANDA[pior.i]}.`
     );
   });
 
@@ -907,7 +935,8 @@ export function gerarDicas(
     const diasCriada = Math.floor((hoje.getTime() - t.createdAt) / 86400000);
     const feito = t.done || 0;
     if (feito === 0) {
-      if (diasCriada >= 21) dicas.push(`A meta <b>${escHtml(t.title)}</b> não andou desde que foi criada, há ${diasCriada} dias.`);
+      if (diasCriada >= 21)
+        dicas.push(`A meta <b>${escHtml(t.title)}</b> não andou desde que foi criada, há ${diasCriada} dias.`);
       return;
     }
     const prazoMs = new Date(t.date + "T12:00:00").getTime() - t.createdAt;
@@ -916,7 +945,7 @@ export function gerarDicas(
     const progresso = feito / t.topics;
     if (tempo - progresso >= 0.3) {
       dicas.push(
-        `<b>${escHtml(t.title)}</b> está atrás do ritmo: ${Math.round(progresso * 100)}% feito com ${Math.round(Math.min(1, tempo) * 100)}% do prazo já passado.`,
+        `<b>${escHtml(t.title)}</b> está atrás do ritmo: ${Math.round(progresso * 100)}% feito com ${Math.round(Math.min(1, tempo) * 100)}% do prazo já passado.`
       );
     }
   });
@@ -932,7 +961,7 @@ export function getMonthGridData(
   snoozes: Snooze[],
   gam: GamificacaoState,
   weekStart = 0,
-  routineFilter?: string | null,
+  routineFilter?: string | null
 ): MonthGridData {
   // filtro por rotina vale para o calendário inteiro (cor, cumprimento)
   history = statsRoutineFiltered(history, routineFilter);
@@ -1042,7 +1071,7 @@ export function getHeatmapData(
   history: HistoryEntry[],
   weekStart = 0,
   routineFilter?: string | null,
-  quad?: 1 | 2 | 3,
+  quad?: 1 | 2 | 3
 ): HeatmapData {
   const hoje = new Date();
   hoje.setHours(12, 0, 0, 0);
@@ -1093,7 +1122,11 @@ export function getHeatmapData(
 }
 
 /** Porta do gráfico de horas por mês na visão anual (index.html:6000-6020). */
-export function getYearMonthlyBars(calYear: number, history: HistoryEntry[], routineFilter?: string | null): YearMonthlyData {
+export function getYearMonthlyBars(
+  calYear: number,
+  history: HistoryEntry[],
+  routineFilter?: string | null
+): YearMonthlyData {
   const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   const monthMin = new Array(12).fill(0);
   statsRoutineFiltered(history, routineFilter).forEach((h) => {
@@ -1137,7 +1170,7 @@ export function getResumoPeriodo(
   history: HistoryEntry[],
   routines: Routine[],
   snoozes: Snooze[],
-  routineFilter?: string | null,
+  routineFilter?: string | null
 ): ResumoPeriodo {
   const iniK = localKey(from);
   const fimK = localKey(to);
@@ -1180,7 +1213,7 @@ export function getEvolucaoCumprimento(
   snoozes: Snooze[],
   routineFilter?: string | null,
   weekStart = 0,
-  hoje = new Date(),
+  hoje = new Date()
 ): EvolucaoPonto[] {
   const pontos: EvolucaoPonto[] = [];
   for (let k = 11; k >= 0; k--) {
@@ -1216,7 +1249,7 @@ export function getAreasAno(
   history: HistoryEntry[],
   routines: Routine[],
   gam: GamificacaoState,
-  routineFilter?: string | null,
+  routineFilter?: string | null
 ): AreaAnoRow[] {
   const porArea = new Map<string, number>();
   statsRoutineFiltered(history, routineFilter).forEach((h) => {
@@ -1230,7 +1263,13 @@ export function getAreasAno(
     .filter(([, min]) => min > 0)
     .map(([id, minutos]) => {
       const info = areaInfoRoda(id, gam);
-      return { id, label: info.label, color: info.color, minutos, pct: total ? Math.round((minutos / total) * 100) : 0 };
+      return {
+        id,
+        label: info.label,
+        color: info.color,
+        minutos,
+        pct: total ? Math.round((minutos / total) * 100) : 0,
+      };
     })
     .sort((a, b) => b.minutos - a.minutos);
 }
@@ -1243,13 +1282,13 @@ export function getPeriodExtrasData(
   snoozes: Snooze[],
   gam: GamificacaoState,
   routineFilter?: string | null,
-  weekStart = 0,
+  weekStart = 0
 ): PeriodExtrasData {
   const periodLbl = period === "30d" ? "30d" : "ano";
   const rich = richParaPeriodo(period, history, routineFilter);
   const allRich = statsRoutineFiltered(
     history.filter((h) => h.ts),
-    routineFilter,
+    routineFilter
   );
 
   // 1. Insights
@@ -1260,10 +1299,10 @@ export function getPeriodExtrasData(
   const elapsedDays = Math.min(7, Math.floor((Date.now() - weekStartDate.getTime()) / 86400000) + 1);
   const weekEntries = statsRoutineFiltered(
     history.filter((h) => h.ts && h.ts >= weekStartDate.getTime()),
-    routineFilter,
+    routineFilter
   );
   const goalRoutines = routines.filter(
-    (r) => (r.weeklyGoalTimes || 0) > 0 && (!routineFilter || r.id === routineFilter),
+    (r) => (r.weeklyGoalTimes || 0) > 0 && (!routineFilter || r.id === routineFilter)
   );
 
   const goals: GoalRoutineData[] = goalRoutines.map((r) => {
@@ -1337,7 +1376,7 @@ export function getPeriodExtrasData(
   // 5. Taxa de cumprimento do agendado
   const startPer = period === "30d" ? Date.now() - 30 * 86400000 : Date.now() - 365 * 86400000;
   const schedRoutines = routines.filter(
-    (r) => r.schedule && r.schedule.enabled && (!routineFilter || r.id === routineFilter),
+    (r) => r.schedule && r.schedule.enabled && (!routineFilter || r.id === routineFilter)
   );
   const schedCompliance: SchedComplianceData[] = [];
 
@@ -1408,7 +1447,7 @@ export function getPeriodExtrasData(
       a.n++;
       a.acts.push(s.actual);
       a.plan = s.planned;
-    }),
+    })
   );
 
   const fmtSg = (v: number) => (v >= 0 ? "+" : "−") + fmtTime(Math.abs(v)).replace("+", "");
@@ -1564,7 +1603,11 @@ export function getPeriodExtrasData(
 }
 
 /** Porta de renderRoutineStats (index.html:6052-6175). */
-export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[], gam?: GamificacaoState): RoutineDetailStats {
+export function getRoutineDetailStats(
+  routine: Routine,
+  history: HistoryEntry[],
+  gam?: GamificacaoState
+): RoutineDetailStats {
   const entries = history.filter((h) => h.routineId === routine.id && h.ts);
   const all = history.filter((h) => h.routineId === routine.id);
   const totalMin = Math.round(entries.reduce((a, h) => a + (h.actualSec || 0), 0) / 60);
@@ -1595,7 +1638,7 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
       a.n++;
       a.acts.push(s.actual);
       a.plan = s.planned;
-    }),
+    })
   );
 
   const stepRows: RoutineStepStat[] = Object.entries(stepAgg)
@@ -1609,8 +1652,7 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
         Math.abs(dev) >= a.plan * 0.2 &&
         routine.steps.some((st: RoutineStep) => st.name === name && st.type === "timer");
       const newSec = Math.ceil(medAct / 30) * 30;
-      const newSecLabel =
-        (newSec / 60) % 1 === 0 ? newSec / 60 + "min" : fmtTime(newSec).replace("+", "");
+      const newSecLabel = (newSec / 60) % 1 === 0 ? newSec / 60 + "min" : fmtTime(newSec).replace("+", "");
       return {
         name,
         n: a.n,
@@ -1650,7 +1692,7 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
       const a = exAgg[s.exercicioId] || (exAgg[s.exercicioId] = { nome: s.name, sessions: [] });
       const maxPeso = Math.max(0, ...s.series.map((x) => x.peso || 0));
       a.sessions.push({ ts: h.ts, maxPeso });
-    }),
+    })
   );
 
   const dmy = (ts: number) => {
@@ -1666,9 +1708,7 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
       const primeira = ord[0];
       const evolucao = ultima.maxPeso - primeira.maxPeso;
       const evoText =
-        ord.length > 1
-          ? `${evolucao >= 0 ? "+" : "−"}${Math.abs(evolucao)}kg desde ${dmy(primeira.ts)}`
-          : "";
+        ord.length > 1 ? `${evolucao >= 0 ? "+" : "−"}${Math.abs(evolucao)}kg desde ${dmy(primeira.ts)}` : "";
       const serieText = ord
         .slice(-8)
         .map((s) => s.maxPeso + "kg")
@@ -1704,8 +1744,7 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
   const recentRaw = [...entries].sort((a, b) => b.ts - a.ts).slice(0, 15);
   const recent: RoutineExecutionItem[] = recentRaw.map((h) => {
     const d = new Date(h.ts);
-    const dateStr =
-      String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+    const dateStr = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
     const timeStr = fmtClock(d);
     const cmpStr = h.plannedSec
       ? `${fmtTime(h.plannedSec).replace("+", "")} → ${fmtTime(h.actualSec || 0).replace("+", "")}`
@@ -1750,4 +1789,3 @@ export function getRoutineDetailStats(routine: Routine, history: HistoryEntry[],
     recent,
   };
 }
-

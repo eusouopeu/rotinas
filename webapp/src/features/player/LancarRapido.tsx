@@ -93,7 +93,7 @@ export function LancarRapido({ onClose }: { onClose: () => void }) {
     return (
       <Modal onFechar={onClose} className={CAIXA}>
         <ModalTexto className="mb-2.5">Lançar rápido</ModalTexto>
-        <GradePastas className="grid-cols-2 desktop:grid-cols-2 paisagem:grid-cols-2">
+        <GradePastas className="grid-cols-2 paisagem:grid-cols-2 desktop:grid-cols-2">
           <PastaTile icone="notes" rotulo="Nota simples" onClick={() => setTela("nota")} />
           <PastaTile icone="expense" rotulo="Nova despesa" onClick={() => setTela("despesa")} />
           <PastaTile icone="kanban" rotulo="Cartão a fazer" onClick={() => setTela("kanban")} />

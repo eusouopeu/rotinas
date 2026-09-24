@@ -30,7 +30,14 @@ export function nomeAutoDoc(d?: Date): string {
   const date = d || new Date();
   const p = (n: number) => String(n).padStart(2, "0");
   return (
-    p(date.getFullYear() % 100) + "-" + p(date.getMonth() + 1) + "-" + p(date.getDate()) + "-" + p(date.getHours()) + p(date.getMinutes())
+    p(date.getFullYear() % 100) +
+    "-" +
+    p(date.getMonth() + 1) +
+    "-" +
+    p(date.getDate()) +
+    "-" +
+    p(date.getHours()) +
+    p(date.getMinutes())
   );
 }
 

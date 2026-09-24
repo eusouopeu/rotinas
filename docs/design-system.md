@@ -94,3 +94,13 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 `npm run visual:baseline` grava a referência (60 imagens: 14 telas + catálogo × celular/desktop × claro/escuro, com dados fixos de `webapp/visual/seed.mjs` e data congelada em 23/09/2026); `npm run visual` compara e reprova qualquer diferença (relatório em `webapp/visual/relatorio`). Rode o baseline ANTES de migrar uma tela e o `visual` depois: mudança visual intencional → confira o relatório e rode o baseline de novo. A referência é gitignorada (depende da máquina); o Chromium do Playwright fica em `~/Library/Caches/ms-playwright` (`npx playwright install chromium`). Telas novas entram acrescentando um bloco em `webapp/visual/telas.spec.mjs`.
 
 > Variantes de largura: `paisagem:` é declarada antes de `desktop:`/`wide:`/`ultra:` em `tailwind.css` de propósito (no legado a largura vence o celular deitado). Não reordene. Telas: use `tela({ comAbas, comPill, larga }, "extras")` no `<div>` raiz e `rolavel()` na área que rola; cabeçalho de aba = `CabecalhoTela`.
+
+## Quirks preservados (para a rodada de harmonização)
+
+A migração manteve pixel a pixel o que o legado fazia, inclusive o que é acidente do navegador. Ao harmonizar (e só então ligar o preflight do Tailwind), estes são os pontos:
+
+- **Sem preflight:** `html` com line-height normal, `p`/`h*` com margens do navegador nos poucos lugares que não as zeram, `svg` inline, bordas/paddings de campo do navegador.
+- **Fonte do sistema** (não a Montserrat) em: botão "perigo", campos "modelo/linha/item" e `select`, botões só-ícone e o "Sair" do player, botão de opção do popup "Criar", "cancelar"/campo cru da edição do cartão do Kanban, campos da linha de gasto em edição.
+- **Escala de texto** com meios-pixels (`text-[13.5px]`, `[14.5px]`, `[15.5px]`, `[10.5px]`, `[11.5px]`, `[12.5px]`): unificar em `text-2xs…5xl`.
+- **Legado sem efeito:** cores de coluna do Kanban (`kb-s0..2`), `.color-chip`/`.mx-chip` sem seleção, pasta de Prós e contras fora da lista de pastas, pill de Notas/Outros sobrepondo o FAB rotulado no desktop.
+- **Variantes:** `paisagem:` é declarada antes de `desktop:`/`wide:`/`ultra:` de propósito.

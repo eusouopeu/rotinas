@@ -94,7 +94,13 @@ export function aplicarDeltaMeta(
     metasPontos[atual] = (metasPontos[atual] || 0) + delta;
   } else {
     let resta = -delta;
-    const periodos = [atual, ...Object.keys(creditos).filter((p) => p !== atual).sort().reverse()];
+    const periodos = [
+      atual,
+      ...Object.keys(creditos)
+        .filter((p) => p !== atual)
+        .sort()
+        .reverse(),
+    ];
     for (const p of periodos) {
       if (resta <= 1e-9) break;
       const tira = Math.min(creditos[p] || 0, resta);
@@ -170,7 +176,9 @@ export function metaRecExcedida(rec: MetaRecorrente, data: Date = new Date()): b
  * janela de notificação (`notif`) geram horários: `vezes` alarmes
  * igualmente espaçados entre `notif.inicio` e `notif.fim`. Sem janela válida
  * (fim <= início) ou `vezes < 1`, nada é agendado. */
-export function metaRecHorarios(rec: Pick<MetaRecorrente, "tipo" | "notif" | "vezes">): Array<{ hour: number; minute: number }> {
+export function metaRecHorarios(
+  rec: Pick<MetaRecorrente, "tipo" | "notif" | "vezes">
+): Array<{ hour: number; minute: number }> {
   if (!rec.notif || rec.tipo !== "diaria") return [];
   const [hi, mi] = rec.notif.inicio.split(":").map(Number);
   const [hf, mf] = rec.notif.fim.split(":").map(Number);
@@ -238,7 +246,10 @@ export function ajustarProgressoMetaRec(
    o *id* do eixo, então o resolvedor aceita id e rótulo. */
 const META_AREA_CORES = ["#E0619E", "#5B8DEF", "#6B8F71", "#C9B23E", "#B25B4C", "#8A78C8", "#3FA7A0"];
 
-export function metaAreaInfo(v: string, areasRoda: Array<{ id: string; label: string; color: string }> = []): { label: string; color: string } {
+export function metaAreaInfo(
+  v: string,
+  areasRoda: Array<{ id: string; label: string; color: string }> = []
+): { label: string; color: string } {
   const s = String(v || "").trim();
   const e = areasRoda.find((x) => x.id === s) || areasRoda.find((x) => x.label.toLowerCase() === s.toLowerCase());
   if (e) return { label: e.label, color: e.color };
@@ -247,12 +258,17 @@ export function metaAreaInfo(v: string, areasRoda: Array<{ id: string; label: st
   return { label: s, color: META_AREA_CORES[h % META_AREA_CORES.length] };
 }
 
-export function metaAreasPool(doc: CountdownDoc, areasRoda: Array<{ id: string; label: string; color: string }> = []): string[] {
+export function metaAreasPool(
+  doc: CountdownDoc,
+  areasRoda: Array<{ id: string; label: string; color: string }> = []
+): string[] {
   const set = new Set<string>();
-  (doc.targets || []).forEach((t) => (t.areas || []).forEach((a) => {
-    const l = metaAreaInfo(a, areasRoda).label;
-    if (l) set.add(l);
-  }));
+  (doc.targets || []).forEach((t) =>
+    (t.areas || []).forEach((a) => {
+      const l = metaAreaInfo(a, areasRoda).label;
+      if (l) set.add(l);
+    })
+  );
   areasRoda.forEach((a) => set.add(a.label));
   return [...set];
 }
@@ -268,24 +284,23 @@ export function metaDias(t: Pick<MetaTarget, "dias">): number[] {
 export function metaDiasLabel(t: Pick<MetaTarget, "dias">, abrev: string[]): string {
   const dias = metaDias(t);
   if (dias.length >= 7) return "";
-  return dias.slice().sort((a, b) => a - b).map((d) => abrev[d]).join("/");
+  return dias
+    .slice()
+    .sort((a, b) => a - b)
+    .map((d) => abrev[d])
+    .join("/");
 }
 
 export type MetasSubview = "prazos" | "recorrentes";
 
-export function loadMetasSubviewSel(
-  loadFn: <T>(key: string, fallback: T) => T
-): MetasSubview[] {
+export function loadMetasSubviewSel(loadFn: <T>(key: string, fallback: T) => T): MetasSubview[] {
   const v = loadFn<MetasSubview[] | null>(K_METASSUBVIEWSEL, null);
   if (Array.isArray(v) && v.length) return v;
   const leg = loadFn<string>(K_METASSUBVIEW, "recorrentes");
   return [leg === "prazos" ? "prazos" : "recorrentes"];
 }
 
-export function toggleMetasSubview(
-  current: MetasSubview[],
-  view: MetasSubview
-): MetasSubview[] {
+export function toggleMetasSubview(current: MetasSubview[], view: MetasSubview): MetasSubview[] {
   const pos = current.indexOf(view);
   if (pos >= 0) {
     if (current.length <= 1) return current; // não deixa ambos desmarcados

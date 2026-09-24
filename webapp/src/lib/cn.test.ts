@@ -23,7 +23,7 @@ describe("cn", () => {
   });
 
   it("cor e tamanho de texto não se anulam", () => {
-    expect(cn("text-sub text-md", "text-caneta")).toBe("text-md text-caneta");
+    expect(cn("text-md text-sub", "text-caneta")).toBe("text-md text-caneta");
   });
 
   it("variantes responsivas convivem com a base", () => {

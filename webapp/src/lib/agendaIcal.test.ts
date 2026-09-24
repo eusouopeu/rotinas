@@ -24,7 +24,13 @@ describe("itensAgendaDoDia com calendário externo", () => {
     fetchedAt: Date.now(),
     eventos: [
       evento({}),
-      evento({ uid: "e2", title: "Feriado", allDay: true, startMs: new Date(2026, 7, 24).getTime(), endMs: new Date(2026, 7, 25).getTime() }),
+      evento({
+        uid: "e2",
+        title: "Feriado",
+        allDay: true,
+        startMs: new Date(2026, 7, 24).getTime(),
+        endMs: new Date(2026, 7, 25).getTime(),
+      }),
     ],
   };
 

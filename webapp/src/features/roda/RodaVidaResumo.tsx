@@ -113,7 +113,14 @@ export function RodaVidaResumo() {
       {aberto && (
         <>
           <div className="mt-2 flex items-center gap-1">
-            {temSetas && <SetaPagina rotulo="Áreas anteriores" desabilitada={pag === 0} onClick={(e) => irPara(e, -1)} icone="chevronLeft" />}
+            {temSetas && (
+              <SetaPagina
+                rotulo="Áreas anteriores"
+                desabilitada={pag === 0}
+                onClick={(e) => irPara(e, -1)}
+                icone="chevronLeft"
+              />
+            )}
             <div
               className="min-w-0 flex-1"
               data-roda="linhas"
@@ -145,10 +152,20 @@ export function RodaVidaResumo() {
                 />
               ))}
             </div>
-            {temSetas && <SetaPagina rotulo="Próximas áreas" desabilitada={pag >= paginas - 1} onClick={(e) => irPara(e, 1)} icone="chevronRight" />}
+            {temSetas && (
+              <SetaPagina
+                rotulo="Próximas áreas"
+                desabilitada={pag >= paginas - 1}
+                onClick={(e) => irPara(e, 1)}
+                icone="chevronRight"
+              />
+            )}
           </div>
 
-          <div data-roda="rodape" className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3.5 gap-y-2 border-t-[1.5px] border-line pt-2.5 font-sans text-md text-ink">
+          <div
+            data-roda="rodape"
+            className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3.5 gap-y-2 border-t-[1.5px] border-line pt-2.5 font-sans text-md text-ink"
+          >
             {r && (
               <Fato data-roda="fato" title={`Nota da semana · ${r.label}`}>
                 <Icon name="hashtag" size={13} /> Nota <b style={{ color: r.cor }}>{num(r.nota)}</b>

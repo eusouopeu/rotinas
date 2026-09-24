@@ -27,8 +27,10 @@ export function Modal({ children, onFechar, posicao = "centro", className }: Pro
       <div
         role="dialog"
         aria-modal="true"
-        className={cn("w-full max-w-80 rounded-xl border-[1.5px] border-line bg-card p-[22px] paisagem:max-h-[94vh] paisagem:max-w-[520px] paisagem:overflow-y-auto desktop:max-w-[460px]",
-          className)}
+        className={cn(
+          "w-full max-w-80 rounded-xl border-[1.5px] border-line bg-card p-[22px] paisagem:max-h-[94vh] paisagem:max-w-[520px] paisagem:overflow-y-auto desktop:max-w-[460px]",
+          className
+        )}
       >
         {children}
       </div>

@@ -36,7 +36,16 @@ describe("ritmoInfo", () => {
 describe("distribuicaoTags", () => {
   it("conta só etapas timer, ignora outras, herda peso da rotina quando a etapa não tem o próprio", () => {
     const routines: Routine[] = [
-      { id: "r1", name: "R1", tagValor: "alto", steps: [{ id: "s1", name: "A", type: "timer" }, { id: "s2", name: "B", type: "timer", tagValor: "baixo" }, { id: "s3", name: "C", type: "checklist" }] },
+      {
+        id: "r1",
+        name: "R1",
+        tagValor: "alto",
+        steps: [
+          { id: "s1", name: "A", type: "timer" },
+          { id: "s2", name: "B", type: "timer", tagValor: "baixo" },
+          { id: "s3", name: "C", type: "checklist" },
+        ],
+      },
     ];
     const d = distribuicaoTags(routines);
     expect(d).toEqual({ alto: 1, medio: 0, baixo: 1, nenhum: 0, total: 2 });

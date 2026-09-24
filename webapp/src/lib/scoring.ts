@@ -28,7 +28,17 @@ import {
 } from "./gamificacao";
 import { rotinaAgendadaEm } from "./schedule";
 import { playbackSteps } from "./player";
-import type { DiaKanbanCard, Exercicio, GamificacaoConfig, GamificacaoState, MetaRecorrente, Routine, RoutineStep, SemanaAtual, Tag } from "./types";
+import type {
+  DiaKanbanCard,
+  Exercicio,
+  GamificacaoConfig,
+  GamificacaoState,
+  MetaRecorrente,
+  Routine,
+  RoutineStep,
+  SemanaAtual,
+  Tag,
+} from "./types";
 import { descansoEntreSeries } from "./exercicios";
 
 export function areaDaRotina(r: Routine, gam: GamificacaoState): string {
@@ -58,7 +68,9 @@ export interface AreaInfo {
 }
 export function areaInfoRoda(id: string, gam: GamificacaoState): AreaInfo {
   const a = gam.config.roda.areas.find((x) => x.id === id);
-  return a ? { id: a.id, label: a.label, color: a.color, peso: a.peso } : { id: "", label: "Sem área", color: "var(--sub)", peso: gam.config.roda.pesoSemArea };
+  return a
+    ? { id: a.id, label: a.label, color: a.color, peso: a.peso }
+    : { id: "", label: "Sem área", color: "var(--sub)", peso: gam.config.roda.pesoSemArea };
 }
 
 /* Porta de rotinaEhHabito (index.html:1309) — só leitura para a UI: a rotina
@@ -156,7 +168,10 @@ function fecharSemanaAtual(gam: GamificacaoState): GamificacaoState {
   const porArea = pontosGanhosPorArea(sem);
   const destaques = destaquesDaSemana(sem);
   if (sem.dispensada) {
-    const semanas = [...gam.historico.semanas, { inicioISO: sem.inicioISO, nota, badge: null, dispensada: true, destaques, porArea }];
+    const semanas = [
+      ...gam.historico.semanas,
+      { inicioISO: sem.inicioISO, nota, badge: null, dispensada: true, destaques, porArea },
+    ];
     return { ...gam, historico: { ...gam.historico, semanas } };
   }
   const badge = badgeParaNota(nota, gam.config);
@@ -226,7 +241,8 @@ function fecharPeriodosPendentes(gam: GamificacaoState, hojeISO: string): Gamifi
       const nota = notas.reduce((a, b) => a + b, 0) / notas.length + bonus;
       const badge = badgeParaNota(nota, gam.config);
       anos = [...anos, { ano, nota, badge, bonusMetas: bonus }];
-      if (badge) badges = [...badges, { escopo: "anual", tipo: badge, periodo: String(ano), nota, emitidaEm: Date.now() }];
+      if (badge)
+        badges = [...badges, { escopo: "anual", tipo: badge, periodo: String(ano), nota, emitidaEm: Date.now() }];
     });
 
   return { ...gam, historico: { semanas: gam.historico.semanas, meses, trimestres, anos }, badges };
@@ -235,7 +251,9 @@ function fecharPeriodosPendentes(gam: GamificacaoState, hojeISO: string): Gamifi
 /** Porta de avancarGamificacaoAteAgora (index.html:1573-1585) — roda no boot
  * e antes de creditar pontos: o app pode ter ficado dias fechado. */
 export function avancarGamificacaoAteAgora(routines: Routine[], gam: GamificacaoState): GamificacaoState {
-  let atual = gam.semanaAtual ? gam : { ...gam, semanaAtual: congelarSemana(routines, gam, inicioSemanaISO(new Date())).semanaAtual };
+  let atual = gam.semanaAtual
+    ? gam
+    : { ...gam, semanaAtual: congelarSemana(routines, gam, inicioSemanaISO(new Date())).semanaAtual };
   const hojeISO = inicioSemanaISO(new Date());
   let guard = 0;
   while (atual.semanaAtual!.inicioISO < hojeISO && guard < 260) {
@@ -331,7 +349,11 @@ export function pontosCartao(tag: Tag | undefined, per: string, area: string, ga
 /** Porta de sincronizarPontosCartao (index.html:12734-12756) — credita
  * quando o cartão vira "done" e ainda não tinha crédito; não faz nada se o
  * estado feito/creditado já bate (idempotente). */
-export function sincronizarPontosCartao(gam: GamificacaoState, card: DiaKanbanCard, data: Date = new Date()): { gam: GamificacaoState; card: DiaKanbanCard } {
+export function sincronizarPontosCartao(
+  gam: GamificacaoState,
+  card: DiaKanbanCard,
+  data: Date = new Date()
+): { gam: GamificacaoState; card: DiaKanbanCard } {
   const feito = card.col === "done";
   const jaCreditado = !!card.gamItemId || !!card.gamPeriodo;
   if (feito === jaCreditado) return { gam, card };
@@ -342,9 +364,18 @@ export function sincronizarPontosCartao(gam: GamificacaoState, card: DiaKanbanCa
     const itemId = "kanban:" + card.id + ":" + dataISO;
     if (gam.semanaAtual.concluidos.some((c) => c.itemId === itemId)) return { gam, card };
     const area = areaDoCartao(card, gam);
-    const pb = pesoBruto(card.tagValor || "nenhum", gam.config.divisorDuracao, gam.config) * (KB_ESCOPO_MULT[escopoDoPer(card.per)] || 1);
+    const pb =
+      pesoBruto(card.tagValor || "nenhum", gam.config.divisorDuracao, gam.config) *
+      (KB_ESCOPO_MULT[escopoDoPer(card.per)] || 1);
     const pontos = pb * fatorParaArea(area, gam.semanaAtual.fatoresArea, gam.semanaAtual.fatorNormalizacao);
-    const entry = { itemId, pontos, pb, area, dataISO, rotulo: "Kanban " + (KB_ESCOPO_LABEL[escopoDoPer(card.per)] || "") };
+    const entry = {
+      itemId,
+      pontos,
+      pb,
+      area,
+      dataISO,
+      rotulo: "Kanban " + (KB_ESCOPO_LABEL[escopoDoPer(card.per)] || ""),
+    };
     const semanaAtual = { ...gam.semanaAtual, concluidos: [...gam.semanaAtual.concluidos, entry] };
     return { gam: { ...gam, semanaAtual }, card: { ...card, gamItemId: itemId } };
   }
@@ -357,7 +388,10 @@ export function sincronizarPontosCartao(gam: GamificacaoState, card: DiaKanbanCa
 
 /** Porta de descreditarCartao (index.html:12757-12766) — estorna crédito de
  * semana (via desfazerConclusao, casa por itemId) e/ou bônus de mês/ano. */
-export function descreditarCartao(gam: GamificacaoState, card: DiaKanbanCard): { gam: GamificacaoState; card: DiaKanbanCard } {
+export function descreditarCartao(
+  gam: GamificacaoState,
+  card: DiaKanbanCard
+): { gam: GamificacaoState; card: DiaKanbanCard } {
   let novoGam = gam;
   let novoCard = card;
   if (card.gamItemId) {
@@ -389,7 +423,11 @@ export interface SimulacaoRotina {
  * construirAgendaSemana para simular multiplicador/divisor hipotéticos: como
  * updateGamConfig já salva a cada edição no React (sem estágio "rascunho"
  * como no DOM do app antigo), `gam` passado aqui já é a config hipotética. */
-export function simularDistribuicaoSemana(routines: Routine[], gam: GamificacaoState, inicioISO: string): SimulacaoRotina[] {
+export function simularDistribuicaoSemana(
+  routines: Routine[],
+  gam: GamificacaoState,
+  inicioISO: string
+): SimulacaoRotina[] {
   const { itens, totalBruto, porArea } = construirAgendaSemana(routines, gam, inicioISO);
   const fator = fatorNormalizacaoPara(totalBruto, gam.config);
   const fatoresArea = fatoresPorArea(porArea, gam.config, fator);
@@ -417,7 +455,14 @@ export function totalPlanejadoSegundos(routine: Routine, exercicios: Exercicio[]
   return playbackSteps(routine).reduce((acc, s) => {
     if (s.type === "timer") return acc + (s.seconds || 0);
     if (s.type === "exercicio")
-      return acc + (s.sets || 1) * descansoEntreSeries(rest, exercicios.find((e) => e.id === s.exercicioId));
+      return (
+        acc +
+        (s.sets || 1) *
+          descansoEntreSeries(
+            rest,
+            exercicios.find((e) => e.id === s.exercicioId)
+          )
+      );
     return acc;
   }, 0);
 }

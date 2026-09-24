@@ -3,7 +3,16 @@
 // devolve o `innerHtml` que exportPdfView (lib/exportFile.ts) empacota e
 // exporta. Escapa manualmente (o resultado vira `document.write`/arquivo
 // .html, não passa pelo escape automático do JSX).
-import type { KanbanDoc, MatrixDoc, TravelDoc, GamificacaoState, Routine, MetaTarget, CountdownDoc, ProsConsDoc } from "./types";
+import type {
+  KanbanDoc,
+  MatrixDoc,
+  TravelDoc,
+  GamificacaoState,
+  Routine,
+  MetaTarget,
+  CountdownDoc,
+  ProsConsDoc,
+} from "./types";
 import type { HistoryEntry } from "./history";
 import { localKey, anoMesDoFimDaSemana } from "./gamificacao";
 import { notaSemanaAtual, pontosPorAreaSemana } from "./boletim";
@@ -20,7 +29,8 @@ function escapeHtml(s: string): string {
 
 export function matrixPdfHtml(doc: MatrixDoc): string {
   let inner = "<h1>" + escapeHtml(doc.title) + "</h1>";
-  if (doc.axisX || doc.axisY) inner += `<p class="meta">Eixos: ${escapeHtml(doc.axisX || "—")} × ${escapeHtml(doc.axisY || "—")}</p>`;
+  if (doc.axisX || doc.axisY)
+    inner += `<p class="meta">Eixos: ${escapeHtml(doc.axisX || "—")} × ${escapeHtml(doc.axisY || "—")}</p>`;
   inner += `<div class="mxgrid">`;
   doc.quadrants.forEach((q) => {
     inner += `<div class="mxq" style="border-color:${q.color}"><h2 style="color:${q.color}">${escapeHtml(q.title)} (${q.items.length})</h2><ul>`;
@@ -35,7 +45,14 @@ export function matrixPdfHtml(doc: MatrixDoc): string {
 export function kanbanPdfHtml(doc: KanbanDoc): string {
   let inner = "<h1>" + escapeHtml(doc.title) + "</h1>";
   doc.cols.forEach((c) => {
-    inner += "<h2>" + escapeHtml(c.title) + " (" + c.items.length + ")</h2><ul>" + c.items.map((i) => "<li>" + escapeHtml(i.text) + "</li>").join("") + "</ul>";
+    inner +=
+      "<h2>" +
+      escapeHtml(c.title) +
+      " (" +
+      c.items.length +
+      ")</h2><ul>" +
+      c.items.map((i) => "<li>" + escapeHtml(i.text) + "</li>").join("") +
+      "</ul>";
   });
   return inner;
 }
@@ -53,7 +70,12 @@ export function travelPdfHtml(doc: TravelDoc): string {
       "<h2>" +
       escapeHtml(cat) +
       "</h2><ul>" +
-      list.map((i) => `<li class="${i.checked ? "done" : ""}">${i.checked ? "☑" : "☐"} ${escapeHtml(i.name)}${i.qty && i.qty > 1 ? " ×" + i.qty : ""}</li>`).join("") +
+      list
+        .map(
+          (i) =>
+            `<li class="${i.checked ? "done" : ""}">${i.checked ? "☑" : "☐"} ${escapeHtml(i.name)}${i.qty && i.qty > 1 ? " ×" + i.qty : ""}</li>`
+        )
+        .join("") +
       "</ul>";
   });
   return inner;
@@ -136,7 +158,7 @@ function relatorioSemanalHtml(
   history: HistoryEntry[],
   routines: Routine[],
   targets: MetaTarget[],
-  hojeIso: string,
+  hojeIso: string
 ): { title: string; inner: string } {
   if (!gam.semanaAtual) {
     return {
@@ -158,7 +180,7 @@ function relatorioSemanalHtml(
           (l) =>
             `<li>${escapeHtml(l.label)}: ${l.pontos.toFixed(1)} pts${
               gam.config.roda.ativa && l.previsto ? " de " + l.previsto.toFixed(1) + " previstos" : ""
-            }</li>`,
+            }</li>`
         )
         .join("") +
       "</ul>";
@@ -171,7 +193,8 @@ function relatorioSemanalHtml(
   }
   const metasSemana = targets.filter((t) => metaConcluida(t) && t.date >= inicio);
   if (metasSemana.length) {
-    inner += "<h2>Metas concluídas</h2><ul>" + metasSemana.map((t) => `<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
+    inner +=
+      "<h2>Metas concluídas</h2><ul>" + metasSemana.map((t) => `<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
   }
   inner += `<p class="meta">gerado em ${hojeIso}</p>`;
   return { title: "Relatório da semana", inner };
@@ -181,13 +204,11 @@ function relatorioMensalHtml(
   gam: GamificacaoState,
   history: HistoryEntry[],
   targets: MetaTarget[],
-  hojeIso: string,
+  hojeIso: string
 ): { title: string; inner: string } {
   const anoMes = hojeIso.slice(0, 7);
   const bonusMetas = gam.metasPontos[anoMes] || 0;
-  const semanas = gam.historico.semanas.filter(
-    (s) => !s.dispensada && anoMesDoFimDaSemana(s.inicioISO) === anoMes,
-  );
+  const semanas = gam.historico.semanas.filter((s) => !s.dispensada && anoMesDoFimDaSemana(s.inicioISO) === anoMes);
   const somaSemanas = semanas.reduce((s, w) => s + w.nota, 0);
   let inner = `<h1>Relatório do mês — ${anoMes}</h1><p class="score">Pontuação: ${(somaSemanas + bonusMetas).toFixed(1)} pts</p>
     <p class="meta">${semanas.length} semana(s) fechada(s) neste mês · bônus de metas: ${bonusMetas.toFixed(1)} pts</p>`;
@@ -195,7 +216,9 @@ function relatorioMensalHtml(
   const feitas = history.filter((h) => h.date >= inicioMes && h.date.slice(0, 7) === anoMes);
   if (feitas.length) inner += `<h2>Rotinas concluídas</h2><p class="meta">${feitas.length} execução(ões) no mês</p>`;
   const metasMes = targets.filter((t) => metaConcluida(t) && t.date.slice(0, 7) === anoMes);
-  if (metasMes.length) inner += "<h2>Metas concluídas</h2><ul>" + metasMes.map((t) => `<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
+  if (metasMes.length)
+    inner +=
+      "<h2>Metas concluídas</h2><ul>" + metasMes.map((t) => `<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
   inner += `<p class="meta">gerado em ${hojeIso}</p>`;
   return { title: "Relatório do mês", inner };
 }
@@ -204,7 +227,7 @@ function relatorioAnualHtml(
   gam: GamificacaoState,
   history: HistoryEntry[],
   targets: MetaTarget[],
-  hojeIso: string,
+  hojeIso: string
 ): { title: string; inner: string } {
   const ano = hojeIso.slice(0, 4);
   const bonusMetas = gam.metasPontos[ano] || 0;
@@ -215,7 +238,9 @@ function relatorioAnualHtml(
   const feitas = history.filter((h) => h.date.slice(0, 4) === ano);
   if (feitas.length) inner += `<h2>Rotinas concluídas</h2><p class="meta">${feitas.length} execução(ões) no ano</p>`;
   const metasAno = targets.filter((t) => metaConcluida(t) && t.date.slice(0, 4) === ano);
-  if (metasAno.length) inner += "<h2>Metas concluídas</h2><ul>" + metasAno.map((t) => `<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
+  if (metasAno.length)
+    inner +=
+      "<h2>Metas concluídas</h2><ul>" + metasAno.map((t) => `<li>${escapeHtml(t.title)}</li>`).join("") + "</ul>";
   inner += `<p class="meta">gerado em ${hojeIso}</p>`;
   return { title: "Relatório do ano", inner };
 }
@@ -228,7 +253,7 @@ export function relatorioFechamentoHtml(
   history: HistoryEntry[],
   routines: Routine[],
   targets: MetaTarget[] = [],
-  hojeIso = localKey(),
+  hojeIso = localKey()
 ): { title: string; innerHtml: string } {
   let res: { title: string; inner: string };
   if (statsView === "mensal") res = relatorioMensalHtml(gam, history, targets, hojeIso);
@@ -236,4 +261,3 @@ export function relatorioFechamentoHtml(
   else res = relatorioSemanalHtml(gam, history, routines, targets, hojeIso);
   return { title: res.title, innerHtml: res.inner };
 }
-

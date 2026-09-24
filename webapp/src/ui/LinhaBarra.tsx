@@ -64,9 +64,15 @@ export function LinhaBarra({
           marcador === "esperado" && "relative"
         )}
       >
-        <div className="h-full rounded-[4px] bg-caneta" style={{ width: `${pct}%`, ...(cor ? { background: cor } : {}) }} />
+        <div
+          className="h-full rounded-[4px] bg-caneta"
+          style={{ width: `${pct}%`, ...(cor ? { background: cor } : {}) }}
+        />
         {marcador === "esperado" && (
-          <span className="absolute -top-[3px] -bottom-[3px] w-0.5 rounded-[1px] bg-ink opacity-65" style={{ left: `${posMarcador}%` }} />
+          <span
+            className="absolute -top-[3px] -bottom-[3px] w-0.5 rounded-[1px] bg-ink opacity-65"
+            style={{ left: `${posMarcador}%` }}
+          />
         )}
         {marcador === "meta" && (
           <span
@@ -106,7 +112,10 @@ export function GradeBarras({ className, ...resto }: HTMLAttributes<HTMLDivEleme
 export function TrilhoBarra({ pct, cor, className }: { pct: number; cor?: string; className?: string }) {
   return (
     <div className={cn("h-2 overflow-hidden rounded-[4px] bg-card-2", className)}>
-      <div className="h-full rounded-[4px] bg-caneta" style={{ width: `${pct}%`, ...(cor ? { background: cor } : {}) }} />
+      <div
+        className="h-full rounded-[4px] bg-caneta"
+        style={{ width: `${pct}%`, ...(cor ? { background: cor } : {}) }}
+      />
     </div>
   );
 }

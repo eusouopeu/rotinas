@@ -86,7 +86,16 @@ export function criarDispatcherMcp(get: () => McpEstado) {
         rotinas_hoje: rotinasOrdenadas(s.routines)
           .filter((r) => rotinaAgendadaEm(r, hoje))
           .map((r) => ({ id: r.id, name: r.name, horario: computeSchedule(r)?.startStr ?? null })),
-        agenda: itensAgendaDoDia(iso, hoje, s.routines, s.gam, s.history, s.diaKanban, s.compromissos, getIcalCache()).map((it) => ({
+        agenda: itensAgendaDoDia(
+          iso,
+          hoje,
+          s.routines,
+          s.gam,
+          s.history,
+          s.diaKanban,
+          s.compromissos,
+          getIcalCache()
+        ).map((it) => ({
           tipo: it.tipo,
           texto: it.texto,
           inicio: it.ini == null ? null : formatHM(it.ini),
@@ -123,7 +132,9 @@ export function criarDispatcherMcp(get: () => McpEstado) {
     },
 
     search_notes(a) {
-      const q = String(a.query ?? "").trim().toLowerCase();
+      const q = String(a.query ?? "")
+        .trim()
+        .toLowerCase();
       if (!q) return [];
       return get()
         .notes.filter((n) => (n.title || "").toLowerCase().includes(q) || (n.content || "").toLowerCase().includes(q))
@@ -159,7 +170,11 @@ export function criarDispatcherMcp(get: () => McpEstado) {
       const texto = textoArg(a);
       const antes = new Set(get().diaKanban.map((c) => c.id));
       const tag = TAGS.includes(a.tag_valor as Tag) ? (a.tag_valor as Tag) : "baixo";
-      get().upsertDiaKanbanCard(localKey(), { text: texto, tagValor: tag, eixo: typeof a.eixo === "string" ? a.eixo : null });
+      get().upsertDiaKanbanCard(localKey(), {
+        text: texto,
+        tagValor: tag,
+        eixo: typeof a.eixo === "string" ? a.eixo : null,
+      });
       const novo = get().diaKanban.find((c) => !antes.has(c.id));
       if (!novo) throw new Error("não foi possível criar o cartão");
       return { id: novo.id };

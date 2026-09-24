@@ -19,8 +19,14 @@ function doc(partial: Partial<ScoreboardDoc>): ScoreboardDoc {
 describe("sbTotais", () => {
   it("soma só os turnos jogados, célula vazia não conta", () => {
     const d = doc({
-      players: [{ id: "a", name: "A" }, { id: "b", name: "B" }],
-      rounds: [{ id: "r1", scores: { a: 5, b: 3 } }, { id: "r2", scores: { a: 2 } }],
+      players: [
+        { id: "a", name: "A" },
+        { id: "b", name: "B" },
+      ],
+      rounds: [
+        { id: "r1", scores: { a: 5, b: 3 } },
+        { id: "r2", scores: { a: 2 } },
+      ],
     });
     expect(sbTotais(d)).toEqual({ a: 7, b: 3 });
   });
@@ -29,7 +35,10 @@ describe("sbTotais", () => {
 describe("sbLideres", () => {
   it("maior vence por padrão", () => {
     const d = doc({
-      players: [{ id: "a", name: "A" }, { id: "b", name: "B" }],
+      players: [
+        { id: "a", name: "A" },
+        { id: "b", name: "B" },
+      ],
       rounds: [{ id: "r1", scores: { a: 5, b: 3 } }],
     });
     expect(sbLideres(d)).toEqual(["a"]);
@@ -38,7 +47,10 @@ describe("sbLideres", () => {
   it("menor vence quando higherWins é false", () => {
     const d = doc({
       higherWins: false,
-      players: [{ id: "a", name: "A" }, { id: "b", name: "B" }],
+      players: [
+        { id: "a", name: "A" },
+        { id: "b", name: "B" },
+      ],
       rounds: [{ id: "r1", scores: { a: 5, b: 3 } }],
     });
     expect(sbLideres(d)).toEqual(["b"]);
@@ -46,7 +58,10 @@ describe("sbLideres", () => {
 
   it("empate devolve todos os líderes", () => {
     const d = doc({
-      players: [{ id: "a", name: "A" }, { id: "b", name: "B" }],
+      players: [
+        { id: "a", name: "A" },
+        { id: "b", name: "B" },
+      ],
       rounds: [{ id: "r1", scores: { a: 5, b: 5 } }],
     });
     expect(sbLideres(d)).toEqual(["a", "b"]);

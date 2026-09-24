@@ -96,7 +96,9 @@ export function GradeDia({
           </span>
         </div>
       ))}
-      {layout.linhaAgoraPx != null && <div className="absolute right-0 left-11 z-[2] border-t-2 border-erro" style={{ top: layout.linhaAgoraPx }} />}
+      {layout.linhaAgoraPx != null && (
+        <div className="absolute right-0 left-11 z-[2] border-t-2 border-erro" style={{ top: layout.linhaAgoraPx }} />
+      )}
       <div
         className="absolute top-0 right-0 bottom-0 left-[52px]"
         onClick={(ev) => {

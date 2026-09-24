@@ -85,10 +85,20 @@ export function modeloShareData(doc: AnyTemplateDoc): ModeloShare {
 }
 
 export function ehRotinaShare(data: unknown): data is RotinaShare {
-  return !!data && typeof data === "object" && (data as { type?: unknown }).type === "rotina-share" && !!(data as { routine?: unknown }).routine;
+  return (
+    !!data &&
+    typeof data === "object" &&
+    (data as { type?: unknown }).type === "rotina-share" &&
+    !!(data as { routine?: unknown }).routine
+  );
 }
 export function ehModeloShare(data: unknown): data is ModeloShare {
-  return !!data && typeof data === "object" && (data as { type?: unknown }).type === "modelo-share" && !!(data as { doc?: unknown }).doc;
+  return (
+    !!data &&
+    typeof data === "object" &&
+    (data as { type?: unknown }).type === "modelo-share" &&
+    !!(data as { doc?: unknown }).doc
+  );
 }
 
 /** Porta do ramo "rotina-share" de importBackup (index.html:10921-10933) —
@@ -100,8 +110,16 @@ export function prepararRotinaImportada(routine: Routine, existentes: Routine[],
   const r: Routine = {
     ...routine,
     id: newId(),
-    steps: routine.steps.map((s) => ({ ...s, id: newId(), type: s.type === "routine" ? "checklist" : s.type, noteId: undefined })),
-    schedule: { ...(routine.schedule || { enabled: false, anchor: "start", time: "07:00", days: [0, 1, 2, 3, 4, 5, 6] }), enabled: false },
+    steps: routine.steps.map((s) => ({
+      ...s,
+      id: newId(),
+      type: s.type === "routine" ? "checklist" : s.type,
+      noteId: undefined,
+    })),
+    schedule: {
+      ...(routine.schedule || { enabled: false, anchor: "start", time: "07:00", days: [0, 1, 2, 3, 4, 5, 6] }),
+      enabled: false,
+    },
   };
   if (existentes.some((x) => x.name === r.name)) r.name = r.name + " (importada)";
   return r;
@@ -109,7 +127,11 @@ export function prepararRotinaImportada(routine: Routine, existentes: Routine[],
 
 /** Porta do ramo "modelo-share" de importBackup (index.html:10934-10943) —
  * novo id; título ganha sufixo se colidir com um modelo do mesmo tipo. */
-export function prepararModeloImportado(doc: AnyTemplateDoc, existentes: AnyTemplateDoc[], newId: () => string): AnyTemplateDoc {
+export function prepararModeloImportado(
+  doc: AnyTemplateDoc,
+  existentes: AnyTemplateDoc[],
+  newId: () => string
+): AnyTemplateDoc {
   const d = { ...doc, id: newId() } as AnyTemplateDoc & { title?: string };
   if (existentes.some((t) => (t as { title?: string }).title === d.title && t.type === d.type)) {
     d.title = (d.title || "") + " (importado)";
@@ -157,5 +179,10 @@ export function mergeByIdLoose<T extends { id?: unknown }>(current: T[], incomin
 export function mergeSnoozes(current: Snooze[], incoming: Snooze[] | undefined): Snooze[] {
   if (!incoming || !incoming.length) return current;
   const chaves = new Set(current.map((s) => s.from + ":" + s.to));
-  return [...current, ...incoming.filter((s) => s && typeof s.from === "number" && typeof s.to === "number" && !chaves.has(s.from + ":" + s.to))];
+  return [
+    ...current,
+    ...incoming.filter(
+      (s) => s && typeof s.from === "number" && typeof s.to === "number" && !chaves.has(s.from + ":" + s.to)
+    ),
+  ];
 }

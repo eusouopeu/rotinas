@@ -103,7 +103,14 @@ describe("registrarConclusaoStep", () => {
     const inicio = inicioSemanaISO(new Date(), 0);
     const congelado = congelarSemana([routine], gam, inicio);
     const hoje = new Date();
-    const dados = { routineId: routine.id, stepId: "s1", tag: "medio" as const, minutos: 30, area: "", rotulo: routine.name };
+    const dados = {
+      routineId: routine.id,
+      stepId: "s1",
+      tag: "medio" as const,
+      minutos: 30,
+      area: "",
+      rotulo: routine.name,
+    };
     const r1 = registrarConclusaoStep([routine], congelado, dados, hoje);
     const r2 = registrarConclusaoStep([routine], r1.gam, dados, hoje);
     expect(r2.entry).toBeNull();
@@ -194,7 +201,12 @@ describe("simularDistribuicaoSemana", () => {
     const gam = criarEstadoGamificacaoInicial();
     const inicio = inicioSemanaISO(new Date(), 0);
     const grande = rotinaDiariaTimer(60);
-    const pequena: Routine = { ...rotinaDiariaTimer(10), id: "r2", name: "Rotina 2", steps: [{ id: "s2", name: "Etapa", type: "timer", seconds: 600 }] };
+    const pequena: Routine = {
+      ...rotinaDiariaTimer(10),
+      id: "r2",
+      name: "Rotina 2",
+      steps: [{ id: "s2", name: "Etapa", type: "timer", seconds: 600 }],
+    };
     const sim = simularDistribuicaoSemana([grande, pequena], gam, inicio);
     expect(sim.map((s) => s.routineId)).toEqual(["r1", "r2"]);
     expect(sim[0].pontos).toBeGreaterThan(sim[1].pontos);
@@ -210,10 +222,26 @@ describe("simularDistribuicaoSemana", () => {
     const gam = criarEstadoGamificacaoInicial();
     const inicio = inicioSemanaISO(new Date(), 0);
     const rotinaMedio = rotinaDiariaTimer(30);
-    const rotinaBaixo: Routine = { ...rotinaDiariaTimer(30), id: "r2", name: "Rotina 2", tagValor: "baixo", steps: [{ id: "s2", name: "Etapa", type: "timer", seconds: 1800 }] };
-    const base = simularDistribuicaoSemana([rotinaMedio, rotinaBaixo], gam, inicio).find((s) => s.routineId === "r1")!.pontos;
-    const gamHipotetico = { ...gam, config: { ...gam.config, multiplicadores: { ...gam.config.multiplicadores, medio: gam.config.multiplicadores.medio * 3 } } };
-    const maior = simularDistribuicaoSemana([rotinaMedio, rotinaBaixo], gamHipotetico, inicio).find((s) => s.routineId === "r1")!.pontos;
+    const rotinaBaixo: Routine = {
+      ...rotinaDiariaTimer(30),
+      id: "r2",
+      name: "Rotina 2",
+      tagValor: "baixo",
+      steps: [{ id: "s2", name: "Etapa", type: "timer", seconds: 1800 }],
+    };
+    const base = simularDistribuicaoSemana([rotinaMedio, rotinaBaixo], gam, inicio).find(
+      (s) => s.routineId === "r1"
+    )!.pontos;
+    const gamHipotetico = {
+      ...gam,
+      config: {
+        ...gam.config,
+        multiplicadores: { ...gam.config.multiplicadores, medio: gam.config.multiplicadores.medio * 3 },
+      },
+    };
+    const maior = simularDistribuicaoSemana([rotinaMedio, rotinaBaixo], gamHipotetico, inicio).find(
+      (s) => s.routineId === "r1"
+    )!.pontos;
     expect(maior).toBeGreaterThan(base);
   });
 });

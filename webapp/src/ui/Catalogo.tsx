@@ -77,7 +77,11 @@ function Par({
       data-lado={rotulo}
       data-comparar={JSON.stringify(alvos)}
       data-ignorar={JSON.stringify(ignorar ?? [])}
-      className={contem ? "relative h-40 overflow-hidden rounded-md border border-dashed border-line [transform:translateZ(0)]" : "min-w-0"}
+      className={
+        contem
+          ? "relative h-40 [transform:translateZ(0)] overflow-hidden rounded-md border border-dashed border-line"
+          : "min-w-0"
+      }
     >
       {conteudo}
     </div>
@@ -134,7 +138,11 @@ export function Catalogo() {
         />
         <Par
           nome="botao-solido"
-          legado={<button className="btn-confirm" style={{ background: "var(--caneta)" }}>Mesclar</button>}
+          legado={
+            <button className="btn-confirm" style={{ background: "var(--caneta)" }}>
+              Mesclar
+            </button>
+          }
           novo={<Botao variante="solido">Mesclar</Botao>}
         />
         <Par
@@ -202,13 +210,18 @@ export function Catalogo() {
           }
         />
 
-        <Par nome="fab" contem legado={<button className="fab" title="Novo">+</button>} novo={<Fab rotulo="Novo" onClick={noop} />} />
-
         <Par
-          nome="chip"
-          legado={<span className="area-chip">Saúde</span>}
-          novo={<Chip>Saúde</Chip>}
+          nome="fab"
+          contem
+          legado={
+            <button className="fab" title="Novo">
+              +
+            </button>
+          }
+          novo={<Fab rotulo="Novo" onClick={noop} />}
         />
+
+        <Par nome="chip" legado={<span className="area-chip">Saúde</span>} novo={<Chip>Saúde</Chip>} />
         <Par
           nome="chip-ativo"
           legado={
@@ -455,7 +468,11 @@ export function Catalogo() {
           nome="campo-cor"
           legado={<input type="color" className="area-color-swatch" defaultValue="#6d28d9" />}
           novo={<CampoCor defaultValue="#6d28d9" />}
-          cmp={[{ sel: "input" }, { sel: "input", pseudo: "::-webkit-color-swatch" }, { sel: "input", pseudo: "::-webkit-color-swatch-wrapper" }]}
+          cmp={[
+            { sel: "input" },
+            { sel: "input", pseudo: "::-webkit-color-swatch" },
+            { sel: "input", pseudo: "::-webkit-color-swatch-wrapper" },
+          ]}
           cmpNovo={[{}, { pseudo: "::-webkit-color-swatch" }, { pseudo: "::-webkit-color-swatch-wrapper" }]}
         />
         <Par
@@ -463,7 +480,9 @@ export function Catalogo() {
           legado={
             <div className="dev-row">
               <span>notes</span>
-              <b className="dev-n wide" style={{ color: "var(--erro)" }}>conflito</b>
+              <b className="dev-n wide" style={{ color: "var(--erro)" }}>
+                conflito
+              </b>
             </div>
           }
           novo={<LinhaDado rotulo="notes" valor="conflito" cor="var(--erro)" />}
@@ -479,7 +498,11 @@ export function Catalogo() {
         <Par
           nome="chip-tag-ativo"
           legado={<span className="tag-chip active">#casa</span>}
-          novo={<Chip variante="tag" ativo>#casa</Chip>}
+          novo={
+            <Chip variante="tag" ativo>
+              #casa
+            </Chip>
+          }
           ignorar={["cursor"]}
         />
         <Par
@@ -516,7 +539,9 @@ export function Catalogo() {
           legado={
             <div className="tmpl-new-grid">
               <button className="tmpl-new">
-                <span className="tmpl-ic"><Icon name="settings" size={22} /></span>
+                <span className="tmpl-ic">
+                  <Icon name="settings" size={22} />
+                </span>
                 <span>Kanbans</span>
               </button>
             </div>
@@ -540,8 +565,16 @@ export function Catalogo() {
         />
         <Par
           nome="botao-redondo-pequeno"
-          legado={<button className="ctrl-btn" style={{ width: 36, height: 36, fontSize: 15 }}>+</button>}
-          novo={<BotaoRedondo rotulo="Mais um" tamanho="sm">+</BotaoRedondo>}
+          legado={
+            <button className="ctrl-btn" style={{ width: 36, height: 36, fontSize: 15 }}>
+              +
+            </button>
+          }
+          novo={
+            <BotaoRedondo rotulo="Mais um" tamanho="sm">
+              +
+            </BotaoRedondo>
+          }
         />
         <Par
           nome="botao-redondo"
@@ -551,17 +584,29 @@ export function Catalogo() {
         <Par
           nome="botao-redondo-grande"
           legado={<button className="ctrl-btn big">+</button>}
-          novo={<BotaoRedondo rotulo="Pausar" tamanho="grande" cor="destaque">+</BotaoRedondo>}
+          novo={
+            <BotaoRedondo rotulo="Pausar" tamanho="grande" cor="destaque">
+              +
+            </BotaoRedondo>
+          }
         />
         <Par
           nome="botao-redondo-ok"
           legado={<button className="ctrl-btn ok">+</button>}
-          novo={<BotaoRedondo rotulo="Concluir" cor="ok">+</BotaoRedondo>}
+          novo={
+            <BotaoRedondo rotulo="Concluir" cor="ok">
+              +
+            </BotaoRedondo>
+          }
         />
         <Par
           nome="botao-redondo-ok-grande"
           legado={<button className="ctrl-btn ok big">+</button>}
-          novo={<BotaoRedondo rotulo="Concluir série" tamanho="grande" cor="ok">+</BotaoRedondo>}
+          novo={
+            <BotaoRedondo rotulo="Concluir série" tamanho="grande" cor="ok">
+              +
+            </BotaoRedondo>
+          }
         />
         <Par
           nome="circulo-check"
@@ -591,15 +636,31 @@ export function Catalogo() {
         />
         <Par
           nome="botao-compacto"
-          legado={<div className="notice-actions"><button>ok</button></div>}
-          novo={<div className="flex gap-2"><BotaoCompacto>ok</BotaoCompacto></div>}
+          legado={
+            <div className="notice-actions">
+              <button>ok</button>
+            </div>
+          }
+          novo={
+            <div className="flex gap-2">
+              <BotaoCompacto>ok</BotaoCompacto>
+            </div>
+          }
           cmp={[{ sel: "button" }]}
           cmpNovo={[{ sel: "button" }]}
         />
         <Par
           nome="botao-compacto-fantasma"
-          legado={<div className="notice-actions"><button className="ghost">cancelar</button></div>}
-          novo={<div className="flex gap-2"><BotaoCompacto variante="fantasma">cancelar</BotaoCompacto></div>}
+          legado={
+            <div className="notice-actions">
+              <button className="ghost">cancelar</button>
+            </div>
+          }
+          novo={
+            <div className="flex gap-2">
+              <BotaoCompacto variante="fantasma">cancelar</BotaoCompacto>
+            </div>
+          }
           cmp={[{ sel: "button" }]}
           cmpNovo={[{ sel: "button" }]}
         />
@@ -620,8 +681,16 @@ export function Catalogo() {
         />
         <Par
           nome="campo-novo-item"
-          legado={<div className="mx-add"><input type="text" placeholder="+ item" /></div>}
-          novo={<div><CampoNovoItem placeholder="+ item" /></div>}
+          legado={
+            <div className="mx-add">
+              <input type="text" placeholder="+ item" />
+            </div>
+          }
+          novo={
+            <div>
+              <CampoNovoItem placeholder="+ item" />
+            </div>
+          }
           cmp={[{ sel: "input" }]}
           cmpNovo={[{ sel: "input" }]}
         />
@@ -670,30 +739,64 @@ export function Catalogo() {
           nome="linha-barra"
           legado={
             <div className="bar-row">
-              <div className="bar-name" style={{ color: "var(--ok)" }}>Saúde</div>
-              <div className="bar-track"><div className="bar-fill" style={{ width: "40%", background: "var(--ok)" }} /></div>
+              <div className="bar-name" style={{ color: "var(--ok)" }}>
+                Saúde
+              </div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: "40%", background: "var(--ok)" }} />
+              </div>
               <div className="bar-val">12 / 42</div>
             </div>
           }
           novo={<LinhaBarra rotulo="Saúde" cor="var(--ok)" corRotulo="var(--ok)" pct={40} valor="12 / 42" />}
           cmp={[{}, { sel: ".bar-name" }, { sel: ".bar-track" }, { sel: ".bar-fill" }, { sel: ".bar-val" }]}
-          cmpNovo={[{}, { sel: ":scope > div > div:nth-child(1)" }, { sel: ":scope > div > div:nth-child(2)" }, { sel: ":scope > div > div:nth-child(2) > div" }, { sel: ":scope > div > div:nth-child(3)" }]}
+          cmpNovo={[
+            {},
+            { sel: ":scope > div > div:nth-child(1)" },
+            { sel: ":scope > div > div:nth-child(2)" },
+            { sel: ":scope > div > div:nth-child(2) > div" },
+            { sel: ":scope > div > div:nth-child(3)" },
+          ]}
         />
         <Par
           nome="selecao"
-          legado={<select className="routine-select"><option>Todas as rotinas</option></select>}
-          novo={<Selecao><option>Todas as rotinas</option></Selecao>}
+          legado={
+            <select className="routine-select">
+              <option>Todas as rotinas</option>
+            </select>
+          }
+          novo={
+            <Selecao>
+              <option>Todas as rotinas</option>
+            </Selecao>
+          }
           cmp={[{ sel: "select" }]}
           cmpNovo={[{}]}
           ignorar={["display", "minWidth", "minHeight"]}
         />
         <Par
           nome="botao-link"
-          legado={<div className="topbar" style={{ marginBottom: 0 }}><button className="link-btn muted">Depois</button></div>}
-          novo={<div><BotaoLink tom="suave">Depois</BotaoLink></div>}
+          legado={
+            <div className="topbar" style={{ marginBottom: 0 }}>
+              <button className="link-btn muted">Depois</button>
+            </div>
+          }
+          novo={
+            <div>
+              <BotaoLink tom="suave">Depois</BotaoLink>
+            </div>
+          }
           cmp={[{ sel: "button" }]}
           cmpNovo={[{ sel: "button" }]}
-          ignorar={["display", "borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius", "minWidth", "minHeight"]} /* sem borda: o raio 999 herdado do link-btn não aparece; display vem do flex do .topbar */
+          ignorar={[
+            "display",
+            "borderTopLeftRadius",
+            "borderTopRightRadius",
+            "borderBottomLeftRadius",
+            "borderBottomRightRadius",
+            "minWidth",
+            "minHeight",
+          ]} /* sem borda: o raio 999 herdado do link-btn não aparece; display vem do flex do .topbar */
         />
         <Par
           nome="linha-tabela"

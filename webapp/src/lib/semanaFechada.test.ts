@@ -49,10 +49,7 @@ describe("semanaFechada", () => {
       };
       const gam = mockGam({
         historico: {
-          semanas: [
-            { inicioISO: "2026-08-17", nota: 60, badge: "bronze" },
-            ultima,
-          ],
+          semanas: [{ inicioISO: "2026-08-17", nota: 60, badge: "bronze" }, ultima],
           meses: [],
           trimestres: [],
           anos: [],

@@ -102,7 +102,14 @@ export function planoNotificacaoRotinas(routines: Routine[], agora: number): Not
     }
     const days = r.schedule.days && r.schedule.days.length ? r.schedule.days : [0, 1, 2, 3, 4, 5, 6];
     days.forEach((d) => {
-      out.push({ id: idFor(r.id, d), title, body, weekday: d + 1, hour: Math.floor(sched.startMin / 60), minute: sched.startMin % 60 });
+      out.push({
+        id: idFor(r.id, d),
+        title,
+        body,
+        weekday: d + 1,
+        hour: Math.floor(sched.startMin / 60),
+        minute: sched.startMin % 60,
+      });
     });
   });
   return out;
@@ -156,7 +163,12 @@ export interface AlarmeAgendado {
  * agendado) quanto de validação visual (um horário inválido/duplicado
  * aparece aqui). Não agenda nada — só formata os mesmos planos usados por
  * `syncNativeSchedules`. */
-export function listaAlarmesAgendados(routines: Routine[], compromissos: Compromisso[], recorrentes: MetaRecorrente[], agora: number): AlarmeAgendado[] {
+export function listaAlarmesAgendados(
+  routines: Routine[],
+  compromissos: Compromisso[],
+  recorrentes: MetaRecorrente[],
+  agora: number
+): AlarmeAgendado[] {
   const out: AlarmeAgendado[] = [];
   planoNotificacaoRotinas(routines, agora).forEach((p) => {
     const titulo = p.title.replace(/^Hora de começar: /, "");
@@ -164,7 +176,12 @@ export function listaAlarmesAgendados(routines: Routine[], compromissos: Comprom
       out.push({
         tag: "rotina",
         titulo,
-        quando: new Date(p.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+        quando: new Date(p.at).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
         ordinal: p.at,
       });
     } else if (p.weekday != null && p.hour != null && p.minute != null) {
@@ -180,7 +197,12 @@ export function listaAlarmesAgendados(routines: Routine[], compromissos: Comprom
     out.push({
       tag: "compromisso",
       titulo: p.title,
-      quando: new Date(p.when).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+      quando: new Date(p.when).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       ordinal: p.when,
     });
   });
@@ -200,10 +222,15 @@ export function listaAlarmesAgendados(routines: Routine[], compromissos: Comprom
  * Três canais, igual ao legado: nativo agenda imediato (sem `schedule`,
  * dispara na hora); desktop e navegador usam a Notification API — o toque
  * chama `onOpenBoletim` (a store decide pra onde navegar). */
-export function notifyDigestSemanal(sem: { dispensada?: boolean; nota: number; badge: string | null }, onOpenBoletim: () => void): void {
+export function notifyDigestSemanal(
+  sem: { dispensada?: boolean; nota: number; badge: string | null },
+  onOpenBoletim: () => void
+): void {
   if (!load(K_DIGESTSEMANAL, true)) return;
   const title = sem.dispensada ? "Semana dispensada" : "Semana fechada: " + sem.nota.toFixed(1) + " pontos";
-  const body = sem.badge ? "Badge " + (BADGE_NOME[sem.badge] || sem.badge) + " conquistada — toque para ver o boletim." : "Toque para ver o boletim da semana.";
+  const body = sem.badge
+    ? "Badge " + (BADGE_NOME[sem.badge] || sem.badge) + " conquistada — toque para ver o boletim."
+    : "Toque para ver o boletim da semana.";
 
   if (isNative) {
     window.Capacitor?.Plugins.LocalNotifications?.schedule({

@@ -10,7 +10,8 @@ export function SecaoMiniPlayer() {
     <SecaoAjuste titulo="Mini player">
       <div className="pt-2.5">
         <Legenda className="mb-2.5">
-          Uma janelinha sempre no topo com a etapa atual e o cronômetro, pra acompanhar a rotina enquanto usa outro app. Também abre pelo menu Ver → Mini player.
+          Uma janelinha sempre no topo com a etapa atual e o cronômetro, pra acompanhar a rotina enquanto usa outro app.
+          Também abre pelo menu Ver → Mini player.
         </Legenda>
         <Botao variante="neutro" className="w-full" onClick={() => getMiniPlayerBridge()?.open()}>
           Abrir mini player

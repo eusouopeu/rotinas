@@ -161,7 +161,12 @@ export function activeCountdown(state: PlayerState): ActiveCountdown | null {
   if (step.type === "exercicio" && state.ex?.phase === "rest" && state.ex.restEndTs) {
     // auto:false — o descanso entre séries não avança sozinho (nem no app nem
     // na bolha nativa): zera, avisa e segue contando negativo até o toque.
-    return { endTs: state.ex.restEndTs, auto: false, isRest: true, label: "Descanso" + (step.name ? " — " + step.name : "") };
+    return {
+      endTs: state.ex.restEndTs,
+      auto: false,
+      isRest: true,
+      label: "Descanso" + (step.name ? " — " + step.name : ""),
+    };
   }
   return null;
 }

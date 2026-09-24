@@ -2,7 +2,16 @@
 // quantidade) e prazo com ritmo necessário.
 import { Icon } from "../../components/Icon";
 import { DIAS_ABREV } from "../../lib/constants";
-import { cdPace, daysUntil, metaAreaInfo, metaConcluida, metaCreditado, metaDiasLabel, metaEscopo, metaPontosTotais } from "../../lib/metas";
+import {
+  cdPace,
+  daysUntil,
+  metaAreaInfo,
+  metaConcluida,
+  metaCreditado,
+  metaDiasLabel,
+  metaEscopo,
+  metaPontosTotais,
+} from "../../lib/metas";
 import type { MetaTarget } from "../../lib/types";
 import { Fato, Fatos } from "../../ui/Fatos";
 import { CartaoMeta, ContadorMeta } from "./CartaoMeta";
@@ -66,11 +75,9 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
         />
       )}
       <Fatos className="mt-1.5">
-        <Fato
-          style={{ color: urgCor }}
-          title={d >= 0 ? `faltam ${d} dia(s)` : `atrasada ${Math.abs(d)} dia(s)`}
-        >
-          <Icon name="countdown" size={13} /> {t.date.split("-").reverse().join("/")} · {d >= 0 ? `${d}d` : `-${Math.abs(d)}d`}
+        <Fato style={{ color: urgCor }} title={d >= 0 ? `faltam ${d} dia(s)` : `atrasada ${Math.abs(d)} dia(s)`}>
+          <Icon name="countdown" size={13} /> {t.date.split("-").reverse().join("/")} ·{" "}
+          {d >= 0 ? `${d}d` : `-${Math.abs(d)}d`}
         </Fato>
         {pace && (
           <Fato title="Ritmo necessário">

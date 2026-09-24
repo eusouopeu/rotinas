@@ -25,7 +25,10 @@ export function Faixas<T>({
       {grupos
         .filter((g) => g.itens.length > 0)
         .map((g) => (
-          <div key={g.chave} className={cn("rounded-app-sm px-3 py-2.5 [&+&]:mt-2", g.bom ? "bg-ok-soft" : "bg-erro-soft")}>
+          <div
+            key={g.chave}
+            className={cn("rounded-app-sm px-3 py-2.5 [&+&]:mt-2", g.bom ? "bg-ok-soft" : "bg-erro-soft")}
+          >
             <div className="mb-2 font-sans text-2xs font-semibold tracking-[0.06em] text-sub uppercase">{g.rotulo}</div>
             <GradeBarras>{g.itens.map(linha)}</GradeBarras>
           </div>

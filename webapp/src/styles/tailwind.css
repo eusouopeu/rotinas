@@ -1,13 +1,15 @@
 /* Tailwind v4 do app React — ver docs/design-system.md > "Tailwind".
 
-   Convivência com o CSS legado durante a migração:
-   - as camadas fixam a precedência: utilitário > componente > app.css legado.
-     O app.css entra DENTRO de `legacy`, então qualquer classe utilitária
-     vence uma regra antiga sem brigar por especificidade;
-   - o preflight (reset do Tailwind) fica de fora até a última tela migrar:
-     as telas antigas dependem do reset atual (index/app.css);
-   - na fase final este arquivo deixa de importar o app.css e passa a importar
-     o preflight (ver plano de migração em docs/react-migration.md). */
+   O React não carrega mais o app.css do legado (fase 4, 24/09/2026): a base
+   global mora em base.css e tokens.css; tudo o mais é utilitário. O app.css
+   segue existindo só para o PWA legado da raiz e para o lado esquerdo do
+   catálogo de desenvolvimento (/#/ui), que o injeta na camada `legacy`.
+
+   O preflight do Tailwind NÃO está ligado de propósito: com ele 611 das 614
+   imagens da regressão visual mudam (line-height 1.5 no html, margens e
+   bordas zeradas, fonte herdada em botões/campos, títulos sem tamanho).
+   Ligá-lo é a rodada de "harmonização" (docs/design-system.md, "Quirks
+   preservados"), não parte da migração. */
 @layer theme, base, legacy, components, utilities;
 
 @import "tailwindcss/theme.css" layer(theme);

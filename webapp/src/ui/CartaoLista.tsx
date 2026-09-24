@@ -18,5 +18,7 @@ export function CartaoInfo({ className, ...resto }: HTMLAttributes<HTMLDivElemen
 }
 
 export function CartaoTitulo({ className, ...resto }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("m-0 mb-1.5 font-titulo text-[19px] font-semibold tracking-[-0.01em]", className)} {...resto} />;
+  return (
+    <h3 className={cn("m-0 mb-1.5 font-titulo text-[19px] font-semibold tracking-[-0.01em]", className)} {...resto} />
+  );
 }

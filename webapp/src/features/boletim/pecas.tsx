@@ -19,7 +19,10 @@ export function LinhaSimples({
 }) {
   return (
     <div className="my-2 flex items-center gap-2.5">
-      <div className="w-[34%] overflow-hidden text-[13.5px] text-ellipsis whitespace-nowrap" style={corRotulo ? { color: corRotulo } : undefined}>
+      <div
+        className="w-[34%] overflow-hidden text-[13.5px] text-ellipsis whitespace-nowrap"
+        style={corRotulo ? { color: corRotulo } : undefined}
+      >
         {rotulo}
       </div>
       <div className={cn("text-right font-sans text-sm text-sub tabular-nums", estender && "flex-1")}>{children}</div>

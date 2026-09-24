@@ -176,9 +176,7 @@ export function pontosGanhosPorArea(sem: Pick<SemanaAtual, "concluidos">): Recor
   return out;
 }
 
-export function destaquesDaSemana(
-  sem: Pick<SemanaAtual, "concluidos">
-): Array<{ nome: string; pontos: number }> {
+export function destaquesDaSemana(sem: Pick<SemanaAtual, "concluidos">): Array<{ nome: string; pontos: number }> {
   const porRotulo: Record<string, number> = {};
   (sem.concluidos || []).forEach((c) => {
     const k = c.rotulo || "Outros";

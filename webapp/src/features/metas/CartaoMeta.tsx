@@ -71,7 +71,10 @@ export function CartaoMeta({
               title="Editar meta"
               {...cliqueEditar}
             >
-              <span className="mr-[7px] inline-block size-[9px] rounded-full align-[1px]" style={{ background: corPonto }} />
+              <span
+                className="mr-[7px] inline-block size-[9px] rounded-full align-[1px]"
+                style={{ background: corPonto }}
+              />
               {titulo}
             </h3>
             {children}

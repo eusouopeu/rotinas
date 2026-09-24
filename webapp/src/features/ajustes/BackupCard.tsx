@@ -135,7 +135,8 @@ export function BackupCard() {
       <RotuloSecao className="mt-0">Dados</RotuloSecao>
       <div className="pt-2.5">
         <Legenda>
-          {routines.length} rotina(s) · {notes.length} nota(s) · {templates.length} modelo(s) · {history.length} execução(ões)
+          {routines.length} rotina(s) · {notes.length} nota(s) · {templates.length} modelo(s) · {history.length}{" "}
+          execução(ões)
         </Legenda>
       </div>
 
@@ -163,7 +164,9 @@ export function BackupCard() {
         {erro && <Legenda className="mt-3 text-erro">{erro}</Legenda>}
         {aviso && <Legenda className="mt-3">{aviso}</Legenda>}
         <Legenda className="mt-3">
-          {lastBackupAt ? "Último backup: " + new Date(lastBackupAt).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}
+          {lastBackupAt
+            ? "Último backup: " + new Date(lastBackupAt).toLocaleDateString("pt-BR")
+            : "Nenhum backup feito ainda."}
         </Legenda>
       </div>
 
@@ -173,7 +176,9 @@ export function BackupCard() {
           <div className="pt-2.5">
             {ativo ? (
               <>
-                <Legenda className="mt-3 mb-2">Ativo — o app mantém o arquivo escolhido sempre atualizado sozinho.</Legenda>
+                <Legenda className="mt-3 mb-2">
+                  Ativo — o app mantém o arquivo escolhido sempre atualizado sozinho.
+                </Legenda>
                 <Botao variante="neutro" className="w-full" onClick={desativarBackupArquivo}>
                   Desativar
                 </Botao>
@@ -181,7 +186,8 @@ export function BackupCard() {
             ) : (
               <>
                 <Legenda className="mt-3 mb-2">
-                  Escolha um arquivo no disco (ex.: numa pasta sincronizada por outro app) e o Rotinas o mantém atualizado sozinho.
+                  Escolha um arquivo no disco (ex.: numa pasta sincronizada por outro app) e o Rotinas o mantém
+                  atualizado sozinho.
                 </Legenda>
                 <Botao variante="neutro" className="w-full" onClick={ativarBackupArquivo}>
                   Ativar

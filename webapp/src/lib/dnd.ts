@@ -29,12 +29,15 @@ export function computeKanbanDragTarget(
   otherItemRects: (containerIndex: number) => DOMRect[],
   pointerX: number,
   pointerY: number,
-  fallbackContainer: number,
+  fallbackContainer: number
 ): DragTarget {
   let container = fallbackContainer;
   for (const col of columns) {
     const inside =
-      pointerX >= col.rect.left && pointerX <= col.rect.right && pointerY >= col.rect.top - 40 && pointerY <= col.rect.bottom + 40;
+      pointerX >= col.rect.left &&
+      pointerX <= col.rect.right &&
+      pointerY >= col.rect.top - 40 &&
+      pointerY <= col.rect.bottom + 40;
     if (inside) {
       container = col.containerIndex;
       break;

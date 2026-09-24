@@ -447,7 +447,9 @@ describe("toggleMetasSubview e loadMetasSubviewSel", () => {
   });
 
   it("loadMetasSubviewSel migra legado 'prazos' para array", () => {
-    const res = loadMetasSubviewSel(<T>(k: string, fb: T): T => (k === "rotinas_v2_metas_subview" ? ("prazos" as unknown as T) : fb));
+    const res = loadMetasSubviewSel(<T>(k: string, fb: T): T =>
+      k === "rotinas_v2_metas_subview" ? ("prazos" as unknown as T) : fb
+    );
     expect(res).toEqual(["prazos"]);
   });
 

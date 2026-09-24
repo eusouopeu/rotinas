@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { computeExRestRemaining, computeRemaining, freshExState, novoPlayerState, parseRepsRange, playbackSteps } from "./player";
+import {
+  computeExRestRemaining,
+  computeRemaining,
+  freshExState,
+  novoPlayerState,
+  parseRepsRange,
+  playbackSteps,
+} from "./player";
 import type { Routine } from "./types";
 
 const base: Routine = {
@@ -47,7 +54,10 @@ describe("novoPlayerState / computeRemaining", () => {
     expect(rem).toBe(55);
   });
   it("primeira etapa exercicio já vem com estado de série zerado", () => {
-    const routine: Routine = { ...base, steps: [{ id: "e1", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 3, reps: "10" }] };
+    const routine: Routine = {
+      ...base,
+      steps: [{ id: "e1", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 3, reps: "10" }],
+    };
     const st = novoPlayerState(routine)!.playerState;
     expect(st.ex).toEqual({ setIdx: 0, phase: "set", results: [], restEndTs: null });
     expect(st.stepEndTs).toBeNull();
@@ -75,7 +85,10 @@ describe("freshExState", () => {
 });
 
 describe("computeExRestRemaining", () => {
-  const routine: Routine = { ...base, steps: [{ id: "e1", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 3, reps: "10" }] };
+  const routine: Routine = {
+    ...base,
+    steps: [{ id: "e1", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 3, reps: "10" }],
+  };
   it("zero fora da fase de descanso", () => {
     const st = novoPlayerState(routine)!.playerState;
     expect(computeExRestRemaining(st)).toBe(0);

@@ -31,7 +31,13 @@ export interface ElectronBridge {
 interface CapacitorFilesystem {
   readdir(opts: { path: string; directory: string }): Promise<{ files: Array<string | { name: string }> }>;
   readFile(opts: { path: string; directory: string; encoding: string }): Promise<{ data: string }>;
-  writeFile(opts: { path: string; directory: string; encoding: string; data: string; recursive: boolean }): Promise<unknown>;
+  writeFile(opts: {
+    path: string;
+    directory: string;
+    encoding: string;
+    data: string;
+    recursive: boolean;
+  }): Promise<unknown>;
   deleteFile(opts: { path: string; directory: string }): Promise<unknown>;
 }
 

@@ -28,7 +28,7 @@ async function rodarDiagnostico(): Promise<Resultado[]> {
     out.push(
       lido === marca
         ? { label: "Armazenamento local", status: "ok", detalhe: "gravação e leitura confirmadas" }
-        : { label: "Armazenamento local", status: "erro", detalhe: "valor lido não confere" },
+        : { label: "Armazenamento local", status: "erro", detalhe: "valor lido não confere" }
     );
   } catch (e) {
     out.push({ label: "Armazenamento local", status: "erro", detalhe: String((e as Error)?.message || e) });
@@ -37,11 +37,16 @@ async function rodarDiagnostico(): Promise<Resultado[]> {
   // 2) Pasta de exportação (só nativo): grava um arquivo real na pasta configurada.
   if (isNative) {
     try {
-      const r = await downloadFile("_diagnostico-brita.txt", `Diagnóstico Brita — ${new Date().toLocaleString("pt-BR")}`, "text/plain", undefined);
+      const r = await downloadFile(
+        "_diagnostico-brita.txt",
+        `Diagnóstico Brita — ${new Date().toLocaleString("pt-BR")}`,
+        "text/plain",
+        undefined
+      );
       out.push(
         r.ok
           ? { label: "Pasta de exportação", status: "ok", detalhe: r.local || "arquivo gravado" }
-          : { label: "Pasta de exportação", status: "erro", detalhe: "gravação falhou (ver console)" },
+          : { label: "Pasta de exportação", status: "erro", detalhe: "gravação falhou (ver console)" }
       );
     } catch (e) {
       out.push({ label: "Pasta de exportação", status: "erro", detalhe: String((e as Error)?.message || e) });
@@ -94,7 +99,7 @@ async function rodarDiagnostico(): Promise<Resultado[]> {
     out.push(
       getMiniPlayerBridge()
         ? { label: "Mini player", status: "ok", detalhe: "ponte disponível" }
-        : { label: "Mini player", status: "erro", detalhe: "ponte não encontrada" },
+        : { label: "Mini player", status: "erro", detalhe: "ponte não encontrada" }
     );
   } else {
     out.push({ label: "Mini player", status: "pulado", detalhe: "só desktop" });
@@ -111,7 +116,8 @@ async function rodarDiagnostico(): Promise<Resultado[]> {
         out.push({
           label: "Servidor MCP",
           status: "ok",
-          detalhe: s.wired === false ? "desligado nesta versão (dispatcher não portado)" : s.running ? "ativo" : "desligado",
+          detalhe:
+            s.wired === false ? "desligado nesta versão (dispatcher não portado)" : s.running ? "ativo" : "desligado",
         });
       } catch (e) {
         out.push({ label: "Servidor MCP", status: "erro", detalhe: String((e as Error)?.message || e) });
@@ -124,7 +130,7 @@ async function rodarDiagnostico(): Promise<Resultado[]> {
   return out;
 }
 
-const COR: Record<Resultado["status"], string> = { ok: "var(--ok)", erro: "var(--danger, #c0392b)", pulado: "var(--sub)" };
+const COR: Record<Resultado["status"], string> = { ok: "var(--ok)", erro: "var(--erro)", pulado: "var(--sub)" };
 const ROTULO: Record<Resultado["status"], string> = { ok: "ok", erro: "falhou", pulado: "n/d" };
 
 export function DiagnosticsCard() {
@@ -134,7 +140,8 @@ export function DiagnosticsCard() {
   return (
     <div className="pt-2.5">
       <Legenda className="mb-2.5">
-        Testa cada ponte nativa (armazenamento, exportação, notificações, Drive, mini player, MCP) e mostra o resultado — em vez de descobrir um bug de integração só quando o dado importar de verdade.
+        Testa cada ponte nativa (armazenamento, exportação, notificações, Drive, mini player, MCP) e mostra o resultado
+        — em vez de descobrir um bug de integração só quando o dado importar de verdade.
       </Legenda>
       <Botao
         variante="neutro"

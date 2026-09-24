@@ -17,11 +17,15 @@ export function BarraDetalhe({
   children?: ReactNode;
 }) {
   return (
-    <div className={cn("-ml-2 mb-0.5 flex min-h-11 items-center gap-1.5", className)}>
+    <div className={cn("mb-0.5 -ml-2 flex min-h-11 items-center gap-1.5", className)}>
       <BotaoIcone rotulo="Voltar" semBorda onClick={onVoltar}>
         <Icon name="chevronLeft" size={18} />
       </BotaoIcone>
-      {titulo && <h1 className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[24px] text-ellipsis whitespace-nowrap">{titulo}</h1>}
+      {titulo && (
+        <h1 className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[24px] text-ellipsis whitespace-nowrap">
+          {titulo}
+        </h1>
+      )}
       {children}
     </div>
   );

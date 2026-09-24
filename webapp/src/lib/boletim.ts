@@ -86,7 +86,12 @@ export function esperadoAte(sem: Pick<SemanaAtual, "agendaCongelada">, diaIdx: n
 
 /** Porta de ritmoInfo (index.html:1791-1808) — saldo (nota vs. esperado até
  * hoje), rótulo/cor do ritmo e pontos/dia necessários até sábado. */
-export function ritmoInfo(sem: SemanaAtual, config: GamificacaoConfig, hoje: Date = new Date(), weekStart = 0): RitmoInfo {
+export function ritmoInfo(
+  sem: SemanaAtual,
+  config: GamificacaoConfig,
+  hoje: Date = new Date(),
+  weekStart = 0
+): RitmoInfo {
   const diaIdx = offsetSemana(hoje.getDay(), weekStart);
   const nota = notaSemanaAtual(sem);
   const esperado = esperadoAte(sem, diaIdx);
@@ -177,7 +182,7 @@ export function pontosPorAreaSemana(sem: SemanaAtual, config: GamificacaoConfig)
       ...Object.keys(ganhos),
       ...Object.keys(previsto),
       ...Object.keys(sem.fatiasArea || {}),
-    ]),
+    ])
   ).filter((k) => (k && rodaAtivaCfg) || (ganhos[k] || 0) > 0 || (previsto[k] || 0) > 0);
   if (chaves.length <= 1 && !chaves.some((k) => k)) return { linhas: [], max: 0 };
 
@@ -211,7 +216,11 @@ export function pontosPorAreaSemana(sem: SemanaAtual, config: GamificacaoConfig)
 /** Porta de tendenciaAreaSemanas (index.html:1993-2007) — pontos por área
  * nas últimas `n` semanas fechadas (não dispensadas, com `porArea`
  * gravado). Menos de 2 semanas com dado não formam tendência. */
-export function tendenciaAreaSemanas(historicoSemanas: HistoricoSemana[], config: GamificacaoConfig, n: number): TendenciaArea[] {
+export function tendenciaAreaSemanas(
+  historicoSemanas: HistoricoSemana[],
+  config: GamificacaoConfig,
+  n: number
+): TendenciaArea[] {
   const semanas = historicoSemanas.filter((s) => !s.dispensada && s.porArea).slice(-n);
   if (semanas.length < 2) return [];
 
@@ -228,15 +237,26 @@ export function tendenciaAreaSemanas(historicoSemanas: HistoricoSemana[], config
   return Array.from(chaves)
     .map((k) => {
       const info = obterAreaInfo(config, k);
-      return { label: info.label, color: info.color, valores: semanas.map((s) => Math.round(((s.porArea ? s.porArea[k] : 0) || 0) * 10) / 10), _ordem: ordemArea(k) };
+      return {
+        label: info.label,
+        color: info.color,
+        valores: semanas.map((s) => Math.round(((s.porArea ? s.porArea[k] : 0) || 0) * 10) / 10),
+        _ordem: ordemArea(k),
+      };
     })
     .sort((a, b) => a._ordem - b._ordem);
 }
 
 /** Porta de notaEvolucaoSemanas (index.html:2008-2013) — nota das últimas
  * `n` semanas fechadas + a semana em curso por último (para o gráfico). */
-export function notaEvolucaoSemanas(historicoSemanas: HistoricoSemana[], sem: SemanaAtual, n: number): NotaEvolucaoItem[] {
-  const fechadas: NotaEvolucaoItem[] = historicoSemanas.slice(-n).map((s) => ({ inicioISO: s.inicioISO, nota: s.nota, dispensada: !!s.dispensada, emCurso: false }));
+export function notaEvolucaoSemanas(
+  historicoSemanas: HistoricoSemana[],
+  sem: SemanaAtual,
+  n: number
+): NotaEvolucaoItem[] {
+  const fechadas: NotaEvolucaoItem[] = historicoSemanas
+    .slice(-n)
+    .map((s) => ({ inicioISO: s.inicioISO, nota: s.nota, dispensada: !!s.dispensada, emCurso: false }));
   fechadas.push({ inicioISO: sem.inicioISO, nota: notaSemanaAtual(sem), dispensada: !!sem.dispensada, emCurso: true });
   return fechadas;
 }
@@ -246,20 +266,34 @@ export function notaEvolucaoSemanas(historicoSemanas: HistoricoSemana[], sem: Se
 export function correlacaoPearson(xs: number[], ys: number[]): number | null {
   const n = Math.min(xs.length, ys.length);
   if (n < 3) return null;
-  let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+  let sx = 0,
+    sy = 0,
+    sxx = 0,
+    syy = 0,
+    sxy = 0;
   for (let i = 0; i < n; i++) {
-    sx += xs[i]; sy += ys[i]; sxx += xs[i] * xs[i]; syy += ys[i] * ys[i]; sxy += xs[i] * ys[i];
+    sx += xs[i];
+    sy += ys[i];
+    sxx += xs[i] * xs[i];
+    syy += ys[i] * ys[i];
+    sxy += xs[i] * ys[i];
   }
-  const mx = sx / n, my = sy / n;
+  const mx = sx / n,
+    my = sy / n;
   const cov = sxy / n - mx * my;
-  const vx = sxx / n - mx * mx, vy = syy / n - my * my;
+  const vx = sxx / n - mx * mx,
+    vy = syy / n - my * my;
   if (vx <= 0 || vy <= 0) return null;
   return cov / Math.sqrt(vx * vy);
 }
 
 /** Porta de correlacaoAreas (index.html:2030-2043) — pares de área
  * ordenados do mais correlacionado (|r| maior) pro menos. */
-export function correlacaoAreas(historicoSemanas: HistoricoSemana[], config: GamificacaoConfig, n: number): CorrelacaoAreaItem[] {
+export function correlacaoAreas(
+  historicoSemanas: HistoricoSemana[],
+  config: GamificacaoConfig,
+  n: number
+): CorrelacaoAreaItem[] {
   const tend = tendenciaAreaSemanas(historicoSemanas, config, n);
   if (tend.length < 2) return [];
   const pares: CorrelacaoAreaItem[] = [];

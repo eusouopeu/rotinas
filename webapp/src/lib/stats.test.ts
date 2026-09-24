@@ -175,8 +175,14 @@ describe("computeStreakSemanalFor / recordeStreakSemanalFor (tolerante a trocar 
   });
 
   it("streakInfoFor decide a unidade certa (semanas para restrita por dias, dias pro resto)", () => {
-    const restrita = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } });
-    const diaria = routine({ id: "r2", schedule: { enabled: true, anchor: "start", time: "07:00", days: [0, 1, 2, 3, 4, 5, 6] } });
+    const restrita = routine({
+      id: "r1",
+      schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] },
+    });
+    const diaria = routine({
+      id: "r2",
+      schedule: { enabled: true, anchor: "start", time: "07:00", days: [0, 1, 2, 3, 4, 5, 6] },
+    });
     const infoRestrita = streakInfoFor("r1", [restrita], [hist({ routineId: "r1", date: "2026-01-15" })]);
     expect(infoRestrita.unidade).toBe("semanas");
     const infoDiaria = streakInfoFor("r2", [diaria], [hist({ routineId: "r2", date: "2026-01-15" })]);
@@ -231,7 +237,12 @@ describe("getDayDetailData", () => {
   });
 
   it("dia sem execução nem rotina agendada fica vazio", () => {
-    const d = getDayDetailData("2026-01-05", [], [routine({ schedule: { enabled: false, anchor: "start", time: "07:00", days: [] } })], []);
+    const d = getDayDetailData(
+      "2026-01-05",
+      [],
+      [routine({ schedule: { enabled: false, anchor: "start", time: "07:00", days: [] } })],
+      []
+    );
     expect(d.isEmpty).toBe(true);
   });
 });
@@ -360,7 +371,7 @@ describe("getEvolucaoCumprimento", () => {
     const r = routine({ id: "r1", createdAt: new Date(2026, 1, 1).getTime() });
     // fevereiro/2026: 28 dias agendados, 7 feitos → 25%
     const h = [2, 5, 9, 12, 16, 19, 23].map((d) =>
-      hist({ routineId: "r1", date: `2026-02-${String(d).padStart(2, "0")}`, ts: new Date(2026, 1, d, 8).getTime() }),
+      hist({ routineId: "r1", date: `2026-02-${String(d).padStart(2, "0")}`, ts: new Date(2026, 1, d, 8).getTime() })
     );
     const pontos = getEvolucaoCumprimento("ano", h, [r], [], null, 0, new Date(2026, 2, 15, 12));
 
@@ -380,15 +391,21 @@ describe("getRoutineDetailStats", () => {
     const entries = [
       hist({
         routineId: "r1",
-        steps: [{ id: "s1", name: "Alongamento", tag: "medio", isRest: false, planned: 60, actual: 120, skipped: false }],
+        steps: [
+          { id: "s1", name: "Alongamento", tag: "medio", isRest: false, planned: 60, actual: 120, skipped: false },
+        ],
       }),
       hist({
         routineId: "r1",
-        steps: [{ id: "s1", name: "Alongamento", tag: "medio", isRest: false, planned: 60, actual: 130, skipped: false }],
+        steps: [
+          { id: "s1", name: "Alongamento", tag: "medio", isRest: false, planned: 60, actual: 130, skipped: false },
+        ],
       }),
       hist({
         routineId: "r1",
-        steps: [{ id: "s1", name: "Alongamento", tag: "medio", isRest: false, planned: 60, actual: 140, skipped: false }],
+        steps: [
+          { id: "s1", name: "Alongamento", tag: "medio", isRest: false, planned: 60, actual: 140, skipped: false },
+        ],
       }),
     ];
 
@@ -421,8 +438,22 @@ describe("relatorioFechamentoHtml", () => {
       concluidos: [{ itemId: "c1", rotulo: "Treino", pontos: 20 }],
       agendaCongelada: [],
     };
-    const target: MetaTarget = { id: "m1", title: "Comprar livro", date: "2026-01-10", createdAt: 0, topics: 1, done: 1 };
-    const rep = relatorioFechamentoHtml("semanal", gam, [hist({ date: "2026-01-08" })], [routine()], [target], "2026-01-10");
+    const target: MetaTarget = {
+      id: "m1",
+      title: "Comprar livro",
+      date: "2026-01-10",
+      createdAt: 0,
+      topics: 1,
+      done: 1,
+    };
+    const rep = relatorioFechamentoHtml(
+      "semanal",
+      gam,
+      [hist({ date: "2026-01-08" })],
+      [routine()],
+      [target],
+      "2026-01-10"
+    );
 
     expect(rep.title).toBe("Relatório da semana");
     expect(rep.innerHtml).toContain("Relatório da semana");
@@ -460,7 +491,10 @@ describe("resumo de período, áreas do ano e heatmap por quadrimestre", () => {
   });
 
   it("getHeatmapData com quadrimestre começa no mês certo e respeita o filtro de rotina", () => {
-    const h = [hist({ routineId: "r1", date: "2025-05-06", actualSec: 3600 }), hist({ routineId: "r2", date: "2025-05-07", actualSec: 3600 })];
+    const h = [
+      hist({ routineId: "r1", date: "2025-05-06", actualSec: 3600 }),
+      hist({ routineId: "r2", date: "2025-05-07", actualSec: 3600 }),
+    ];
     const data = getHeatmapData(2025, h, 0, "r1", 2);
     expect(data.columns[0].monthLabel).toBe("mai");
     const cells = data.columns.flatMap((c) => c.cells);
@@ -486,4 +520,3 @@ describe("resumo de período, áreas do ano e heatmap por quadrimestre", () => {
     expect(rows[1]).toMatchObject({ label: "Sem área", minutos: 10, pct: 25 });
   });
 });
-

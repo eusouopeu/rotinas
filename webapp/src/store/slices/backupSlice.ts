@@ -39,24 +39,12 @@ import {
   sanitizeBackup,
 } from "../../lib/backup";
 import type { HistoryEntry } from "../../lib/history";
-import type {
-  AnyTemplateDoc,
-  Compromisso,
-  DiaKanbanCard,
-  Exercicio,
-  Note,
-  Routine,
-  Snooze,
-} from "../../lib/types";
+import type { AnyTemplateDoc, Compromisso, DiaKanbanCard, Exercicio, Note, Routine, Snooze } from "../../lib/types";
 import type { AppState } from "../useAppStore";
 
 export type BackupSlice = Pick<
   AppState,
-  | "backupSnapshot"
-  | "markBackupExported"
-  | "importBackup"
-  | "importRotinaShare"
-  | "importModeloShare"
+  "backupSnapshot" | "markBackupExported" | "importBackup" | "importRotinaShare" | "importModeloShare"
 >;
 
 export const createBackupSlice: StateCreator<AppState, [], [], BackupSlice> = (set, get) => ({

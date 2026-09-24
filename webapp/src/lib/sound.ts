@@ -29,7 +29,8 @@ let audioCtx: AudioContext | null = null;
  * ambiente sem WebAudio) é silenciosa, igual ao legado. */
 export function beep(freq: number, dur: number): void {
   try {
-    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const Ctor =
+      window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return;
     audioCtx = audioCtx || new Ctor();
     // Um contexto criado antes do primeiro gesto do usuário nasce suspenso;

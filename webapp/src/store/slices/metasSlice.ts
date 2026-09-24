@@ -5,19 +5,10 @@
 // (syncMetaRecNotifications, hoje em store/shared.ts).
 import type { StateCreator } from "zustand";
 import { uid } from "../../lib/uid";
-import {
-  algumSnoozeAtivo,
-  criarMetaDoc,
-  isCountdownDoc,
-  syncMetaRecNotifications,
-} from "../shared";
+import { algumSnoozeAtivo, criarMetaDoc, isCountdownDoc, syncMetaRecNotifications } from "../shared";
 
 import { save } from "../../lib/storage";
-import {
-  K_GAMIFICACAO,
-  K_METASSUBVIEWSEL,
-  K_TEMPLATES,
-} from "../../lib/constants";
+import { K_GAMIFICACAO, K_METASSUBVIEWSEL, K_TEMPLATES } from "../../lib/constants";
 import {
   ajustarProgressoMetaRec,
   duplicarMetaRec,
@@ -27,16 +18,8 @@ import {
   sincronizarPontosMeta,
   toggleMetasSubview,
 } from "../../lib/metas";
-import {
-  estornarPenalidadesMetaRec,
-  sincronizarPenalidadeMetaRec,
-  sincronizarPontosMetaRec,
-} from "../../lib/scoring";
-import type {
-  CountdownDoc,
-  MetaRecorrente,
-  MetaTarget,
-} from "../../lib/types";
+import { estornarPenalidadesMetaRec, sincronizarPenalidadeMetaRec, sincronizarPontosMetaRec } from "../../lib/scoring";
+import type { CountdownDoc, MetaRecorrente, MetaTarget } from "../../lib/types";
 import type { AppState } from "../useAppStore";
 
 export type MetasSlice = Pick<
@@ -193,7 +176,13 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
     const doc = get().metaDoc();
     const alvo = (doc.recorrentes || []).find((r) => r.id === id);
     if (!alvo) return;
-    const { rec: atualizado, excessoAntes, excessoDepois, feitasAntes, feitasDepois } = ajustarProgressoMetaRec(alvo, delta);
+    const {
+      rec: atualizado,
+      excessoAntes,
+      excessoDepois,
+      feitasAntes,
+      feitasDepois,
+    } = ajustarProgressoMetaRec(alvo, delta);
     let gam = get().gam;
     if (atualizado.negativa) {
       gam = sincronizarPenalidadeMetaRec(gam, atualizado, excessoAntes, excessoDepois, new Date(), get().routines);

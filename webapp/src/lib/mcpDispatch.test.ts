@@ -14,7 +14,16 @@ function estado(): McpEstado {
       },
     ],
     notes: [{ id: "n1", title: "Compras", content: "leite", subjects: [], createdAt: 1, updatedAt: 1 }] as Note[],
-    templates: [{ id: "cd", type: "countdown", title: "Metas", targets: [{ id: "m1", title: "Curso", date: "2099-01-01", createdAt: 0, topics: 10, done: 3 }], createdAt: 0, updatedAt: 0 }],
+    templates: [
+      {
+        id: "cd",
+        type: "countdown",
+        title: "Metas",
+        targets: [{ id: "m1", title: "Curso", date: "2099-01-01", createdAt: 0, topics: 10, done: 3 }],
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ],
     diario: {} as Record<string, string>,
     diaKanban: [] as DiaKanbanCard[],
     compromissos: [],
@@ -25,7 +34,17 @@ function estado(): McpEstado {
       s.diario = { ...s.diario, [chave]: texto };
     },
     upsertDiaKanbanCard(iso: string, card: { text: string; tagValor?: DiaKanbanCard["tagValor"] }) {
-      s.diaKanban = [...s.diaKanban, { id: "k" + s.diaKanban.length, text: card.text, col: "todo", per: "dia:" + iso, ord: 0, tagValor: card.tagValor }];
+      s.diaKanban = [
+        ...s.diaKanban,
+        {
+          id: "k" + s.diaKanban.length,
+          text: card.text,
+          col: "todo",
+          per: "dia:" + iso,
+          ord: 0,
+          tagValor: card.tagValor,
+        },
+      ];
     },
     addNote(title: string, content: string) {
       const n = { id: "n" + (s.notes.length + 1), title, content, subjects: [], createdAt: 2, updatedAt: 2 } as Note;
@@ -52,7 +71,9 @@ describe("criarDispatcherMcp", () => {
   it("lê rotinas, metas e notas", async () => {
     const s = estado();
     const call = criarDispatcherMcp(() => s);
-    expect(await call("list_routines", { apenas_hoje: true })).toMatchObject([{ id: "r1", horario: "21:00", passos: 1 }]);
+    expect(await call("list_routines", { apenas_hoje: true })).toMatchObject([
+      { id: "r1", horario: "21:00", passos: 1 },
+    ]);
     expect(await call("list_metas", {})).toMatchObject([{ id: "m1", done: 3, topics: 10 }]);
     expect(await call("search_notes", { query: "LEI" })).toMatchObject([{ id: "n1" }]);
     const agenda = (await call("get_today_agenda", undefined)) as { data: string; agenda: unknown[] };

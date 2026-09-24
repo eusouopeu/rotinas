@@ -10,7 +10,9 @@ describe("pdfExport", () => {
       title: "<b>Prioridades</b>",
       axisX: "Urgência",
       axisY: "Importância",
-      quadrants: [{ title: "Q1", color: "#B25B4C", mode: "ul", items: [{ text: "Item <script>", checked: false, indent: 0 }] }],
+      quadrants: [
+        { title: "Q1", color: "#B25B4C", mode: "ul", items: [{ text: "Item <script>", checked: false, indent: 0 }] },
+      ],
       createdAt: 0,
       updatedAt: 0,
     } as unknown as MatrixDoc;
@@ -21,7 +23,14 @@ describe("pdfExport", () => {
   });
 
   it("kanbanPdfHtml lista cada coluna com contagem de itens", () => {
-    const doc = { id: "1", type: "kanban", title: "Sprint", cols: [{ title: "A fazer", items: [{ id: "i1", text: "Tarefa" }] }], createdAt: 0, updatedAt: 0 } as unknown as KanbanDoc;
+    const doc = {
+      id: "1",
+      type: "kanban",
+      title: "Sprint",
+      cols: [{ title: "A fazer", items: [{ id: "i1", text: "Tarefa" }] }],
+      createdAt: 0,
+      updatedAt: 0,
+    } as unknown as KanbanDoc;
     const html = kanbanPdfHtml(doc);
     expect(html).toContain("A fazer (1)");
     expect(html).toContain("Tarefa");

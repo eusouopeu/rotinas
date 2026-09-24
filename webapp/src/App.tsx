@@ -42,8 +42,9 @@ function useThemeEffect(theme: "auto" | "light" | "dark") {
       // SISTEMA, não o do app — tema claro com sistema escuro deixava hora,
       // wifi etc. brancos sobre fundo branco (só a bateria aparecia).
       // "DARK" = fundo escuro, ícones claros (SystemBars do Capacitor 8).
-      const bars = (window as unknown as { Capacitor?: { Plugins?: { SystemBars?: { setStyle(a: { style: string }): unknown } } } })
-        .Capacitor?.Plugins?.SystemBars;
+      const bars = (
+        window as unknown as { Capacitor?: { Plugins?: { SystemBars?: { setStyle(a: { style: string }): unknown } } } }
+      ).Capacitor?.Plugins?.SystemBars;
       try {
         void Promise.resolve(bars?.setStyle({ style: eff === "dark" ? "DARK" : "LIGHT" })).catch(() => {});
       } catch {

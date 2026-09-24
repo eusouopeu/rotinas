@@ -20,9 +20,22 @@ export function useEstadoDados() {
   const alternar = (id: string) => setAbertas((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
 
   return {
-    statsView, setStatsView, statsRoutineFilter, setStatsRoutineFilter,
-    calWeek, setCalWeek, calMonth, setCalMonth, calYear, setCalYear, calQuad, setCalQuad,
-    selectedDay, setSelectedDay, aberta, alternar,
+    statsView,
+    setStatsView,
+    statsRoutineFilter,
+    setStatsRoutineFilter,
+    calWeek,
+    setCalWeek,
+    calMonth,
+    setCalMonth,
+    calYear,
+    setCalYear,
+    calQuad,
+    setCalQuad,
+    selectedDay,
+    setSelectedDay,
+    aberta,
+    alternar,
   };
 }
 

@@ -5,7 +5,17 @@ import { useAppStore } from "../store/useAppStore";
 
 function mockRect(el: HTMLElement, top: number, height: number) {
   el.getBoundingClientRect = () =>
-    ({ top, height, bottom: top + height, left: 0, right: 300, x: 0, y: top, width: 300, toJSON: () => ({}) }) as DOMRect;
+    ({
+      top,
+      height,
+      bottom: top + height,
+      left: 0,
+      right: 300,
+      x: 0,
+      y: top,
+      width: 300,
+      toJSON: () => ({}),
+    }) as DOMRect;
 }
 
 beforeEach(() => {
@@ -43,7 +53,9 @@ describe("RoutineEditor — reordenar etapas por arraste", () => {
     fireEvent(handle, new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 210 }));
     fireEvent(handle, new PointerEvent("pointerup", { pointerId: 1 }));
 
-    const names = Array.from(document.querySelectorAll("[data-etapa] input[type='text']")).map((i) => (i as HTMLInputElement).value);
+    const names = Array.from(document.querySelectorAll("[data-etapa] input[type='text']")).map(
+      (i) => (i as HTMLInputElement).value
+    );
     expect(names).toEqual(["Dois", "Três", "Um"]);
   });
 });

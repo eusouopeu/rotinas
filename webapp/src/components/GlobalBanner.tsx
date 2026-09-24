@@ -12,7 +12,8 @@ import { cn } from "../lib/cn";
 export const AVISO =
   "fixed inset-x-4 top-[calc(var(--safe-top)+10px)] z-[999] animate-aviso rounded-app-sm bg-caneta px-4 py-3.5 font-sans text-base font-semibold text-on-caneta";
 /** botão de ação dentro do aviso ("Desfazer", "Importar") */
-export const BOTAO_AVISO = "flex-none rounded-[8px] border-0 bg-veu-claro px-3.5 py-[7px] font-sans text-[13.5px] font-bold text-on-caneta";
+export const BOTAO_AVISO =
+  "flex-none rounded-[8px] border-0 bg-veu-claro px-3.5 py-[7px] font-sans text-[13.5px] font-bold text-on-caneta";
 export const SUMIR = "[transform:translateY(-10px)] opacity-0 transition-all duration-[400ms] ease-[ease]";
 
 const THRESH = 44;

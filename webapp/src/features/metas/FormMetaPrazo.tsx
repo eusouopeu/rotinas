@@ -29,7 +29,9 @@ export function FormMetaPrazo({ meta, doc, gam, onClose, onSalvar }: Props) {
   const [data, setData] = useState(meta?.date || "");
   const [qtd, setQtd] = useState(meta?.topics != null ? String(meta.topics) : "");
   const [unidade, setUnidade] = useState(meta?.unit || "");
-  const [areas, setAreas] = useState<string[]>(() => (meta?.areas || []).map((a) => metaAreaInfo(a, areasRoda).label).filter(Boolean));
+  const [areas, setAreas] = useState<string[]>(() =>
+    (meta?.areas || []).map((a) => metaAreaInfo(a, areasRoda).label).filter(Boolean)
+  );
   const [dias, setDias] = useState<number[]>(meta?.dias ? meta.dias.slice() : []);
   const [tag, setTag] = useState<Tag>(meta?.tagValor || "alto");
   const [novaArea, setNovaArea] = useState("");
@@ -39,7 +41,13 @@ export function FormMetaPrazo({ meta, doc, gam, onClose, onSalvar }: Props) {
 
   // aviso ao vivo: em que boletim a meta pontua e quanto vale por item
   const nItens = Math.max(0, parseInt(qtd, 10) || 0);
-  const fake: MetaTarget = { id: meta?.id || "novo", title: titulo, date: data, createdAt: meta?.createdAt || Date.now(), tagValor: tag };
+  const fake: MetaTarget = {
+    id: meta?.id || "novo",
+    title: titulo,
+    date: data,
+    createdAt: meta?.createdAt || Date.now(),
+    tagValor: tag,
+  };
   const esc = data ? metaEscopo(fake) : null;
   const total = data ? metaPontosTotais(fake, gam) : 0;
 

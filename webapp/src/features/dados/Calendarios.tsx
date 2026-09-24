@@ -61,7 +61,9 @@ export function CalendarioSemana({
               ))}
             </span>
             {d.missedCount > 0 && (
-              <span className="absolute top-0.5 right-[3px] font-sans text-[9px] font-bold text-erro">{d.missedCount}</span>
+              <span className="absolute top-0.5 right-[3px] font-sans text-[9px] font-bold text-erro">
+                {d.missedCount}
+              </span>
             )}
           </span>
         ))}
@@ -127,7 +129,10 @@ export function CalendarioMes({
                     </span>
                   </span>
                 ) : (
-                  <span key={`void-${si}-${i}`} className="relative flex h-[30px] cursor-default flex-col items-center justify-center gap-0.5 rounded-app-sm bg-transparent p-0" />
+                  <span
+                    key={`void-${si}-${i}`}
+                    className="relative flex h-[30px] cursor-default flex-col items-center justify-center gap-0.5 rounded-app-sm bg-transparent p-0"
+                  />
                 )
               )}
               <span

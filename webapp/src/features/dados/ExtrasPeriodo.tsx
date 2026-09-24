@@ -28,7 +28,16 @@ type Props = {
   irRotina: (id: string) => void;
 };
 
-export function ExtrasPeriodo({ periodo: period, history, routines, snoozes, gam, weekStart, estado, irRotina }: Props) {
+export function ExtrasPeriodo({
+  periodo: period,
+  history,
+  routines,
+  snoozes,
+  gam,
+  weekStart,
+  estado,
+  irRotina,
+}: Props) {
   const filtro = estado.statsRoutineFilter;
   const extras = getPeriodExtrasData(period, history, routines, snoozes, gam, filtro, weekStart);
   const periodo = period === "30d" ? "últimos 30 dias" : "últimos 12 meses";
@@ -142,7 +151,11 @@ export function ExtrasPeriodo({ periodo: period, history, routines, snoozes, gam
 
       {/* 7. Sequências por rotina */}
       {extras.streaks.length > 0 && (
-        <CartaoSecao titulo="Sequências por rotina" desc="Sequência atual de cada rotina, da maior para a menor." {...secao("seq")}>
+        <CartaoSecao
+          titulo="Sequências por rotina"
+          desc="Sequência atual de cada rotina, da maior para a menor."
+          {...secao("seq")}
+        >
           {extras.streaks.map((x) => (
             <LinhaTabela key={x.routineId} toque onClick={() => irRotina(x.routineId)}>
               <CelRotulo>
@@ -150,7 +163,8 @@ export function ExtrasPeriodo({ periodo: period, history, routines, snoozes, gam
                 {x.routineName}
               </CelRotulo>
               <CelNegrito status="pontual">
-                {x.streak} {x.streakUnidade === "semanas" ? `semana${x.streak > 1 ? "s" : ""}` : `dia${x.streak > 1 ? "s" : ""}`}
+                {x.streak}{" "}
+                {x.streakUnidade === "semanas" ? `semana${x.streak > 1 ? "s" : ""}` : `dia${x.streak > 1 ? "s" : ""}`}
               </CelNegrito>
             </LinhaTabela>
           ))}
@@ -172,8 +186,16 @@ export function ExtrasPeriodo({ periodo: period, history, routines, snoozes, gam
                   l: "etapas estouram",
                   tom: extras.stepKpi.estouram > 0 ? "ruim" : "bom",
                 },
-                { v: extras.stepKpi.estouroMedioStr, l: "estouro médio", tom: extras.stepKpi.estouram > 0 ? "ruim" : undefined },
-                { v: extras.stepKpi.piorStr, l: extras.stepKpi.piorNome, tom: extras.stepKpi.estouram > 0 ? "destaque" : undefined },
+                {
+                  v: extras.stepKpi.estouroMedioStr,
+                  l: "estouro médio",
+                  tom: extras.stepKpi.estouram > 0 ? "ruim" : undefined,
+                },
+                {
+                  v: extras.stepKpi.piorStr,
+                  l: extras.stepKpi.piorNome,
+                  tom: extras.stepKpi.estouram > 0 ? "destaque" : undefined,
+                },
               ]}
             />
           )}
@@ -204,7 +226,12 @@ export function ExtrasPeriodo({ periodo: period, history, routines, snoozes, gam
                 {
                   v: extras.punctualityKpi.pctNoHorario + "%",
                   l: "no horário",
-                  tom: extras.punctualityKpi.pctNoHorario >= 80 ? "bom" : extras.punctualityKpi.pctNoHorario < 50 ? "ruim" : "destaque",
+                  tom:
+                    extras.punctualityKpi.pctNoHorario >= 80
+                      ? "bom"
+                      : extras.punctualityKpi.pctNoHorario < 50
+                        ? "ruim"
+                        : "destaque",
                 },
                 {
                   v: String(extras.punctualityKpi.atrasosGrandes),
@@ -242,13 +269,27 @@ export function ExtrasPeriodo({ periodo: period, history, routines, snoozes, gam
 
       {/* 11. Execuções recentes */}
       {extras.recent.length > 0 && (
-        <CartaoSecao titulo="Execuções recentes" desc="Últimas execuções: data, hora e duração planejada → real." {...secao("recentes")}>
+        <CartaoSecao
+          titulo="Execuções recentes"
+          desc="Últimas execuções: data, hora e duração planejada → real."
+          {...secao("recentes")}
+        >
           {extras.recent.map((h) => (
             <LinhaTabela key={h.ts} coluna>
               <span className="leading-[1.3]">{h.routineName}</span>
               <span className="font-sans text-sm text-sub">
                 {h.dateStr} &middot; {h.timeStr} | <b>{h.plannedStr}</b> &rarr;{" "}
-                <b className={h.statusClass === "late" ? "text-erro" : h.statusClass === "early" ? "text-ok" : h.statusClass === "ontime" ? "text-caneta" : undefined}>
+                <b
+                  className={
+                    h.statusClass === "late"
+                      ? "text-erro"
+                      : h.statusClass === "early"
+                        ? "text-ok"
+                        : h.statusClass === "ontime"
+                          ? "text-caneta"
+                          : undefined
+                  }
+                >
                   {h.actualStr}
                 </b>
               </span>

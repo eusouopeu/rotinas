@@ -23,7 +23,10 @@ export function SecaoPontuacao() {
   const busca = useContext(FiltroAjustes);
   const [avancado, setAvancado] = useState(false);
   const c = gam.config;
-  const simulacao = useMemo(() => simularDistribuicaoSemana(routines, gam, inicioSemanaISO(new Date())), [routines, gam]);
+  const simulacao = useMemo(
+    () => simularDistribuicaoSemana(routines, gam, inicioSemanaISO(new Date())),
+    [routines, gam]
+  );
   const mostrarAvancado = avancado || !!busca.trim();
 
   return (
@@ -54,10 +57,7 @@ export function SecaoPontuacao() {
         <>
           <RotuloSecao>Hábito consolidado</RotuloSecao>
           <div className="pt-2.5">
-            <Switch
-              checked={c.habito.ativo}
-              onChange={(ativo) => updateGamConfig({ habito: { ...c.habito, ativo } })}
-            >
+            <Switch checked={c.habito.ativo} onChange={(ativo) => updateGamConfig({ habito: { ...c.habito, ativo } })}>
               Descontar rotina que virou hábito
             </Switch>
             <LinhaNumero
@@ -66,7 +66,9 @@ export function SecaoPontuacao() {
               min={3}
               max={365}
               value={c.habito.streakMin}
-              onChange={(e) => updateGamConfig({ habito: { ...c.habito, streakMin: Math.max(3, +e.target.value || 3) } })}
+              onChange={(e) =>
+                updateGamConfig({ habito: { ...c.habito, streakMin: Math.max(3, +e.target.value || 3) } })
+              }
             />
             <LinhaNumero
               rotulo="Quanto ela passa a valer"
@@ -132,7 +134,9 @@ export function SecaoPontuacao() {
                 }
               />
             ))}
-            <Legenda className="mt-3">Vale para as próximas semanas — a semana atual já está com o fator congelado.</Legenda>
+            <Legenda className="mt-3">
+              Vale para as próximas semanas — a semana atual já está com o fator congelado.
+            </Legenda>
 
             <RotuloSecao className="mt-3.5 mb-1">Simulação — próxima semana</RotuloSecao>
             {simulacao.length === 0 ? (

@@ -26,7 +26,12 @@ describe("planoNotificacaoCompromissos", () => {
 
 describe("planoNotificacaoRotinas", () => {
   it("modo dias vira um plano recorrente por dia da semana agendado", () => {
-    const r: Routine = { id: "r1", name: "Correr", steps: [{ id: "s1", name: "Correr", type: "timer", seconds: 1800 }], schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3] } };
+    const r: Routine = {
+      id: "r1",
+      name: "Correr",
+      steps: [{ id: "s1", name: "Correr", type: "timer", seconds: 1800 }],
+      schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3] },
+    };
     const plano = planoNotificacaoRotinas([r], Date.now());
     expect(plano).toHaveLength(2);
     expect(plano.map((p) => p.weekday).sort()).toEqual([2, 4]); // weekday do plugin: 1=domingo
@@ -34,7 +39,12 @@ describe("planoNotificacaoRotinas", () => {
   });
 
   it("rotina desativada ou sem horário não entra no plano", () => {
-    const r: Routine = { id: "r1", name: "X", steps: [], schedule: { enabled: false, anchor: "start", time: "07:00", days: [1] } };
+    const r: Routine = {
+      id: "r1",
+      name: "X",
+      steps: [],
+      schedule: { enabled: false, anchor: "start", time: "07:00", days: [1] },
+    };
     expect(planoNotificacaoRotinas([r], Date.now())).toEqual([]);
   });
 });

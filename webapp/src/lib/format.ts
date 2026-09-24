@@ -20,4 +20,3 @@ export function fmtMinLabel(min: number): string {
   if (abs < 60) return sinal + (abs || 0) + "min";
   return sinal + Math.floor(abs / 60) + "h" + String(abs % 60).padStart(2, "0");
 }
-

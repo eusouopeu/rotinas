@@ -103,10 +103,7 @@ export function marcarSemanaVista(gam?: GamificacaoState | null): GamificacaoSta
  * Compara a nota da semana dada com a semana anterior NÃO dispensada.
  * Se não houver semana anterior válida, devolve null.
  */
-export function calcularDeltaSemana(
-  sem: HistoricoSemana,
-  historicoSemanas: HistoricoSemana[]
-): number | null {
+export function calcularDeltaSemana(sem: HistoricoSemana, historicoSemanas: HistoricoSemana[]): number | null {
   const anteriores = historicoSemanas.filter((s) => !s.dispensada && s.inicioISO < sem.inicioISO);
   const anterior = anteriores[anteriores.length - 1];
   return anterior != null ? sem.nota - anterior.nota : null;

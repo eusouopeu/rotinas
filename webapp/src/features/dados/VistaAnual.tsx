@@ -31,8 +31,22 @@ export function VistaAnual({ history, routines, snoozes, gam, weekStart, estado,
   const { calYear, setCalYear, calQuad, setCalQuad, selectedDay, setSelectedDay, statsRoutineFilter: filtro } = estado;
   const heatmapData = getHeatmapData(calYear, history, weekStart, filtro, calQuad);
   const monthlyBars = getYearMonthlyBars(calYear, history, filtro);
-  const resumo = getResumoPeriodo(new Date(calYear, 0, 1, 12), new Date(calYear, 11, 31, 12), history, routines, snoozes, filtro);
-  const resumoAnt = getResumoPeriodo(new Date(calYear - 1, 0, 1, 12), new Date(calYear - 1, 11, 31, 12), history, routines, snoozes, filtro);
+  const resumo = getResumoPeriodo(
+    new Date(calYear, 0, 1, 12),
+    new Date(calYear, 11, 31, 12),
+    history,
+    routines,
+    snoozes,
+    filtro
+  );
+  const resumoAnt = getResumoPeriodo(
+    new Date(calYear - 1, 0, 1, 12),
+    new Date(calYear - 1, 11, 31, 12),
+    history,
+    routines,
+    snoozes,
+    filtro
+  );
   const hoje = new Date();
   const anoAtual = calYear === hoje.getFullYear();
   const maxMin = Math.max(...monthlyBars.bars.map((b) => b.minutes), 1);
@@ -66,11 +80,23 @@ export function VistaAnual({ history, routines, snoozes, gam, weekStart, estado,
 
   return (
     <>
-      <NavPeriodo rotuloAnterior="Ano anterior" rotuloProximo="Próximo ano" onAnterior={() => mudarAno(-1)} onProximo={() => mudarAno(1)}>
+      <NavPeriodo
+        rotuloAnterior="Ano anterior"
+        rotuloProximo="Próximo ano"
+        onAnterior={() => mudarAno(-1)}
+        onProximo={() => mudarAno(1)}
+      >
         {calYear}
       </NavPeriodo>
 
-      <ResumoPeriodo atual={resumo} anterior={resumoAnt} rotuloAnterior={String(calYear - 1)} routines={routines} history={history} filtro={filtro} />
+      <ResumoPeriodo
+        atual={resumo}
+        anterior={resumoAnt}
+        rotuloAnterior={String(calYear - 1)}
+        routines={routines}
+        history={history}
+        filtro={filtro}
+      />
 
       <MapaCalorAno
         rotulo={`${String(calYear).slice(2)}T${calQuad}`}
@@ -89,10 +115,16 @@ export function VistaAnual({ history, routines, snoozes, gam, weekStart, estado,
             titulo={<>Tempo por mês &middot; total {monthlyBars.totalHoursStr}</>}
             desc="Horas executadas em cada mês. Linha tracejada = média mensal; o mês atual fica destacado."
           >
-            <BarrasMes barras={monthlyBars.bars} maxMin={maxMin} mediaMin={mediaMin} mesAtual={anoAtual ? hoje.getMonth() : null} />
+            <BarrasMes
+              barras={monthlyBars.bars}
+              maxMin={maxMin}
+              mediaMin={mediaMin}
+              mesAtual={anoAtual ? hoje.getMonth() : null}
+            />
             <Legenda className="mt-3">
               - - média {fmtHorasMin(Math.round(mediaMin))}/mês
-              {anoAtual && ` · ${monthlyBars.bars[hoje.getMonth()].monthName}: ${monthlyBars.bars[hoje.getMonth()].valStr}`}
+              {anoAtual &&
+                ` · ${monthlyBars.bars[hoje.getMonth()].monthName}: ${monthlyBars.bars[hoje.getMonth()].valStr}`}
             </Legenda>
           </CartaoSecao>
 
@@ -135,7 +167,16 @@ export function VistaAnual({ history, routines, snoozes, gam, weekStart, estado,
         </Cartao>
       )}
 
-      <ExtrasPeriodo periodo="ano" history={history} routines={routines} snoozes={snoozes} gam={gam} weekStart={weekStart} estado={estado} irRotina={irRotina} />
+      <ExtrasPeriodo
+        periodo="ano"
+        history={history}
+        routines={routines}
+        snoozes={snoozes}
+        gam={gam}
+        weekStart={weekStart}
+        estado={estado}
+        irRotina={irRotina}
+      />
       <div className={cn("h-5", NO_PAINEL)} />
     </>
   );

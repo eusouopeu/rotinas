@@ -6,11 +6,7 @@
 // (import type, sem ciclo em runtime).
 import { localKey } from "../lib/gamificacao";
 import { autoBackupsParaApagar, nomeAutoBackup } from "../lib/autoBackup";
-import {
-  planoNotificacaoCompromissos,
-  planoNotificacaoMetaRec,
-  planoNotificacaoRotinas,
-} from "../lib/notifications";
+import { planoNotificacaoCompromissos, planoNotificacaoMetaRec, planoNotificacaoRotinas } from "../lib/notifications";
 import { novoDraftSchedule } from "../lib/schedule";
 import { isNative, load, save } from "../lib/storage";
 import { uid } from "../lib/uid";
@@ -48,7 +44,6 @@ export function criarMetaDoc(): CountdownDoc {
   };
 }
 
-
 /** Pede POST_NOTIFICATIONS pelo plugin LocalNotifications (mesma ponte já usada
  * pelas notificações agendadas). Fora do Android, ou sem o plugin de pé, deixa
  * passar: quem decide se algo aparece é o próprio sistema. */
@@ -64,7 +59,6 @@ export async function pedirPermissaoNotificacao(): Promise<boolean> {
     return true;
   }
 }
-
 
 export function novoDraft(): Routine {
   return {
@@ -166,7 +160,10 @@ export async function syncRoutineNotifications(routines: Routine[], snoozed: boo
         title: p.title,
         body: p.body,
         extra: { brita: "sched-rt" },
-        schedule: p.at != null ? { at: new Date(p.at), allowWhileIdle: true } : { on: { weekday: p.weekday, hour: p.hour!, minute: p.minute! } },
+        schedule:
+          p.at != null
+            ? { at: new Date(p.at), allowWhileIdle: true }
+            : { on: { weekday: p.weekday, hour: p.hour!, minute: p.minute! } },
       })),
     });
   } catch (e) {
@@ -203,4 +200,3 @@ export async function syncMetaRecNotifications(recorrentes: MetaRecorrente[], sn
     console.error("Sincronização de notificação de meta recorrente falhou:", e);
   }
 }
-

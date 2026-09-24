@@ -13,7 +13,7 @@ export function OpcaoCriar({ icone, titulo, descricao, className, type = "button
     <button
       type={type}
       className={cn(
-        "grid w-full grid-cols-[20px_1fr] grid-rows-[auto_auto] items-center gap-x-2.5 gap-y-0.5 rounded-app-sm border-[1.5px] border-line bg-card px-3.5 py-3 text-left text-ink active:bg-card-2 [&>svg]:text-caneta [&>svg]:[grid-row:1/span_2]",
+        "grid w-full grid-cols-[20px_1fr] grid-rows-[auto_auto] items-center gap-x-2.5 gap-y-0.5 rounded-app-sm border-[1.5px] border-line bg-card px-3.5 py-3 text-left text-ink active:bg-card-2 [&>svg]:[grid-row:1/span_2] [&>svg]:text-caneta",
         className
       )}
       {...resto}

@@ -33,13 +33,26 @@ describe("parseIcs", () => {
   });
 
   it("desdobra linhas de continuação (folding) — o espaço marcador é consumido, não preservado", () => {
-    const ics = ["BEGIN:VEVENT", "SUMMARY:Titulo bem\r\n longo continuado", "DTSTART:20260827T100000Z", "END:VEVENT"].join("\r\n");
+    const ics = [
+      "BEGIN:VEVENT",
+      "SUMMARY:Titulo bem\r\n longo continuado",
+      "DTSTART:20260827T100000Z",
+      "END:VEVENT",
+    ].join("\r\n");
     expect(parseIcs(ics)[0].title).toBe("Titulo bemlongo continuado");
   });
 });
 
 describe("expandirOcorrencias", () => {
-  const base: IcalEvent = { uid: "1", title: "Diário", startMs: Date.UTC(2026, 7, 24, 9, 0), endMs: Date.UTC(2026, 7, 24, 9, 30), allDay: false, rrule: null, exdatesMs: [] };
+  const base: IcalEvent = {
+    uid: "1",
+    title: "Diário",
+    startMs: Date.UTC(2026, 7, 24, 9, 0),
+    endMs: Date.UTC(2026, 7, 24, 9, 30),
+    allDay: false,
+    rrule: null,
+    exdatesMs: [],
+  };
 
   it("sem RRULE, só a ocorrência original se estiver na janela", () => {
     const janelaIni = Date.UTC(2026, 7, 24, 0, 0);
@@ -86,9 +99,33 @@ describe("icalEventosDoDia", () => {
     const cache: IcalCache = {
       fetchedAt: Date.now(),
       eventos: [
-        { uid: "1", title: "Tarde", startMs: Date.UTC(2026, 7, 27, 18, 0), endMs: Date.UTC(2026, 7, 27, 19, 0), allDay: false, rrule: null, exdatesMs: [] },
-        { uid: "2", title: "Manhã", startMs: Date.UTC(2026, 7, 27, 9, 0), endMs: Date.UTC(2026, 7, 27, 10, 0), allDay: false, rrule: null, exdatesMs: [] },
-        { uid: "3", title: "Outro dia", startMs: Date.UTC(2026, 7, 28, 9, 0), endMs: Date.UTC(2026, 7, 28, 10, 0), allDay: false, rrule: null, exdatesMs: [] },
+        {
+          uid: "1",
+          title: "Tarde",
+          startMs: Date.UTC(2026, 7, 27, 18, 0),
+          endMs: Date.UTC(2026, 7, 27, 19, 0),
+          allDay: false,
+          rrule: null,
+          exdatesMs: [],
+        },
+        {
+          uid: "2",
+          title: "Manhã",
+          startMs: Date.UTC(2026, 7, 27, 9, 0),
+          endMs: Date.UTC(2026, 7, 27, 10, 0),
+          allDay: false,
+          rrule: null,
+          exdatesMs: [],
+        },
+        {
+          uid: "3",
+          title: "Outro dia",
+          startMs: Date.UTC(2026, 7, 28, 9, 0),
+          endMs: Date.UTC(2026, 7, 28, 10, 0),
+          allDay: false,
+          rrule: null,
+          exdatesMs: [],
+        },
       ],
     };
     const out = icalEventosDoDia(cache, "2026-08-27");

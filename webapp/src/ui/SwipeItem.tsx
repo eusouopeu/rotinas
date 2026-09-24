@@ -21,7 +21,14 @@ interface SwipeItemProps {
   className?: string;
 }
 
-export function SwipeItem({ children, onLeft, leftLabel = "Excluir", onRight, rightLabel = "Duplicar", className }: SwipeItemProps) {
+export function SwipeItem({
+  children,
+  onLeft,
+  leftLabel = "Excluir",
+  onRight,
+  rightLabel = "Duplicar",
+  className,
+}: SwipeItemProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const openState = useRef<"0" | "1" | "-1">("0");
 

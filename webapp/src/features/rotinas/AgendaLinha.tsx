@@ -26,7 +26,12 @@ export function AgendaLinha({ it, onClick, onDelete, onEdit }: Props) {
     >
       {/* início SEMPRE acima do término, sem travessão: as duas linhas alinham
           em coluna entre os itens do dia, e o item sem fim ocupa só uma. */}
-      <span className={cn("flex w-[54px] min-w-0 flex-[0_0_54px] flex-col font-sans text-[12.5px] leading-[1.22] text-sub", apagado)}>
+      <span
+        className={cn(
+          "flex w-[54px] min-w-0 flex-[0_0_54px] flex-col font-sans text-[12.5px] leading-[1.22] text-sub",
+          apagado
+        )}
+      >
         {it.ini == null ? (
           <span>{it.diaTodo ? "dia todo" : "sem hora"}</span>
         ) : (

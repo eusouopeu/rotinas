@@ -62,7 +62,9 @@ export function IcalCard() {
         <>
           <LinhaValor rotulo="Status" valor="configurado" corValor="var(--ok)" />
           <Legenda className="mt-1.5">
-            {cache ? `Última busca: ${new Date(cache.fetchedAt).toLocaleString("pt-BR")} · ${cache.eventos.length} evento(s).` : 'Ainda não buscou — toque em "Salvar e atualizar".'}
+            {cache
+              ? `Última busca: ${new Date(cache.fetchedAt).toLocaleString("pt-BR")} · ${cache.eventos.length} evento(s).`
+              : 'Ainda não buscou — toque em "Salvar e atualizar".'}
           </Legenda>
         </>
       )}
@@ -76,8 +78,11 @@ export function IcalCard() {
         onChange={(e) => setInputUrl(e.target.value)}
       />
       <Legenda className="mt-1.5">
-        No Google Calendar: Configurações da agenda → "Endereço secreto em formato iCal". Cole aqui — os eventos aparecem só leitura na agenda, dia a dia.
-        {!isDesktop && !isNative ? " No navegador, alguns provedores bloqueiam essa busca (CORS); funciona de forma mais confiável no app instalado (desktop/Android)." : ""}
+        No Google Calendar: Configurações da agenda → "Endereço secreto em formato iCal". Cole aqui — os eventos
+        aparecem só leitura na agenda, dia a dia.
+        {!isDesktop && !isNative
+          ? " No navegador, alguns provedores bloqueiam essa busca (CORS); funciona de forma mais confiável no app instalado (desktop/Android)."
+          : ""}
       </Legenda>
       <div className="mt-2.5 flex gap-2">
         <Botao className="flex-1" disabled={!inputUrl.trim() || busy !== null} onClick={salvarEAtualizar}>

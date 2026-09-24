@@ -29,8 +29,22 @@ export function VistaMensal({ history, routines, snoozes, gam, weekStart, estado
   const gridData = getMonthGridData(calMonth, history, routines, snoozes, gam, weekStart, filtro);
   const y = calMonth.getFullYear();
   const mo = calMonth.getMonth();
-  const resumo = getResumoPeriodo(new Date(y, mo, 1, 12), new Date(y, mo + 1, 0, 12), history, routines, snoozes, filtro);
-  const resumoAnt = getResumoPeriodo(new Date(y, mo - 1, 1, 12), new Date(y, mo, 0, 12), history, routines, snoozes, filtro);
+  const resumo = getResumoPeriodo(
+    new Date(y, mo, 1, 12),
+    new Date(y, mo + 1, 0, 12),
+    history,
+    routines,
+    snoozes,
+    filtro
+  );
+  const resumoAnt = getResumoPeriodo(
+    new Date(y, mo - 1, 1, 12),
+    new Date(y, mo, 0, 12),
+    history,
+    routines,
+    snoozes,
+    filtro
+  );
   const nomeAnterior = new Date(y, mo - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
 
   // grade em semanas completas (vazios no começo e no fim) + coluna da nota
@@ -56,7 +70,12 @@ export function VistaMensal({ history, routines, snoozes, gam, weekStart, estado
 
   return (
     <>
-      <NavPeriodo rotuloAnterior="Mês anterior" rotuloProximo="Próximo mês" onAnterior={() => mover(-1)} onProximo={() => mover(1)}>
+      <NavPeriodo
+        rotuloAnterior="Mês anterior"
+        rotuloProximo="Próximo mês"
+        onAnterior={() => mover(-1)}
+        onProximo={() => mover(1)}
+      >
         {gridData.monthName} {gridData.year}
         {gridData.rate !== null && (
           <span
@@ -68,7 +87,14 @@ export function VistaMensal({ history, routines, snoozes, gam, weekStart, estado
         )}
       </NavPeriodo>
 
-      <ResumoPeriodo atual={resumo} anterior={resumoAnt} rotuloAnterior={nomeAnterior} routines={routines} history={history} filtro={filtro} />
+      <ResumoPeriodo
+        atual={resumo}
+        anterior={resumoAnt}
+        rotuloAnterior={nomeAnterior}
+        routines={routines}
+        history={history}
+        filtro={filtro}
+      />
 
       <CalendarioMes
         ordemDias={ordemDiasSemana(weekStart).map((dow) => ROTULO_DOW[dow])}
@@ -80,7 +106,16 @@ export function VistaMensal({ history, routines, snoozes, gam, weekStart, estado
       />
 
       {selectedDay && <DetalheDia dia={selectedDay} history={history} routines={routines} snoozes={snoozes} />}
-      <ExtrasPeriodo periodo="30d" history={history} routines={routines} snoozes={snoozes} gam={gam} weekStart={weekStart} estado={estado} irRotina={irRotina} />
+      <ExtrasPeriodo
+        periodo="30d"
+        history={history}
+        routines={routines}
+        snoozes={snoozes}
+        gam={gam}
+        weekStart={weekStart}
+        estado={estado}
+        irRotina={irRotina}
+      />
       <div className={cn("h-5", NO_PAINEL)} />
     </>
   );

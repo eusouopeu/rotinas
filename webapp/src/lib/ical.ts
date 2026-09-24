@@ -65,11 +65,14 @@ export async function fetchIcalText(url: string): Promise<string> {
 }
 
 function icsUnfold(text: string): string[] {
-  return text.replace(/\r\n/g, "\n").split("\n").reduce<string[]>((lines, line) => {
-    if (/^[ \t]/.test(line) && lines.length) lines[lines.length - 1] += line.slice(1);
-    else lines.push(line);
-    return lines;
-  }, []);
+  return text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .reduce<string[]>((lines, line) => {
+      if (/^[ \t]/.test(line) && lines.length) lines[lines.length - 1] += line.slice(1);
+      else lines.push(line);
+      return lines;
+    }, []);
 }
 
 function icsParseDate(val: string): { ms: number; allDay: boolean } | null {
@@ -88,7 +91,15 @@ export function parseIcs(text: string): IcalEvent[] {
   icsUnfold(text).forEach((raw) => {
     const line = raw.trim();
     if (line === "BEGIN:VEVENT") {
-      cur = { uid: "", title: "", startMs: null as unknown as number, endMs: null, allDay: false, rrule: null, exdatesMs: [] };
+      cur = {
+        uid: "",
+        title: "",
+        startMs: null as unknown as number,
+        endMs: null,
+        allDay: false,
+        rrule: null,
+        exdatesMs: [],
+      };
       return;
     }
     if (line === "END:VEVENT") {
@@ -102,7 +113,8 @@ export function parseIcs(text: string): IcalEvent[] {
     const prop = line.slice(0, ci).split(";")[0].toUpperCase();
     const val = line.slice(ci + 1);
     if (prop === "UID") cur.uid = val;
-    else if (prop === "SUMMARY") cur.title = val.replace(/\\n/gi, "\n").replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\\\/g, "\\");
+    else if (prop === "SUMMARY")
+      cur.title = val.replace(/\\n/gi, "\n").replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\\\/g, "\\");
     else if (prop === "DTSTART") {
       const d = icsParseDate(val);
       if (d) {
@@ -136,7 +148,11 @@ const ICAL_DOW: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR
 
 /** Ocorrências (em ms) de `ev` que caem dentro de [janelaIni, janelaFim]
  * (inclusive). Sem RRULE: só a ocorrência original, se estiver na janela. */
-export function expandirOcorrencias(ev: IcalEvent, janelaIni: number, janelaFim: number): Array<{ startMs: number; endMs: number }> {
+export function expandirOcorrencias(
+  ev: IcalEvent,
+  janelaIni: number,
+  janelaFim: number
+): Array<{ startMs: number; endMs: number }> {
   const dur = ev.endMs != null && ev.endMs > ev.startMs ? ev.endMs - ev.startMs : ev.allDay ? 86400000 : 3600000;
   const naJanela = (ms: number) => ms <= janelaFim && ms + dur >= janelaIni;
   if (!ev.rrule) {
@@ -148,7 +164,7 @@ export function expandirOcorrencias(ev: IcalEvent, janelaIni: number, janelaFim:
   }
   const interval = Math.max(1, +r.INTERVAL || 1);
   const count = r.COUNT ? +r.COUNT : null;
-  const until = r.UNTIL ? (icsParseDate(r.UNTIL) || {}).ms ?? null : null;
+  const until = r.UNTIL ? ((icsParseDate(r.UNTIL) || {}).ms ?? null) : null;
   const out: Array<{ startMs: number; endMs: number }> = [];
   if (r.FREQ === "DAILY") {
     for (let n = 0; n < ICAL_EXPAND_MAX; n++) {
@@ -162,7 +178,13 @@ export function expandirOcorrencias(ev: IcalEvent, janelaIni: number, janelaFim:
     // WEEKLY
     const base = new Date(ev.startMs);
     const byday = r.BYDAY
-      ? [...new Set(r.BYDAY.split(",").map((d) => ICAL_DOW[d]).filter((d) => d != null))].sort((a, b) => a - b)
+      ? [
+          ...new Set(
+            r.BYDAY.split(",")
+              .map((d) => ICAL_DOW[d])
+              .filter((d) => d != null)
+          ),
+        ].sort((a, b) => a - b)
       : [base.getDay()];
     const semana0 = new Date(base);
     semana0.setHours(0, 0, 0, 0);

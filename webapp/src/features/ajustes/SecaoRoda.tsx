@@ -34,10 +34,7 @@ export function SecaoRoda() {
   return (
     <SecaoAjuste titulo="Roda da vida">
       <div className="pt-2.5">
-        <Switch
-          checked={c.roda.ativa}
-          onChange={(ativa) => updateGamConfig({ roda: { ...c.roda, ativa } })}
-        >
+        <Switch checked={c.roda.ativa} onChange={(ativa) => updateGamConfig({ roda: { ...c.roda, ativa } })}>
           Repartir os pontos por área
         </Switch>
         {c.roda.areas.map((a) => (

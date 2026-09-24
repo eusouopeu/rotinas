@@ -63,7 +63,14 @@ describe("gerarDicas", () => {
   it("aponta meta parada e meta atrás do ritmo", () => {
     const dia = 86400000;
     const metas: MetaTarget[] = [
-      { id: "m1", title: "Ler 12 livros", date: "2026-12-31", createdAt: hoje.getTime() - 30 * dia, topics: 12, done: 0 },
+      {
+        id: "m1",
+        title: "Ler 12 livros",
+        date: "2026-12-31",
+        createdAt: hoje.getTime() - 30 * dia,
+        topics: 12,
+        done: 0,
+      },
       { id: "m2", title: "Curso", date: "2026-09-24", createdAt: hoje.getTime() - 90 * dia, topics: 10, done: 2 },
     ];
     const dicas = gerarDicas([], [], [], metas, hoje);

@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { agruparPorMes, catColor, computeImportPreview, despesasCsv, guessExpenseColumns, parseBRNumber, parseCsvText, parseFlexDate, sugerirCategoriaDespesa, chartsBucketKey, chartsBucketLabel, computeDonutArcs, filtrarDespesas, resumoPorPeriodo } from "./expense";
+import {
+  agruparPorMes,
+  catColor,
+  computeImportPreview,
+  despesasCsv,
+  guessExpenseColumns,
+  parseBRNumber,
+  parseCsvText,
+  parseFlexDate,
+  sugerirCategoriaDespesa,
+  chartsBucketKey,
+  chartsBucketLabel,
+  computeDonutArcs,
+  filtrarDespesas,
+  resumoPorPeriodo,
+} from "./expense";
 import type { ExpenseDoc } from "./types";
 
 function exp(partial: Partial<ExpenseDoc>): ExpenseDoc {
@@ -83,7 +98,7 @@ describe("computeDonutArcs", () => {
         { value: 0, color: "#222" },
         { value: 50, color: "#333" },
       ],
-      100,
+      100
     );
     expect(arcs).toHaveLength(2);
     expect(arcs[0].color).toBe("#111");
@@ -155,7 +170,10 @@ describe("import de extrato CSV", () => {
 
 describe("despesasCsv", () => {
   it("exporta com BOM, ponto-e-vírgula e valores com vírgula, ordenado por data", () => {
-    const out = despesasCsv([exp({ date: "2026-02-01", desc: "b;c", value: 1.5, cat: "Lazer" }), exp({ date: "2026-01-01", desc: "a", value: 2 })]);
+    const out = despesasCsv([
+      exp({ date: "2026-02-01", desc: "b;c", value: 1.5, cat: "Lazer" }),
+      exp({ date: "2026-01-01", desc: "a", value: 2 }),
+    ]);
     const linhas = out.split("\n");
     expect(linhas[0].charCodeAt(0)).toBe(0xfeff);
     expect(linhas[1]).toBe("2026-01-01;;a;2,00;Outros");

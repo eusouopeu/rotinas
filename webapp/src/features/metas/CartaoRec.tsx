@@ -22,7 +22,17 @@ type Props = {
   onExcluir: () => void;
 };
 
-export function CartaoRec({ rec, gam, isDragging, setRef, dragHandleProps, onAjustar, onEditar, onDuplicar, onExcluir }: Props) {
+export function CartaoRec({
+  rec,
+  gam,
+  isDragging,
+  setRef,
+  dragHandleProps,
+  onAjustar,
+  onEditar,
+  onDuplicar,
+  onExcluir,
+}: Props) {
   const feitas = metaRecFeitas(rec);
   const completa = rec.negativa ? !metaRecExcedida(rec) : metaRecCompleta(rec);
   const excesso = rec.negativa ? metaRecExcesso(rec) : 0;
@@ -30,7 +40,11 @@ export function CartaoRec({ rec, gam, isDragging, setRef, dragHandleProps, onAju
 
   const freqTxt = `${rec.negativa ? "até " : ""}${rec.vezes}x ${rec.tipo === "semanal" ? "por semana" : "ao dia"}`;
   const areaObj = rec.area ? gam.config.roda.areas.find((a) => a.id === rec.area) : null;
-  const fator = fatorParaArea(rec.area || "", gam.semanaAtual?.fatoresArea || {}, gam.semanaAtual?.fatorNormalizacao || 1);
+  const fator = fatorParaArea(
+    rec.area || "",
+    gam.semanaAtual?.fatoresArea || {},
+    gam.semanaAtual?.fatorNormalizacao || 1
+  );
 
   let pesoTitle = "";
   if (rec.negativa) {

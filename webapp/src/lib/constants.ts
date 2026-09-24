@@ -76,7 +76,18 @@ export const DIAS_NOME = ["domingo", "segunda", "terça", "quarta", "quinta", "s
 
 // Grupos musculares do editor de exercício (index.html:518) — chips
 // multi-seleção, opcionais, sem efeito em pontuação/agenda.
-export const GRUPOS_MUSCULARES = ["Peito", "Costas", "Ombros", "Bíceps", "Tríceps", "Antebraço", "Abdômen", "Pernas", "Glúteos", "Panturrilha"];
+export const GRUPOS_MUSCULARES = [
+  "Peito",
+  "Costas",
+  "Ombros",
+  "Bíceps",
+  "Tríceps",
+  "Antebraço",
+  "Abdômen",
+  "Pernas",
+  "Glúteos",
+  "Panturrilha",
+];
 
 export const BADGE_CHAR: Record<string, string> = {
   diamante: "◆",

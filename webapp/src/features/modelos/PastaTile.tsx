@@ -34,7 +34,7 @@ export function GradePastas({ className, ...resto }: HTMLAttributes<HTMLDivEleme
   return (
     <div
       className={cn(
-        "mb-[18px] grid grid-cols-3 gap-2 desktop:grid-cols-4 desktop:gap-2.5 paisagem:grid-cols-4",
+        "mb-[18px] grid grid-cols-3 gap-2 paisagem:grid-cols-4 desktop:grid-cols-4 desktop:gap-2.5",
         className
       )}
       {...resto}

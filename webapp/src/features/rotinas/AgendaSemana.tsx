@@ -91,7 +91,11 @@ export function AgendaSemana() {
                   else if (it.tipo === "cartao") toggleDiaKanbanCard(it.id);
                   else if (it.tipo === "compromisso") toggleCompromisso(it.id);
                 }}
-                onEdit={it.tipo === "cartao" ? () => setPopup({ iso, card: diaKanban.find((c) => c.id === it.id) || null }) : undefined}
+                onEdit={
+                  it.tipo === "cartao"
+                    ? () => setPopup({ iso, card: diaKanban.find((c) => c.id === it.id) || null })
+                    : undefined
+                }
                 onDelete={it.tipo === "compromisso" ? () => deleteCompromisso(it.id) : undefined}
               />
             ))
@@ -138,8 +142,10 @@ export function AgendaSemana() {
       {snoozed && (
         <AvisoCartao className="mb-3.5">
           <span>
-            <Icon name="exclamationTriangle" size={14} /> Agenda pausada até {String(new Date(snoozed.to).getDate()).padStart(2, "0")}/
-            {String(new Date(snoozed.to).getMonth() + 1).padStart(2, "0")} — sem alertas, e os dias pausados não contam no cumprimento.
+            <Icon name="exclamationTriangle" size={14} /> Agenda pausada até{" "}
+            {String(new Date(snoozed.to).getDate()).padStart(2, "0")}/
+            {String(new Date(snoozed.to).getMonth() + 1).padStart(2, "0")} — sem alertas, e os dias pausados não contam
+            no cumprimento.
           </span>
         </AvisoCartao>
       )}
@@ -153,7 +159,17 @@ export function AgendaSemana() {
             const iso = addDaysISO(inicioISO, d);
             const ehHoje = iso === hojeISO;
             const dow = isoToDate(iso).getDay();
-            const blocos = blocosAgendaDia(iso, isoToDate(iso), diario["dia:" + iso] || "", routines, gam, history, diaKanban, compromissos, getIcalCache());
+            const blocos = blocosAgendaDia(
+              iso,
+              isoToDate(iso),
+              diario["dia:" + iso] || "",
+              routines,
+              gam,
+              history,
+              diaKanban,
+              compromissos,
+              getIcalCache()
+            );
             const agora = new Date();
             const layout = computeGradeLayout(blocos, ehHoje ? agora.getHours() * 60 + agora.getMinutes() : null, {
               pxMin: 0.85,
@@ -163,7 +179,12 @@ export function AgendaSemana() {
             });
             return (
               <div key={iso} className="min-w-0">
-                <div className={cn("flex items-baseline justify-between pb-1 pl-1 text-sm font-semibold", ehHoje ? "text-caneta" : "text-sub")}>
+                <div
+                  className={cn(
+                    "flex items-baseline justify-between pb-1 pl-1 text-sm font-semibold",
+                    ehHoje ? "text-caneta" : "text-sub"
+                  )}
+                >
                   {DIAS_ABREV[dow].slice(0, 3)}
                   <span>
                     {iso.slice(8, 10)}/{iso.slice(5, 7)}
@@ -177,7 +198,8 @@ export function AgendaSemana() {
                       if (b.rotinaId) goTo({ tab: "home", screen: "routineDetail", id: b.rotinaId });
                       else if (b.cardId) toggleDiaKanbanCard(b.cardId);
                       else if (b.compromissoId) toggleCompromisso(b.compromissoId);
-                      else if (!b.ical && b.linha >= 0) setDiarioTexto("dia:" + iso, toggleLinhaFeita(diario["dia:" + iso] || "", b.linha));
+                      else if (!b.ical && b.linha >= 0)
+                        setDiarioTexto("dia:" + iso, toggleLinhaFeita(diario["dia:" + iso] || "", b.linha));
                     }}
                   />
                 </div>

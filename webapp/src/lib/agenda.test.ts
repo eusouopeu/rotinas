@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { agendaGruposMes, agendaGruposSemana, computeGradeLayout, distribuirColunas, horaParaMin, itensAgendaDoDia, parseTimeBlocks, toggleLinhaFeita } from "./agenda";
+import {
+  agendaGruposMes,
+  agendaGruposSemana,
+  computeGradeLayout,
+  distribuirColunas,
+  horaParaMin,
+  itensAgendaDoDia,
+  parseTimeBlocks,
+  toggleLinhaFeita,
+} from "./agenda";
 import { criarEstadoGamificacaoInicial } from "./gamificacao";
 import type { Compromisso, DiaKanbanCard, Routine } from "./types";
 
@@ -67,9 +76,11 @@ describe("toggleLinhaFeita", () => {
 describe("agendaGruposSemana", () => {
   it("agrupa por dia da semana e ordena por horário", () => {
     const texto = ["- [ ] seg 08:00 Reunião", "- [ ] seg Levar carro", "- [ ] qui Sem hora"].join("\n");
-    const grupos = agendaGruposSemana(texto, [0, 1, 2, 3, 4, 5, 6], [
-      "domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado",
-    ]);
+    const grupos = agendaGruposSemana(
+      texto,
+      [0, 1, 2, 3, 4, 5, 6],
+      ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"]
+    );
     const seg = grupos.find((g) => g.label === "Segunda-feira")!;
     expect(seg.itens.map((i) => i.texto)).toEqual(["Reunião", "Levar carro"]);
   });
@@ -165,7 +176,15 @@ describe("itensAgendaDoDia", () => {
 
   it("cartão sem hFim vira 1h de duração; sem hora fica no fim da lista", () => {
     const gam = criarEstadoGamificacaoInicial();
-    const itens = itensAgendaDoDia(iso, data, [], gam, [], [cartao({ hIni: "10:00" }), cartao({ id: "c2", text: "Sem hora" })], []);
+    const itens = itensAgendaDoDia(
+      iso,
+      data,
+      [],
+      gam,
+      [],
+      [cartao({ hIni: "10:00" }), cartao({ id: "c2", text: "Sem hora" })],
+      []
+    );
     expect(itens[0]).toMatchObject({ ini: 600, fim: 660 });
     expect(itens[1]).toMatchObject({ ini: null, fim: null, texto: "Sem hora" });
   });

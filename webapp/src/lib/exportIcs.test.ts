@@ -38,21 +38,42 @@ describe("agendaIcs", () => {
 
   it("usa RRULE diária com INTERVAL no modo intervalo", () => {
     const r = rotina({
-      schedule: { enabled: true, time: "06:00", anchor: "start", mode: "intervalo", intervaloDias: 3, intervaloInicio: "2026-09-09" } as Routine["schedule"],
+      schedule: {
+        enabled: true,
+        time: "06:00",
+        anchor: "start",
+        mode: "intervalo",
+        intervaloDias: 3,
+        intervaloInicio: "2026-09-09",
+      } as Routine["schedule"],
     });
     const ics = agendaIcs([r], [], new Date(2026, 8, 9, 12, 0, 0));
     expect(ics).toContain("RRULE:FREQ=DAILY;INTERVAL=3");
   });
 
   it("compromisso sem horário vira evento de dia inteiro", () => {
-    const c: Compromisso = { id: "c1", title: "Dentista", date: "2026-09-14", time: "", notify: "nenhuma", createdAt: 0 };
+    const c: Compromisso = {
+      id: "c1",
+      title: "Dentista",
+      date: "2026-09-14",
+      time: "",
+      notify: "nenhuma",
+      createdAt: 0,
+    };
     const ics = agendaIcs([], [c], new Date(2026, 8, 9));
     expect(ics).toContain("DTSTART;VALUE=DATE:20260914");
     expect(ics).not.toContain("DTEND");
   });
 
   it("compromisso com horário vira evento de uma hora", () => {
-    const c: Compromisso = { id: "c2", title: "Reunião", date: "2026-09-14", time: "15:30", notify: "nenhuma", createdAt: 0 };
+    const c: Compromisso = {
+      id: "c2",
+      title: "Reunião",
+      date: "2026-09-14",
+      time: "15:30",
+      notify: "nenhuma",
+      createdAt: 0,
+    };
     const ics = agendaIcs([], [c], new Date(2026, 8, 9));
     expect(ics).toContain("DTSTART:20260914T153000");
     expect(ics).toContain("DTEND:20260914T163000");

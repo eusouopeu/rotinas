@@ -56,7 +56,11 @@ export function DetalheDia({
                 <LinhaTabela key={`plan-${i}`}>
                   <CelRotulo>○ {r.routineName}</CelRotulo>
                   <CelNota>{r.startStr}</CelNota>
-                  {r.status === "não feita" ? <CelNegrito status="atraso">não feita</CelNegrito> : <CelNota>agendada</CelNota>}
+                  {r.status === "não feita" ? (
+                    <CelNegrito status="atraso">não feita</CelNegrito>
+                  ) : (
+                    <CelNota>agendada</CelNota>
+                  )}
                 </LinhaTabela>
               ))}
           </>

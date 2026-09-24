@@ -35,7 +35,10 @@ describe("sanitizeBackup", () => {
 describe("mergeById", () => {
   it("mantém o item local quando o id já existe", () => {
     const current = [{ id: "1", name: "local" }];
-    const incoming = [{ id: "1", name: "remoto" }, { id: "2", name: "novo" }];
+    const incoming = [
+      { id: "1", name: "remoto" },
+      { id: "2", name: "novo" },
+    ];
     expect(mergeById(current, incoming)).toEqual([
       { id: "1", name: "local" },
       { id: "2", name: "novo" },
@@ -95,7 +98,14 @@ describe("import de item avulso", () => {
   });
 
   it("prepararModeloImportado troca id e sufixa título duplicado do mesmo tipo", () => {
-    const doc = { id: "d1", type: "kanban", title: "Projeto", cols: [], createdAt: 0, updatedAt: 0 } as unknown as MatrixDoc;
+    const doc = {
+      id: "d1",
+      type: "kanban",
+      title: "Projeto",
+      cols: [],
+      createdAt: 0,
+      updatedAt: 0,
+    } as unknown as MatrixDoc;
     const existente = { ...doc } as unknown as MatrixDoc;
     const d = prepararModeloImportado(doc, [existente], () => "novo-id");
     expect(d.id).toBe("novo-id");
@@ -219,5 +229,3 @@ describe("backup e import de metas recorrentes no CountdownDoc", () => {
     expect((merged[1] as CountdownDoc).targets).toHaveLength(1);
   });
 });
-
-

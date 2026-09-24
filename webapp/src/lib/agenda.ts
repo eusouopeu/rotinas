@@ -12,10 +12,7 @@ import { computeSchedule, rotinaAgendadaEm } from "./schedule";
 import { corDaRotina } from "./scoring";
 import type { Compromisso, DiaKanbanCard, GamificacaoState, Routine } from "./types";
 
-const MESES_PT = [
-  "jan", "fev", "mar", "abr", "mai", "jun",
-  "jul", "ago", "set", "out", "nov", "dez",
-];
+const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 export interface TimeBlock {
   linha: number;
@@ -97,13 +94,21 @@ export interface GradeLayout {
 
 /** Porta de agendaGradeHtml (index.html:12891-12931), separando o layout
  * (topo/altura/coluna em px/%) do desenho — quem chama decide o markup. */
-export function computeGradeLayout(blocos: TimeBlock[], nowMin: number | null, opts: { mIni?: number; mFim?: number; pxMin?: number; passo?: number } = {}): GradeLayout {
+export function computeGradeLayout(
+  blocos: TimeBlock[],
+  nowMin: number | null,
+  opts: { mIni?: number; mFim?: number; pxMin?: number; passo?: number } = {}
+): GradeLayout {
   const pxMin = opts.pxMin || AG_PX_MIN;
   const passo = opts.passo || 60;
   const ordenados = [...blocos].sort((a, b) => a.ini - b.ini || a.linha - b.linha);
   distribuirColunas(ordenados);
-  const mIni = opts.mIni != null ? opts.mIni : Math.max(0, Math.floor(Math.min(...ordenados.map((b) => b.ini)) / 60) - 1) * 60;
-  const mFim = opts.mFim != null ? opts.mFim : Math.min(24, Math.max(Math.ceil(Math.max(...ordenados.map((b) => b.fim)) / 60) + 1, 21)) * 60;
+  const mIni =
+    opts.mIni != null ? opts.mIni : Math.max(0, Math.floor(Math.min(...ordenados.map((b) => b.ini)) / 60) - 1) * 60;
+  const mFim =
+    opts.mFim != null
+      ? opts.mFim
+      : Math.min(24, Math.max(Math.ceil(Math.max(...ordenados.map((b) => b.fim)) / 60) + 1, 21)) * 60;
   const topo = (min: number) => (min - mIni) * pxMin;
   const hhmm = (min: number) => String(Math.floor(min / 60)).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0");
   const horas: GradeLayout["horas"] = [];
@@ -149,14 +154,18 @@ const RE_MONTHBLOCK = /^\s*[-*]\s*\[([ xX>])\]\s*(\d{1,2})(?!\s*[:\d])\s+(.*)$/;
 const RE_YEARBLOCK = /^\s*[-*]\s*\[([ xX>])\]\s*(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b\s*(.*)$/i;
 
 function normalizeStr(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 export function agendaGruposSemana(texto: string, ordemDias: number[], diasPt: string[]): GrupoAgenda[] {
-  const itens: Array<{ linha: number; grupo: number; hora: number | null; feito: boolean; adiado: boolean; texto: string }> = [];
+  const itens: Array<{
+    linha: number;
+    grupo: number;
+    hora: number | null;
+    feito: boolean;
+    adiado: boolean;
+    texto: string;
+  }> = [];
   (texto || "").split("\n").forEach((raw, i) => {
     const m = raw.match(RE_WEEKBLOCK);
     if (!m) return;
@@ -189,7 +198,12 @@ export function agendaGruposMes(texto: string): GrupoAgenda[] {
     if (!m) return;
     const dia = Number(m[2]);
     if (dia < 1 || dia > 31) return;
-    (porDia[dia] = porDia[dia] || []).push({ linha: i, texto: (m[3] || "").trim(), feito: m[1].toLowerCase() === "x", adiado: m[1] === ">" });
+    (porDia[dia] = porDia[dia] || []).push({
+      linha: i,
+      texto: (m[3] || "").trim(),
+      feito: m[1].toLowerCase() === "x",
+      adiado: m[1] === ">",
+    });
   });
   return Object.keys(porDia)
     .map(Number)
@@ -207,7 +221,12 @@ export function agendaGruposAno(texto: string): GrupoAgenda[] {
     if (!m) return;
     const mes = MESES_PT.findIndex((a) => normalizeStr(a) === normalizeStr(m[2]));
     if (mes === -1) return;
-    (porMes[mes] = porMes[mes] || []).push({ linha: i, texto: (m[3] || "").trim(), feito: m[1].toLowerCase() === "x", adiado: m[1] === ">" });
+    (porMes[mes] = porMes[mes] || []).push({
+      linha: i,
+      texto: (m[3] || "").trim(),
+      feito: m[1].toLowerCase() === "x",
+      adiado: m[1] === ">",
+    });
   });
   return Object.keys(porMes)
     .map(Number)
@@ -281,13 +300,27 @@ export function itensAgendaDoDia(
       const ini = horaParaMin(c.hIni);
       let fim = horaParaMin(c.hFim);
       if (ini != null && (fim == null || fim <= ini)) fim = ini + 60;
-      out.push({ tipo: "cartao", id: c.id, texto: c.text, ini, fim: ini == null ? null : fim, feito: c.col === "done" });
+      out.push({
+        tipo: "cartao",
+        id: c.id,
+        texto: c.text,
+        ini,
+        fim: ini == null ? null : fim,
+        feito: c.col === "done",
+      });
     });
   compromissos
     .filter((c) => c.date === iso)
     .forEach((c) => {
       const ini = horaParaMin(c.time);
-      out.push({ tipo: "compromisso", id: c.id, texto: c.title, ini, fim: ini == null ? null : ini + 30, feito: !!c.feito });
+      out.push({
+        tipo: "compromisso",
+        id: c.id,
+        texto: c.title,
+        ini,
+        fim: ini == null ? null : ini + 30,
+        feito: !!c.feito,
+      });
     });
   const d0 = isoToDate(iso).getTime();
   icalEventosDoDia(icalCache, iso).forEach((e, n) => {
@@ -327,13 +360,33 @@ export function blocosAgendaDia(
       const ini = horaParaMin(c.hIni)!;
       let fim = c.hFim ? horaParaMin(c.hFim) : null;
       if (fim == null || fim <= ini) fim = ini + 60; // mesma regra da nota: sem fim = 1h
-      blocos.push({ linha: -1, cardId: c.id, ini, fim, feito: c.col === "done", adiado: false, texto: c.text, col: 0, cols: 1 });
+      blocos.push({
+        linha: -1,
+        cardId: c.id,
+        ini,
+        fim,
+        feito: c.col === "done",
+        adiado: false,
+        texto: c.text,
+        col: 0,
+        cols: 1,
+      });
     });
   compromissos
     .filter((c) => c.date === iso && horaParaMin(c.time) != null)
     .forEach((c) => {
       const ini = horaParaMin(c.time)!;
-      blocos.push({ linha: -1, compromissoId: c.id, ini, fim: ini + 30, feito: !!c.feito, adiado: false, texto: c.title, col: 0, cols: 1 });
+      blocos.push({
+        linha: -1,
+        compromissoId: c.id,
+        ini,
+        fim: ini + 30,
+        feito: !!c.feito,
+        adiado: false,
+        texto: c.title,
+        col: 0,
+        cols: 1,
+      });
     });
   const d0 = isoToDate(iso).getTime();
   icalEventosDoDia(icalCache, iso)

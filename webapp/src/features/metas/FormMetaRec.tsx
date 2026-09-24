@@ -11,7 +11,6 @@ import { TAG_OPCOES } from "./constantes";
 import { BotaoLigaForm, CelulaForm, FormMeta, IconeForm, LinhaForm, SepForm } from "./FormMeta";
 import { Icon } from "../../components/Icon";
 
-
 type Props = {
   rec: MetaRecorrente | null;
   gam: GamificacaoState;
@@ -149,7 +148,9 @@ export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
         />
       </LinhaForm>
 
-      {negativa && <Legenda className="mt-2.5">Marque cada vez que acontecer. Passar do limite desconta do boletim.</Legenda>}
+      {negativa && (
+        <Legenda className="mt-2.5">Marque cada vez que acontecer. Passar do limite desconta do boletim.</Legenda>
+      )}
     </FormMeta>
   );
 }

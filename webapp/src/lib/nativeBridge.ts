@@ -89,7 +89,10 @@ export interface MiniPlayerBridge {
   close(): void;
 }
 
-export type PlayerCallHandler = (tool: "getState" | "control", args?: unknown) => Promise<MiniPlayerState | boolean | null>;
+export type PlayerCallHandler = (
+  tool: "getState" | "control",
+  args?: unknown
+) => Promise<MiniPlayerState | boolean | null>;
 
 /** Registra, na janela principal, o handler que responde ao round-trip da
  * mini-player. `null` se a ponte não existir (browser, Android, ou Electron
@@ -127,7 +130,13 @@ export interface LocalNotificationsPlugin {
   getPending(): Promise<{ notifications: Array<{ id: number; extra?: Record<string, unknown> }> }>;
   /** Android: canal de notificação. Opcional — no-op/ausente no desktop e em
    * versões antigas do plugin (index.html:2687-2692). */
-  createChannel?(args: { id: string; name: string; description?: string; importance?: number; vibration?: boolean }): Promise<void>;
+  createChannel?(args: {
+    id: string;
+    name: string;
+    description?: string;
+    importance?: number;
+    vibration?: boolean;
+  }): Promise<void>;
   cancel(args: { notifications: Array<{ id: number }> }): Promise<void>;
   schedule(args: {
     notifications: Array<{
@@ -227,7 +236,7 @@ export interface PluginListenerHandle {
 export interface AppPlugin {
   addListener(
     eventName: "appStateChange",
-    cb: (state: AppStateChangeInfo) => void,
+    cb: (state: AppStateChangeInfo) => void
   ): Promise<PluginListenerHandle> | PluginListenerHandle;
 }
 
@@ -294,9 +303,11 @@ export function getMcpBridge(): McpBridge | null {
 export function mcpConfigJson(status: McpStatus): string {
   return JSON.stringify(
     {
-      mcpServers: { brita: { url: `http://127.0.0.1:${status.port}/mcp`, headers: { Authorization: `Bearer ${status.token}` } } },
+      mcpServers: {
+        brita: { url: `http://127.0.0.1:${status.port}/mcp`, headers: { Authorization: `Bearer ${status.token}` } },
+      },
     },
     null,
-    2,
+    2
   );
 }

@@ -73,7 +73,9 @@ export function diasChipLabel(r: Routine): string {
   if (r.schedule && r.schedule.mode === "intervalo") {
     return `a cada ${r.schedule.intervaloDias || 1}d`;
   }
-  const dias = diasDaRotina(r).slice().sort((a, b) => a - b);
+  const dias = diasDaRotina(r)
+    .slice()
+    .sort((a, b) => a - b);
   if (dias.length === 7) return "todos os dias";
   if (dias.length === 5 && dias.every((d) => d >= 1 && d <= 5)) return "dias úteis";
   if (dias.length === 2 && dias[0] === 0 && dias[1] === 6) return "fim de semana";
@@ -91,7 +93,9 @@ export function diasChipLabel(r: Routine): string {
     else grupos.push([d]);
   });
   return grupos
-    .map((g) => (g.length >= 3 ? DIAS_ABREV[g[0]] + " → " + DIAS_ABREV[g[g.length - 1]] : g.map((d) => DIAS_ABREV[d]).join("/")))
+    .map((g) =>
+      g.length >= 3 ? DIAS_ABREV[g[0]] + " → " + DIAS_ABREV[g[g.length - 1]] : g.map((d) => DIAS_ABREV[d]).join("/")
+    )
     .join("/");
 }
 

@@ -52,8 +52,8 @@ export function McpCard() {
   if (status.wired === false) {
     return (
       <Legenda>
-        Servidor MCP indisponível nesta versão: o dispatcher de tools ainda não foi portado ao React
-        (ver docs/react-migration.md). Fica desligado até isso ser implementado.
+        Servidor MCP indisponível nesta versão: o dispatcher de tools ainda não foi portado ao React (ver
+        docs/react-migration.md). Fica desligado até isso ser implementado.
       </Legenda>
     );
   }
@@ -116,7 +116,8 @@ export function McpCard() {
           variante="neutro"
           className="flex-1"
           onClick={() => {
-            if (!window.confirm("Gerar um novo token invalida o acesso dos clientes MCP já configurados. Continuar?")) return;
+            if (!window.confirm("Gerar um novo token invalida o acesso dos clientes MCP já configurados. Continuar?"))
+              return;
             bridge.regenerateToken().then(refresh);
           }}
         >
@@ -124,7 +125,8 @@ export function McpCard() {
         </Botao>
       </div>
       <Legenda className="mt-3">
-        Cole esse trecho no claude_desktop_config.json (Claude Desktop) ou aponte o Claude Code para essa URL (claude mcp add).
+        Cole esse trecho no claude_desktop_config.json (Claude Desktop) ou aponte o Claude Code para essa URL (claude
+        mcp add).
       </Legenda>
 
       <RotuloSecao className="mt-3.5 mb-1">Últimas chamadas</RotuloSecao>

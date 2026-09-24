@@ -18,7 +18,7 @@ export function Icon({ name, size = 19 }: IconProps) {
       stroke="currentColor"
       width={size}
       height={size}
-      className="icon-svg inline-block shrink-0 align-[-4px] [-webkit-user-drag:none] select-none"
+      className="icon-svg inline-block shrink-0 align-[-4px] select-none [-webkit-user-drag:none]"
     >
       <path strokeLinecap="round" strokeLinejoin="round" d={ICON_D[name]} />
     </svg>

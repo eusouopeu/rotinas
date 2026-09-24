@@ -143,7 +143,7 @@ export interface MetaTarget {
 
 export interface MetaRecNotif {
   inicio: string; // "08:00"
-  fim: string;    // "18:00"
+  fim: string; // "18:00"
 }
 
 // Pausa de agenda (K_SNOOZES, index.html:5259-5290, 11023) — enquanto

@@ -14,16 +14,8 @@ import {
 
 import { save } from "../../lib/storage";
 import { sincronizarPontosCartao, descreditarCartao } from "../../lib/scoring";
-import {
-  K_COMPROMISSOS,
-  K_DIAKANBAN,
-  K_DIARIO,
-  K_GAMIFICACAO,
-  K_SNOOZES,
-} from "../../lib/constants";
-import type {
-  DiaKanbanCard,
-} from "../../lib/types";
+import { K_COMPROMISSOS, K_DIAKANBAN, K_DIARIO, K_GAMIFICACAO, K_SNOOZES } from "../../lib/constants";
+import type { DiaKanbanCard } from "../../lib/types";
 import type { AppState } from "../useAppStore";
 
 export type AgendaSlice = Pick<
@@ -52,7 +44,10 @@ export const createAgendaSlice: StateCreator<AppState, [], [], AgendaSlice> = (s
   addCompromisso: (title, date, time) => {
     const t = title.trim();
     if (!t) return;
-    const compromissos = [...get().compromissos, { id: uid(), title: t, date, time, notify: "nenhuma" as const, createdAt: Date.now() }];
+    const compromissos = [
+      ...get().compromissos,
+      { id: uid(), title: t, date, time, notify: "nenhuma" as const, createdAt: Date.now() },
+    ];
     save(K_COMPROMISSOS, compromissos);
     set({ compromissos });
     syncCompromissoNotifications(compromissos, algumSnoozeAtivo(get().snoozes));
@@ -110,10 +105,15 @@ export const createAgendaSlice: StateCreator<AppState, [], [], AgendaSlice> = (s
     let diaKanban;
     if (card.id) {
       const existente = get().diaKanban.find((c) => c.id === card.id);
-      let alvo: DiaKanbanCard | null = existente ? { ...existente, text, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null } : null;
+      let alvo: DiaKanbanCard | null = existente
+        ? { ...existente, text, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null }
+        : null;
       // cartão já concluído que muda de peso/área precisa estornar antes: o
       // crédito antigo foi calculado com os valores velhos (index.html:5229-5235)
-      const mudouPeso = existente && existente.col === "done" && (existente.tagValor !== card.tagValor || (existente.eixo ?? null) !== (card.eixo ?? null));
+      const mudouPeso =
+        existente &&
+        existente.col === "done" &&
+        (existente.tagValor !== card.tagValor || (existente.eixo ?? null) !== (card.eixo ?? null));
       if (mudouPeso && existente) {
         const desc = descreditarCartao(gam, existente);
         gam = desc.gam;
@@ -127,7 +127,20 @@ export const createAgendaSlice: StateCreator<AppState, [], [], AgendaSlice> = (s
       diaKanban = get().diaKanban.map((c) => (c.id === card.id ? (alvo as DiaKanbanCard) : c));
     } else {
       const ord = get().diaKanban.filter((c) => c.per === per).length;
-      diaKanban = [...get().diaKanban, { id: uid(), text, col: "todo" as const, per, ord, hIni, hFim, tagValor: card.tagValor, eixo: card.eixo ?? null }];
+      diaKanban = [
+        ...get().diaKanban,
+        {
+          id: uid(),
+          text,
+          col: "todo" as const,
+          per,
+          ord,
+          hIni,
+          hFim,
+          tagValor: card.tagValor,
+          eixo: card.eixo ?? null,
+        },
+      ];
     }
     save(K_DIAKANBAN, diaKanban);
     save(K_GAMIFICACAO, gam);

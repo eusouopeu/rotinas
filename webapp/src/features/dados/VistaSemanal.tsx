@@ -45,7 +45,12 @@ export function VistaSemanal({ history, routines, snoozes, gam, weekStart, estad
 
   return (
     <>
-      <NavPeriodo rotuloAnterior="Semana anterior" rotuloProximo="Próxima semana" onAnterior={() => mover(-7)} onProximo={() => mover(7)}>
+      <NavPeriodo
+        rotuloAnterior="Semana anterior"
+        rotuloProximo="Próxima semana"
+        onAnterior={() => mover(-7)}
+        onProximo={() => mover(7)}
+      >
         {fmtDM(inicio)} &ndash; {fmtDM(fim)}
       </NavPeriodo>
 
@@ -56,11 +61,11 @@ export function VistaSemanal({ history, routines, snoozes, gam, weekStart, estad
         onSelecionar={setSelectedDay}
         rodape={
           <>
-            &#9679; executada &nbsp;{" "}
-            <span className="font-semibold">n</span> agendadas não feitas
+            &#9679; executada &nbsp; <span className="font-semibold">n</span> agendadas não feitas
             {gridData.rate !== null && (
               <>
-                &nbsp;&middot;&nbsp; cumprimento da semana: {gridData.rate}% ({gridData.doneTotal}/{gridData.plannedTotal})
+                &nbsp;&middot;&nbsp; cumprimento da semana: {gridData.rate}% ({gridData.doneTotal}/
+                {gridData.plannedTotal})
               </>
             )}
           </>

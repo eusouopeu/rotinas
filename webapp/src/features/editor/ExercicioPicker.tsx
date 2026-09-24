@@ -96,7 +96,10 @@ export function ExercicioPickerModal({ onClose, onPick }: { onClose: () => void;
                 return (
                   /* lista de leitura: sem moldura por item nem por botão —
                      são dezenas de linhas e a carga visual dominava */
-                  <div key={it.nome} className="flex items-center justify-between gap-1.5 px-0.5 py-[7px] [&+&]:border-t [&+&]:border-line">
+                  <div
+                    key={it.nome}
+                    className="flex items-center justify-between gap-1.5 px-0.5 py-[7px] [&+&]:border-t [&+&]:border-line"
+                  >
                     <span className="flex-1">{it.nome}</span>
                     {jaExiste ? (
                       <span className="text-sm text-sub">já na biblioteca</span>

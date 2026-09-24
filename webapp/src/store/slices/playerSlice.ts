@@ -11,11 +11,7 @@ import { uid } from "../../lib/uid";
 
 import { load, removeKey, save } from "../../lib/storage";
 import { K_NAOFEITAS, K_PLAYER } from "../../lib/constants";
-import {
-  K_EXERCICIOS,
-  K_GAMIFICACAO,
-  K_HISTORY,
-} from "../../lib/constants";
+import { K_EXERCICIOS, K_GAMIFICACAO, K_HISTORY } from "../../lib/constants";
 import { localKey } from "../../lib/gamificacao";
 import {
   adiarEtapaPlayer,
@@ -30,17 +26,9 @@ import {
   type StepActual,
 } from "../../lib/player";
 import { finishCue, stepTransitionCue } from "../../lib/haptics";
-import {
-  areaDaRotina,
-  desfazerConclusao,
-  registrarConclusaoStep,
-  totalPlanejadoSegundos,
-} from "../../lib/scoring";
+import { areaDaRotina, desfazerConclusao, registrarConclusaoStep, totalPlanejadoSegundos } from "../../lib/scoring";
 import type { HistoryEntry } from "../../lib/history";
-import type {
-  Exercicio,
-  Tag,
-} from "../../lib/types";
+import type { Exercicio, Tag } from "../../lib/types";
 import type { AppState } from "../useAppStore";
 
 export type PlayerSlice = Pick<
@@ -102,7 +90,9 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
       // do legado, cujo savePlayerSnapshot sobrescreve K_PLAYER)
       playerSnapshot: gravarSnapshot(playerState),
       view: { tab: "home", screen: "player" },
-      playerBanner: repescagem ? `Repescagem: só ${n} etapa${n > 1 ? "s" : ""} não feita${n > 1 ? "s" : ""} de hoje` : null,
+      playerBanner: repescagem
+        ? `Repescagem: só ${n} etapa${n > 1 ? "s" : ""} não feita${n > 1 ? "s" : ""} de hoje`
+        : null,
     });
   },
   clearPlayerBanner: () => set({ playerBanner: null }),
@@ -142,7 +132,10 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     if (step.type === "exercicio") {
       // Pontuação proporcional a séries COMPLETAS, não a tempo gasto: cada
       // série "vale" o descanso planejado (index.html:11476-11491).
-      const rest = descansoEntreSeries(routine?.restSeconds ?? 120, get().exercicios.find((e) => e.id === step.exercicioId));
+      const rest = descansoEntreSeries(
+        routine?.restSeconds ?? 120,
+        get().exercicios.find((e) => e.id === step.exercicioId)
+      );
       const results = p.ex?.results || [];
       actual = {
         id: step.id,
@@ -162,7 +155,7 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
         tag: (step.tagValor || routine?.tagValor || "medio") as Tag,
         name: step.name,
         isRest: !!step.isRest,
-        planned: step.type === "timer" ? step.seconds ?? null : null,
+        planned: step.type === "timer" ? (step.seconds ?? null) : null,
         actual: skipped ? 0 : elapsed,
         skipped,
         naoFeita,
@@ -219,9 +212,22 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
         };
         const history = [...get().history, entry];
         save(K_HISTORY, history);
-        set({ history, gam, naoFeitas, playerState: null, playerSnapshot: apagarSnapshot(), view: { tab: "home", screen: "done" } });
+        set({
+          history,
+          gam,
+          naoFeitas,
+          playerState: null,
+          playerSnapshot: apagarSnapshot(),
+          view: { tab: "home", screen: "done" },
+        });
       } else {
-        set({ gam, naoFeitas, playerState: null, playerSnapshot: apagarSnapshot(), view: { tab: "home", screen: "done" } });
+        set({
+          gam,
+          naoFeitas,
+          playerState: null,
+          playerSnapshot: apagarSnapshot(),
+          view: { tab: "home", screen: "done" },
+        });
       }
       return;
     }
@@ -293,7 +299,11 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
      para a Home, que oferece "Rotina em andamento" para retomar — era assim no
      legado (index.html:12239-12247) e se perdeu na migração. */
   exitPlayer: () =>
-    set({ playerSnapshot: gravarSnapshot(get().playerState), playerState: null, view: { tab: "home", screen: "home" } }),
+    set({
+      playerSnapshot: gravarSnapshot(get().playerState),
+      playerState: null,
+      view: { tab: "home", screen: "home" },
+    }),
 
   resumePlayer: () => {
     const snap = get().playerSnapshot || load<PlayerState | null>(K_PLAYER, null);
@@ -409,7 +419,11 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
           results,
           restEndTs:
             Date.now() +
-            descansoEntreSeries(routine?.restSeconds ?? 120, get().exercicios.find((e) => e.id === step.exercicioId)) * 1000,
+            descansoEntreSeries(
+              routine?.restSeconds ?? 120,
+              get().exercicios.find((e) => e.id === step.exercicioId)
+            ) *
+              1000,
         },
       },
     });
@@ -424,7 +438,9 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     if (!p) return;
     if (p.ex && p.ex.results.length) {
       const results = p.ex.results.slice(0, -1);
-      set({ playerState: { ...p, ex: { setIdx: Math.max(0, p.ex.setIdx - 1), phase: "set", results, restEndTs: null } } });
+      set({
+        playerState: { ...p, ex: { setIdx: Math.max(0, p.ex.setIdx - 1), phase: "set", results, restEndTs: null } },
+      });
       return;
     }
     // Sem série registrada na etapa atual (ex.: a última série concluída sem
