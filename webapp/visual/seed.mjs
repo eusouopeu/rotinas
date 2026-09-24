@@ -15,6 +15,7 @@ const routines = [
     id: "r-manha",
     name: "Manhã",
     eixo: "ar-saude",
+    weeklyGoalTimes: 5,
     steps: [passo("s1", "Alongar", 300), passo("s2", "Meditar", 600), passo("s3", "Diário", 180)],
     restSeconds: 0,
     tagValor: "medio",
@@ -25,6 +26,7 @@ const routines = [
     id: "r-treino",
     name: "Treino A",
     eixo: "ar-saude",
+    weeklyGoalTimes: 3,
     steps: [passo("s1", "Aquecimento", 420), passo("s2", "Supino", 900), passo("s3", "Remada", 900), passo("s4", "Alongar", 300)],
     restSeconds: 45,
     tagValor: "alto",
@@ -54,31 +56,36 @@ const routines = [
 
 function entrada(r, offset, hhmm) {
   const [h, m] = hhmm.split(":").map(Number);
-  const base = new Date(iso(offset) + "T00:00:00-03:00").getTime() + (h * 60 + m) * 60000;
+  const atraso = (Math.abs(offset) * 3) % 18; // minutos depois do horário agendado
+  const base = new Date(iso(offset) + "T00:00:00-03:00").getTime() + (h * 60 + m + atraso) * 60000;
   const planned = r.steps.reduce((a, s) => a + (s.seconds || 0), 0);
+  // etapa "Meditar"/"Supino" estoura um pouco em dias alternados
+  const real = (s) => (s.name === "Meditar" || s.name === "Supino" ? s.seconds + (Math.abs(offset) % 3) * 45 : s.seconds);
+  const actual = r.steps.reduce((a, s) => a + real(s), 0);
   return {
     date: iso(offset),
-    ts: base + planned * 1000,
+    ts: base + actual * 1000,
     startedTs: base,
     routineId: r.id,
     routineName: r.name,
     plannedSec: planned,
-    actualSec: planned + 40,
+    actualSec: actual,
     pauses: 0,
     pausedSec: 0,
     skippedCount: 0,
+    schedDelayMin: atraso,
     steps: r.steps.map((s) => ({
-      id: s.id, tag: r.tagValor, name: s.name, isRest: false, planned: s.seconds, actual: s.seconds, skipped: false,
+      id: s.id, tag: r.tagValor, name: s.name, isRest: false, planned: s.seconds, actual: real(s), skipped: false,
     })),
   };
 }
 
 const history = [];
-for (let d = -13; d <= 0; d++) {
+for (let d = -119; d <= 0; d++) {
   const dow = new Date(t0 + d * DIA).getDay();
-  if (dow >= 1 && dow <= 5 && d !== -3) history.push(entrada(routines[0], d, "06:35"));
-  if ((dow === 1 || dow === 3 || dow === 5) && d < 0) history.push(entrada(routines[1], d, "18:05"));
-  if (d < 0 && d !== -5) history.push(entrada(routines[2], d, "21:30"));
+  if (dow >= 1 && dow <= 5 && d % 7 !== -3 && d !== -3) history.push(entrada(routines[0], d, "06:30"));
+  if ((dow === 1 || dow === 3 || dow === 5) && d < 0 && d % 5 !== -2) history.push(entrada(routines[1], d, "18:00"));
+  if (d < 0 && d % 6 !== -5) history.push(entrada(routines[2], d, "21:30"));
 }
 
 const notes = [
