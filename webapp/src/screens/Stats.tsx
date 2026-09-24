@@ -27,6 +27,7 @@ import { relatorioFechamentoHtml } from "../lib/pdfExport";
 import { exportPdfView } from "../lib/exportFile";
 import type { CountdownDoc } from "../lib/types";
 import { Tabbar } from "../components/Tabbar";
+import { SegPill } from "../components/SegPill";
 import { GraficoLinhaPct } from "../components/GraficoLinhaPct";
 
 const DOWL = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -927,35 +928,19 @@ export function Stats() {
 
         <div id="statsHead">
           <div className="stats-nav">
-            <div className="type-toggle view-toggle">
-              <span
-                className={statsView === "semanal" ? "active" : ""}
-                onClick={() => {
-                  setStatsView("semanal");
-                  setSelectedDay(null);
-                }}
-              >
-                semanal
-              </span>
-              <span
-                className={statsView === "mensal" ? "active" : ""}
-                onClick={() => {
-                  setStatsView("mensal");
-                  setSelectedDay(null);
-                }}
-              >
-                mensal
-              </span>
-              <span
-                className={statsView === "anual" ? "active" : ""}
-                onClick={() => {
-                  setStatsView("anual");
-                  setSelectedDay(null);
-                }}
-              >
-                anual
-              </span>
-            </div>
+            <SegPill
+              className="view-toggle"
+              options={[
+                { key: "semanal", label: "Semanal" },
+                { key: "mensal", label: "Mensal" },
+                { key: "anual", label: "Anual" },
+              ]}
+              active={statsView}
+              onSelect={(v) => {
+                setStatsView(v);
+                setSelectedDay(null);
+              }}
+            />
           </div>
 
           <div className="stats-nav">

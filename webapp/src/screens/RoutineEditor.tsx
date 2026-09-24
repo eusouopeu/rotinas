@@ -431,34 +431,38 @@ export function RoutineEditor() {
                   </div>
                 </div>
                 {s.type === "timer" && (
-                  <div className="step-sub">
-                    <input
-                      className="dur-input"
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      value={Math.floor((s.seconds || 0) / 60)}
-                      onChange={(e) => {
-                        const mins = Math.max(0, +e.target.value || 0);
-                        const secs = (s.seconds || 0) % 60;
-                        patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
-                      }}
-                    />{" "}
-                    min
-                    <input
-                      className="dur-input"
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={59}
-                      value={(s.seconds || 0) % 60}
-                      onChange={(e) => {
-                        const mins = Math.floor((s.seconds || 0) / 60);
-                        const secs = Math.min(59, Math.max(0, +e.target.value || 0));
-                        patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
-                      }}
-                    />{" "}
-                    seg
+                  <div className="step-sub dur-fields">
+                    <label className="dur-field">
+                      <input
+                        className="dur-input"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={Math.floor((s.seconds || 0) / 60)}
+                        onChange={(e) => {
+                          const mins = Math.max(0, +e.target.value || 0);
+                          const secs = (s.seconds || 0) % 60;
+                          patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
+                        }}
+                      />
+                      <span className="dur-un">m</span>
+                    </label>
+                    <label className="dur-field">
+                      <input
+                        className="dur-input"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={59}
+                        value={(s.seconds || 0) % 60}
+                        onChange={(e) => {
+                          const mins = Math.floor((s.seconds || 0) / 60);
+                          const secs = Math.min(59, Math.max(0, +e.target.value || 0));
+                          patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
+                        }}
+                      />
+                      <span className="dur-un">s</span>
+                    </label>
                   </div>
                 )}
                 {s.type === "exercicio" && (
@@ -542,16 +546,17 @@ export function RoutineEditor() {
         <div className="section-label">Descanso entre etapas</div>
         <div className="schedule-box">
           <div className="sched-time-row" style={{ marginTop: 0 }}>
-            <input
-              className="dur-input"
-              style={{ width: 60 }}
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={draft.restSeconds || 0}
-              onChange={(e) => updateDraft({ restSeconds: Math.max(0, +e.target.value || 0) })}
-            />{" "}
-            segundos
+            <label className="dur-field">
+              <input
+                className="dur-input"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={draft.restSeconds || 0}
+                onChange={(e) => updateDraft({ restSeconds: Math.max(0, +e.target.value || 0) })}
+              />
+              <span className="dur-un">s</span>
+            </label>
           </div>
         </div>
 

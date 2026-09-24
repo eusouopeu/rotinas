@@ -15,6 +15,7 @@ import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { StreakTag } from "../components/StreakTag";
+import { SegPill } from "../components/SegPill";
 import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, rotinaCabeEmHoje, rotinasOrdenadas, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
@@ -764,17 +765,17 @@ export function Home() {
           </div>
         )}
 
-        <div className="type-toggle view-toggle" style={{ marginBottom: 14 }}>
-          <span className={homeView === "semana" ? "active" : ""} onClick={() => setHomeView("semana")}>
-            Semana
-          </span>
-          <span className={homeView === "dia" ? "active" : ""} onClick={() => setHomeView("dia")}>
-            Dia
-          </span>
-          <span className={homeView === "rotinas" ? "active" : ""} onClick={() => setHomeView("rotinas")}>
-            Lista
-          </span>
-        </div>
+        <SegPill
+          className="view-toggle"
+          style={{ marginBottom: 14 }}
+          options={[
+            { key: "semana", label: "Semana" },
+            { key: "dia", label: "Dia" },
+            { key: "rotinas", label: "Lista" },
+          ]}
+          active={homeView}
+          onSelect={setHomeView}
+        />
 
         {homeView === "rotinas" && (
           <div className="ag-nav-row" style={{ marginBottom: 14 }}>

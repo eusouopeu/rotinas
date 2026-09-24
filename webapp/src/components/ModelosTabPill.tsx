@@ -1,20 +1,19 @@
 // Porta de modelosTabPillHtml (index.html:6515, app.css .modelos-tab-pill) —
 // alterna entre Notas simples e as demais pastas de Modelos.
 import { useAppStore } from "../store/useAppStore";
+import { SegPill } from "./SegPill";
 
 export function ModelosTabPill({ active }: { active: "notes" | "outros" }) {
   const goTo = useAppStore((s) => s.goTo);
   return (
-    <div className="type-toggle view-toggle modelos-tab-pill">
-      <span className={active === "notes" ? "active" : ""} onClick={() => goTo({ tab: "templates", screen: "notes" })}>
-        Notas
-      </span>
-      <span
-        className={active === "outros" ? "active" : ""}
-        onClick={() => goTo({ tab: "templates", screen: "templateFolders" })}
-      >
-        Outros
-      </span>
-    </div>
+    <SegPill
+      className="modelos-tab-pill"
+      options={[
+        { key: "notes", label: "Notas" },
+        { key: "outros", label: "Outros" },
+      ]}
+      active={active}
+      onSelect={(k) => goTo({ tab: "templates", screen: k === "notes" ? "notes" : "templateFolders" })}
+    />
   );
 }

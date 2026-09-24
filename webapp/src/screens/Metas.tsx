@@ -8,6 +8,7 @@ import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { AreaInput, DateKbInput, TimeKbInput } from "../components/CamposTexto";
 import { Tabbar } from "../components/Tabbar";
+import { SegPill } from "../components/SegPill";
 import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { exportPdfView } from "../lib/exportFile";
 import { metasPdfHtml } from "../lib/pdfExport";
@@ -130,22 +131,17 @@ export function Metas() {
 
         <RodaVidaResumo />
 
-        <div className="area-chips area-filter-row" style={{ marginBottom: 14 }}>
-          <span
-            className={`area-chip ${mostraRecorrentes ? "sel" : ""}`}
-            style={{ "--chip": "var(--caneta)" } as React.CSSProperties}
-            onClick={() => toggleMetasSubviewState("recorrentes")}
-          >
-            Recorrentes
-          </span>
-          <span
-            className={`area-chip ${mostraPrazos ? "sel" : ""}`}
-            style={{ "--chip": "var(--caneta)" } as React.CSSProperties}
-            onClick={() => toggleMetasSubviewState("prazos")}
-          >
-            Prazos
-          </span>
-        </div>
+        {/* as duas podem ficar ligadas juntas (lista única com dois blocos) */}
+        <SegPill
+          className="view-toggle"
+          style={{ marginBottom: 14 }}
+          options={[
+            { key: "recorrentes", label: "Recorrentes" },
+            { key: "prazos", label: "Prazos" },
+          ]}
+          active={metasSubview}
+          onSelect={toggleMetasSubviewState}
+        />
 
         {mostraRecorrentes && (
           <div style={{ marginBottom: ambos ? 20 : 10 }}>
