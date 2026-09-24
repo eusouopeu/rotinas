@@ -60,6 +60,7 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 | `LinhaBarra`, `GradeBarras`, `TrilhoBarra` | `.bar-row/.bar-name/.bar-track/.bar-fill/.bar-val`, `.bar-grid` | `cor` pinta a barra, `corRotulo` o nome, `corValor` o valor; `naGrade` alinha 3 colunas; `marcador` = ritmo esperado / meta tracejada |
 | `LinhaValor` | `.bar-row` de "nome … valor/controle" | Ajustes, Boletim |
 | `BarraDetalhe`, `BotaoLink`, `Selecao` | `.detail-bar`, `.topbar .link-btn`, `.routine-select` | |
+| `BarraAcoes`, `CampoNome` | `.bottom-actions`, `input.name-input` | rodapé fixo com Salvar/Excluir; título grande de tela de edição |
 | `PontoCor`, `BotaoPlay`, `AvisoCartao` | `.r-dot`, `.play-btn`, `.notice-card` | |
 | `BotaoRedondo`, `AlcaArrasto`, `OpcaoCriar`, `Fatos`/`Fato` | `.ctrl-btn`, `.drag-handle`, `.novo-opcao`, `.routine-meta-line`/`.rc-fact` | |
 | `CartaoLista` / `CARTAO_LISTA`, `CartaoInfo`, `CartaoTitulo`, `ListaCartoes` | `.note-card`/`.routine-card`, `.note-info`, `.notes-list`/`.routine-list` | dentro de `SwipeItem` passe `CARTAO_LISTA` no `className` dele; lista vira grade de 2 colunas no desktop |
@@ -82,6 +83,8 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
    - Utilitário sempre vence o `app.css` (camada `legacy`): uma regra antiga de contexto/desktop que antes ganhava por especificidade ou por `@media` (ex.: `.home-header` sticky no desktop, `#statsBody > *` com `margin-bottom:14px`) deixa de valer onde você põe um utilitário do mesmo atributo — recrie-a com variante (`desktop:mb-3.5`).
    - Seletores de teste: não use classes do legado; use `getByRole`/texto ou `data-*` estável (`data-rolagem`, `data-roda`, `data-seg`, `data-swipe-item`). `title`/`aria-label` do botão sem texto mudam o nome acessível.
    - Achou diferença de pixel sem saber a origem? Compare, entre o HEAD (`git worktree add`) e a versão nova, o retângulo e o estilo computado de cada elemento do trecho (Playwright, `getBoundingClientRect` + `getComputedStyle`): a primeira diferença aponta o culpado.
+   - Popup aberto por clique pode rolar a tela de trás um valor diferente a cada execução: use `foto(..., { zerarRolagem: true })`.
+   - `<input>` sem `padding` nos utilitários herda o `padding: 1px 2px` do navegador: zere (`px-0`/`p-0`) quando o legado zerava.
    - Foto de tela longa: `fotoInteira` (apoio.mjs) estica a janela; ela zera `scrollLeft` (digitar num campo pode rolar 1px de lado um contêiner com `overflow-x:hidden`) — o mesmo vale para o formulário com `autoFocus` (`desfocar`).
 
 ### Regressão visual

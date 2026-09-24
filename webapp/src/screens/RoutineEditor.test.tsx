@@ -29,9 +29,9 @@ describe("RoutineEditor — reordenar etapas por arraste", () => {
     render(<RoutineEditor />);
     expect(screen.getByPlaceholderText("Nome da rotina")).toBeInTheDocument();
 
-    const handles = document.querySelectorAll(".drag-handle");
+    const handles = document.querySelectorAll('[aria-label="Arrastar para reordenar"]');
     expect(handles).toHaveLength(3);
-    const stepRows = document.querySelectorAll(".step-row");
+    const stepRows = document.querySelectorAll("[data-etapa]");
     mockRect(stepRows[0] as HTMLElement, 0, 80);
     mockRect(stepRows[1] as HTMLElement, 80, 80);
     mockRect(stepRows[2] as HTMLElement, 160, 80);
@@ -43,7 +43,7 @@ describe("RoutineEditor — reordenar etapas por arraste", () => {
     fireEvent(handle, new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 210 }));
     fireEvent(handle, new PointerEvent("pointerup", { pointerId: 1 }));
 
-    const names = Array.from(document.querySelectorAll(".step-fields input[type='text']")).map((i) => (i as HTMLInputElement).value);
+    const names = Array.from(document.querySelectorAll("[data-etapa] input[type='text']")).map((i) => (i as HTMLInputElement).value);
     expect(names).toEqual(["Dois", "Três", "Um"]);
   });
 });

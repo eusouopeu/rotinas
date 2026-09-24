@@ -1,233 +1,58 @@
 // Porta parcial de renderEditor (index.html:4315-4740). Cobre nome, etapas
-// tipo "tempo" e "exercicio" (biblioteca de exercícios — picker/editor
-// próprios, ver ExercicioPickerModal/ExercicioEditorModal abaixo, porta de
-// abrirEscolhaExercicioEtapa/abrirEditorExercicio, index.html:4109-4162) e
-// "checklist" (sem campos extra — mesmo fallback genérico do Player),
-// descanso entre etapas (index.html:4551-4565), reordenar etapa por
-// arrastar (useDragReorder, ver webapp/src/lib/dnd.ts), agendamento (dias +
-// horário), peso no boletim e área da roda da vida. Fica para depois: hábito,
-// nota anexada, meta semanal, modo "a cada N dias".
+// tipo "tempo" e "exercicio" (biblioteca de exercícios — picker/editor em
+// features/editor/, porta de abrirEscolhaExercicioEtapa/abrirEditorExercicio,
+// index.html:4109-4162) e "checklist" (sem campos extra — mesmo fallback
+// genérico do Player), descanso entre etapas (index.html:4551-4565), reordenar
+// etapa por arrastar (useDragReorder, ver webapp/src/lib/dnd.ts), agendamento
+// (dias + horário), peso no boletim e área da roda da vida. Fica para depois:
+// hábito, nota anexada, meta semanal, modo "a cada N dias".
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
+import { ExercicioPickerModal } from "../features/editor/ExercicioPicker";
+import { BotaoEscolha, CampoExercicio } from "../features/editor/pecas";
 import { computeSchedule, DAY_LETTERS } from "../lib/schedule";
 import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
 import { rotinaShareData } from "../lib/backup";
 import { downloadFile, slugify } from "../lib/exportFile";
-import { GRUPOS_MUSCULARES } from "../lib/constants";
-import { presetsPorGrupo } from "../lib/exercicioPresets";
-import type { Exercicio, RoutineStep, Tag } from "../lib/types";
+import type { RoutineStep, Tag } from "../lib/types";
+import { cn } from "../lib/cn";
+import { AlcaArrasto } from "../ui/AlcaArrasto";
+import { BarraAcoes } from "../ui/BarraAcoes";
+import { Botao } from "../ui/Botao";
+import { BotaoIcone } from "../ui/BotaoIcone";
+import { BotaoLink } from "../ui/BotaoLink";
+import { Campo } from "../ui/Campo";
+import { CampoDuracao } from "../ui/CampoDuracao";
+import { CampoNome } from "../ui/CampoNome";
+import { Cartao } from "../ui/Cartao";
+import { ChipsDia } from "../ui/ChipsDia";
+import { Chip } from "../ui/Chip";
+import { RotuloSecao } from "../ui/RotuloSecao";
+import { Toggle } from "../ui/Segmentado";
+import { Switch } from "../ui/Switch";
+
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
 const STEP_TYPES = [
-  { t: "timer", label: "tempo" },
-  { t: "checklist", label: "check" },
-  { t: "exercicio", label: "exercício" },
+  { key: "timer", label: "tempo" },
+  { key: "checklist", label: "check" },
+  { key: "exercicio", label: "exercício" },
 ] as const;
 
-/** Porta de abrirEditorExercicio (index.html:4216-4260) — cria ou edita um
- * item da biblioteca; "Excluir" só aparece editando um já existente. */
-function ExercicioEditorModal({
-  ex,
-  onClose,
-  onSaved,
-}: {
-  ex: Exercicio | null;
-  onClose: () => void;
-  onSaved: (saved: Exercicio | null) => void;
-}) {
-  const upsertExercicio = useAppStore((s) => s.upsertExercicio);
-  const deleteExercicio = useAppStore((s) => s.deleteExercicio);
-  const [nome, setNome] = useState(ex?.nome || "");
-  const [grupos, setGrupos] = useState<string[]>(ex?.grupos || []);
-  const [peso, setPeso] = useState(ex?.pesoAtual || 0);
-  const [composto, setComposto] = useState(ex?.composto !== false);
+const PESOS = [
+  { key: "baixo", label: "Baixo" },
+  { key: "medio", label: "Médio" },
+  { key: "alto", label: "Alto" },
+] as const;
 
-  function toggleGrupo(g: string) {
-    setGrupos((cur) => (cur.includes(g) ? cur.filter((x) => x !== g) : [...cur, g]));
-  }
-  function salvar() {
-    const n = nome.trim();
-    if (!n) return;
-    const saved = upsertExercicio({ id: ex?.id, nome: n, grupos, pesoAtual: Math.max(0, peso || 0), composto });
-    onSaved(saved);
-  }
-  function excluir() {
-    if (!ex) return;
-    deleteExercicio(ex.id);
-    onSaved(null);
-  }
-
-  return (
-    <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="confirm-box" style={{ textAlign: "left" }}>
-        <p style={{ marginBottom: 10 }}>{ex ? "Editar" : "Novo"} exercício</p>
-        <div className="section-label" style={{ margin: "6px 0 6px" }}>
-          Nome
-        </div>
-        <input type="text" className="mk-e-name" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Supino reto" />
-        <div className="section-label" style={{ margin: "12px 0 6px" }}>
-          Grupos musculares (opcional)
-        </div>
-        <div className="meta-areas">
-          {GRUPOS_MUSCULARES.map((g) => (
-            <span key={g} className={"area-chip" + (grupos.includes(g) ? " sel" : "")} onClick={() => toggleGrupo(g)}>
-              {g}
-            </span>
-          ))}
-        </div>
-        <div className="section-label" style={{ margin: "12px 0 6px" }}>
-          Tipo
-        </div>
-        {/* só muda o descanso entre séries: composto usa o descanso cheio da
-            rotina, isolado usa 0,75x dele (lib/exercicios.ts) */}
-        <div className="type-toggle">
-          <span className={composto ? "active" : ""} onClick={() => setComposto(true)}>
-            composto
-          </span>
-          <span className={!composto ? "active" : ""} onClick={() => setComposto(false)}>
-            isolado
-          </span>
-        </div>
-        <div className="section-label" style={{ margin: "12px 0 6px" }}>
-          Carga atual (kg)
-        </div>
-        <input
-          className="dur-input"
-          style={{ width: 90 }}
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step={0.5}
-          value={peso}
-          onChange={(e) => setPeso(+e.target.value || 0)}
-        />
-        <div className="confirm-actions" style={{ marginTop: 18 }}>
-          {ex && (
-            <button className="btn-danger-outline" onClick={excluir}>
-              Excluir
-            </button>
-          )}
-          <button className="btn-cancel" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="btn-confirm" style={{ background: "var(--caneta)" }} onClick={salvar}>
-            Salvar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Porta de abrirEscolhaExercicioEtapa (index.html:4109-4162) — lista a
- * biblioteca pra escolher o exercício de uma etapa; "editar" reabre o
- * picker depois de salvar, "+ Novo exercício" já seleciona o criado. */
-function ExercicioPickerModal({ onClose, onPick }: { onClose: () => void; onPick: (ex: Exercicio) => void }) {
-  const exercicios = useAppStore((s) => s.exercicios);
-  const upsertExercicio = useAppStore((s) => s.upsertExercicio);
-  const [editorFor, setEditorFor] = useState<{ ex: Exercicio | null } | null>(null);
-  const [sugestoesAbertas, setSugestoesAbertas] = useState(false);
-  const lista = [...exercicios].sort((a, b) => a.nome.localeCompare(b.nome));
-  const nomesExistentes = new Set(exercicios.map((e) => e.nome.trim().toLowerCase()));
-  const grupos = presetsPorGrupo();
-
-  function adicionarSugestao(nome: string, grupo: string, composto: boolean) {
-    const saved = upsertExercicio({ nome, grupos: [grupo], pesoAtual: 0, composto });
-    onClose();
-    onPick(saved);
-  }
-
-  if (editorFor) {
-    return (
-      <ExercicioEditorModal
-        ex={editorFor.ex}
-        onClose={() => setEditorFor(null)}
-        onSaved={(saved) => {
-          setEditorFor(null);
-          if (saved) onPick(saved);
-        }}
-      />
-    );
-  }
-
-  return (
-    <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="confirm-box" style={{ textAlign: "left", maxHeight: "80vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <p style={{ margin: 0 }}>Escolher exercício</p>
-          <button className="icon-btn" onClick={onClose}>
-            <Icon name="xmark" size={14} />
-          </button>
-        </div>
-        {lista.length ? (
-          <div className="qa-idea-list">
-            {lista.map((ex) => (
-              <div key={ex.id} className="qa-idea-row" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                <button
-                  style={{ flex: 1, textAlign: "left", background: "none", border: "none", color: "inherit", font: "inherit", padding: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                  onClick={() => {
-                    onClose();
-                    onPick(ex);
-                  }}
-                >
-                  <span className="qa-idea-nome">{ex.nome}</span>
-                  {ex.grupos.length > 0 && <span style={{ color: "var(--sub)", fontSize: 12 }}> · {ex.grupos.join(", ")}</span>}
-                </button>
-                <button className="icon-btn" title="Editar" aria-label="Editar" style={{ width: 28, height: 28, flex: "0 0 auto" }} onClick={() => setEditorFor({ ex })}>
-                  <Icon name="notes" size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="dev-n" style={{ marginBottom: 10 }}>
-            Nenhum exercício cadastrado ainda.
-          </div>
-        )}
-        <button className="tmpl-new qa-idea-nova" onClick={() => setEditorFor({ ex: null })}>
-          <span className="tmpl-ic">
-            <Icon name="trophy" size={16} />
-          </span>
-          <span>+ Novo exercício</span>
-        </button>
-
-        <div className="section-label" style={{ margin: "14px 0 6px", cursor: "pointer" }} onClick={() => setSugestoesAbertas((v) => !v)}>
-          Sugestões por grupo muscular {sugestoesAbertas ? "▲" : "▼"}
-        </div>
-        {sugestoesAbertas && (
-          <div>
-            {grupos.map(({ grupo, itens }) => (
-              <div key={grupo} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 12, color: "var(--sub)", marginBottom: 4 }}>{grupo}</div>
-                {itens.map((it) => {
-                  const jaExiste = nomesExistentes.has(it.nome.trim().toLowerCase());
-                  return (
-                    /* lista de leitura: sem moldura por item nem por botão —
-                       são dezenas de linhas e a carga visual dominava */
-                    <div key={it.nome} className="ex-sug-row">
-                      <span style={{ flex: 1 }}>{it.nome}</span>
-                      {jaExiste ? (
-                        <span style={{ fontSize: 12, color: "var(--sub)" }}>já na biblioteca</span>
-                      ) : (
-                        <button className="icon-btn borderless" title="Adicionar" aria-label="Adicionar" style={{ width: 28, height: 28, flex: "0 0 auto" }} onClick={() => adicionarSugestao(it.nome, grupo, it.composto)}>
-                          <Icon name="plus" size={14} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+const ANCORAS = [
+  { key: "start", label: "início" },
+  { key: "end", label: "término" },
+] as const;
 
 export function RoutineEditor() {
   const draft = useAppStore((s) => s.editorDraft);
@@ -310,96 +135,62 @@ export function RoutineEditor() {
 
   return (
     <div className="screen screen-wide">
-      <div className="topbar">
-        <button className="link-btn muted" onClick={cancelEdit}>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <BotaoLink tom="suave" onClick={cancelEdit}>
           Cancelar
-        </button>
-        <button
-          className="link-btn"
-          title="Exportar"
-          aria-label="Exportar"
-          onClick={handleExport}
-          style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
-        >
+        </BotaoLink>
+        <BotaoLink className="inline-flex items-center gap-[5px]" title="Exportar" aria-label="Exportar" onClick={handleExport}>
           <Icon name="arrowUpTray" size={14} /> Exportar
-        </button>
+        </BotaoLink>
       </div>
 
-      <div style={{ overflowY: "auto", flex: 1, paddingBottom: 230 }}>
-        <input
-          className="name-input"
-          type="text"
-          placeholder="Nome da rotina"
-          value={draft.name}
-          onChange={(e) => updateDraft({ name: e.target.value })}
-        />
+      <div className="flex-1 overflow-y-auto pb-[230px]" data-rolagem>
+        <CampoNome placeholder="Nome da rotina" value={draft.name} onChange={(e) => updateDraft({ name: e.target.value })} />
 
         {/* Porta de renderEditor > tagRow/areaRow (index.html:4341-4374): peso
             no boletim (multiplicador da pontuação) e área da roda da vida (com
             quem a rotina divide os pontos da semana). Mesmas pílulas do
             lançamento rápido da Home, para não desenhar um seletor novo. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0 10px", flexWrap: "wrap" }}>
-          <span style={{ color: "var(--sub)", fontSize: 13 }}>peso no boletim:</span>
-          <div className="type-toggle tagval-pills">
-            {(["baixo", "medio", "alto"] as Tag[]).map((v) => (
-              <span
-                key={v}
-                className={(draft!.tagValor || "medio") === v ? "active" : ""}
-                onClick={() => updateDraft({ tagValor: v })}
-              >
-                {v === "baixo" ? "Baixo" : v === "medio" ? "Médio" : "Alto"}
-              </span>
-            ))}
-          </div>
+        <div className="mt-0.5 mb-2.5 flex flex-wrap items-center gap-2.5">
+          <span className="text-md text-sub">peso no boletim:</span>
+          <Toggle quebra options={[...PESOS]} active={draft.tagValor || "medio"} onSelect={(v: Tag) => updateDraft({ tagValor: v })} />
         </div>
 
         {/* a área aparece mesmo com a roda desligada (igual ao legado): ela
             continua classificando a rotina, só não divide fatia da semana */}
         {gam.config.roda.areas.length > 0 && (
-          <div style={{ margin: "0 0 12px" }}>
-            <span style={{ color: "var(--sub)", fontSize: 13 }}>área:</span>
-            <div className="area-chips" style={{ marginTop: 6 }}>
-              <span
-                className={"area-chip" + (!draft.eixo ? " sel" : "")}
-                style={{ "--chip": "var(--sub)" } as React.CSSProperties}
-                onClick={() => updateDraft({ eixo: null })}
-              >
+          <div className="mb-3">
+            <span className="text-md text-sub">área:</span>
+            <div className="mt-1.5 flex flex-1 flex-wrap gap-1.5">
+              <Chip ativo={!draft.eixo} cor="var(--sub)" onClick={() => updateDraft({ eixo: null })}>
                 sem área
-              </span>
+              </Chip>
               {gam.config.roda.areas.map((a) => (
-                <span
-                  key={a.id}
-                  className={"area-chip" + (draft!.eixo === a.id ? " sel" : "")}
-                  style={{ "--chip": a.color } as React.CSSProperties}
-                  onClick={() => updateDraft({ eixo: a.id })}
-                >
+                <Chip key={a.id} ativo={draft.eixo === a.id} cor={a.color} onClick={() => updateDraft({ eixo: a.id })}>
                   {a.label}
-                </span>
+                </Chip>
               ))}
             </div>
           </div>
         )}
 
-        <div className="section-label">Etapas</div>
-        <div className="steps-list">
+        <RotuloSecao>Etapas</RotuloSecao>
+        <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto">
           {draft.steps.map((s, i) => (
             <div
-              className={
-                "step-row" +
-                (dragFrom?.index === i ? " dragging" : "") +
-                (dragOver && dragFrom && dragOver.index === i && dragOver.index !== dragFrom.index
-                  ? dragOver.index < dragFrom.index
-                    ? " drop-above"
-                    : " drop-below"
-                  : "")
-              }
+              className={cn(
+                "flex items-start gap-3 rounded-lg border-[1.5px] border-line bg-card p-3.5",
+                dragFrom?.index === i && "border-caneta opacity-45",
+                dragOver && dragFrom && dragOver.index === i && dragOver.index !== dragFrom.index &&
+                  (dragOver.index < dragFrom.index ? "shadow-[0_-3px_0_0_var(--caneta)]" : "shadow-[0_3px_0_0_var(--caneta)]")
+              )}
+              data-etapa
               key={s.id}
               ref={(el) => {
                 stepRefs.current[i] = el;
               }}
             >
-              <span
-                className="drag-handle"
+              <AlcaArrasto
                 {...dragHandleProps({ container: 0, index: i }, (_x, y) => ({
                   container: 0,
                   index: computeStepDragTarget(
@@ -408,215 +199,167 @@ export function RoutineEditor() {
                     y,
                   ),
                 }))}
-              >
-                <Icon name="bars3" size={15} />
-              </span>
-              <div className="step-num">{i + 1}</div>
-              <div className="step-fields">
+              />
+              <div className="w-[22px] shrink-0 pt-0.5 font-sans text-sm text-sub">{i + 1}</div>
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
                 {s.type !== "exercicio" && (
                   <input
                     type="text"
+                    className="w-full border-0 bg-transparent p-0 font-sans text-xl text-ink focus:outline-none"
                     placeholder="Nome da etapa"
                     value={s.name}
                     onChange={(e) => patchStep(i, { name: e.target.value })}
                   />
                 )}
-                <div className="step-sub">
-                  <div className="type-toggle">
-                    {STEP_TYPES.map(({ t, label }) => (
-                      <span key={t} className={s.type === t ? "active" : ""} onClick={() => setStepType(i, t)}>
-                        {label}
-                      </span>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Toggle options={[...STEP_TYPES]} active={s.type as (typeof STEP_TYPES)[number]["key"]} onSelect={(t) => setStepType(i, t)} />
                 </div>
                 {s.type === "timer" && (
-                  <div className="step-sub dur-fields">
-                    <label className="dur-field">
-                      <input
-                        className="dur-input"
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        value={Math.floor((s.seconds || 0) / 60)}
-                        onChange={(e) => {
-                          const mins = Math.max(0, +e.target.value || 0);
-                          const secs = (s.seconds || 0) % 60;
-                          patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
-                        }}
-                      />
-                      <span className="dur-un">m</span>
-                    </label>
-                    <label className="dur-field">
-                      <input
-                        className="dur-input"
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={59}
-                        value={(s.seconds || 0) % 60}
-                        onChange={(e) => {
-                          const mins = Math.floor((s.seconds || 0) / 60);
-                          const secs = Math.min(59, Math.max(0, +e.target.value || 0));
-                          patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
-                        }}
-                      />
-                      <span className="dur-un">s</span>
-                    </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CampoDuracao
+                      unidade="m"
+                      min={0}
+                      value={Math.floor((s.seconds || 0) / 60)}
+                      onChange={(e) => {
+                        const mins = Math.max(0, +e.target.value || 0);
+                        const secs = (s.seconds || 0) % 60;
+                        patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
+                      }}
+                    />
+                    <CampoDuracao
+                      unidade="s"
+                      min={0}
+                      max={59}
+                      value={(s.seconds || 0) % 60}
+                      onChange={(e) => {
+                        const mins = Math.floor((s.seconds || 0) / 60);
+                        const secs = Math.min(59, Math.max(0, +e.target.value || 0));
+                        patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
+                      }}
+                    />
                   </div>
                 )}
                 {s.type === "exercicio" && (
                   <>
                     {/* exercício escolhido como chip clicável (troca ao tocar) */}
-                    <button className={"ex-escolha" + (s.exercicioId ? " on" : "")} onClick={() => setPickerFor(i)}>
-                      <Icon name="trophy" size={14} />
-                      <span>
-                        {s.exercicioId
-                          ? exercicios.find((e) => e.id === s.exercicioId)?.nome || "exercício removido"
-                          : "escolher exercício"}
-                      </span>
-                      <Icon name="chevronRight" size={13} />
-                    </button>
+                    <BotaoEscolha escolhido={!!s.exercicioId} onClick={() => setPickerFor(i)}>
+                      {s.exercicioId ? exercicios.find((e) => e.id === s.exercicioId)?.nome || "exercício removido" : "escolher exercício"}
+                    </BotaoEscolha>
                     {/* séries · reps · peso numa grade de 3 campos com ícone e unidade */}
-                    <div className="ex-campos">
-                      <label className="ex-campo" title="Séries">
-                        <Icon name="arrowPath" size={14} />
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={1}
-                          aria-label="Séries"
-                          value={s.sets || 3}
-                          onChange={(e) => patchStep(i, { sets: Math.max(1, +e.target.value || 1) })}
-                        />
-                        <span>séries</span>
-                      </label>
-                      <label className="ex-campo" title="Repetições (ex.: 10 ou 8-12)">
-                        <Icon name="hashtag" size={14} />
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          aria-label="Repetições"
-                          value={s.reps || "10"}
-                          onChange={(e) => patchStep(i, { reps: e.target.value })}
-                        />
-                        <span>reps</span>
-                      </label>
+                    <div className="mt-2 grid w-full grid-cols-3 gap-1.5">
+                      <CampoExercicio
+                        icone="arrowPath"
+                        unidade="séries"
+                        titulo="Séries"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        aria-label="Séries"
+                        value={s.sets || 3}
+                        onChange={(e) => patchStep(i, { sets: Math.max(1, +e.target.value || 1) })}
+                      />
+                      <CampoExercicio
+                        icone="hashtag"
+                        unidade="reps"
+                        titulo="Repetições (ex.: 10 ou 8-12)"
+                        type="text"
+                        inputMode="numeric"
+                        aria-label="Repetições"
+                        value={s.reps || "10"}
+                        onChange={(e) => patchStep(i, { reps: e.target.value })}
+                      />
                       {/* o peso mora na biblioteca (Exercicio.pesoAtual), não na
                           etapa: editar aqui é um atalho para o mesmo campo que o
                           player atualiza ao concluir a série. Sem exercício
                           escolhido não há onde guardar — campo desabilitado. */}
-                      <label className={"ex-campo" + (s.exercicioId ? "" : " off")} title={s.exercicioId ? "Peso atual" : "Escolha um exercício para definir o peso"}>
-                        <Icon name="scale" size={14} />
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          min={0}
-                          step="0.5"
-                          aria-label="Peso atual do exercício"
-                          disabled={!s.exercicioId}
-                          value={s.exercicioId ? exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0 : ""}
-                          placeholder="–"
-                          onChange={(e) => {
-                            const ex = exercicios.find((x) => x.id === s.exercicioId);
-                            if (!ex) return;
-                            upsertExercicio({ ...ex, pesoAtual: Math.max(0, +e.target.value || 0) });
-                          }}
-                        />
-                        <span>kg</span>
-                      </label>
+                      <CampoExercicio
+                        icone="scale"
+                        unidade="kg"
+                        titulo={s.exercicioId ? "Peso atual" : "Escolha um exercício para definir o peso"}
+                        desligado={!s.exercicioId}
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step="0.5"
+                        aria-label="Peso atual do exercício"
+                        disabled={!s.exercicioId}
+                        value={s.exercicioId ? exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0 : ""}
+                        placeholder="–"
+                        onChange={(e) => {
+                          const ex = exercicios.find((x) => x.id === s.exercicioId);
+                          if (!ex) return;
+                          upsertExercicio({ ...ex, pesoAtual: Math.max(0, +e.target.value || 0) });
+                        }}
+                      />
                     </div>
                   </>
                 )}
               </div>
-              <div className="step-side">
-                <button className="icon-btn borderless" title="Excluir etapa" onClick={() => removeStep(i)}>
+              <div className="flex shrink-0 items-center self-center">
+                <BotaoIcone rotulo="Excluir etapa" semBorda onClick={() => removeStep(i)}>
                   <Icon name="trash" size={15} />
-                </button>
+                </BotaoIcone>
               </div>
             </div>
           ))}
-          <button className="add-step-btn" onClick={addStep}>
+          <button
+            className="mt-1 rounded-lg border-[1.5px] border-dashed border-line bg-transparent p-4 text-center text-base text-sub"
+            onClick={addStep}
+          >
             + adicionar etapa
           </button>
         </div>
 
         {/* Porta de index.html:4551-4565 — mesmo valor vale para o descanso
             entre séries dentro de uma etapa de exercício. */}
-        <div className="section-label">Descanso entre etapas</div>
-        <div className="schedule-box">
-          <div className="sched-time-row" style={{ marginTop: 0 }}>
-            <label className="dur-field">
-              <input
-                className="dur-input"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={draft.restSeconds || 0}
-                onChange={(e) => updateDraft({ restSeconds: Math.max(0, +e.target.value || 0) })}
-              />
-              <span className="dur-un">s</span>
-            </label>
-          </div>
-        </div>
-
-        <div className="section-label">Agendamento</div>
-        <div className="schedule-box">
-          <label className="switch-row">
-            <span>Ativar horário</span>
-            <input
-              type="checkbox"
-              checked={schedule.enabled}
-              onChange={(e) => updateDraft({ schedule: { ...schedule, enabled: e.target.checked } })}
+        <RotuloSecao>Descanso entre etapas</RotuloSecao>
+        <Cartao raio="lg">
+          <div className="flex items-center gap-3">
+            <CampoDuracao
+              unidade="s"
+              min={0}
+              value={draft.restSeconds || 0}
+              onChange={(e) => updateDraft({ restSeconds: Math.max(0, +e.target.value || 0) })}
             />
-          </label>
+          </div>
+        </Cartao>
+
+        <RotuloSecao>Agendamento</RotuloSecao>
+        <Cartao raio="lg">
+          <Switch checked={schedule.enabled} onChange={(enabled) => updateDraft({ schedule: { ...schedule, enabled } })}>
+            Ativar horário
+          </Switch>
           {schedule.enabled && (
             <div>
-              <div className="sched-time-row">
-                <div className="type-toggle">
-                  {(["start", "end"] as const).map((a) => (
-                    <span
-                      key={a}
-                      className={schedule.anchor === a ? "active" : ""}
-                      onClick={() => updateDraft({ schedule: { ...schedule, anchor: a } })}
-                    >
-                      {a === "start" ? "início" : "término"}
-                    </span>
-                  ))}
-                </div>
-                <input
+              <div className="mt-3.5 flex items-center gap-3">
+                <Toggle
+                  options={[...ANCORAS]}
+                  active={schedule.anchor}
+                  onSelect={(anchor) => updateDraft({ schedule: { ...schedule, anchor } })}
+                />
+                <Campo
                   type="time"
                   value={schedule.time}
                   onChange={(e) => updateDraft({ schedule: { ...schedule, time: e.target.value } })}
                 />
               </div>
-              <div className="day-chips" style={{ marginTop: 10 }}>
-                {DAY_LETTERS.map((l, d) => (
-                  <span
-                    key={d}
-                    className={"day-chip" + (schedule.days.includes(d) ? " active" : "")}
-                    onClick={() => toggleDia(d)}
-                  >
-                    {l}
-                  </span>
-                ))}
-              </div>
-              <div className="sched-computed">{sched ? `${sched.startStr} → ${sched.endStr}` : "Defina um horário."}</div>
+              <ChipsDia className="mt-2.5" rotulos={DAY_LETTERS} ativos={schedule.days} onToggle={toggleDia} />
+              <div className="mt-3 font-sans text-md text-sub">{sched ? `${sched.startStr} → ${sched.endStr}` : "Defina um horário."}</div>
             </div>
           )}
-        </div>
+        </Cartao>
       </div>
 
-      <div className="bottom-actions">
+      <BarraAcoes>
         {!isNew && (
-          <button className="btn-danger-outline" style={{ flex: "0 0 37%" }} onClick={handleDelete}>
+          <Botao variante="perigo" className="flex-[0_0_37%]" onClick={handleDelete}>
             Excluir
-          </button>
+          </Botao>
         )}
-        <button className="btn-primary" style={{ flex: 1 }} onClick={handleSave}>
+        <Botao className="flex-1" onClick={handleSave}>
           Salvar
-        </button>
-      </div>
+        </Botao>
+      </BarraAcoes>
 
       {pickerFor != null && (
         <ExercicioPickerModal

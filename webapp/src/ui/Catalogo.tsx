@@ -11,6 +11,7 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "../components/Icon";
 import { GradePastas, PastaTile, SeparadorSecao } from "../features/modelos/PastaTile";
 import { AlcaArrasto } from "./AlcaArrasto";
+import { CampoNome } from "./CampoNome";
 import { BotaoLink } from "./BotaoLink";
 import { Selecao } from "./Selecao";
 import { CelNegrito, CelNota, CelRotulo, LinhaTabela } from "./LinhaTabela";
@@ -536,7 +537,7 @@ export function Catalogo() {
         />
         <Par
           nome="alca-arrasto"
-          legado={<span className="rec-drag drag-handle">{icone}</span>}
+          legado={<span className="drag-handle">{icone}</span>}
           novo={<AlcaArrasto />}
           cmp={[{ sel: "span" }]}
           cmpNovo={[{}]}
@@ -616,6 +617,14 @@ export function Catalogo() {
             </LinhaTabela>
           }
           cmp={[{}, { sel: "span:first-child" }, { sel: "b" }, { sel: "span:last-child" }]}
+        />
+        <Par
+          nome="campo-nome"
+          legado={<input type="text" className="name-input" placeholder="Nome da rotina" />}
+          novo={<CampoNome placeholder="Nome da rotina" />}
+          cmp={[{ sel: "input" }]}
+          cmpNovo={[{}]}
+          ignorar={["display", "minWidth", "minHeight"]}
         />
         <Par
           nome="cartao"

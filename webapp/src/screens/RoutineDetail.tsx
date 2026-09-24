@@ -7,7 +7,7 @@
 // (lista + detalhe lado a lado) do desktop (`.home-split-detail` no app
 // antigo, index.html:3891) — sem ela, `.routine-list` viraria grid de 2
 // colunas em telas largas (regra pensada pra lista de cards, app.css:1310),
-// por isso o display:flex/column é forçado inline abaixo.
+// por isso a lista aqui é uma coluna flex própria, não o ListaCartoes.
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { StreakTag } from "../components/StreakTag";
@@ -16,6 +16,14 @@ import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
 import { computeSchedule, diasChipLabel } from "../lib/schedule";
 import { corDaRotina, fillStyle } from "../lib/scoring";
 import { descansoEntreSeries } from "../lib/exercicios";
+import { BarraAcoes } from "../ui/BarraAcoes";
+import { BarraDetalhe } from "../ui/BarraDetalhe";
+import { Botao } from "../ui/Botao";
+import { CartaoInfo, CartaoLista, CartaoTitulo } from "../ui/CartaoLista";
+import { EstadoVazio } from "../ui/EstadoVazio";
+import { Legenda } from "../ui/Legenda";
+import { PontoCor } from "../ui/PontoCor";
+import { RotuloSecao } from "../ui/RotuloSecao";
 
 export function RoutineDetail() {
   const routines = useAppStore((s) => s.routines);
@@ -29,17 +37,13 @@ export function RoutineDetail() {
 
   const r = routines.find((x) => x.id === id);
 
+
+
   if (!r) {
     return (
       <div className="screen">
-        <div className="detail-bar">
-          <button className="icon-btn borderless" title="Voltar" aria-label="Voltar" onClick={() => goTo({ tab: "home", screen: "home" })}>
-            <Icon name="chevronLeft" size={18} />
-          </button>
-        </div>
-        <div className="empty-state">
-          <h2>Rotina não encontrada</h2>
-        </div>
+        <BarraDetalhe onVoltar={() => goTo({ tab: "home", screen: "home" })} />
+        <EstadoVazio titulo="Rotina não encontrada" />
       </div>
     );
   }
@@ -50,42 +54,34 @@ export function RoutineDetail() {
   return (
     <div className="screen">
       {/* barra superior: voltar (ícone) + título na mesma linha, subtítulo colado embaixo */}
-      <div className="detail-bar">
-        <button className="icon-btn borderless" title="Voltar" aria-label="Voltar" onClick={() => goTo({ tab: "home", screen: "home" })}>
-          <Icon name="chevronLeft" size={18} />
-        </button>
-        <h1 className="detail-title">
-          <span className="r-dot" style={{ background: fillStyle(corDaRotina(r, gam)) }} />
-          {r.icon ? r.icon + " " : ""}
-          {r.name}
-        </h1>
-      </div>
-      <div
-        className="routine-list"
-        style={{ display: "flex", flexDirection: "column", flex: 1, overflowY: "auto", paddingBottom: 110 }}
-      >
-        <div className="routine-meta detail-sub" style={{ marginBottom: 4 }}>
-          {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} ·{" "}
-          {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
+      <BarraDetalhe
+        onVoltar={() => goTo({ tab: "home", screen: "home" })}
+        titulo={
+          <>
+            <PontoCor cor={fillStyle(corDaRotina(r, gam))} />
+            {r.icon ? r.icon + " " : ""}
+            {r.name}
+          </>
+        }
+      />
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto pb-[110px]">
+        <Legenda className="mb-1">
+          {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} · {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
           <StreakTag routineId={r.id} routines={routines} history={history} />
-        </div>
+        </Legenda>
         {sched && (
           <>
-            <div className="sched-chip">
+            <div className="mt-1.5 inline-flex items-center gap-1 font-sans text-xs text-caneta">
               <Icon name="clock" size={13} /> {sched.startStr} &rarr; {sched.endStr}
             </div>
-            <div className="sched-chip chip-block" style={{ color: "var(--sub)" }}>
-              {diasChipLabel(r)}
-            </div>
-            <div style={{ height: 10 }} />
+            <div className="mt-1.5 flex items-center gap-1 font-sans text-xs text-sub">{diasChipLabel(r)}</div>
+            <div className="h-2.5" />
           </>
         )}
-        <div className="section-label">Etapas</div>
+        <RotuloSecao>Etapas</RotuloSecao>
 
         {r.steps.length === 0 ? (
-          <div className="empty-state" style={{ minHeight: "20vh" }}>
-            <p>Esta rotina não tem etapas.</p>
-          </div>
+          <EstadoVazio className="min-h-[20vh]" texto="Esta rotina não tem etapas." />
         ) : (
           r.steps.map((s, i) => {
             const iconName = s.type === "timer" ? "clock" : s.type === "exercicio" ? "trophy" : "check";
@@ -96,38 +92,29 @@ export function RoutineDetail() {
             else metaTxt = "checklist";
             if (s.journaling) metaTxt += " · anotações";
             return (
-              <div className="routine-card" style={{ gap: 10 }} key={s.id}>
-                <div
-                  className="routine-info"
-                  style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "flex-start", gap: 10 }}
-                >
-                  <span style={{ flex: "0 0 auto", fontSize: 16, color: "var(--sub)" }}>{i + 1}.</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{ fontSize: 15, display: "flex", alignItems: "center", gap: 4 }}>
+              <CartaoLista className="gap-2.5" key={s.id}>
+                <CartaoInfo className="flex items-start gap-2.5">
+                  <span className="flex-none text-xl text-sub">{i + 1}.</span>
+                  <div className="min-w-0 flex-1">
+                    <CartaoTitulo className="flex items-center gap-1 text-lg">
                       <Icon name={iconName} size={13} /> {s.name || "sem nome"}
-                    </h3>
-                    <div className="routine-meta" style={{ marginTop: 2 }}>
-                      {metaTxt}
-                    </div>
+                    </CartaoTitulo>
+                    <Legenda className="mt-0.5">{metaTxt}</Legenda>
                   </div>
-                </div>
-              </div>
+                </CartaoInfo>
+              </CartaoLista>
             );
           })
         )}
       </div>
-      <div className="bottom-actions">
-        <button
-          className="btn-danger-outline"
-          style={{ borderColor: "var(--line)", color: "var(--sub)" }}
-          onClick={() => openEditor(r.id)}
-        >
+      <BarraAcoes>
+        <Botao variante="perigo" className="border-line text-sub" onClick={() => openEditor(r.id)}>
           Editar
-        </button>
-        <button className="btn-primary" disabled={r.steps.length === 0} onClick={() => startPlayer(r.id)}>
+        </Botao>
+        <Botao className="flex-1" disabled={r.steps.length === 0} onClick={() => startPlayer(r.id)}>
           <Icon name="play" size={16} /> Começar
-        </button>
-      </div>
+        </Botao>
+      </BarraAcoes>
     </div>
   );
 }

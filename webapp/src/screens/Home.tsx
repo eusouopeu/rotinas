@@ -26,7 +26,6 @@ import { BotaoIcone } from "../ui/BotaoIcone";
 import { BotaoPlay } from "../ui/BotaoPlay";
 import { EstadoVazio } from "../ui/EstadoVazio";
 import { Fab } from "../ui/Fab";
-import { Legenda } from "../ui/Legenda";
 import { ListaCartoes } from "../ui/ListaCartoes";
 import { Modal, ModalAcoes, ModalTexto } from "../ui/Modal";
 import { OpcaoCriar } from "../ui/OpcaoCriar";

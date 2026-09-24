@@ -56,7 +56,7 @@ test("editor: escolher exercício", async ({ page }) => {
   await novaRotina(page);
   await etapaExercicio(page);
   await page.getByText("escolher exercício").click();
-  await foto(page, "editor-picker");
+  await foto(page, "editor-picker", { zerarRolagem: true });
 });
 
 test("editor: sugestões por grupo", async ({ page }) => {
@@ -64,7 +64,7 @@ test("editor: sugestões por grupo", async ({ page }) => {
   await etapaExercicio(page);
   await page.getByText("escolher exercício").click();
   await page.getByText(/Sugestões por grupo muscular/).click();
-  await foto(page, "editor-picker-sugestoes");
+  await foto(page, "editor-picker-sugestoes", { zerarRolagem: true });
 });
 
 test("editor: novo exercício", async ({ page }) => {
@@ -72,7 +72,7 @@ test("editor: novo exercício", async ({ page }) => {
   await etapaExercicio(page);
   await page.getByText("escolher exercício").click();
   await page.getByText("+ Novo exercício").click();
-  await foto(page, "editor-exercicio-novo", { desfocar: true });
+  await foto(page, "editor-exercicio-novo", { desfocar: true, zerarRolagem: true });
 });
 
 test("editor: editar exercício", async ({ page }) => {
@@ -80,7 +80,7 @@ test("editor: editar exercício", async ({ page }) => {
   await etapaExercicio(page);
   await page.getByText("escolher exercício").click();
   await botao(page, "Editar").first().click();
-  await foto(page, "editor-exercicio-editar", { desfocar: true });
+  await foto(page, "editor-exercicio-editar", { desfocar: true, zerarRolagem: true });
 });
 
 test("editor: exercício escolhido", async ({ page }) => {

@@ -11,7 +11,7 @@ export function BarraDetalhe({
   className,
   children,
 }: {
-  titulo: ReactNode;
+  titulo?: ReactNode;
   onVoltar: () => void;
   className?: string;
   children?: ReactNode;
@@ -21,7 +21,7 @@ export function BarraDetalhe({
       <BotaoIcone rotulo="Voltar" semBorda onClick={onVoltar}>
         <Icon name="chevronLeft" size={18} />
       </BotaoIcone>
-      <h1 className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[24px] text-ellipsis whitespace-nowrap">{titulo}</h1>
+      {titulo && <h1 className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[24px] text-ellipsis whitespace-nowrap">{titulo}</h1>}
       {children}
     </div>
   );

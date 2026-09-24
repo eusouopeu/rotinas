@@ -9,9 +9,10 @@ import { cn } from "../../lib/cn";
 export function PastaTile({
   icone,
   rotulo,
+  iconeTam = 22,
   className,
   ...resto
-}: ButtonHTMLAttributes<HTMLButtonElement> & { icone: IconName; rotulo: string }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { icone: IconName; rotulo: string; iconeTam?: number }) {
   return (
     <button
       type="button"
@@ -22,7 +23,7 @@ export function PastaTile({
       {...resto}
     >
       <span className="flex h-[19px] items-center justify-center text-[19px] desktop:h-[22px] desktop:text-[22px]">
-        <Icon name={icone} size={22} />
+        <Icon name={icone} size={iconeTam} />
       </span>
       <span>{rotulo}</span>
     </button>

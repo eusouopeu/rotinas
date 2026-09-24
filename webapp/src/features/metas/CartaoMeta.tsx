@@ -64,7 +64,7 @@ export function CartaoMeta({
         rightLabel="Duplicar"
       >
         <Cartao className="mb-0 flex items-center gap-2.5" style={{ borderColor: corBorda }}>
-          <AlcaArrasto {...dragHandleProps} />
+          <AlcaArrasto className="shrink-0 self-center" {...dragHandleProps} />
           <div className="min-w-0 flex-1">
             <h3
               className="m-0 mb-1 flex cursor-pointer items-center gap-1.5 font-titulo text-xl font-semibold tracking-[-0.01em]"

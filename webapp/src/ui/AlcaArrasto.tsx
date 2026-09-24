@@ -11,7 +11,7 @@ export function AlcaArrasto({ className, ...resto }: HTMLAttributes<HTMLSpanElem
       title="Arrastar para reordenar"
       aria-label="Arrastar para reordenar"
       className={cn(
-        "shrink-0 cursor-grab touch-none self-center px-2 py-0.5 text-[17px] text-sub select-none [-webkit-user-drag:none]",
+        "cursor-grab touch-none px-2 py-0.5 text-[17px] text-sub select-none [-webkit-user-drag:none]",
         className
       )}
       {...resto}

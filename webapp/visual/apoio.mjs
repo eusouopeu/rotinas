@@ -24,7 +24,14 @@ export const aba = (page, nome) => page.locator(".tabbar button", { hasText: nom
 
 /** `desfocar`: tira o foco do campo (autoFocus de formulário) — o anel de foco
  *  varia 1px entre execuções sob carga e não é o que se quer comparar. */
-export async function foto(page, nome, { desfocar = false } = {}) {
+export async function foto(page, nome, { desfocar = false, zerarRolagem = false } = {}) {
+  // o clique que abriu um popup pode ter rolado a tela de trás; volta ao topo
+  if (zerarRolagem)
+    await page.evaluate(() =>
+      document.querySelectorAll("*").forEach((e) => {
+        if (!e.closest('[role="dialog"]') && e.scrollTop) e.scrollTop = 0;
+      })
+    );
   if (desfocar) await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.evaluate(() => document.fonts.ready);
   // digitar em campos pode rolar 1px de lado um contêiner com overflow-x escondido
