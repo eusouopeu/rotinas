@@ -13,7 +13,10 @@ trap 'git -C "$RAIZ" worktree remove --force "$WT"' EXIT
 ln -s "$RAIZ/node_modules" "$WT/node_modules"
 [ -d "$RAIZ/webapp/node_modules" ] && ln -s "$RAIZ/webapp/node_modules" "$WT/webapp/node_modules"
 cp "$RAIZ"/webapp/visual/*.mjs "$WT/webapp/visual/"
-(cd "$WT" && npx playwright test -c webapp/visual/playwright.config.mjs --update-snapshots=all "$@")
+status=0
+(cd "$WT" && npx playwright test -c webapp/visual/playwright.config.mjs --update-snapshots=all "$@") || status=$?
+# copia mesmo com teste falhando: os que passaram já têm imagem
 mkdir -p "$RAIZ/webapp/visual/referencia"
 cp -R "$WT/webapp/visual/referencia/." "$RAIZ/webapp/visual/referencia/"
-echo "referência atualizada a partir de $(git -C "$RAIZ" rev-parse --short HEAD)"
+echo "referência atualizada a partir de $(git -C "$RAIZ" rev-parse --short HEAD) (status dos testes: $status)"
+exit $status

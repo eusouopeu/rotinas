@@ -31,14 +31,19 @@ test("rotinas: agenda pausada", async ({ page }) => {
   await foto(page, "rotinas-pausada");
 });
 
-test("rotinas: nova tarefa no dia", async ({ page }) => {
+// no desktop a semana é uma grade de 7 colunas, sem os botões por dia da lista
+const soLista = (info) => test.skip(info.project.name.startsWith("desktop"), "só na lista do celular");
+
+test("rotinas: nova tarefa no dia", async ({ page }, info) => {
+  soLista(info);
   await preparar(page);
   await botao(page, "Nova tarefa neste dia").first().click();
   await page.getByPlaceholder("O que precisa ser feito?").fill("Ligar para o banco");
   await foto(page, "rotinas-tarefa-nova", { desfocar: true });
 });
 
-test("rotinas: editar tarefa", async ({ page }) => {
+test("rotinas: editar tarefa", async ({ page }, info) => {
+  soLista(info);
   await preparar(page);
   await botao(page, "Editar tarefa").first().click();
   await foto(page, "rotinas-tarefa-editar", { desfocar: true });
