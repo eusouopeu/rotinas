@@ -19,7 +19,7 @@ export function Modal({ children, onFechar, posicao = "centro", className }: Pro
     <div
       role="presentation"
       className={cn(
-        "fixed inset-0 z-[1000] flex animate-entra-rapido justify-center bg-scrim",
+        "fixed inset-0 z-[1000] flex animate-entra-rapido justify-center bg-scrim paisagem:items-start paisagem:p-3",
         posicao === "topo" ? "items-start px-[18px] py-6" : "items-center p-[30px]"
       )}
       onClick={(e) => e.target === e.currentTarget && onFechar?.()}
@@ -27,7 +27,8 @@ export function Modal({ children, onFechar, posicao = "centro", className }: Pro
       <div
         role="dialog"
         aria-modal="true"
-        className={cn("w-full max-w-80 rounded-xl border-[1.5px] border-line bg-card p-[22px]", className)}
+        className={cn("w-full max-w-80 rounded-xl border-[1.5px] border-line bg-card p-[22px] paisagem:max-h-[94vh] paisagem:max-w-[520px] paisagem:overflow-y-auto desktop:max-w-[460px]",
+          className)}
       >
         {children}
       </div>

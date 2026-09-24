@@ -5,8 +5,13 @@
 // cache local (lib/ical.ts); a exibição no dia a dia entra quando a agenda
 // inline em Rotinas for portada (ver docs/react-migration.md).
 import { useState } from "react";
-import { atualizarIcal, getIcalCache, getIcalUrl, saveIcalCache, saveIcalUrl, type IcalCache } from "../lib/ical";
-import { isDesktop, isNative } from "../lib/storage";
+import { atualizarIcal, getIcalCache, getIcalUrl, saveIcalCache, saveIcalUrl, type IcalCache } from "../../lib/ical";
+import { isDesktop, isNative } from "../../lib/storage";
+import { Botao } from "../../ui/Botao";
+import { Campo } from "../../ui/Campo";
+import { Legenda } from "../../ui/Legenda";
+import { RotuloSecao } from "../../ui/RotuloSecao";
+import { LinhaAjuste } from "./LinhaAjuste";
 
 export function IcalCard() {
   const [url, setUrl] = useState(getIcalUrl());
@@ -55,52 +60,39 @@ export function IcalCard() {
     <>
       {url && (
         <>
-          <div className="bar-row">
-            <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-              Status
-            </div>
-            <div className="bar-val" style={{ width: "auto", color: "var(--ok)" }}>
-              configurado
-            </div>
-          </div>
-          <div className="stat-foot" style={{ marginTop: 6 }}>
+          <LinhaAjuste rotulo="Status" valor="configurado" corValor="var(--ok)" />
+          <Legenda className="mt-1.5">
             {cache ? `Última busca: ${new Date(cache.fetchedAt).toLocaleString("pt-BR")} · ${cache.eventos.length} evento(s).` : 'Ainda não buscou — toque em "Salvar e atualizar".'}
-          </div>
+          </Legenda>
         </>
       )}
-      {erro && (
-        <div className="stat-foot" style={{ marginTop: 6, color: "var(--erro)" }}>
-          ⚠️ {erro}
-        </div>
-      )}
-      <div className="section-label" style={{ margin: url ? "14px 0 4px" : "0 0 4px" }}>
-        URL secreta (iCal / .ics)
-      </div>
-      <input
+      {erro && <Legenda className="mt-1.5 text-erro">⚠️ {erro}</Legenda>}
+      <RotuloSecao className={url ? "mt-3.5 mb-1" : "mt-0 mb-1"}>URL secreta (iCal / .ics)</RotuloSecao>
+      <Campo
+        variante="modelo"
         type="text"
-        className="mk-e-name"
         placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
         value={inputUrl}
         onChange={(e) => setInputUrl(e.target.value)}
       />
-      <div className="stat-foot" style={{ marginTop: 6 }}>
+      <Legenda className="mt-1.5">
         No Google Calendar: Configurações da agenda → "Endereço secreto em formato iCal". Cole aqui — os eventos aparecem só leitura na agenda, dia a dia.
         {!isDesktop && !isNative ? " No navegador, alguns provedores bloqueiam essa busca (CORS); funciona de forma mais confiável no app instalado (desktop/Android)." : ""}
-      </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button className="btn-primary" style={{ flex: 1 }} disabled={!inputUrl.trim() || busy !== null} onClick={salvarEAtualizar}>
+      </Legenda>
+      <div className="mt-2.5 flex gap-2">
+        <Botao className="flex-1" disabled={!inputUrl.trim() || busy !== null} onClick={salvarEAtualizar}>
           {busy === "save" ? "Buscando..." : url ? "Salvar e atualizar" : "Salvar"}
-        </button>
+        </Botao>
         {url && (
-          <button className="btn-cancel" style={{ flex: "0 0 auto", padding: "0 14px" }} disabled={busy !== null} onClick={atualizarAgora}>
+          <Botao variante="neutro" className="shrink-0 px-3.5 py-0" disabled={busy !== null} onClick={atualizarAgora}>
             {busy === "refresh" ? "Atualizando..." : "Atualizar agora"}
-          </button>
+          </Botao>
         )}
       </div>
       {url && (
-        <button className="link-btn" style={{ marginTop: 10, color: "var(--erro)" }} onClick={remover}>
+        <Botao variante="pilula" className="mt-2.5 text-erro" onClick={remover}>
           Remover calendário
-        </button>
+        </Botao>
       )}
     </>
   );

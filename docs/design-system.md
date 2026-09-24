@@ -50,11 +50,23 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 | `Campo`, `CampoDuracao` | inputs com caixa, `.dur-field` | número + unidade dentro da caixa |
 | `Cartao` (`raio` app/lg) | `.stat-card`, `.schedule-box` | |
 | `Modal`, `ModalTexto`, `ModalAcoes` | `.confirm-overlay/.confirm-box/.confirm-actions` | clique no fundo chama `onFechar` |
-| `EstadoVazio`, `RotuloSecao`, `CabecalhoTela` | `.empty-state`, `.section-label`, `.home-header` | |
+| `EstadoVazio`, `RotuloSecao`, `CabecalhoTela` | `.empty-state`, `.section-label`, `.home-header` | `CabecalhoTela` só tem a base de celular: o desktop (barra fixa no topo) segue no `.home-header` legado, que as telas ainda usam |
+| `Botao` variantes `solido`, `destrutivo`, `pilula` | `.btn-confirm`, `.link-btn` | confirmação cheia / ação pequena arredondada |
+| `Legenda` | `.stat-foot`, `.routine-meta`, `.dev-n` | texto pequeno cinza; sem margem (use `className="mt-3"`) |
+| `ChipsDia` | `.day-chips` + `.day-chip` | fileira D S T Q Q S S |
+| `Campo` (`variante` formulario/modelo/linha), `AreaTexto`, `CampoBusca`, `CampoNumero`/`LinhaNumero`, `CampoCor` | `.mk-e-name`, `.market-form-row input`, `.set-busca`, `.dur-input`, `.area-color-swatch` | `modelo` e `linha` NÃO trazem font-family (o legado usava a fonte do sistema nesses campos; trocar é decisão de harmonização) |
+| `LinhaDado` | `.dev-row` | rótulo + valor em negrito com filete |
 
 **Escala de texto** (`text-2xs` 10 · `xs` 11 · `sm` 12 · `md` 13 · `base` 14 · `lg` 15 · `xl` 16 · `2xl` 18 · `3xl` 20 · `4xl` 22 · `5xl` 32, em px): meio-pixel (12.5, 13.5, 14.5, 15.5) e 17/19 seguem como `text-[13.5px]` até uma rodada de harmonização escolhida pelo Pedro — a migração não muda o visual. Ao criar um nome novo em `@theme`, ensine-o ao `lib/cn.ts` (senão o tailwind-merge o lê como cor).
 
 **Catálogo:** `npm run dev:react` e abra `/#/ui` — cada primitivo ao lado do elemento equivalente do `app.css`, nos dois temas (botão "tema"). Só existe em desenvolvimento. `webapp/visual/catalogo.spec.mjs` compara os estilos computados dos dois lados (paridade) e reprova se um primitivo divergir; diferença intencional é declarada na linha do `<Par ignorar=[…]>` com o motivo. Primitivo novo = linha nova no catálogo. Divergências intencionais hoje: `Botao perigo` usa Montserrat (o legado caía em Arial por esquecimento), opções de `Toggle` têm cursor de mão, `BotaoIcone sm` centra com flex.
+
+### Migrar uma tela (procedimento)
+
+1. **Referência do que existe:** `npm run visual:baseline-head -- <roteiro>.spec.mjs` grava a referência a partir do último COMMIT (HEAD) — não do seu trabalho em andamento. Se a tela ainda não tem cobertura, escreva o roteiro antes (todos os estados: seções abertas, listas com dados, modais, variantes do app instalado com a ponte simulada de `ajustes.spec.mjs`) e commite roteiro + qualquer `data-*` de teste sozinhos.
+2. **Migre:** `python3 webapp/scripts/regras-legadas.py webapp/src/screens/Tela.tsx` lista, por classe usada, todas as regras do `app.css` que a tocam (com `@media` e seletores de contexto — ex.: `.set-secao-body > .stat-card` remove a moldura do cartão). Troque por primitivos/utilitários, tire `style={{}}` estático, quebre a tela em `features/<área>/`. Casca de tela (`screen with-tabbar`, `home-header`, tabbar, sidebar) continua legada até a fase 4.
+3. **Verifique:** `npm run visual` deve dar tudo idêntico (2 rodadas) — diferença só é aceitável se intencional e explicada; `npm test`; `npm run typecheck:react`.
+4. **Quirks preservados** (a migração não muda visual; harmonizar é uma rodada à parte): campos de `variante` modelo/linha usam a fonte do sistema; `Toggle`/`Chip` ganham cursor de mão; botão `perigo` usa Montserrat (único desvio já aceito).
 
 ### Regressão visual
 

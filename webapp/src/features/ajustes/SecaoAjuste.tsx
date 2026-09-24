@@ -5,7 +5,8 @@
 // O filtro da busca da aba chega por contexto para não precisar ser
 // repassado em cada uma das seções (várias vivem dentro de outros cards).
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { Icon } from "./Icon";
+import { Icon } from "../../components/Icon";
+import { cn } from "../../lib/cn";
 
 export const FiltroAjustes = createContext("");
 
@@ -34,17 +35,22 @@ export function SecaoAjuste({
   const [aberta, setAberta] = useState(false);
   if (filtro.trim() && !normaliza(titulo + " " + (busca || "")).includes(normaliza(filtro.trim()))) return null;
   return (
-    <div className={"set-secao" + (aberta ? " aberta" : "")}>
-      <button className="set-secao-head" aria-expanded={aberta} onClick={() => setAberta((v) => !v)}>
-        <span className="set-secao-titulo">{titulo}</span>
+    <div className="mb-2.5 overflow-hidden rounded-app border-[1.5px] border-line bg-card">
+      <button
+        aria-expanded={aberta}
+        onClick={() => setAberta((v) => !v)}
+        className={cn(
+          "flex w-full items-center justify-between gap-2.5 border-0 bg-transparent px-4 py-[15px] text-left font-sans text-lg text-ink [&_.icon-svg]:shrink-0 [&_.icon-svg]:text-sub",
+          aberta && "border-b-[1.5px] border-line"
+        )}
+      >
+        <span>{titulo}</span>
         <Icon name={aberta ? "chevronUp" : "chevronDown"} size={16} />
       </button>
       {montarSempre ? (
-        <div className="set-secao-body" style={aberta ? undefined : { display: "none" }}>
-          {children}
-        </div>
+        <div className={cn("px-3.5 pt-1 pb-3.5", !aberta && "hidden")}>{children}</div>
       ) : (
-        aberta && <div className="set-secao-body">{children}</div>
+        aberta && <div className="px-3.5 pt-1 pb-3.5">{children}</div>
       )}
     </div>
   );

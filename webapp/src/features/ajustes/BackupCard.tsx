@@ -6,10 +6,14 @@
 // atualizado sozinho (grava ao sair da aba, checa por versão mais nova ao
 // voltar). Fora do escopo: a cópia automática nativa (ver lib/autoBackup.ts).
 import { useEffect, useRef, useState } from "react";
-import { useAppStore } from "../store/useAppStore";
-import { Icon } from "./Icon";
-import { ehModeloShare, ehRotinaShare, pareceBackup, type BackupPayload } from "../lib/backup";
-import { localKey } from "../lib/gamificacao";
+import { useAppStore } from "../../store/useAppStore";
+import { Icon } from "../../components/Icon";
+import { Botao } from "../../ui/Botao";
+import { Legenda } from "../../ui/Legenda";
+import { Modal, ModalAcoes, ModalTexto } from "../../ui/Modal";
+import { RotuloSecao } from "../../ui/RotuloSecao";
+import { ehModeloShare, ehRotinaShare, pareceBackup, type BackupPayload } from "../../lib/backup";
+import { localKey } from "../../lib/gamificacao";
 import {
   backupHandle,
   checarBackupMaisRecente,
@@ -18,7 +22,7 @@ import {
   gravarBackupArquivo,
   marcarBackupArquivoVisto,
   supportsFileBackup,
-} from "../lib/fileBackup";
+} from "../../lib/fileBackup";
 
 function downloadJson(filename: string, data: unknown) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -126,72 +130,68 @@ export function BackupCard() {
 
   return (
     <>
-      <div className="section-label" style={{ marginTop: 0 }}>
-        Dados
-      </div>
-      <div className="stat-card">
-        <div className="routine-meta">
+      <RotuloSecao className="mt-0">Dados</RotuloSecao>
+      <div className="pt-2.5">
+        <Legenda>
           {routines.length} rotina(s) · {notes.length} nota(s) · {templates.length} modelo(s) · {history.length} execução(ões)
-        </div>
+        </Legenda>
       </div>
 
-      <div className="section-label">Backup</div>
-      <div className="stat-card">
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-cancel" style={{ flex: 1 }} onClick={exportar}>
+      <RotuloSecao>Backup</RotuloSecao>
+      <div className="pt-2.5">
+        <div className="flex gap-2">
+          <Botao variante="neutro" className="flex-1" onClick={exportar}>
             Exportar agora
-          </button>
-          <button className="btn-cancel" style={{ flex: 1 }} onClick={() => fileInputRef.current?.click()}>
+          </Botao>
+          <Botao variante="neutro" className="flex-1" onClick={() => fileInputRef.current?.click()}>
             Importar
-          </button>
+          </Botao>
         </div>
         <input
           ref={fileInputRef}
           type="file"
           accept="application/json"
-          style={{ display: "none" }}
+          className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) onFile(f);
             e.target.value = "";
           }}
         />
-        {erro && (
-          <div className="stat-foot" style={{ color: "var(--erro)" }}>
-            {erro}
-          </div>
-        )}
-        {aviso && <div className="stat-foot">{aviso}</div>}
-        <div className="stat-foot">{lastBackupAt ? "Último backup: " + new Date(lastBackupAt).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}</div>
+        {erro && <Legenda className="mt-3 text-erro">{erro}</Legenda>}
+        {aviso && <Legenda className="mt-3">{aviso}</Legenda>}
+        <Legenda className="mt-3">
+          {lastBackupAt ? "Último backup: " + new Date(lastBackupAt).toLocaleDateString("pt-BR") : "Nenhum backup feito ainda."}
+        </Legenda>
       </div>
 
       {supportsFileBackup() && (
         <>
-          <div className="section-label">Backup automático em arquivo</div>
-          <div className="stat-card">
+          <RotuloSecao>Backup automático em arquivo</RotuloSecao>
+          <div className="pt-2.5">
             {ativo ? (
               <>
-                <div className="stat-foot" style={{ marginBottom: 8 }}>
-                  Ativo — o app mantém o arquivo escolhido sempre atualizado sozinho.
-                </div>
-                <button className="btn-cancel" style={{ width: "100%" }} onClick={desativarBackupArquivo}>
+                <Legenda className="mt-3 mb-2">Ativo — o app mantém o arquivo escolhido sempre atualizado sozinho.</Legenda>
+                <Botao variante="neutro" className="w-full" onClick={desativarBackupArquivo}>
                   Desativar
-                </button>
+                </Botao>
               </>
             ) : (
               <>
-                <div className="stat-foot" style={{ marginBottom: 8 }}>
+                <Legenda className="mt-3 mb-2">
                   Escolha um arquivo no disco (ex.: numa pasta sincronizada por outro app) e o Rotinas o mantém atualizado sozinho.
-                </div>
-                <button className="btn-cancel" style={{ width: "100%" }} onClick={ativarBackupArquivo}>
+                </Legenda>
+                <Botao variante="neutro" className="w-full" onClick={ativarBackupArquivo}>
                   Ativar
-                </button>
+                </Botao>
               </>
             )}
           </div>
         </>
       )}
 
+      {/* aviso flutuante (posição fixa no topo): mesmas classes do banner global,
+          que segue no CSS legado até o GlobalBanner ser migrado */}
       {maisRecente && (
         <div className="alert-banner undo-banner">
           <span>Backup mais recente encontrado (de outro aparelho)</span>
@@ -219,29 +219,27 @@ export function BackupCard() {
       )}
 
       {pending && (
-        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setPending(null)}>
-          <div className="confirm-box">
-            <p>
-              Importar backup:
-              <br />
-              <small>
-                {(pending.routines?.length as number) || 0} rotina(s), {(pending.notes?.length as number) || 0} nota(s),{" "}
-                {(pending.history?.length as number) || 0} execução(ões).
-              </small>
-            </p>
-            <div className="confirm-actions" style={{ flexDirection: "column" }}>
-              <button className="btn-confirm" style={{ background: "var(--caneta)" }} onClick={() => resolver("merge")}>
-                Mesclar com os dados atuais
-              </button>
-              <button className="btn-confirm" onClick={() => resolver("replace")}>
-                Substituir tudo
-              </button>
-              <button className="btn-cancel" onClick={() => setPending(null)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
+        <Modal onFechar={() => setPending(null)}>
+          <ModalTexto>
+            Importar backup:
+            <br />
+            <small className="text-sub">
+              {(pending.routines?.length as number) || 0} rotina(s), {(pending.notes?.length as number) || 0} nota(s),{" "}
+              {(pending.history?.length as number) || 0} execução(ões).
+            </small>
+          </ModalTexto>
+          <ModalAcoes className="flex-col">
+            <Botao variante="solido" tamanho="modal" onClick={() => resolver("merge")}>
+              Mesclar com os dados atuais
+            </Botao>
+            <Botao variante="destrutivo" tamanho="modal" onClick={() => resolver("replace")}>
+              Substituir tudo
+            </Botao>
+            <Botao variante="neutro" tamanho="modal" onClick={() => setPending(null)}>
+              Cancelar
+            </Botao>
+          </ModalAcoes>
+        </Modal>
       )}
     </>
   );

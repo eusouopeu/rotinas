@@ -5,9 +5,12 @@
 // em vez do usuário descobrir "bug de integração nunca visto" só quando o
 // dado importar de verdade.
 import { useState } from "react";
-import { isDesktop, isNative, load, removeKey, save } from "../lib/storage";
-import { getMcpBridge, getMiniPlayerBridge, getSyncBridge } from "../lib/nativeBridge";
-import { downloadFile } from "../lib/exportFile";
+import { isDesktop, isNative, load, removeKey, save } from "../../lib/storage";
+import { getMcpBridge, getMiniPlayerBridge, getSyncBridge } from "../../lib/nativeBridge";
+import { downloadFile } from "../../lib/exportFile";
+import { Botao } from "../../ui/Botao";
+import { Legenda } from "../../ui/Legenda";
+import { LinhaAjuste } from "./LinhaAjuste";
 
 type Resultado = { label: string; status: "ok" | "erro" | "pulado"; detalhe: string };
 
@@ -129,13 +132,13 @@ export function DiagnosticsCard() {
   const [resultados, setResultados] = useState<Resultado[] | null>(null);
 
   return (
-    <div className="stat-card">
-      <div className="dev-n" style={{ marginBottom: 10 }}>
+    <div className="pt-2.5">
+      <Legenda className="mb-2.5">
         Testa cada ponte nativa (armazenamento, exportação, notificações, Drive, mini player, MCP) e mostra o resultado — em vez de descobrir um bug de integração só quando o dado importar de verdade.
-      </div>
-      <button
-        className="btn-cancel"
-        style={{ width: "100%" }}
+      </Legenda>
+      <Botao
+        variante="neutro"
+        className="w-full"
         disabled={rodando}
         onClick={async () => {
           setRodando(true);
@@ -147,19 +150,22 @@ export function DiagnosticsCard() {
         }}
       >
         {rodando ? "Rodando diagnóstico…" : "Rodar diagnóstico"}
-      </button>
+      </Botao>
       {resultados && (
-        <div style={{ marginTop: 10 }}>
+        <div className="mt-2.5">
           {resultados.map((r) => (
-            <div className="bar-row" style={{ padding: "4px 0" }} key={r.label}>
-              <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                {r.label}
-                <div style={{ fontSize: 12, color: "var(--sub)" }}>{r.detalhe}</div>
-              </div>
-              <div className="bar-val" style={{ width: "auto", color: COR[r.status] }}>
-                {ROTULO[r.status]}
-              </div>
-            </div>
+            <LinhaAjuste
+              className="py-1"
+              rotulo={
+                <>
+                  {r.label}
+                  <div className="text-sm text-sub">{r.detalhe}</div>
+                </>
+              }
+              valor={ROTULO[r.status]}
+              corValor={COR[r.status]}
+              key={r.label}
+            />
           ))}
         </div>
       )}

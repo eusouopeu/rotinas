@@ -10,9 +10,15 @@
 import { useState, type ReactNode } from "react";
 import { Icon } from "../components/Icon";
 import { Botao } from "./Botao";
+import { CampoBusca } from "./CampoBusca";
+import { CampoCor } from "./CampoCor";
+import { CampoNumero, LinhaNumero } from "./CampoNumero";
+import { ChipsDia } from "./ChipsDia";
+import { Legenda } from "./Legenda";
+import { LinhaDado } from "./LinhaDado";
 import { BotaoIcone } from "./BotaoIcone";
 import { CabecalhoTela } from "./CabecalhoTela";
-import { Campo } from "./Campo";
+import { AreaTexto, Campo } from "./Campo";
 import { CampoDuracao } from "./CampoDuracao";
 import { Cartao } from "./Cartao";
 import { Chip } from "./Chip";
@@ -103,6 +109,21 @@ export function Catalogo() {
           legado={<button className="btn-danger-outline">Excluir</button>}
           novo={<Botao variante="perigo">Excluir</Botao>}
           ignorar={["fontFamily", "largura", "altura"]}
+        />
+        <Par
+          nome="botao-solido"
+          legado={<button className="btn-confirm" style={{ background: "var(--caneta)" }}>Mesclar</button>}
+          novo={<Botao variante="solido">Mesclar</Botao>}
+        />
+        <Par
+          nome="botao-destrutivo"
+          legado={<button className="btn-confirm">Remover</button>}
+          novo={<Botao variante="destrutivo">Remover</Botao>}
+        />
+        <Par
+          nome="botao-pilula"
+          legado={<button className="link-btn">tocar</button>}
+          novo={<Botao variante="pilula">tocar</Botao>}
         />
         <Par
           nome="botoes-modal"
@@ -347,6 +368,84 @@ export function Catalogo() {
           novo={<Campo type="time" defaultValue="06:30" />}
           cmp={[{ sel: "input" }]}
           cmpNovo={[{}]}
+        />
+
+        <Par
+          nome="legenda"
+          legado={<div className="routine-meta">Nenhuma área — adicione abaixo.</div>}
+          novo={<Legenda>Nenhuma área — adicione abaixo.</Legenda>}
+        />
+        <Par
+          nome="chips-dia"
+          legado={
+            <div className="day-chips">
+              <span className="day-chip active">D</span>
+              <span className="day-chip">S</span>
+              <span className="day-chip">T</span>
+            </div>
+          }
+          novo={<ChipsDia className="mt-3.5" rotulos={["D", "S", "T"]} ativos={[0]} onToggle={noop} />}
+          cmp={[{}, { sel: "span:first-child" }, { sel: "span:last-child" }]}
+          ignorar={["cursor"]}
+        />
+        <Par
+          nome="campo-modelo"
+          legado={<input type="text" className="mk-e-name" defaultValue="Texto" />}
+          novo={<Campo variante="modelo" type="text" defaultValue="Texto" />}
+          cmp={[{ sel: "input" }]}
+          cmpNovo={[{}]}
+          ignorar={["display", "minWidth", "minHeight"]}
+        />
+        <Par
+          nome="area-texto"
+          legado={<textarea className="mk-e-name" rows={2} readOnly defaultValue="Texto" />}
+          novo={<AreaTexto rows={2} readOnly defaultValue="Texto" />}
+          cmp={[{ sel: "textarea" }]}
+          cmpNovo={[{}]}
+        />
+        <Par
+          nome="campo-numero"
+          legado={<input type="number" className="dur-input" defaultValue={5} />}
+          novo={<CampoNumero defaultValue={5} />}
+          cmp={[{ sel: "input" }]}
+          cmpNovo={[{}]}
+        />
+        <Par
+          nome="linha-numero"
+          legado={
+            <div className="sched-time-row">
+              <span style={{ flex: 1 }}>Nota mínima</span>
+              <input type="number" className="dur-input" defaultValue={60} />
+            </div>
+          }
+          novo={<LinhaNumero rotulo="Nota mínima" defaultValue={60} />}
+          cmp={[{}, { sel: "span" }, { sel: "input" }]}
+        />
+        <Par
+          nome="campo-busca"
+          legado={<input type="text" className="set-busca" placeholder="Buscar" />}
+          novo={<CampoBusca className="my-4 mb-3.5" placeholder="Buscar" />}
+          cmp={[{ sel: "input" }]}
+          cmpNovo={[{}]}
+          ignorar={["display", "minWidth", "minHeight"]}
+        />
+        <Par
+          nome="campo-cor"
+          legado={<input type="color" className="area-color-swatch" defaultValue="#6d28d9" />}
+          novo={<CampoCor defaultValue="#6d28d9" />}
+          cmp={[{ sel: "input" }, { sel: "input", pseudo: "::-webkit-color-swatch" }, { sel: "input", pseudo: "::-webkit-color-swatch-wrapper" }]}
+          cmpNovo={[{}, { pseudo: "::-webkit-color-swatch" }, { pseudo: "::-webkit-color-swatch-wrapper" }]}
+        />
+        <Par
+          nome="linha-dado"
+          legado={
+            <div className="dev-row">
+              <span>notes</span>
+              <b className="dev-n wide" style={{ color: "var(--erro)" }}>conflito</b>
+            </div>
+          }
+          novo={<LinhaDado rotulo="notes" valor="conflito" cor="var(--erro)" />}
+          cmp={[{}, { sel: "span" }, { sel: "b" }]}
         />
 
         <Par

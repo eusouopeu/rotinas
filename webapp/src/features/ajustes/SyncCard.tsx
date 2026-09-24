@@ -7,8 +7,15 @@
 // React e este card fica inerte (não some, só não tem o que chamar) — ver
 // docs/react-migration.md.
 import { useEffect, useState } from "react";
-import { getSyncBridge, type SyncStatus } from "../lib/nativeBridge";
-import { isDesktop, isNative } from "../lib/storage";
+import { getSyncBridge, type SyncStatus } from "../../lib/nativeBridge";
+import { isDesktop, isNative } from "../../lib/storage";
+import { Botao } from "../../ui/Botao";
+import { Campo } from "../../ui/Campo";
+import { Cartao } from "../../ui/Cartao";
+import { Legenda } from "../../ui/Legenda";
+import { LinhaDado } from "../../ui/LinhaDado";
+import { RotuloSecao } from "../../ui/RotuloSecao";
+import { LinhaAjuste } from "./LinhaAjuste";
 
 export function SyncCard() {
   const bridge = getSyncBridge();
@@ -36,37 +43,25 @@ export function SyncCard() {
 
   if (!isDesktop && !isNative) return null;
   if (!bridge) {
-    return <div className="routine-meta">Sincronização não disponível neste app.</div>;
+    return <Legenda>Sincronização não disponível neste app.</Legenda>;
   }
-  if (erro) return <div className="routine-meta">Não foi possível carregar o status da sincronização.</div>;
-  if (!status) return <div className="routine-meta">Carregando status…</div>;
+  if (erro) return <Legenda>Não foi possível carregar o status da sincronização.</Legenda>;
+  if (!status) return <Legenda>Carregando status…</Legenda>;
 
   if (!status.hasClientCreds || forceEditCreds) {
     return (
       <>
-        <div className="bar-row">
-          <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-            Google Drive
-          </div>
-          <div className="bar-val" style={{ width: "auto", color: "var(--sub)" }}>
-            não configurado
-          </div>
-        </div>
-        <div className="stat-foot" style={{ marginTop: 8 }}>
+        <LinhaAjuste rotulo="Google Drive" valor="não configurado" corValor="var(--sub)" />
+        <Legenda className="mt-2">
           Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a Drive API ativada. Fica guardado só neste
           computador, nunca no repositório.
-        </div>
-        <div className="section-label" style={{ margin: "14px 0 4px" }}>
-          Client ID
-        </div>
-        <input type="text" className="mk-e-name" placeholder="xxxxxxxx.apps.googleusercontent.com" value={clientId} onChange={(e) => setClientId(e.target.value)} />
-        <div className="section-label" style={{ margin: "14px 0 4px" }}>
-          Client Secret
-        </div>
-        <input type="text" className="mk-e-name" placeholder="GOCSPX-..." value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} />
-        <button
-          className="btn-primary"
-          style={{ width: "100%", marginTop: 12 }}
+        </Legenda>
+        <RotuloSecao className="mt-3.5 mb-1">Client ID</RotuloSecao>
+        <Campo variante="modelo" type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" value={clientId} onChange={(e) => setClientId(e.target.value)} />
+        <RotuloSecao className="mt-3.5 mb-1">Client Secret</RotuloSecao>
+        <Campo variante="modelo" type="text" placeholder="GOCSPX-..." value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} />
+        <Botao
+          className="mt-3 w-full"
           onClick={async () => {
             if (!clientId.trim()) return;
             await bridge.saveClientCreds(clientId.trim(), clientSecret.trim());
@@ -75,7 +70,7 @@ export function SyncCard() {
           }}
         >
           Salvar credenciais
-        </button>
+        </Botao>
       </>
     );
   }
@@ -83,24 +78,16 @@ export function SyncCard() {
   if (!status.connected) {
     return (
       <>
-        <div className="bar-row">
-          <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-            Google Drive
-          </div>
-          <div className="bar-val" style={{ width: "auto", color: "var(--sub)" }}>
-            desconectado
-          </div>
-        </div>
-        <div className="stat-foot" style={{ marginTop: 8 }}>
+        <LinhaAjuste rotulo="Google Drive" valor="desconectado" corValor="var(--sub)" />
+        <Legenda className="mt-2">
           Cria uma pasta "brita-sync" no seu Drive.{" "}
           {isDesktop
             ? "Sincroniza a cada 10 minutos com o app aberto."
             : 'Sincroniza sozinho ao abrir o app (se fizer um tempo desde o último) e quando você tocar em "sincronizar agora".'}{" "}
           Escopo mínimo (drive.file): o app só enxerga o que ele mesmo criar.
-        </div>
-        <button
-          className="btn-primary"
-          style={{ width: "100%", marginTop: 12 }}
+        </Legenda>
+        <Botao
+          className="mt-3 w-full"
           disabled={busy === "connect"}
           onClick={async () => {
             setBusy("connect");
@@ -114,11 +101,11 @@ export function SyncCard() {
           }}
         >
           {busy === "connect" ? "Abrindo o navegador..." : "Conectar ao Google Drive"}
-        </button>
+        </Botao>
         {isDesktop && (
-          <button className="btn-cancel" style={{ width: "100%", marginTop: 8 }} onClick={() => setForceEditCreds(true)}>
+          <Botao variante="neutro" className="mt-2 w-full" onClick={() => setForceEditCreds(true)}>
             Trocar credenciais
-          </button>
+          </Botao>
         )}
       </>
     );
@@ -131,21 +118,11 @@ export function SyncCard() {
 
   return (
     <>
-      <div className="bar-row">
-        <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-          Google Drive
-        </div>
-        <div className="bar-val" style={{ width: "auto", color: "var(--ok)" }}>
-          conectado
-        </div>
-      </div>
-      <div className="stat-foot" style={{ marginTop: 6 }}>
-        Último sync: {ultimo}.
-      </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <button
-          className="btn-primary"
-          style={{ flex: 1 }}
+      <LinhaAjuste rotulo="Google Drive" valor="conectado" corValor="var(--ok)" />
+      <Legenda className="mt-1.5">Último sync: {ultimo}.</Legenda>
+      <div className="mt-3 flex gap-2">
+        <Botao
+          className="flex-1"
           disabled={busy === "sync"}
           onClick={async () => {
             setBusy("sync");
@@ -155,41 +132,35 @@ export function SyncCard() {
           }}
         >
           {busy === "sync" ? "Sincronizando..." : "Sincronizar agora"}
-        </button>
-        <button
-          className="btn-cancel"
-          style={{ flex: 1 }}
+        </Botao>
+        <Botao
+          variante="neutro"
+          className="flex-1"
           onClick={() => {
             if (!window.confirm("Desconectar do Google Drive? O sync automático para até reconectar.")) return;
             bridge.disconnect().then(refresh);
           }}
         >
           Desconectar
-        </button>
+        </Botao>
       </div>
 
       {conflitos.length > 0 && (
         <>
-          <div className="section-label" style={{ margin: "14px 0 4px" }}>
-            Conflitos pendentes — os dois lados mudaram desde o último sync
-          </div>
+          <RotuloSecao className="mt-3.5 mb-1">Conflitos pendentes — os dois lados mudaram desde o último sync</RotuloSecao>
           {conflitos.map((k) => (
-            <div className="bar-row" style={{ padding: "6px 0", alignItems: "center" }} key={k}>
-              <span style={{ flex: 1 }}>{k}</span>
-              <button
-                className="btn-cancel"
-                style={{ padding: "4px 10px", fontSize: 12 }}
-                onClick={() => bridge.resolveConflict(k, "local").then(refresh)}
-              >
+            <div className="my-2 flex items-center gap-2.5 py-1.5" key={k}>
+              <span className="flex-1">{k}</span>
+              <Botao variante="neutro" className="px-2.5 py-1 text-sm" onClick={() => bridge.resolveConflict(k, "local").then(refresh)}>
                 manter local
-              </button>
-              <button
-                className="btn-cancel"
-                style={{ padding: "4px 10px", fontSize: 12, marginLeft: 6 }}
+              </Botao>
+              <Botao
+                variante="neutro"
+                className="ml-1.5 px-2.5 py-1 text-sm"
                 onClick={() => bridge.resolveConflict(k, "remote").then(refresh)}
               >
                 usar remoto
-              </button>
+              </Botao>
             </div>
           ))}
         </>
@@ -197,24 +168,17 @@ export function SyncCard() {
 
       {keys.length > 0 && (
         <>
-          <div className="section-label" style={{ margin: "16px 0 4px" }}>
+          <RotuloSecao className="mt-4 mb-1">
             Saúde do sync — {keys.length} chave(s){nuncaSincronizadas ? ` · ${nuncaSincronizadas} nunca sincronizada(s)` : ""}
-          </div>
-          <div className="stat-card" style={{ margin: 0 }}>
+          </RotuloSecao>
+          <Cartao className="m-0">
             {keys.map((k) => {
               const quando = k.conflito ? "conflito" : k.syncedAt ? new Date(k.syncedAt).toLocaleString("pt-BR") : "nunca";
               const cor = k.conflito ? "var(--erro)" : k.syncedAt ? "var(--sub)" : "var(--caneta)";
-              return (
-                <div className="dev-row" key={k.key}>
-                  <span>{k.key.replace("rotinas_v2_", "")}</span>
-                  <b className="dev-n wide" style={{ color: cor }}>
-                    {quando}
-                  </b>
-                </div>
-              );
+              return <LinhaDado key={k.key} rotulo={k.key.replace("rotinas_v2_", "")} valor={quando} cor={cor} />;
             })}
-            <div className="stat-foot">Chave "nunca" que já tem dado local é sinal de coleção nova que ficou fora de SYNCED_KEYS.</div>
-          </div>
+            <Legenda className="mt-3">Chave "nunca" que já tem dado local é sinal de coleção nova que ficou fora de SYNCED_KEYS.</Legenda>
+          </Cartao>
         </>
       )}
     </>
