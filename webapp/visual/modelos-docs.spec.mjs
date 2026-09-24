@@ -23,7 +23,7 @@ test("kanban: coluna vazia", async ({ page }) => {
 test("kanban: cartão em edição", async ({ page }) => {
   await abrir(page, "Projeto Casa");
   await page.getByText("Pintar o quarto", { exact: true }).click();
-  await foto(page, "doc-kanban-edicao", { desfocar: true });
+  await foto(page, "doc-kanban-edicao", { desfocar: true, zerarRolagem: true });
 });
 
 test("rpd: preenchido", async ({ page }) => {
