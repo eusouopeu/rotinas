@@ -14,6 +14,7 @@ const routines = [
   {
     id: "r-manha",
     name: "Manhã",
+    eixo: "ar-saude",
     steps: [passo("s1", "Alongar", 300), passo("s2", "Meditar", 600), passo("s3", "Diário", 180)],
     restSeconds: 0,
     tagValor: "medio",
@@ -23,6 +24,7 @@ const routines = [
   {
     id: "r-treino",
     name: "Treino A",
+    eixo: "ar-saude",
     steps: [passo("s1", "Aquecimento", 420), passo("s2", "Supino", 900), passo("s3", "Remada", 900), passo("s4", "Alongar", 300)],
     restSeconds: 45,
     tagValor: "alto",
@@ -32,6 +34,7 @@ const routines = [
   {
     id: "r-leitura",
     name: "Leitura",
+    eixo: "ar-estudos",
     steps: [passo("s1", "Ler 20 páginas", 1500)],
     restSeconds: 0,
     tagValor: "baixo",
@@ -128,10 +131,56 @@ const templates = [
   },
 ];
 
+// Gamificação: roda da vida com três áreas e quatro semanas fechadas (a
+// semana atual é calculada pelo app a partir das rotinas, com a data fixa).
+// A última semana fechada NÃO foi vista, então a Home mostra o aviso e a tela
+// "Semana fechada" abre por ele.
+const gamificacao = {
+  config: {
+    multiplicadores: { nenhum: 0, baixo: 1.0, medio: 1.75, alto: 3.0 },
+    divisorDuracao: 30,
+    notaMinima: 60,
+    faixas: { bronze: 60, prata: 75, ouro: 90, diamante: 100 },
+    pontosMeta: { mensal: 10, trimestral: 20, anual: 40 },
+    roda: {
+      ativa: true,
+      areas: [
+        { id: "ar-saude", label: "Saúde", color: "#157A45", peso: 5 },
+        { id: "ar-estudos", label: "Estudos", color: "#2F6BE0", peso: 4 },
+        { id: "ar-foco", label: "Foco", color: "#C2631A", peso: 3 },
+      ],
+      pesoSemArea: 5,
+    },
+    habito: { ativo: true, streakMin: 21, fator: 0.6 },
+    vagas: { alto: 1, medio: 3, baixo: 0 },
+  },
+  semanaAtual: null,
+  historico: {
+    semanas: [
+      { inicioISO: "2026-08-23", nota: 78.4, badge: "prata", porArea: { "ar-saude": 34, "ar-estudos": 28, "ar-foco": 16.4 }, destaques: [{ nome: "Treino A", pontos: 24 }, { nome: "Manhã", pontos: 18 }] },
+      { inicioISO: "2026-08-30", nota: 91.2, badge: "ouro", porArea: { "ar-saude": 40, "ar-estudos": 31, "ar-foco": 20.2 }, destaques: [{ nome: "Treino A", pontos: 27 }, { nome: "Leitura", pontos: 20 }] },
+      { inicioISO: "2026-09-06", nota: 64.0, badge: "bronze", porArea: { "ar-saude": 25, "ar-estudos": 22, "ar-foco": 17 }, destaques: [{ nome: "Manhã", pontos: 19 }] },
+      { inicioISO: "2026-09-13", nota: 83.6, badge: "prata", porArea: { "ar-saude": 36, "ar-estudos": 30, "ar-foco": 17.6 }, destaques: [{ nome: "Treino A", pontos: 25 }, { nome: "Leitura", pontos: 21 }, { nome: "Manhã", pontos: 17 }] },
+    ],
+    meses: [{ anoMes: "2026-08", nota: 78.4, badge: "prata", bonusMetas: 0 }],
+    trimestres: [],
+    anos: [],
+  },
+  metasPontos: {},
+  badges: [
+    { escopo: "mensal", tipo: "prata", periodo: "2026-08", nota: 78.4, emitidaEm: new Date("2026-09-01T08:00:00-03:00").getTime() },
+    { escopo: "semanal", tipo: "prata", periodo: "2026-08-23", nota: 78.4, emitidaEm: new Date("2026-08-30T08:00:00-03:00").getTime() },
+    { escopo: "semanal", tipo: "ouro", periodo: "2026-08-30", nota: 91.2, emitidaEm: new Date("2026-09-06T08:00:00-03:00").getTime() },
+    { escopo: "semanal", tipo: "bronze", periodo: "2026-09-06", nota: 64.0, emitidaEm: new Date("2026-09-13T08:00:00-03:00").getTime() },
+    { escopo: "semanal", tipo: "prata", periodo: "2026-09-13", nota: 83.6, emitidaEm: new Date("2026-09-20T08:00:00-03:00").getTime() },
+  ],
+};
+
 // chaves do localStorage legado: K_PREFIX + nome (src/lib/constants.ts)
 export const seedLocalStorage = {
   rotinas_v2_routines: routines,
   rotinas_v2_history: history,
   rotinas_v2_notes: notes,
   rotinas_v2_templates: templates,
+  rotinas_v2_gamificacao: gamificacao,
 };
