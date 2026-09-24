@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,7 +41,7 @@ export default defineConfig({
   // fonts/ já existe na raiz do repo (compartilhada com o app antigo) — aponta
   // pra lá em vez de duplicar os .woff2 dentro de webapp/public.
   publicDir: path.resolve(__dirname, "fonts"),
-  plugins: [react(), pwaAssets()],
+  plugins: [react(), tailwindcss(), pwaAssets()],
   build: {
     outDir: path.resolve(__dirname, "webapp-dist"),
     emptyOutDir: true,

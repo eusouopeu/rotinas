@@ -1,0 +1,17 @@
+# Nunca formatar: legado single-file (diffs enormes), nativo, gerados e dependências.
+index.html
+sw.js
+node_modules
+webapp-dist
+www
+dist-desktop
+android
+electron
+mcp-server
+sync
+test
+_arquivo
+package-lock.json
+webapp/visual/referencia
+webapp/visual/resultado
+webapp/visual/relatorio

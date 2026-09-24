@@ -2,9 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { isDesktop, isNative } from "./lib/storage";
-// app.css é a MESMA folha de estilo do app antigo — não duplicar/migrar para
-// CSS Modules nesta fase (ver CLAUDE.md > "webapp/").
-import "../../app.css";
+// Tailwind v4 + o app.css legado (mesma folha do app antigo) na camada `legacy`
+// — ver o comentário de styles/tailwind.css e docs/design-system.md.
+import "./styles/tailwind.css";
 
 // PWA de navegador (desde 13/09/2026 o build React substitui o legado também
 // no navegador): service worker só em https fora do app nativo — Electron

@@ -1,0 +1,79 @@
+/* Tailwind v4 do app React — ver docs/design-system.md > "Tailwind".
+
+   Convivência com o CSS legado durante a migração:
+   - as camadas fixam a precedência: utilitário > componente > app.css legado.
+     O app.css entra DENTRO de `legacy`, então qualquer classe utilitária
+     vence uma regra antiga sem brigar por especificidade;
+   - o preflight (reset do Tailwind) fica de fora até a última tela migrar:
+     as telas antigas dependem do reset atual (index/app.css);
+   - na fase final este arquivo deixa de importar o app.css e passa a importar
+     o preflight (ver plano de migração em docs/react-migration.md). */
+@layer theme, base, legacy, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "../../../app.css" layer(legacy);
+
+/* tema escuro = body.dark (mesmo mecanismo do legado): `dark:` só é preciso
+   onde o token não muda sozinho — quase nunca, pois as cores são variáveis. */
+@custom-variant dark (&:where(body.dark, body.dark *));
+
+/* Os valores vivem em tokens.css; aqui o Tailwind só ganha NOMES para eles.
+   `inline` faz o utilitário usar var(--caneta) direto, então o tema escuro
+   (que troca a variável) continua funcionando sem nenhuma variante `dark:`.
+   Paleta travada: o que não está listado não existe (bg-red-500 não compila). */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-card-blur: var(--card-blur);
+  --color-line: var(--line);
+  --color-line-forte: var(--line-forte);
+  --color-ink: var(--ink);
+  --color-sub: var(--sub);
+  --color-caneta: var(--caneta);
+  --color-caneta-2: var(--caneta-2);
+  --color-caneta-soft: var(--caneta-soft);
+  --color-realce: var(--realce);
+  --color-on-caneta: var(--on-caneta);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-erro: var(--erro);
+  --color-erro-soft: var(--erro-soft);
+  --color-streak: var(--streak);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
+  --color-kb-todo: var(--kb-todo);
+  --color-kb-todo-bg: var(--kb-todo-bg);
+  --color-kb-doing: var(--kb-doing);
+  --color-kb-doing-bg: var(--kb-doing-bg);
+  --color-kb-done: var(--kb-done);
+  --color-kb-done-bg: var(--kb-done-bg);
+
+  /* formas: os dois tokens do design system + os degraus que o app já usa */
+  --radius-*: initial;
+  --radius-none: 0;
+  --radius-app: var(--radius);
+  --radius-app-sm: var(--radius-sm);
+  --radius-xs: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --radius-full: 50%;
+
+  /* elevação é só borda: sem nenhuma sombra decorativa disponível */
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+
+  --font-*: initial;
+  --font-sans: "Montserrat", -apple-system, sans-serif;
+  --font-titulo: "Lato", sans-serif;
+}

@@ -13,7 +13,10 @@
     "dev:react": "vite",
     "build:react": "vite build",
     "test:react": "vitest run",
-    "typecheck:react": "tsc --noEmit"
+    "typecheck:react": "tsc --noEmit",
+    "visual": "playwright test -c webapp/visual/playwright.config.mjs",
+    "visual:baseline": "playwright test -c webapp/visual/playwright.config.mjs --update-snapshots",
+    "format": "prettier --write"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
@@ -23,13 +26,18 @@
     "@capacitor/local-notifications": "^8.2.0",
     "@capacitor/share": "^8.0.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "tailwind-merge": "^3.7.0",
     "zod": "^3.25.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
@@ -39,6 +47,9 @@
     "electron-builder": "^25.0.0",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
+    "prettier": "^3.9.9",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"

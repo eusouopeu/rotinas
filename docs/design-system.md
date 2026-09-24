@@ -23,3 +23,18 @@ Container de rolagem vertical (`.tab-scroll`, `.settings-scroll`) leva `overflow
 Seletor de visão (React, desde 24/09/2026): um só componente, `components/SegPill.tsx` (`.type-toggle.seg-pill`), com o visual da pill Notas/Outros de Modelos — borda 1.5px, fundo `--card-blur`, respiro vertical. Usado em Rotinas (Semana/Dia/Lista), Metas (Recorrentes/Prazos — as duas podem ficar ligadas juntas), Notas/Outros e Dados (Semanal/Mensal/Anual); em linha cheia leva `.view-toggle`. Não crie outro seletor de abas; o `.type-toggle` sem `.seg-pill` fica para escolhas pequenas dentro de formulários (peso, tipo de etapa).
 
 Campos de duração (React): `.dur-field` envolve o `.dur-input` numa caixa com a unidade abreviada dentro (`m`, `s`); `.dur-fields` alinha vários lado a lado. Interruptores: todo `input[type=checkbox]` dentro de `.switch-row` é desenhado como switch (trilho `--card-2` → `--caneta`), no React e no legado.
+
+## Tailwind (React, desde 24/09/2026)
+
+O React usa Tailwind v4 (`@tailwindcss/vite`), configurado em `webapp/src/styles/tailwind.css`. O legado (`index.html`) continua só com `app.css`.
+
+- **Tokens:** os valores vivem em `tokens.css` (raiz, compartilhado com o legado; `body.dark` troca as variáveis). `tailwind.css` só dá NOMES a eles em `@theme inline`: `bg-card`, `bg-card-2`, `text-ink`, `text-sub`, `bg-caneta`, `text-on-caneta`, `border-line`, `text-erro`, `bg-ok-soft`, `rounded-app`/`rounded-app-sm`/`rounded-pill`, `font-titulo`. Como o utilitário usa `var(--x)`, o tema escuro funciona sozinho — não use `dark:` para cor. Mudou uma cor? Só em `tokens.css`.
+- **Paleta travada:** cores, sombras e famílias de fonte padrão do Tailwind foram removidas (`bg-red-500`, `shadow-md` não compilam). Elevação é borda. Precisa de um token novo? Crie em `tokens.css` (os dois temas) e mapeie em `tailwind.css`.
+- **Camadas:** `theme < base < legacy < components < utilities`. O `app.css` é importado dentro de `legacy`, então um utilitário sempre vence uma regra antiga (sem `!important`). O preflight (reset do Tailwind) está desligado até a última tela migrar; ao migrar, o reset atual do `app.css` continua valendo.
+- **Repetição vira componente:** o padrão é `webapp/src/ui/` (primitivos) e `webapp/src/features/<área>/` (peças da tela), com variantes em `cva` e `className` sempre aceito via `cn()` (`lib/cn.ts`). Não use `@apply`, classe CSS nova para esconder utilitários nem `style={{}}` para valor fixo (só valor calculado em tempo de execução; cor de área: `style={{"--chip": cor}}` + `bg-(--chip)`).
+- **CSS que sobra** (não expressável em utilitário): editor Markdown ao vivo, grade da agenda, animações — em arquivo `.css` ao lado da própria área, nunca no `app.css`.
+- **Formatação:** `.prettierrc.json` (largura 120) + `prettier-plugin-tailwindcss` ordena as classes sozinho. Formate só o arquivo que você está migrando (`npm run format -- webapp/src/screens/Metas.tsx`); o código antigo não tem formatação uniforme e formatar tudo geraria diffs enormes.
+
+### Regressão visual
+
+`npm run visual:baseline` grava a referência (56 imagens: 14 telas × celular/desktop × claro/escuro, com dados fixos de `webapp/visual/seed.mjs` e data congelada em 23/09/2026); `npm run visual` compara e reprova qualquer diferença (relatório em `webapp/visual/relatorio`). Rode o baseline ANTES de migrar uma tela e o `visual` depois: mudança visual intencional → confira o relatório e rode o baseline de novo. A referência é gitignorada (depende da máquina); o Chromium do Playwright fica em `~/Library/Caches/ms-playwright` (`npx playwright install chromium`). Telas novas entram acrescentando um bloco em `webapp/visual/telas.spec.mjs`.

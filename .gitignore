@@ -5,3 +5,10 @@ www/
 android/brita.keystore
 dist-desktop/
 webapp-dist/
+
+# regressão visual (por máquina)
+webapp/visual/referencia/
+webapp/visual/resultado/
+webapp/visual/relatorio/
+test-results/
+playwright-report/

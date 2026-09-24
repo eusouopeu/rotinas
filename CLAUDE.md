@@ -21,7 +21,7 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 ### Migração (`webapp/`)
 
 - React + TypeScript estrito + Vite + Zustand. Preserve `<div id="app">`, nunca o padrão `#root`.
-- O React importa e reutiliza o `app.css` legado. Tailwind não está instalado/nem autorizado nesta fase; não introduzir Tailwind, CSS Modules ou design paralelo sem pedido explícito.
+- Estilização do React (Tailwind v4, autorizado pelo Pedro em 24/09/2026, migração gradual — plano e estado em `docs/react-migration.md`): tela nova/tocada usa utilitários Tailwind sobre os tokens (`bg-caneta`, `border-line`…) e componentes de `webapp/src/ui/`; repetição vira componente, nunca `@apply` nem classe CSS nova. O `app.css` legado segue carregado na camada `legacy` (perde para qualquer utilitário) até a última tela migrar. Sem CSS Modules nem design paralelo. Regras completas em `docs/design-system.md`.
 - Lucide só é preferência futura. Hoje os componentes reutilizam `Icon.tsx`/`ICON_D`. Montserrat continua no corpo; Lato continua nos títulos onde já aplicado.
 - A migração usa o mesmo formato de dados do legado. Não crie storage alternativo, nem transformação que descarte documentos desconhecidos.
 - O app React já é o que roda em Android/Electron (corte de 05/09/2026, decisão explícita apesar de gaps conhecidos — ver `docs/react-migration.md`); trate mudanças em `webapp/` como release nativa de verdade, não mais como protótipo isolado.
