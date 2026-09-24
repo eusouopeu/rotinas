@@ -60,6 +60,7 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 | `LinhaBarra`, `GradeBarras`, `TrilhoBarra` | `.bar-row/.bar-name/.bar-track/.bar-fill/.bar-val`, `.bar-grid` | `cor` pinta a barra, `corRotulo` o nome, `corValor` o valor; `naGrade` alinha 3 colunas; `marcador` = ritmo esperado / meta tracejada |
 | `LinhaValor` | `.bar-row` de "nome … valor/controle" | Ajustes, Boletim |
 | `BarraDetalhe`, `BotaoLink`, `Selecao` | `.detail-bar`, `.topbar .link-btn`, `.routine-select` | |
+| `PontoCor`, `BotaoPlay`, `AvisoCartao` | `.r-dot`, `.play-btn`, `.notice-card` | |
 | `BotaoRedondo`, `AlcaArrasto`, `OpcaoCriar`, `Fatos`/`Fato` | `.ctrl-btn`, `.drag-handle`, `.novo-opcao`, `.routine-meta-line`/`.rc-fact` | |
 | `CartaoLista` / `CARTAO_LISTA`, `CartaoInfo`, `CartaoTitulo`, `ListaCartoes` | `.note-card`/`.routine-card`, `.note-info`, `.notes-list`/`.routine-list` | dentro de `SwipeItem` passe `CARTAO_LISTA` no `className` dele; lista vira grade de 2 colunas no desktop |
 | `SwipeItem` (`ui/`) | `.swipe-item/.swipe-track/.swipe-del-btn` | marcador `data-swipe-item` (lib/swipe.ts) |
