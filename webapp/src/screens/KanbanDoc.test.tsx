@@ -27,7 +27,13 @@ function baseDoc(): KanbanDocType {
     kind: "kanban",
     title: "Teste",
     cols: [
-      { title: "A fazer", items: [{ id: "i1", text: "Um" }, { id: "i2", text: "Dois" }] },
+      {
+        title: "A fazer",
+        items: [
+          { id: "i1", text: "Um" },
+          { id: "i2", text: "Dois" },
+        ],
+      },
       { title: "Fazendo", items: [] },
       { title: "Feito", items: [] },
     ],

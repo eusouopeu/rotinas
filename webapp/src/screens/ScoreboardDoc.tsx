@@ -12,6 +12,7 @@ import { Toggle } from "../ui/Segmentado";
 import { CabecalhoDoc } from "../features/modelos/CabecalhoDoc";
 import { sbLideres, sbNome, sbTotais } from "../lib/scoreboard";
 import type { ScoreboardDoc as ScoreboardDocType } from "../lib/types";
+import { tela } from "../ui/Tela";
 
 export function ScoreboardDoc({ doc }: { doc: ScoreboardDocType }) {
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
@@ -37,7 +38,7 @@ export function ScoreboardDoc({ doc }: { doc: ScoreboardDocType }) {
   }`;
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <div className="flex-1 overflow-y-auto pb-5">
         <div className="mt-0.5 mb-3 flex flex-wrap items-center justify-between gap-2.5">

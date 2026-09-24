@@ -20,6 +20,7 @@ import type {
   ThoughtRecordDoc as ThoughtRecordDocType,
   TravelDoc as TravelDocType,
 } from "../lib/types";
+import { tela } from "../ui/Tela";
 
 export function TemplateDoc() {
   const templates = useAppStore((s) => s.templates);
@@ -41,7 +42,7 @@ export function TemplateDoc() {
   if (doc.type === "travel") return <TravelDoc doc={doc as TravelDocType} />;
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <div className="mb-5 flex items-center justify-between gap-3">
         <BotaoLink
           tom="suave"

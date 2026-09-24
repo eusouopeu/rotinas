@@ -5,6 +5,7 @@
 // detalhe por RoutineDetail e "iniciar" pelo Player.
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
+import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../features/roda/RodaVidaResumo";
@@ -30,6 +31,7 @@ import { ListaCartoes } from "../ui/ListaCartoes";
 import { Modal, ModalAcoes, ModalTexto } from "../ui/Modal";
 import { OpcaoCriar } from "../ui/OpcaoCriar";
 import { SegPill } from "../ui/Segmentado";
+import { rolavel, tela } from "../ui/Tela";
 
 export function Home() {
   const routines = useAppStore((s) => s.routines);
@@ -61,7 +63,8 @@ export function Home() {
   const semFechada = semanaFechadaPendente(gam);
   /* Rotina deixada pela metade (index.html:3616-3637): só vale se a rotina
      ainda existir — apagada, o snapshot é lixo e some do cartão. */
-  const rotinaEmAndamento = playerSnapshot && routines.some((r) => r.id === playerSnapshot.routineId) ? playerSnapshot : null;
+  const rotinaEmAndamento =
+    playerSnapshot && routines.some((r) => r.id === playerSnapshot.routineId) ? playerSnapshot : null;
   const hojeISO = localKey();
   /* Mesma ordem do legado (index.html:3645-3646): sempre por horário de início,
      e o filtro "hoje" esconde só quem tem dia fixo em outro dia. */
@@ -81,14 +84,13 @@ export function Home() {
   }, [openSearch]);
 
   return (
-    <div className="screen with-tabbar">
-      <div className="tab-scroll">
-        <div className="home-header mb-2.5" ref={headerRef}>
-          <h1>Rotinas</h1>
+    <div {...tela({ comAbas: true })}>
+      <div {...rolavel()}>
+        <CabecalhoTela titulo="Rotinas" margem="2.5" ref={headerRef}>
           <BotaoIcone rotulo="Boletim da semana" tamanho="sm" onClick={() => goTo({ tab: "home", screen: "boletim" })}>
             <Icon name="trophy" size={16} />
           </BotaoIcone>
-        </div>
+        </CabecalhoTela>
 
         <RodaVidaResumo />
 
@@ -200,7 +202,10 @@ export function Home() {
         ) : homeView === "dia" ? (
           <AgendaDia />
         ) : routines.length === 0 ? (
-          <EstadoVazio titulo="Nenhuma rotina ainda" texto="Crie sua primeira sequência de etapas com tempo — igual um ritual de prática.">
+          <EstadoVazio
+            titulo="Nenhuma rotina ainda"
+            texto="Crie sua primeira sequência de etapas com tempo — igual um ritual de prática."
+          >
             <Botao className="mt-3.5" onClick={() => openEditor(null)}>
               + Nova rotina
             </Botao>

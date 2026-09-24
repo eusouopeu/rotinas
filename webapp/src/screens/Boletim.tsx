@@ -27,6 +27,7 @@ import { Legenda } from "../ui/Legenda";
 import { LinhaBarra, TrilhoBarra } from "../ui/LinhaBarra";
 import { LinhaValor } from "../ui/LinhaValor";
 import { RotuloSecao } from "../ui/RotuloSecao";
+import { rolavel, tela } from "../ui/Tela";
 
 export function Boletim() {
   const gam = useAppStore((s) => s.gam);
@@ -93,7 +94,10 @@ export function Boletim() {
     return {
       chave: s.inicioISO + (s.emCurso ? "-atual" : ""),
       titulo: `Semana de ${dm.toLocaleDateString()}: ${s.nota.toFixed(1)} pts${s.emCurso ? " (em curso)" : ""}${s.dispensada ? " · dispensada" : ""}`,
-      rotulo: i === 0 || i === evolucao.length - 1 || s.emCurso ? `${String(dm.getDate()).padStart(2, "0")}/${String(dm.getMonth() + 1).padStart(2, "0")}` : "",
+      rotulo:
+        i === 0 || i === evolucao.length - 1 || s.emCurso
+          ? `${String(dm.getDate()).padStart(2, "0")}/${String(dm.getMonth() + 1).padStart(2, "0")}`
+          : "",
       altura: Math.max(2, Math.round((Math.min(100, Math.max(0, s.nota)) / 100) * 70)),
       cor: s.dispensada ? "var(--sub)" : "var(--caneta)",
       opacidade: s.emCurso ? "0.55" : "1",
@@ -101,15 +105,16 @@ export function Boletim() {
   });
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <BarraDetalhe titulo="Boletim" className="mb-3" onVoltar={() => goTo({ tab: "home", screen: "home" })} />
-      <div className="tab-scroll pb-6" data-rolagem>
+      <div {...rolavel("pb-6")}>
         <Cartao className={`${CARTAO} text-center`}>
           <div className="font-sans text-[48px] font-semibold" style={{ color: disp ? "var(--sub)" : r.cor }}>
             {r.nota.toFixed(1)}
           </div>
           <Legenda>
-            de 100 &middot; semana termina sábado {String(fimSemana.getDate()).padStart(2, "0")}/{String(fimSemana.getMonth() + 1).padStart(2, "0")}
+            de 100 &middot; semana termina sábado {String(fimSemana.getDate()).padStart(2, "0")}/
+            {String(fimSemana.getMonth() + 1).padStart(2, "0")}
           </Legenda>
           <TrilhoBarra className="mt-3 mb-1.5" pct={pctNota} cor={disp ? "var(--sub)" : r.cor} />
           {disp ? (
@@ -130,8 +135,8 @@ export function Boletim() {
           )}
           {!gam.semanaAtual.totalBrutoAgendado && (
             <Legenda className="mt-3 text-caneta">
-              Nenhuma rotina agendada nesta semana — a escala padrão está valendo ({BLOCOS_SEMANA_PADRAO} blocos médios de 30 min = 100). Ative o agendamento de uma
-              rotina para o boletim medir a sua agenda de verdade.
+              Nenhuma rotina agendada nesta semana — a escala padrão está valendo ({BLOCOS_SEMANA_PADRAO} blocos médios
+              de 30 min = 100). Ative o agendamento de uma rotina para o boletim medir a sua agenda de verdade.
             </Legenda>
           )}
         </Cartao>
@@ -174,7 +179,9 @@ export function Boletim() {
               className="w-[50px] px-1 py-0.5"
             />{" "}
             horas/semana disponíveis para rotinas
-            {estourouOrcamento && <span className="text-erro"> &middot; {pctOrcamento}% do orçamento — planejado estoura o disponível</span>}
+            {estourouOrcamento && (
+              <span className="text-erro"> &middot; {pctOrcamento}% do orçamento — planejado estoura o disponível</span>
+            )}
           </Legenda>
         </Cartao>
 
@@ -202,7 +209,10 @@ export function Boletim() {
               </Legenda>
             )}
             {!habitoAtivo && (
-              <Legenda>Hábito consolidado desligado — rotinas antigas não abrem espaço automaticamente para as que ainda não pegaram.</Legenda>
+              <Legenda>
+                Hábito consolidado desligado — rotinas antigas não abrem espaço automaticamente para as que ainda não
+                pegaram.
+              </Legenda>
             )}
             <Botao variante="pilula" className="mt-1.5" onClick={() => goTo({ tab: "settings", screen: "settings" })}>
               Configurar em Ajustes &rarr;
@@ -238,7 +248,9 @@ export function Boletim() {
                   {t.valores.join(" · ")}
                 </LinhaSimples>
               ))}
-              <Legenda className="mt-3">Pontos por semana, da mais antiga à mais recente (esquerda &rarr; direita).</Legenda>
+              <Legenda className="mt-3">
+                Pontos por semana, da mais antiga à mais recente (esquerda &rarr; direita).
+              </Legenda>
             </Cartao>
           </>
         )}
@@ -255,7 +267,8 @@ export function Boletim() {
                     <LinhaValor
                       rotulo={
                         <>
-                          <span style={{ color: p.a.color }}>{p.a.label}</span> &harr; <span style={{ color: p.b.color }}>{p.b.label}</span>
+                          <span style={{ color: p.a.color }}>{p.a.label}</span> &harr;{" "}
+                          <span style={{ color: p.b.color }}>{p.b.label}</span>
                         </>
                       }
                       valor={`${p.r >= 0 ? "+" : ""}${p.r.toFixed(2)}`}
@@ -267,7 +280,10 @@ export function Boletim() {
                   </div>
                 );
               })}
-              <Legenda className="mt-3">Rudimentar: só mostra que duas áreas sobem/descem juntas nas últimas semanas — não prova que uma causa a outra.</Legenda>
+              <Legenda className="mt-3">
+                Rudimentar: só mostra que duas áreas sobem/descem juntas nas últimas semanas — não prova que uma causa a
+                outra.
+              </Legenda>
             </Cartao>
           </>
         )}
@@ -276,20 +292,39 @@ export function Boletim() {
         <Cartao className={CARTAO}>
           {tags.total ? (
             <>
-              <LinhaBarra rotulo="Alto" pct={larguraTag("alto")} cor="var(--caneta)" valor={`${tags.alto} · ${pctTag("alto")}%`} />
-              <LinhaBarra rotulo="Médio" pct={larguraTag("medio")} cor="var(--caneta-2)" valor={`${tags.medio} · ${pctTag("medio")}%`} />
-              <LinhaBarra rotulo="Baixo" pct={larguraTag("baixo")} cor="var(--sub)" valor={`${tags.baixo} · ${pctTag("baixo")}%`} />
+              <LinhaBarra
+                rotulo="Alto"
+                pct={larguraTag("alto")}
+                cor="var(--caneta)"
+                valor={`${tags.alto} · ${pctTag("alto")}%`}
+              />
+              <LinhaBarra
+                rotulo="Médio"
+                pct={larguraTag("medio")}
+                cor="var(--caneta-2)"
+                valor={`${tags.medio} · ${pctTag("medio")}%`}
+              />
+              <LinhaBarra
+                rotulo="Baixo"
+                pct={larguraTag("baixo")}
+                cor="var(--sub)"
+                valor={`${tags.baixo} · ${pctTag("baixo")}%`}
+              />
               {tagAlerta && (
                 <Legenda className="mt-3 text-caneta">
-                  {pctTag("alto")}% das etapas estão como "alto" — a tag está perdendo poder de distinguir. Vale rebaixar parte delas ou ajustar os multiplicadores em
-                  Configurações.
+                  {pctTag("alto")}% das etapas estão como "alto" — a tag está perdendo poder de distinguir. Vale
+                  rebaixar parte delas ou ajustar os multiplicadores em Configurações.
                 </Legenda>
               )}
             </>
           ) : (
             <Legenda>Nenhuma etapa com tempo ainda.</Legenda>
           )}
-          {tags.nenhum > 0 && <Legenda className="mt-3">{tags.nenhum} etapa(s) com peso "nenhum" — rodam normalmente, mas ficam fora do boletim.</Legenda>}
+          {tags.nenhum > 0 && (
+            <Legenda className="mt-3">
+              {tags.nenhum} etapa(s) com peso "nenhum" — rodam normalmente, mas ficam fora do boletim.
+            </Legenda>
+          )}
         </Cartao>
 
         <RotuloSecao>Vitrine de badges</RotuloSecao>

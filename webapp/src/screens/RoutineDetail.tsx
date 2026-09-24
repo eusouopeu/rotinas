@@ -24,6 +24,7 @@ import { EstadoVazio } from "../ui/EstadoVazio";
 import { Legenda } from "../ui/Legenda";
 import { PontoCor } from "../ui/PontoCor";
 import { RotuloSecao } from "../ui/RotuloSecao";
+import { tela } from "../ui/Tela";
 
 export function RoutineDetail() {
   const routines = useAppStore((s) => s.routines);
@@ -37,11 +38,9 @@ export function RoutineDetail() {
 
   const r = routines.find((x) => x.id === id);
 
-
-
   if (!r) {
     return (
-      <div className="screen">
+      <div {...tela({})}>
         <BarraDetalhe onVoltar={() => goTo({ tab: "home", screen: "home" })} />
         <EstadoVazio titulo="Rotina não encontrada" />
       </div>
@@ -52,7 +51,7 @@ export function RoutineDetail() {
   const sched = computeSchedule(r);
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       {/* barra superior: voltar (ícone) + título na mesma linha, subtítulo colado embaixo */}
       <BarraDetalhe
         onVoltar={() => goTo({ tab: "home", screen: "home" })}
@@ -66,7 +65,8 @@ export function RoutineDetail() {
       />
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto pb-[110px]">
         <Legenda className="mb-1">
-          {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} · {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
+          {r.steps.length} etapa{r.steps.length !== 1 ? "s" : ""} ·{" "}
+          {dur > 0 ? fmtTime(dur).replace("+", "") : "sem tempo fixo"}
           <StreakTag routineId={r.id} routines={routines} history={history} />
         </Legenda>
         {sched && (
@@ -88,7 +88,10 @@ export function RoutineDetail() {
             let metaTxt: string;
             if (s.type === "timer") metaTxt = fmtTime(s.seconds || 0).replace("+", "");
             else if (s.type === "exercicio")
-              metaTxt = `${s.sets || 1}x · ${descansoEntreSeries(r.restSeconds ?? 120, exercicios.find((e) => e.id === s.exercicioId))}s descanso`;
+              metaTxt = `${s.sets || 1}x · ${descansoEntreSeries(
+                r.restSeconds ?? 120,
+                exercicios.find((e) => e.id === s.exercicioId)
+              )}s descanso`;
             else metaTxt = "checklist";
             if (s.journaling) metaTxt += " · anotações";
             return (

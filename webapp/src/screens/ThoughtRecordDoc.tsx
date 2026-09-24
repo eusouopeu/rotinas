@@ -8,6 +8,7 @@ import { RotuloSecao } from "../ui/RotuloSecao";
 import { Selecao } from "../ui/Selecao";
 import { COGNITIVE_DISTORTIONS } from "../lib/templates";
 import type { ThoughtRecordDoc as ThoughtRecordDocType } from "../lib/types";
+import { tela } from "../ui/Tela";
 
 export function ThoughtRecordDoc({ doc }: { doc: ThoughtRecordDocType }) {
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
@@ -24,7 +25,7 @@ export function ThoughtRecordDoc({ doc }: { doc: ThoughtRecordDocType }) {
   );
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <div className="flex-1 overflow-y-auto pb-5">
         <RotuloSecao className="mt-1.5">Gatilho</RotuloSecao>

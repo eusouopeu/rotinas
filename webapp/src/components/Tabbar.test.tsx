@@ -12,7 +12,7 @@ describe("Tabbar", () => {
 
   it("separa as abas de conteúdo de Ajustes em duas pílulas", () => {
     const { container } = render(<Tabbar />);
-    const pilulas = container.querySelectorAll(".tabbar-pill");
+    const pilulas = container.querySelectorAll("[data-pilula]");
     expect(pilulas.length).toBe(2);
     expect(pilulas[0].querySelectorAll("button").length).toBe(4);
     expect(pilulas[1].querySelectorAll("button").length).toBe(1);
@@ -23,6 +23,6 @@ describe("Tabbar", () => {
     const { getByLabelText } = render(<Tabbar />);
     fireEvent.click(getByLabelText("Dados"));
     expect(useAppStore.getState().view).toEqual({ tab: "dados", screen: "stats" });
-    expect(getByLabelText("Dados").className).toContain("active");
+    expect(getByLabelText("Dados").getAttribute("aria-current")).toBe("page");
   });
 });

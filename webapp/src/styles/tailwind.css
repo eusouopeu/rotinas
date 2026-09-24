@@ -15,13 +15,22 @@
 @import "../../../app.css" layer(legacy);
 
 /* variantes de mídia que o legado já usa (app.css): celular deitado e cabeçalho
-   estreito. `desktop:`/`wide:`/`ultra:` vêm dos breakpoints do @theme. */
+   estreito, e as larguras `desktop:`/`wide:`/`ultra:`. A ORDEM importa: no app.css
+   o bloco do celular deitado vem antes dos de largura, então quando os dois se
+   aplicam (celular deitado com >=900px) a largura vence. Como variantes
+   customizadas saem na ordem em que são declaradas, `paisagem` fica antes. */
 @custom-variant paisagem (@media (orientation: landscape) and (max-height: 560px));
 @custom-variant estreito (@media (max-width: 420px));
+@custom-variant desktop (@media (min-width: 900px));
+@custom-variant wide (@media (min-width: 1200px));
+@custom-variant ultra (@media (min-width: 1400px));
 
 /* tema escuro = body.dark (mesmo mecanismo do legado): `dark:` só é preciso
    onde o token não muda sozinho — quase nunca, pois as cores são variáveis. */
 @custom-variant dark (&:where(body.dark, body.dark *));
+/* sidebar do desktop recolhida (só ícones) e janela sem título do Electron */
+@custom-variant recolhido (body.sidebar-collapsed &);
+@custom-variant electron (body.is-desktop-shell &);
 
 /* Os valores vivem em tokens.css; aqui o Tailwind só ganha NOMES para eles.
    `inline` faz o utilitário usar var(--caneta) direto, então o tema escuro
@@ -101,15 +110,36 @@
 
   /* mesmos cortes de largura do app.css: 900 (desktop), 1200, 1400 */
   --breakpoint-*: initial;
-  --breakpoint-desktop: 900px;
-  --breakpoint-wide: 1200px;
-  --breakpoint-ultra: 1400px;
 
   --color-scrim: rgb(0 0 0 / 0.6);
+  --color-veu-claro: rgb(255 255 255 / 0.25);
 
   --animate-entra: entra 0.25s ease;
   --animate-entra-rapido: entra 0.15s ease;
   --animate-pulso: pulso 1.1s infinite;
+  --animate-aviso: aviso-entra 0.3s ease;
+  --animate-aviso-festa: aviso-entra 0.3s ease, aviso-pop 0.4s ease;
+  @keyframes aviso-entra {
+    from {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes aviso-pop {
+    0% {
+      transform: scale(0.96);
+    }
+    60% {
+      transform: scale(1.02);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
   @keyframes pulso {
     0%,
     100% {

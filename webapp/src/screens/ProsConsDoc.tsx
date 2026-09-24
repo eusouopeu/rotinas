@@ -8,6 +8,7 @@ import { Cartao } from "../ui/Cartao";
 import { exportPdfView } from "../lib/exportFile";
 import { prosConsPdfHtml } from "../lib/pdfExport";
 import type { ProsConsDoc as ProsConsDocType } from "../lib/types";
+import { tela } from "../ui/Tela";
 
 type Key = "pros" | "cons";
 
@@ -44,7 +45,7 @@ export function ProsConsDoc({ doc }: { doc: ProsConsDocType }) {
   }
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <BarraPdf exportar={() => exportPdfView(doc.title, prosConsPdfHtml(doc), "Pros e Contras")} />
       <div className="flex-1 overflow-y-auto pb-5">

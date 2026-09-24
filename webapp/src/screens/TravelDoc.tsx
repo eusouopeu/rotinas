@@ -16,6 +16,7 @@ import { TRAVEL_DB, guessTravelCat } from "../lib/templates";
 import { exportPdfView } from "../lib/exportFile";
 import { travelPdfHtml } from "../lib/pdfExport";
 import type { TravelDoc as TravelDocType } from "../lib/types";
+import { tela } from "../ui/Tela";
 
 type Item = TravelDocType["items"][number];
 
@@ -56,7 +57,7 @@ export function TravelDoc({ doc }: { doc: TravelDocType }) {
   const hasAnyItem = doc.items.length > 0;
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <BarraPdf
         antes={

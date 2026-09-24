@@ -4,6 +4,7 @@
 // PIN e atalhos de teclado ficam de fora por decisão de escopo (CLAUDE.md).
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
+import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Tabbar } from "../components/Tabbar";
 import { isDesktop } from "../lib/storage";
 import { CampoBusca } from "../ui/CampoBusca";
@@ -17,6 +18,7 @@ import { SecaoInicioSemana } from "../features/ajustes/SecaoInicioSemana";
 import { SecaoMcp, SecaoMiniPlayer } from "../features/ajustes/SecoesDesktop";
 import { SecaoPontuacao } from "../features/ajustes/SecaoPontuacao";
 import { SecaoRoda } from "../features/ajustes/SecaoRoda";
+import { tela } from "../ui/Tela";
 
 const TEMAS = [
   { key: "auto", label: "sistema" },
@@ -39,11 +41,9 @@ export function Settings() {
 
   return (
     <FiltroAjustes.Provider value={busca}>
-      <div className="screen with-tabbar screen-wide">
+      <div {...tela({ comAbas: true, larga: true })}>
         <div className="flex-1 overflow-x-hidden overflow-y-auto pb-6" data-rolagem>
-          <div className="home-header mb-1.5">
-            <h1>Ajustes</h1>
-          </div>
+          <CabecalhoTela titulo="Ajustes" margem="1.5" />
 
           <RotuloSecao>Tema</RotuloSecao>
           <Toggle larga grande className="mb-1" options={[...TEMAS]} active={theme} onSelect={setTheme} />

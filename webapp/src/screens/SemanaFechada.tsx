@@ -17,6 +17,7 @@ import { LinhaValor } from "../ui/LinhaValor";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store/useAppStore";
+import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV } from "../lib/constants";
 import { DAY_LETTERS } from "../lib/schedule";
 import { daysUntil } from "../lib/metas";
@@ -30,17 +31,37 @@ import {
   metasProximasSemana,
   notaRevisaoSemana,
 } from "../lib/semanaFechada";
+import { tela } from "../ui/Tela";
 
 const PASSOS = ["Resultado", "Rotinas", "Próxima semana"];
 
-function TextoCrescente({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (v: string) => void; placeholder: string }) {
+function TextoCrescente({
+  id,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
     if (!ref.current) return;
     ref.current.style.height = "auto";
     ref.current.style.height = `${ref.current.scrollHeight}px`;
   }, [value]);
-  return <AreaTexto id={id} ref={ref} rows={2} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />;
+  return (
+    <AreaTexto
+      id={id}
+      ref={ref}
+      rows={2}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
 }
 
 export function SemanaFechada() {
@@ -80,7 +101,13 @@ export function SemanaFechada() {
   const { label: periodoLabel } = formatarPeriodoSemana(sem.inicioISO);
   const metas = metasProximasSemana(templates);
 
-  const nomesDias = (dias: number[]) => (dias.length ? [...dias].sort((a, b) => a - b).map((d) => DIAS_ABREV[d]).join(", ") : "—");
+  const nomesDias = (dias: number[]) =>
+    dias.length
+      ? [...dias]
+          .sort((a, b) => a - b)
+          .map((d) => DIAS_ABREV[d])
+          .join(", ")
+      : "—";
   const ajustes = atrasadas
     .map((a) => {
       const r = routines.find((x) => x.id === a.id);
@@ -111,7 +138,7 @@ export function SemanaFechada() {
 
   const CARTAO = "mb-1.5";
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <div className="mb-5 flex items-center justify-between gap-3">
         <BotaoLink tom="suave" id="sfSkip" onClick={sair}>
           Depois
@@ -121,9 +148,7 @@ export function SemanaFechada() {
         </Legenda>
       </div>
       <div className="flex-1 overflow-y-auto pb-6">
-        <div className="home-header mb-0.5">
-          <h1>Semana fechada</h1>
-        </div>
+        <CabecalhoTela titulo="Semana fechada" margem="0.5" />
         <Legenda className="mb-3">{periodoLabel}</Legenda>
 
         {passo === 0 && (
@@ -135,7 +160,9 @@ export function SemanaFechada() {
               {sem.dispensada ? (
                 <Legenda>semana dispensada — não entra na média do mês</Legenda>
               ) : (
-                <Legenda>{sem.nota >= gam.config.notaMinima ? "aprovado" : `abaixo da nota mínima (${gam.config.notaMinima})`}</Legenda>
+                <Legenda>
+                  {sem.nota >= gam.config.notaMinima ? "aprovado" : `abaixo da nota mínima (${gam.config.notaMinima})`}
+                </Legenda>
               )}
               {sem.badge && (
                 <div className="mt-2.5 text-2xl" style={{ color: BADGE_COR[sem.badge] }}>
@@ -162,7 +189,12 @@ export function SemanaFechada() {
             )}
 
             <RotuloSecao>O que você leva dessa semana</RotuloSecao>
-            <TextoCrescente id="sfReflexao" value={reflexao} onChange={setReflexao} placeholder="O que funcionou, o que atrapalhou..." />
+            <TextoCrescente
+              id="sfReflexao"
+              value={reflexao}
+              onChange={setReflexao}
+              placeholder="O que funcionou, o que atrapalhou..."
+            />
           </>
         )}
 
@@ -195,7 +227,9 @@ export function SemanaFechada() {
                     </div>
                   );
                 })}
-                <Legenda className="mt-3">Tocar num dia já muda o agendamento. As mudanças entram na nota da revisão.</Legenda>
+                <Legenda className="mt-3">
+                  Tocar num dia já muda o agendamento. As mudanças entram na nota da revisão.
+                </Legenda>
               </Cartao>
             )}
           </>
@@ -221,7 +255,12 @@ export function SemanaFechada() {
               )}
             </Cartao>
             <RotuloSecao>Foco da próxima semana</RotuloSecao>
-            <TextoCrescente id="sfFoco" value={foco} onChange={setFoco} placeholder="Uma ou duas prioridades para a semana que começa..." />
+            <TextoCrescente
+              id="sfFoco"
+              value={foco}
+              onChange={setFoco}
+              placeholder="Uma ou duas prioridades para a semana que começa..."
+            />
           </>
         )}
 

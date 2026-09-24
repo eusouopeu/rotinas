@@ -3,6 +3,7 @@
 // nova nota. Sem backup/importar/paginação "carregar mais" nesta fase.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
+import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Tabbar } from "../components/Tabbar";
 import { ModelosTabPill } from "../components/ModelosTabPill";
 import { SwipeItem } from "../ui/SwipeItem";
@@ -17,6 +18,7 @@ import { Legenda } from "../ui/Legenda";
 import { ListaCartoes } from "../ui/ListaCartoes";
 import { cn } from "../lib/cn";
 import { allTags, extractTags, relativeTime, stripMdForSnippet } from "../lib/notes";
+import { rolavel, tela } from "../ui/Tela";
 
 export function Notes() {
   const notes = useAppStore((s) => s.notes);
@@ -35,16 +37,16 @@ export function Notes() {
   const visiveis = notes.filter((n) => !!n.arquivada === verArquivadas);
   const tags = allTags(visiveis);
   const q = query.trim().toLowerCase();
-  let filtered = visiveis.filter((n) => !q || (n.title || "").toLowerCase().includes(q) || (n.content || "").toLowerCase().includes(q));
+  let filtered = visiveis.filter(
+    (n) => !q || (n.title || "").toLowerCase().includes(q) || (n.content || "").toLowerCase().includes(q)
+  );
   if (tag) filtered = filtered.filter((n) => extractTags(n).includes(tag));
   const sorted = [...filtered].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.updatedAt - a.updatedAt);
 
   return (
-    <div className="screen with-tabbar com-modelos-pill">
-      <div className="tab-scroll">
-        <div className="home-header mb-2.5">
-          <h1>Notas</h1>
-        </div>
+    <div {...tela({ comAbas: true, comPill: true })}>
+      <div {...rolavel()}>
+        <CabecalhoTela titulo="Notas" margem="2.5" />
 
         <CampoBusca
           forma="caixa"
@@ -108,7 +110,8 @@ export function Notes() {
                   <div className="mt-1 truncate text-md leading-[1.4] text-sub">{stripMdForSnippet(n.content)}</div>
                   <Legenda className="mt-1.5">
                     {relativeTime(n.updatedAt)}
-                    {(n.subjects || []).length > 0 && " · " + n.subjects!.slice(0, 3).join(", ") + (n.subjects!.length > 3 ? "…" : "")}
+                    {(n.subjects || []).length > 0 &&
+                      " · " + n.subjects!.slice(0, 3).join(", ") + (n.subjects!.length > 3 ? "…" : "")}
                   </Legenda>
                 </CartaoInfo>
                 <BotaoIcone

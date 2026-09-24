@@ -5,12 +5,13 @@ import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Botao } from "../ui/Botao";
 import { CirculoCheck } from "../ui/CirculoCheck";
+import { tela } from "../ui/Tela";
 
 export function Done() {
   const goTo = useAppStore((s) => s.goTo);
 
   return (
-    <div className="screen items-center justify-center gap-4 text-center">
+    <div {...tela({}, "items-center justify-center gap-4 text-center")}>
       <CirculoCheck tamanho="size-24">
         <Icon name="check" size={40} />
       </CirculoCheck>

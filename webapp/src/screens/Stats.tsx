@@ -4,6 +4,7 @@
 // heatmap anual, metas, gráficos, insights e relatório PDF. As visões, os
 // calendários e os gráficos moram em features/dados/.
 import { useAppStore } from "../store/useAppStore";
+import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { Dicas } from "../features/dados/Dicas";
@@ -18,6 +19,7 @@ import { BotaoIcone } from "../ui/BotaoIcone";
 import { EstadoVazio } from "../ui/EstadoVazio";
 import { Selecao } from "../ui/Selecao";
 import { SegPill } from "../ui/Segmentado";
+import { rolavel, tela } from "../ui/Tela";
 
 export function Stats() {
   const goTo = useAppStore((s) => s.goTo);
@@ -40,17 +42,20 @@ export function Stats() {
   }
 
   return (
-    <div className="screen screen-wide with-tabbar">
-      <div className="tab-scroll">
-        {/* no desktop o cabeçalho fixo mantém os paddings/margens da barra de topo (.home-header) */}
-        <div className="home-header sticky top-0 z-[6] mb-[22px] border-b-[1.5px] border-line bg-paper pt-0.5 pb-3.5 desktop:z-10 desktop:mb-1.5 desktop:pt-[22px] desktop:pb-4">
-          <h1 className="flex items-center">Dados</h1>
+    <div {...tela({ comAbas: true, larga: true })}>
+      <div {...rolavel()}>
+        <CabecalhoTela titulo="Dados" fixo tituloClassName="flex items-center">
           <div className="flex items-center gap-2.5">
-            <BotaoIcone rotulo="Relatório de fechamento (PDF)" tamanho="sm" className="flex-shrink-0" onClick={handleExportPdf}>
+            <BotaoIcone
+              rotulo="Relatório de fechamento (PDF)"
+              tamanho="sm"
+              className="flex-shrink-0"
+              onClick={handleExportPdf}
+            >
               <Icon name="clipboard" size={15} />
             </BotaoIcone>
           </div>
-        </div>
+        </CabecalhoTela>
 
         <div id="statsHead">
           <div className="mb-3 flex">

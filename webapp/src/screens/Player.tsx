@@ -33,6 +33,7 @@ import {
   TrilhaEtapas,
 } from "../features/player/Controles";
 import { TopoPlayer } from "../features/player/Topo";
+import { tela } from "../ui/Tela";
 
 export function Player() {
   const playerState = useAppStore((s) => s.playerState);
@@ -251,7 +252,7 @@ export function Player() {
   const comuns = { podeAdiar, onAnterior: goPrevStep, onAdiar: adiarEtapaAtual };
 
   return (
-    <div className="screen pb-0">
+    <div {...tela({}, "pb-0")}>
       <div className="flex w-full flex-1 flex-col items-center justify-between pt-1.5 pb-5 paisagem:justify-start paisagem:gap-1 paisagem:overflow-y-auto paisagem:pt-0.5 paisagem:pb-2">
         <TopoPlayer
           posicao={playerState.idx + 1}

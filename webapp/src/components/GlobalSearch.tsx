@@ -3,9 +3,15 @@
 // "modelos"/"kanban"/"histórico" (telas de destino ainda não existem no
 // React: renderTemplateDoc, kanban do Diário e Dados/renderStats) e sem
 // debounce (dataset pequeno nesta fase não pesa a cada tecla).
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "./Icon";
+import { BotaoIcone } from "../ui/BotaoIcone";
+import { CampoBusca } from "../ui/CampoBusca";
+import { CartaoInfo, CartaoLista, CartaoTitulo } from "../ui/CartaoLista";
+import { Chip } from "../ui/Chip";
+import { Legenda } from "../ui/Legenda";
+import { Modal } from "../ui/Modal";
 import type { IconName } from "../lib/icons";
 import type { CountdownDoc, Tag } from "../lib/types";
 
@@ -83,98 +89,83 @@ export function GlobalSearch() {
     if (quer("notas") && !peso) {
       notes.forEach((n) => {
         if (!((n.title || "") + " " + (n.content || "")).toLowerCase().includes(q)) return;
-        hits.push({ icon: "notes", title: n.title || "Sem título", sub: "Nota", onSelect: () => ir(() => openNote(n.id)) });
+        hits.push({
+          icon: "notes",
+          title: n.title || "Sem título",
+          sub: "Nota",
+          onSelect: () => ir(() => openNote(n.id)),
+        });
       });
     }
   }
 
   return (
-    <div className="confirm-overlay search-overlay" onClick={(e) => e.target === e.currentTarget && close()}>
-      <div className="confirm-box search-box" role="dialog" aria-modal="true" aria-label="Busca" style={{ textAlign: "left" }}>
-        <input
-          type="search"
-          className="note-search"
-          style={{ marginBottom: 10 }}
-          placeholder="Buscar rotinas, metas, notas..."
-          autoFocus
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Escape" && close()}
-        />
-        <div className="area-chips area-filter-row" style={{ marginBottom: 10 }}>
-          {GS_TIPOS.map((t) => (
-            <span
-              key={t.key}
-              className={"area-chip" + (tipo === t.key ? " sel" : "")}
-              style={{ "--chip": "var(--caneta)" } as CSSProperties}
-              onClick={() => setTipo(t.key)}
-            >
-              {t.label}
-            </span>
-          ))}
-        </div>
-        <select
-          value={peso}
-          onChange={(e) => setPeso(e.target.value)}
-          style={{
-            width: "100%",
-            marginBottom: 10,
-            background: "var(--card-2)",
-            border: "1.5px solid var(--line)",
-            borderRadius: 10,
-            padding: "8px 6px",
-            fontSize: 13,
-            color: "var(--ink)",
-          }}
-        >
-          <option value="">peso: todos</option>
-          {(Object.entries(TAG_LABEL) as Array<[Tag, string]>).map(([k, v]) => (
-            <option key={k} value={k}>
-              peso: {v}
-            </option>
-          ))}
-        </select>
-        <div className="notes-list">
-          {q.length < 2 ? null : hits.length === 0 ? (
-            <div className="routine-meta" style={{ padding: "8px 2px" }}>
-              Nada encontrado.
-            </div>
-          ) : (
-            hits.slice(0, 20).map((h, i) => (
-              <div key={i} className="routine-card" style={{ cursor: "pointer" }} onClick={h.onSelect}>
-                <div className="note-info" style={{ flex: 1, minWidth: 0 }}>
-                  <h3>
-                    <Icon name={h.icon} size={14} /> {h.title}
-                  </h3>
-                  <div className="routine-meta" style={{ marginTop: 2 }}>
-                    {h.sub}
-                  </div>
-                </div>
-                {h.action && (
-                  <div className="routine-actions">
-                    <button
-                      className="icon-btn"
-                      title={h.action.title}
-                      aria-label={h.action.title}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        h.action!.onRun();
-                      }}
-                    >
-                      <Icon name={h.action.icon} size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-          {hits.length > 20 && (
-            <div className="routine-meta" style={{ padding: "8px 2px" }}>
-              + {hits.length - 20} resultado(s) — refine a busca
-            </div>
-          )}
-        </div>
+    <Modal
+      posicao="topo"
+      onFechar={close}
+      className="flex max-h-[82vh] max-w-[460px] flex-col text-left desktop:max-w-[640px]"
+    >
+      <CampoBusca
+        forma="caixa"
+        type="search"
+        className="mb-2.5"
+        placeholder="Buscar rotinas, metas, notas..."
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && close()}
+      />
+      <div className="mb-2.5 flex flex-none flex-nowrap gap-1.5 overflow-x-auto pb-0.5">
+        {GS_TIPOS.map((t) => (
+          <Chip key={t.key} className="flex-none" ativo={tipo === t.key} onClick={() => setTipo(t.key)}>
+            {t.label}
+          </Chip>
+        ))}
       </div>
-    </div>
+      <select
+        value={peso}
+        onChange={(e) => setPeso(e.target.value)}
+        className="mb-2.5 w-full rounded-md border-[1.5px] border-line bg-card-2 px-1.5 py-2 text-md text-ink"
+      >
+        <option value="">peso: todos</option>
+        {(Object.entries(TAG_LABEL) as Array<[Tag, string]>).map(([k, v]) => (
+          <option key={k} value={k}>
+            peso: {v}
+          </option>
+        ))}
+      </select>
+      <div className="flex flex-auto flex-col gap-3 overflow-y-auto desktop:grid desktop:grid-cols-2 desktop:content-start desktop:items-start">
+        {q.length < 2 ? null : hits.length === 0 ? (
+          <Legenda className="px-0.5 py-2">Nada encontrado.</Legenda>
+        ) : (
+          hits.slice(0, 20).map((h, i) => (
+            <CartaoLista key={i} className="cursor-pointer" onClick={h.onSelect}>
+              <CartaoInfo>
+                <CartaoTitulo>
+                  <Icon name={h.icon} size={14} /> {h.title}
+                </CartaoTitulo>
+                <Legenda className="mt-0.5">{h.sub}</Legenda>
+              </CartaoInfo>
+              {h.action && (
+                <div className="flex shrink-0 items-center gap-2">
+                  <BotaoIcone
+                    rotulo={h.action.title}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      h.action!.onRun();
+                    }}
+                  >
+                    <Icon name={h.action.icon} size={14} />
+                  </BotaoIcone>
+                </div>
+              )}
+            </CartaoLista>
+          ))
+        )}
+        {hits.length > 20 && (
+          <Legenda className="px-0.5 py-2">+ {hits.length - 20} resultado(s) — refine a busca</Legenda>
+        )}
+      </div>
+    </Modal>
   );
 }

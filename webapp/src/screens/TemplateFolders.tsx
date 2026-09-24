@@ -6,6 +6,7 @@
 // incluindo o seletor de preset da matriz (openMatrixPresetPicker).
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
+import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Tabbar } from "../components/Tabbar";
 import { ModelosTabPill } from "../components/ModelosTabPill";
 import { Botao } from "../ui/Botao";
@@ -18,6 +19,7 @@ import { Modal, ModalAcoes, ModalTexto } from "../ui/Modal";
 import { GradePastas, PastaTile, SeparadorSecao } from "../features/modelos/PastaTile";
 import { TMPL_SECOES, TMPL_TYPES, type MatrixPreset } from "../lib/templates";
 import type { IconName } from "../lib/icons";
+import { rolavel, tela } from "../ui/Tela";
 
 interface Tile {
   key: string;
@@ -41,15 +43,18 @@ export function TemplateFolders() {
     : [];
 
   // Porta de templateFolderTiles (index.html:6471-6485).
-  const todas: Tile[] = [{ key: "notes", icon: "notes", label: "Notas" }, ...TMPL_TYPES.map((t) => ({ key: t.type, icon: t.icon, label: t.label }))];
+  const todas: Tile[] = [
+    { key: "notes", icon: "notes", label: "Notas" },
+    ...TMPL_TYPES.map((t) => ({ key: t.type, icon: t.icon, label: t.label })),
+  ];
   const secoes = TMPL_SECOES.map((s) => ({
     key: s.key,
     label: s.label,
     tiles: s.tipos.map((k) => todas.find((f) => f.key === k)).filter((f): f is Tile => !!f),
   }));
-  const journalRoutineIds = [...new Set(templates.filter((t) => t.type === "journal").map((t) => (t as { routineId?: string }).routineId))].filter(
-    (id): id is string => !!id,
-  );
+  const journalRoutineIds = [
+    ...new Set(templates.filter((t) => t.type === "journal").map((t) => (t as { routineId?: string }).routineId)),
+  ].filter((id): id is string => !!id);
   const rotinasTiles: Tile[] = journalRoutineIds.map((rid) => ({
     key: "journal:" + rid,
     icon: "notes",
@@ -106,11 +111,9 @@ export function TemplateFolders() {
   );
 
   return (
-    <div className="screen with-tabbar com-modelos-pill">
-      <div className="tab-scroll">
-        <div className="home-header">
-          <h1>Modelos</h1>
-        </div>
+    <div {...tela({ comAbas: true, comPill: true })}>
+      <div {...rolavel()}>
+        <CabecalhoTela titulo="Modelos" />
         <CampoBusca
           forma="caixa"
           type="search"
@@ -127,7 +130,13 @@ export function TemplateFolders() {
                 <CartaoLista
                   key={t.id}
                   onClick={() =>
-                    goTo({ tab: "templates", screen: "templateDoc", id: t.id, folderKind: rid ? "routine" : "type", folderKey: rid || t.type })
+                    goTo({
+                      tab: "templates",
+                      screen: "templateDoc",
+                      id: t.id,
+                      folderKind: rid ? "routine" : "type",
+                      folderKey: rid || t.type,
+                    })
                   }
                 >
                   <CartaoInfo>
@@ -188,7 +197,12 @@ export function TemplateFolders() {
             <Botao variante="solido" tamanho="modal" onClick={() => criarMatriz("swot")}>
               Análise SWOT
             </Botao>
-            <Botao variante="solido" tamanho="modal" className="bg-card-2 text-ink" onClick={() => criarMatriz("blank")}>
+            <Botao
+              variante="solido"
+              tamanho="modal"
+              className="bg-card-2 text-ink"
+              onClick={() => criarMatriz("blank")}
+            >
               Em branco
             </Botao>
             <Botao variante="neutro" tamanho="modal" onClick={() => setMatrixPicker(false)}>

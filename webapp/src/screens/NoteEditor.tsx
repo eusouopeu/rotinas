@@ -19,6 +19,7 @@ import {
 import { Icon } from "../components/Icon";
 import { LiveMdEditor, type LiveMdEditorHandle } from "../components/LiveMdEditor";
 import { BarraNota, BotaoNota, CabecaNota, PilulaNota } from "../features/notas/BarrasNota";
+import { tela } from "../ui/Tela";
 
 export function Inline({ text }: { text: string }) {
   return (
@@ -120,7 +121,7 @@ export function NoteEditor() {
     /* Layout no formato do Apple Notes (mockup do Pedro, 12/09/2026): barras
        flutuantes em pílula no topo e no rodapé, título grande e corpo sem
        moldura — a mesma linguagem vítrea da tabbar. */
-    <div className="screen h-full p-0 desktop:px-10 paisagem:px-4">
+    <div {...tela({}, "h-full p-0 desktop:px-10 paisagem:px-4")}>
       <BarraNota posicao="topo">
         {/* Voltar é navegação, não ação: fica como ícone solto, sem a moldura
             de pílula das ações (pedido do Pedro, 22/09/2026). */}

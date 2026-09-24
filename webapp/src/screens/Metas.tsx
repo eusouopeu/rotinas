@@ -5,6 +5,7 @@
 // permanecem para etapas seguintes.
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
+import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../features/roda/RodaVidaResumo";
 import { CartaoPrazo } from "../features/metas/CartaoPrazo";
@@ -25,6 +26,7 @@ import { Modal, ModalAcoes, ModalTexto } from "../ui/Modal";
 import { OpcaoCriar } from "../ui/OpcaoCriar";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { SegPill } from "../ui/Segmentado";
+import { rolavel, tela } from "../ui/Tela";
 
 export function Metas() {
   const templates = useAppStore((s) => s.templates);
@@ -89,10 +91,9 @@ export function Metas() {
   }
 
   return (
-    <div className="screen with-tabbar">
-      <div className="tab-scroll">
-        <div className="home-header mb-2.5">
-          <h1>Metas</h1>
+    <div {...tela({ comAbas: true })}>
+      <div {...rolavel()}>
+        <CabecalhoTela titulo="Metas" margem="2.5">
           {mostraPrazos && doc && metas.length > 0 && (
             <div className="flex items-center gap-2.5">
               <BotaoIcone
@@ -107,7 +108,7 @@ export function Metas() {
               </BotaoIcone>
             </div>
           )}
-        </div>
+        </CabecalhoTela>
 
         {erro && <Legenda className="mt-3 mb-2 text-erro">{erro}</Legenda>}
 

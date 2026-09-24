@@ -4,6 +4,7 @@
 // import/export de extrato CSV (mapeamento de colunas com prévia).
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
+import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { GraficosGastos } from "../features/gastos/GraficosGastos";
@@ -27,6 +28,7 @@ import {
   type ImportState,
 } from "../lib/expense";
 import type { ExpenseDoc } from "../lib/types";
+import { rolavel, tela } from "../ui/Tela";
 
 function downloadText(filename: string, text: string, mime: string) {
   const blob = new Blob([text], { type: mime });
@@ -106,18 +108,22 @@ export function ExpenseFolder() {
   }
 
   return (
-    <div className="screen with-tabbar">
-      <div className="tab-scroll">
-        <div className="home-header">
-          <h1 className="text-4xl">
-            <span
-              className="cursor-pointer text-4xl text-sub"
-              onClick={() => goTo({ tab: "templates", screen: "templateFolders" })}
-            >
-              <Icon name="chevronLeft" size={18} />
-            </span>{" "}
-            <Icon name="expense" size={18} /> Despesas
-          </h1>
+    <div {...tela({ comAbas: true })}>
+      <div {...rolavel()}>
+        <CabecalhoTela
+          titulo={
+            <>
+              <span
+                className="cursor-pointer text-4xl text-sub"
+                onClick={() => goTo({ tab: "templates", screen: "templateFolders" })}
+              >
+                <Icon name="chevronLeft" size={18} />
+              </span>{" "}
+              <Icon name="expense" size={18} /> Despesas
+            </>
+          }
+          tituloClassName="text-4xl paisagem:text-4xl"
+        >
           <div className="flex gap-1.5">
             <BotaoIcone rotulo="Importar extrato CSV" tamanho="sm" onClick={() => csvFileRef.current?.click()}>
               <Icon name="arrowUpTray" size={14} />
@@ -137,7 +143,7 @@ export function ExpenseFolder() {
               if (f) onCsvFile(f);
             }}
           />
-        </div>
+        </CabecalhoTela>
 
         {aviso && <Legenda className="mb-2">{aviso}</Legenda>}
 

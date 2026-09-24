@@ -31,7 +31,7 @@ import { Chip } from "../ui/Chip";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { Toggle } from "../ui/Segmentado";
 import { Switch } from "../ui/Switch";
-
+import { tela } from "../ui/Tela";
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -134,18 +134,27 @@ export function RoutineEditor() {
   const { dragFrom, dragOver, dragHandleProps } = useDragReorder((from, to) => reorderSteps(from.index, to.index));
 
   return (
-    <div className="screen screen-wide">
+    <div {...tela({ larga: true })}>
       <div className="mb-5 flex items-center justify-between gap-3">
         <BotaoLink tom="suave" onClick={cancelEdit}>
           Cancelar
         </BotaoLink>
-        <BotaoLink className="inline-flex items-center gap-[5px]" title="Exportar" aria-label="Exportar" onClick={handleExport}>
+        <BotaoLink
+          className="inline-flex items-center gap-[5px]"
+          title="Exportar"
+          aria-label="Exportar"
+          onClick={handleExport}
+        >
           <Icon name="arrowUpTray" size={14} /> Exportar
         </BotaoLink>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-[230px]" data-rolagem>
-        <CampoNome placeholder="Nome da rotina" value={draft.name} onChange={(e) => updateDraft({ name: e.target.value })} />
+        <CampoNome
+          placeholder="Nome da rotina"
+          value={draft.name}
+          onChange={(e) => updateDraft({ name: e.target.value })}
+        />
 
         {/* Porta de renderEditor > tagRow/areaRow (index.html:4341-4374): peso
             no boletim (multiplicador da pontuação) e área da roda da vida (com
@@ -153,7 +162,12 @@ export function RoutineEditor() {
             lançamento rápido da Home, para não desenhar um seletor novo. */}
         <div className="mt-0.5 mb-2.5 flex flex-wrap items-center gap-2.5">
           <span className="text-md text-sub">peso no boletim:</span>
-          <Toggle quebra options={[...PESOS]} active={draft.tagValor || "medio"} onSelect={(v: Tag) => updateDraft({ tagValor: v })} />
+          <Toggle
+            quebra
+            options={[...PESOS]}
+            active={draft.tagValor || "medio"}
+            onSelect={(v: Tag) => updateDraft({ tagValor: v })}
+          />
         </div>
 
         {/* a área aparece mesmo com a roda desligada (igual ao legado): ela
@@ -181,8 +195,13 @@ export function RoutineEditor() {
               className={cn(
                 "flex items-start gap-3 rounded-lg border-[1.5px] border-line bg-card p-3.5",
                 dragFrom?.index === i && "border-caneta opacity-45",
-                dragOver && dragFrom && dragOver.index === i && dragOver.index !== dragFrom.index &&
-                  (dragOver.index < dragFrom.index ? "shadow-[0_-3px_0_0_var(--caneta)]" : "shadow-[0_3px_0_0_var(--caneta)]")
+                dragOver &&
+                  dragFrom &&
+                  dragOver.index === i &&
+                  dragOver.index !== dragFrom.index &&
+                  (dragOver.index < dragFrom.index
+                    ? "shadow-[0_-3px_0_0_var(--caneta)]"
+                    : "shadow-[0_3px_0_0_var(--caneta)]")
               )}
               data-etapa
               key={s.id}
@@ -196,7 +215,7 @@ export function RoutineEditor() {
                   index: computeStepDragTarget(
                     stepRefs.current.map((el) => el!.getBoundingClientRect()),
                     i,
-                    y,
+                    y
                   ),
                 }))}
               />
@@ -212,7 +231,11 @@ export function RoutineEditor() {
                   />
                 )}
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <Toggle options={[...STEP_TYPES]} active={s.type as (typeof STEP_TYPES)[number]["key"]} onSelect={(t) => setStepType(i, t)} />
+                  <Toggle
+                    options={[...STEP_TYPES]}
+                    active={s.type as (typeof STEP_TYPES)[number]["key"]}
+                    onSelect={(t) => setStepType(i, t)}
+                  />
                 </div>
                 {s.type === "timer" && (
                   <div className="flex flex-wrap items-center gap-2">
@@ -243,7 +266,9 @@ export function RoutineEditor() {
                   <>
                     {/* exercício escolhido como chip clicável (troca ao tocar) */}
                     <BotaoEscolha escolhido={!!s.exercicioId} onClick={() => setPickerFor(i)}>
-                      {s.exercicioId ? exercicios.find((e) => e.id === s.exercicioId)?.nome || "exercício removido" : "escolher exercício"}
+                      {s.exercicioId
+                        ? exercicios.find((e) => e.id === s.exercicioId)?.nome || "exercício removido"
+                        : "escolher exercício"}
                     </BotaoEscolha>
                     {/* séries · reps · peso numa grade de 3 campos com ícone e unidade */}
                     <div className="mt-2 grid w-full grid-cols-3 gap-1.5">
@@ -283,7 +308,7 @@ export function RoutineEditor() {
                         step="0.5"
                         aria-label="Peso atual do exercício"
                         disabled={!s.exercicioId}
-                        value={s.exercicioId ? exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0 : ""}
+                        value={s.exercicioId ? (exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0) : ""}
                         placeholder="–"
                         onChange={(e) => {
                           const ex = exercicios.find((x) => x.id === s.exercicioId);
@@ -326,7 +351,10 @@ export function RoutineEditor() {
 
         <RotuloSecao>Agendamento</RotuloSecao>
         <Cartao raio="lg">
-          <Switch checked={schedule.enabled} onChange={(enabled) => updateDraft({ schedule: { ...schedule, enabled } })}>
+          <Switch
+            checked={schedule.enabled}
+            onChange={(enabled) => updateDraft({ schedule: { ...schedule, enabled } })}
+          >
             Ativar horário
           </Switch>
           {schedule.enabled && (
@@ -344,7 +372,9 @@ export function RoutineEditor() {
                 />
               </div>
               <ChipsDia className="mt-2.5" rotulos={DAY_LETTERS} ativos={schedule.days} onToggle={toggleDia} />
-              <div className="mt-3 font-sans text-md text-sub">{sched ? `${sched.startStr} → ${sched.endStr}` : "Defina um horário."}</div>
+              <div className="mt-3 font-sans text-md text-sub">
+                {sched ? `${sched.startStr} → ${sched.endStr}` : "Defina um horário."}
+              </div>
             </div>
           )}
         </Cartao>

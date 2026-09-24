@@ -14,6 +14,7 @@ import {
 } from "../features/dados/RotinaSecoes";
 import { getRoutineDetailStats } from "../lib/stats";
 import { fmtTime } from "../lib/format";
+import { tela } from "../ui/Tela";
 
 export function RoutineStats() {
   const goTo = useAppStore((s) => s.goTo);
@@ -38,7 +39,7 @@ export function RoutineStats() {
 
   if (!routine) {
     return (
-      <div className="screen">
+      <div {...tela({})}>
         {barra()}
         <EstadoVazio titulo="Rotina não encontrada" />
       </div>
@@ -58,7 +59,7 @@ export function RoutineStats() {
   }
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       {barra((routine.icon ? routine.icon + " " : "") + routine.name)}
 
       <div className="flex-1 overflow-y-auto pb-5">

@@ -11,6 +11,7 @@ import { BotaoIcone } from "../ui/BotaoIcone";
 import { exportPdfView } from "../lib/exportFile";
 import { matrixPdfHtml } from "../lib/pdfExport";
 import type { MatrixDoc as MatrixDocType } from "../lib/types";
+import { tela } from "../ui/Tela";
 
 type Quadrant = MatrixDocType["quadrants"][number];
 
@@ -59,7 +60,7 @@ export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
   );
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <BarraPdf
         antes={

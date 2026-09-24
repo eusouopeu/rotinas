@@ -14,6 +14,7 @@ import { cn } from "../lib/cn";
 import { exportPdfView } from "../lib/exportFile";
 import { kanbanPdfHtml } from "../lib/pdfExport";
 import type { KanbanDoc as KanbanDocType } from "../lib/types";
+import { tela } from "../ui/Tela";
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -51,7 +52,7 @@ export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
   );
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <CabecalhoDoc doc={doc} onTitleChange={(title) => updateTemplateDoc({ ...doc, title })} />
       <BarraPdf exportar={() => exportPdfView(doc.title, kanbanPdfHtml(doc), "Kanbans")} />
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pb-3.5 paisagem:flex-row paisagem:items-stretch paisagem:gap-2">

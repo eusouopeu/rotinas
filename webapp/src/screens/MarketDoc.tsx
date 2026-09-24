@@ -19,6 +19,7 @@ import { GROCERY_DB, brl, bumpMkFreq, guessAisle, marketShareText, topMkFreq, ty
 import { K_MKFREQ } from "../lib/constants";
 import { load, save as saveKey } from "../lib/storage";
 import type { MarketDoc as MarketDocType } from "../lib/types";
+import { tela } from "../ui/Tela";
 
 type Item = MarketDocType["items"][number];
 
@@ -105,7 +106,7 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
   }
 
   return (
-    <div className="screen">
+    <div {...tela({})}>
       <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <BarraDoc>
         <BotaoIcone
