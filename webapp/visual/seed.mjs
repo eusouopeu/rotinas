@@ -197,6 +197,13 @@ const compromissos = [
   { id: "cp2", title: "Aniversário da Ana", date: "2026-09-25", time: "", notify: "nenhuma", createdAt: t0 - 5 * DIA },
 ];
 
+// Biblioteca de exercícios (etapas do tipo "exercício" das rotinas)
+const exercicios = [
+  { id: "ex1", nome: "Supino reto", grupos: ["Peito", "Tríceps"], pesoAtual: 60, composto: true },
+  { id: "ex2", nome: "Remada curvada", grupos: ["Costas"], pesoAtual: 45, composto: true },
+  { id: "ex3", nome: "Rosca direta", grupos: ["Bíceps"], pesoAtual: 20, composto: false },
+];
+
 // chaves do localStorage legado: K_PREFIX + nome (src/lib/constants.ts)
 export const seedLocalStorage = {
   rotinas_v2_routines: routines,
@@ -207,4 +214,5 @@ export const seedLocalStorage = {
   rotinas_v2_diario: diario,
   rotinas_v2_diakanban: diaKanban,
   rotinas_v2_compromissos: compromissos,
+  rotinas_v2_exercicios: exercicios,
 };
