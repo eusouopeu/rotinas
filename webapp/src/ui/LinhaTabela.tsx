@@ -4,22 +4,26 @@
 //   <LinhaTabela><CelRotulo>Manhã</CelRotulo><CelNegrito status="atraso">+2</CelNegrito>
 //     <CelNota>10x</CelNota></LinhaTabela>
 // `coluna` empilha as células (execuções recentes); `toque` faz a linha ser
-// clicável (cursor de mão e escurecer ao apertar).
+// clicável (cursor de mão e escurecer ao apertar); `cabecalho` é a linha de
+// títulos da tabela (caixa alta pequena, filete mais escuro).
 import type { HTMLAttributes } from "react";
 import { cn } from "../lib/cn";
 
 export function LinhaTabela({
   coluna,
   toque,
+  cabecalho,
   className,
   ...resto
-}: HTMLAttributes<HTMLDivElement> & { coluna?: boolean; toque?: boolean }) {
+}: HTMLAttributes<HTMLDivElement> & { coluna?: boolean; toque?: boolean; cabecalho?: boolean }) {
   return (
     <div
       className={cn(
         "flex justify-between border-b-[1.5px] border-line py-[7px] text-base last:border-b-0",
         coluna ? "flex-col items-start gap-0.5" : "items-center gap-2.5",
         toque && "cursor-pointer active:opacity-60",
+        cabecalho &&
+          "border-b-sub [&>*]:font-sans [&>*]:text-[10.5px] [&>*]:font-normal [&>*]:tracking-[0.05em] [&>*]:text-sub [&>*]:uppercase",
         className
       )}
       {...resto}
@@ -50,11 +54,7 @@ const STATUS = { atraso: "text-erro", adiantado: "text-ok", pontual: "text-canet
 export type StatusCelula = keyof typeof STATUS;
 
 /** Valor em negrito à direita; `status` pinta (atraso vermelho, adiantado verde, pontual da cor de destaque). */
-export function CelNegrito({
-  status,
-  className,
-  ...resto
-}: HTMLAttributes<HTMLElement> & { status?: StatusCelula }) {
+export function CelNegrito({ status, className, ...resto }: HTMLAttributes<HTMLElement> & { status?: StatusCelula }) {
   return (
     <b
       className={cn("min-w-[58px] flex-none text-right font-bold tabular-nums", status && STATUS[status], className)}

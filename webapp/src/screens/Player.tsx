@@ -2,20 +2,37 @@
 // "exercicio" (sub-loop de séries com reps/peso, ver
 // concluirSerieExercicio/pularDescansoExercicio/voltarSerieExercicio na
 // store), adiar/não-fazer/reiniciar etapa, lançamento rápido, painel de
-// etapas e nota vinculada (ver components/PlayerOverlays.tsx). Sem modo zen
+// etapas e nota vinculada (ver features/player/). Sem modo zen
 // nem journaling/nota por etapa ainda (RoutineStep.noteId/journaling não têm
 // UI de criação em nenhum editor do React — não é regressão desta rodada,
 // nunca existiu aqui). O círculo de progresso (SVG dasharray) é o mesmo
 // truque do original.
 import { useEffect, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
-import { Icon } from "../components/Icon";
-import { activeCountdown, computeExRestRemaining, exercicioAnteriorComSeries, computeRemaining, filaOverlay, parseRepsRange } from "../lib/player";
-import { fmtTime } from "../lib/format";
+import {
+  activeCountdown,
+  computeExRestRemaining,
+  exercicioAnteriorComSeries,
+  computeRemaining,
+  filaOverlay,
+  parseRepsRange,
+} from "../lib/player";
 import { timeUpCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
 import { cancelarAlertaFundo, sincronizarAlertaFundo } from "../lib/notifications";
-import { NotaRotinaOverlay, QuickAddOverlay, StepsOverlay } from "../components/PlayerOverlays";
+import { AvisoCartao } from "../ui/AvisoCartao";
+import { LancarRapido } from "../features/player/LancarRapido";
+import { NotaAnexada } from "../features/player/NotaAnexada";
+import { PainelEtapas } from "../features/player/PainelEtapas";
+import { CorpoExercicio, CorpoSimples, DiscoTempo } from "../features/player/Corpos";
+import {
+  ControlesExercicio,
+  ControlesSimples,
+  ControlesTempo,
+  LinhaPular,
+  TrilhaEtapas,
+} from "../features/player/Controles";
+import { TopoPlayer } from "../features/player/Topo";
 
 export function Player() {
   const playerState = useAppStore((s) => s.playerState);
@@ -56,7 +73,14 @@ export function Player() {
       // 12/09/2026 — diverge do legado index.html:11355-11363): avisa uma vez
       // e segue contando negativo até o toque em "pular descanso".
       const p = useAppStore.getState().playerState;
-      if (p && !p.paused && p.ex?.phase === "rest" && p.ex.restEndTs != null && Date.now() >= p.ex.restEndTs && !p.overtimeCueFired) {
+      if (
+        p &&
+        !p.paused &&
+        p.ex?.phase === "rest" &&
+        p.ex.restEndTs != null &&
+        Date.now() >= p.ex.restEndTs &&
+        !p.overtimeCueFired
+      ) {
         timeUpCue();
         useAppStore.setState({ playerState: { ...p, overtimeCueFired: true } });
         return;
@@ -65,7 +89,14 @@ export function Player() {
       // 11433), só o aviso (vibração) dispara — uma vez — e o cronômetro
       // segue contando negativo até o toque em "concluir".
       const step = p?.steps[p.idx];
-      if (p && !p.paused && step?.type === "timer" && p.stepEndTs != null && Date.now() >= p.stepEndTs && !p.overtimeCueFired) {
+      if (
+        p &&
+        !p.paused &&
+        step?.type === "timer" &&
+        p.stepEndTs != null &&
+        Date.now() >= p.stepEndTs &&
+        !p.overtimeCueFired
+      ) {
         timeUpCue();
         useAppStore.setState({ playerState: { ...p, overtimeCueFired: true } });
       }
@@ -129,7 +160,16 @@ export function Player() {
       queue: JSON.stringify(filaOverlay(playerState)),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cronometroModo, appBackground, playerState?.idx, playerState?.paused, playerState?.pausedAt, cd?.endTs, cd?.auto, cd?.label]);
+  }, [
+    cronometroModo,
+    appBackground,
+    playerState?.idx,
+    playerState?.paused,
+    playerState?.pausedAt,
+    cd?.endTs,
+    cd?.auto,
+    cd?.label,
+  ]);
 
   // Alerta nativo de fim de etapa (porta de sincronizarAlertaFundo,
   // index.html:2708-2725). Independente da bolha e da preferência de
@@ -144,7 +184,15 @@ export function Player() {
       routineName: playerState?.routineName || "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appBackground, playerState?.idx, playerState?.paused, cd?.endTs, cd?.isRest, cd?.label, playerState?.routineName]);
+  }, [
+    appBackground,
+    playerState?.idx,
+    playerState?.paused,
+    cd?.endTs,
+    cd?.isRest,
+    cd?.label,
+    playerState?.routineName,
+  ]);
 
   // Encerra o serviço/bolha ao sair da tela do Player (rotina concluída ou
   // cancelada) — sem isso a notificação/bolha ficaria presa. O alerta de
@@ -174,15 +222,12 @@ export function Player() {
 
   const rem = computeRemaining(playerState);
   const exRem = computeExRestRemaining(playerState);
-  const rad = 116;
-  const c = 2 * Math.PI * rad;
-  const frac = step.type === "timer" ? Math.max(rem, 0) / (step.seconds || 1) : 0;
-  const strokeColor = step.isRest ? "var(--ok)" : "var(--caneta)";
 
   function handleExit() {
     const ganhos = playerState?.pontosGanhos || 0;
     const nota = ganhos > 0 ? `\nOs ${ganhos.toFixed(1)} pontos das etapas já concluídas ficam no boletim.` : "";
-    if (window.confirm("Sair da rotina em andamento?\nO progresso fica salvo para retomar depois." + nota)) exitPlayer();
+    if (window.confirm("Sair da rotina em andamento?\nO progresso fica salvo para retomar depois." + nota))
+      exitPlayer();
   }
 
   const temNota = !!routine?.notaId;
@@ -194,248 +239,102 @@ export function Player() {
   // Carga prevista do próximo exercício, já na pausa antes dele (legado
   // index.html:12415-12421); pula a pausa se a próxima etapa for ela.
   const proxima = playerState.steps[playerState.idx + 1];
-  const proximoEx = [proxima, proxima?.isRest ? playerState.steps[playerState.idx + 2] : undefined].find((s) => s?.type === "exercicio");
+  const proximoEx = [proxima, proxima?.isRest ? playerState.steps[playerState.idx + 2] : undefined].find(
+    (s) => s?.type === "exercicio"
+  );
   const proximoPeso = proximoEx ? exercicios.find((e) => e.id === proximoEx.exercicioId)?.pesoAtual || 0 : 0;
   // no descanso entre séries: a carga da última série (vira a sugestão da próxima)
   const pesoSerie = playerState.ex?.results[playerState.ex.results.length - 1]?.peso || 0;
   const podeVoltarSerie =
-    (step.type === "exercicio" && (playerState.ex?.results.length || 0) > 0) || exercicioAnteriorComSeries(playerState) >= 0;
+    (step.type === "exercicio" && (playerState.ex?.results.length || 0) > 0) ||
+    exercicioAnteriorComSeries(playerState) >= 0;
+  const comuns = { podeAdiar, onAnterior: goPrevStep, onAdiar: adiarEtapaAtual };
 
   return (
-    <div className="screen" style={{ paddingBottom: 0 }}>
-      <div className="player">
-        <div className="player-top">
-          <button className="player-close" onClick={handleExit}>
-            Sair
-          </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button className="player-close" title="Ver todas as etapas" aria-label="Ver todas as etapas" onClick={() => setOverlay("steps")}>
-              <Icon name="bars3" size={15} />
-            </button>
-            {temNota && (
-              <button className="player-close" title="Abrir nota anexada" aria-label="Abrir nota anexada" onClick={() => setOverlay("nota")}>
-                <Icon name="notes" size={14} />
-              </button>
-            )}
-            <button className="player-close" title="Lançar rápido" aria-label="Lançar rápido" onClick={() => setOverlay("quickadd")}>
-              +
-            </button>
-            <div className="player-progress-label">
-              {playerState.idx + 1} / {playerState.steps.length}
-            </div>
-          </div>
-        </div>
+    <div className="screen pb-0">
+      <div className="flex w-full flex-1 flex-col items-center justify-between pt-1.5 pb-5 paisagem:justify-start paisagem:gap-1 paisagem:overflow-y-auto paisagem:pt-0.5 paisagem:pb-2">
+        <TopoPlayer
+          posicao={playerState.idx + 1}
+          total={playerState.steps.length}
+          temNota={temNota}
+          onSair={handleExit}
+          onEtapas={() => setOverlay("steps")}
+          onNota={() => setOverlay("nota")}
+          onRapido={() => setOverlay("quickadd")}
+        />
 
         {playerBanner && (
-          <div className="notice-card" style={{ marginBottom: 10 }}>
+          <AvisoCartao className="mb-2.5">
             <span>{playerBanner}</span>
-          </div>
+          </AvisoCartao>
         )}
 
         {step.type === "timer" ? (
-          <div className={"dial-wrap" + (rem < 0 ? " overtime" : "") + (step.isRest ? " restdial" : "")}>
-            <svg viewBox="0 0 260 260">
-              <circle className="dial-track" cx={130} cy={130} r={rad} fill="none" strokeWidth={10} />
-              <circle
-                cx={130}
-                cy={130}
-                r={rad}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={10}
-                strokeLinecap="round"
-                strokeDasharray={c}
-                strokeDashoffset={c * frac}
-              />
-            </svg>
-            <div className="dial-time">
-              <div className="step-title">{step.isRest ? "Descanso" : "Etapa " + (playerState.idx + 1)}</div>
-              <div className={"t" + (rem < 0 ? " overtime" : "")}>{fmtTime(rem)}</div>
-              <div className="label">{step.name}</div>
-            </div>
-          </div>
+          <DiscoTempo
+            restante={rem}
+            total={step.seconds || 1}
+            descanso={!!step.isRest}
+            titulo={step.isRest ? "Descanso" : "Etapa " + (playerState.idx + 1)}
+            nome={step.name}
+          />
         ) : step.type === "exercicio" ? (
-          <div className="checklist-body">
-            {exPhase === "rest" ? (
-              <>
-                <div className="step-title">Descanso</div>
-                <div
-                  className={"t" + (exRem < 0 ? " overtime" : "")}
-                  style={{ fontFamily: "'Montserrat'", fontSize: 48, fontWeight: 600, margin: "6px 0", color: exRem < 0 ? "var(--erro)" : undefined }}
-                >
-                  {fmtTime(exRem)}
-                </div>
-                <h2>{step.name}</h2>
-                <div className="dev-n">
-                  série {playerState.ex!.setIdx} de {step.sets || 1} concluída
-                  {pesoSerie ? ` · próxima: ${pesoSerie}kg` : ""}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="step-title">
-                  Série {(playerState.ex?.setIdx || 0) + 1} de {step.sets || 1}
-                </div>
-                <div className="check-circle" style={{ width: 100, height: 100, fontSize: 36 }}>
-                  <Icon name="trophy" size={32} />
-                </div>
-                <h2>{step.name}</h2>
-                <div className="ex-inputs" style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12 }}>
-                  <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, fontSize: 12, color: "var(--sub)" }}>
-                    reps
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      value={reps}
-                      onChange={(e) => setReps(+e.target.value || 0)}
-                      style={{ width: 64, textAlign: "center", background: "var(--card-2)", border: "1.5px solid var(--line)", borderRadius: 10, padding: 8, fontSize: 18, color: "var(--ink)" }}
-                    />
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, fontSize: 12, color: "var(--sub)" }}>
-                    kg
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step={0.5}
-                      value={peso}
-                      onChange={(e) => setPeso(+e.target.value || 0)}
-                      style={{ width: 72, textAlign: "center", background: "var(--card-2)", border: "1.5px solid var(--line)", borderRadius: 10, padding: 8, fontSize: 18, color: "var(--ink)" }}
-                    />
-                  </label>
-                </div>
-              </>
-            )}
-          </div>
+          <CorpoExercicio
+            nome={step.name}
+            fase={exPhase}
+            serieAtual={playerState.ex?.setIdx || 0}
+            series={step.sets || 1}
+            descansoRestante={exRem}
+            pesoSerie={pesoSerie}
+            reps={reps}
+            peso={peso}
+            onReps={setReps}
+            onPeso={setPeso}
+          />
         ) : (
-          <div className="checklist-body">
-            <div className="step-title">Etapa {playerState.idx + 1}</div>
-            <div className="check-circle">
-              <Icon name="check" size={14} />
-            </div>
-            <h2>{step.name}</h2>
-          </div>
+          <CorpoSimples posicao={playerState.idx + 1} nome={step.name} />
         )}
 
-        <div style={{ width: "100%" }}>
-          <div className="next-task-row">
+        <div className="w-full">
+          <div className="mt-2.5 mb-1.5 w-full text-center font-sans text-sm leading-normal text-sub paisagem:px-0.5 paisagem:py-1">
             {proxima ? `próxima tarefa: ${proxima.name}${proximoPeso ? ` — ${proximoPeso}kg` : ""}` : "última etapa"}
           </div>
         </div>
 
-        <div className="stepper-track">
-          {playerState.steps.map((s, i) => {
-            const fillPct =
-              i < playerState.idx ? 100 : i === playerState.idx && s.type === "timer" ? (1 - Math.max(rem, 0) / (s.seconds || 1)) * 100 : 0;
-            return (
-              <div className={"seg" + (i < playerState.idx ? " done" : "") + (s.isRest ? " rest" : "")} key={s.id}>
-                <div className="fill" style={{ width: `${fillPct}%` }} />
-              </div>
-            );
-          })}
-        </div>
+        <TrilhaEtapas etapas={playerState.steps} atual={playerState.idx} restante={rem} />
 
         {step.type === "timer" ? (
-          <div className="player-controls five">
-            <button className="ctrl-btn" title="Etapa anterior" aria-label="Etapa anterior" onClick={goPrevStep}>
-              <Icon name="arrowLeft" size={15} />
-            </button>
-            <button className="ctrl-btn" title="Reiniciar o temporizador da etapa" aria-label="Reiniciar o temporizador da etapa" onClick={reiniciarTimerEtapaAtual}>
-              <Icon name="arrowPath" size={15} />
-            </button>
-            <button className="ctrl-btn big" onClick={togglePause}>
-              <Icon name={playerState.paused ? "play" : "pause"} size={22} />
-            </button>
-            <button
-              className={"ctrl-btn ok" + (rem < 0 ? " pulse" : "")}
-              title="Concluir etapa"
-              aria-label="Concluir etapa"
-              onClick={() => advanceStep()}
-            >
-              <Icon name="check" size={14} />
-            </button>
-            <button
-              className="ctrl-btn"
-              title="Adiar: vai para depois da pausa da próxima etapa"
-              aria-label="Adiar etapa"
-              disabled={!podeAdiar}
-              style={podeAdiar ? undefined : { opacity: 0.35 }}
-              onClick={adiarEtapaAtual}
-            >
-              <Icon name="arrowUturnRight" size={14} />
-            </button>
-          </div>
+          <ControlesTempo
+            {...comuns}
+            pausado={!!playerState.paused}
+            estourou={rem < 0}
+            onReiniciar={reiniciarTimerEtapaAtual}
+            onPausar={togglePause}
+            onConcluir={() => advanceStep()}
+          />
         ) : step.type === "exercicio" ? (
-          <div className="player-controls">
-            <button className="ctrl-btn" title="Etapa anterior" aria-label="Etapa anterior" onClick={goPrevStep}>
-              <Icon name="arrowLeft" size={15} />
-            </button>
-            {exPhase === "rest" ? (
-              <button className="ctrl-btn big ok" title="Pular descanso" aria-label="Pular descanso" onClick={pularDescansoExercicio}>
-                <Icon name="play" size={20} />
-              </button>
-            ) : (
-              <button
-                className="ctrl-btn big ok"
-                title="Concluir série"
-                aria-label="Concluir série"
-                onClick={() => concluirSerieExercicio(reps, peso)}
-              >
-                <Icon name="check" size={14} />
-              </button>
-            )}
-            <button
-              className="ctrl-btn"
-              title="Adiar: vai para depois da pausa da próxima etapa"
-              aria-label="Adiar etapa"
-              disabled={!podeAdiar}
-              style={podeAdiar ? undefined : { opacity: 0.35 }}
-              onClick={adiarEtapaAtual}
-            >
-              <Icon name="arrowUturnRight" size={14} />
-            </button>
-          </div>
+          <ControlesExercicio
+            {...comuns}
+            descansando={exPhase === "rest"}
+            onConcluirSerie={() => concluirSerieExercicio(reps, peso)}
+            onPularDescanso={pularDescansoExercicio}
+          />
         ) : (
-          <div className="player-controls">
-            <button className="ctrl-btn" title="Etapa anterior" aria-label="Etapa anterior" onClick={goPrevStep}>
-              <Icon name="arrowLeft" size={15} />
-            </button>
-            <button className="ctrl-btn big ok" title="Concluir etapa" aria-label="Concluir etapa" onClick={() => advanceStep()}>
-              <Icon name="check" size={14} />
-            </button>
-            <button
-              className="ctrl-btn"
-              title="Adiar: vai para depois da pausa da próxima etapa"
-              aria-label="Adiar etapa"
-              disabled={!podeAdiar}
-              style={podeAdiar ? undefined : { opacity: 0.35 }}
-              onClick={adiarEtapaAtual}
-            >
-              <Icon name="arrowUturnRight" size={14} />
-            </button>
-          </div>
+          <ControlesSimples {...comuns} onConcluir={() => advanceStep()} />
         )}
 
-        {podeVoltarSerie || !step.isRest ? (
-          <div className="skip-row" style={{ padding: "10px 0 4px" }}>
-            {podeVoltarSerie && (
-              <button className="skip-btn" title="Reabre só a última série registrada" onClick={voltarSerieExercicio}>
-                <Icon name="arrowLeft" size={13} /> voltar série
-              </button>
-            )}
-            {!step.isRest && (
-              <button className="skip-btn" title="Encerrar sem concluir e sem pontuar" onClick={naoFazerEtapaAtual}>
-                não fazer
-              </button>
-            )}
-          </div>
-        ) : null}
+        {(podeVoltarSerie || !step.isRest) && (
+          <LinhaPular
+            podeVoltarSerie={podeVoltarSerie}
+            podeNaoFazer={!step.isRest}
+            onVoltarSerie={voltarSerieExercicio}
+            onNaoFazer={naoFazerEtapaAtual}
+          />
+        )}
       </div>
 
-      {overlay === "steps" && <StepsOverlay playerState={playerState} onClose={() => setOverlay(null)} />}
-      {overlay === "nota" && <NotaRotinaOverlay routineId={playerState.routineId} onClose={() => setOverlay(null)} />}
-      {overlay === "quickadd" && <QuickAddOverlay onClose={() => setOverlay(null)} />}
+      {overlay === "steps" && <PainelEtapas playerState={playerState} onClose={() => setOverlay(null)} />}
+      {overlay === "nota" && <NotaAnexada routineId={playerState.routineId} onClose={() => setOverlay(null)} />}
+      {overlay === "quickadd" && <LancarRapido onClose={() => setOverlay(null)} />}
     </div>
   );
 }

@@ -109,6 +109,16 @@
 
   --animate-entra: entra 0.25s ease;
   --animate-entra-rapido: entra 0.15s ease;
+  --animate-pulso: pulso 1.1s infinite;
+  @keyframes pulso {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.08);
+    }
+  }
   @keyframes entra {
     from {
       opacity: 0;

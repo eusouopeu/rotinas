@@ -38,14 +38,24 @@ export function BarrasDiaSemana({
   );
 }
 
-export function BarrasHora({ colunas }: { colunas: Array<{ hour: number; showLabel: boolean; height: number }> }) {
+/** `cor` pinta as colunas com execução (Estatísticas de rotina usam a cor da área). */
+export function BarrasHora({
+  colunas,
+  cor,
+}: {
+  colunas: Array<{ hour: number; showLabel: boolean; height: number; count?: number }>;
+  cor?: string;
+}) {
   return (
     <div className="flex h-[84px] items-end gap-0.5">
       {colunas.map((c) => (
         <div className="flex h-full flex-1 flex-col items-center" key={c.hour}>
           <span className={cn(ROTULO, "h-3 leading-3")}>{c.showLabel ? `${c.hour}h` : ""}</span>
           <div className="flex w-full flex-1 items-end justify-center">
-            <div className="w-full max-w-[12px] rounded-[2px_2px_0_0] bg-caneta" style={{ height: `${c.height}px` }} />
+            <div
+              className="w-full max-w-[12px] rounded-[2px_2px_0_0] bg-caneta"
+              style={{ height: `${c.height}px`, background: cor && c.count ? cor : undefined }}
+            />
           </div>
         </div>
       ))}

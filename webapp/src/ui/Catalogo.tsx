@@ -16,7 +16,9 @@ import { BotaoLink } from "./BotaoLink";
 import { Selecao } from "./Selecao";
 import { CelNegrito, CelNota, CelRotulo, LinhaTabela } from "./LinhaTabela";
 import { Botao } from "./Botao";
+import { BotaoMover } from "./BotaoMover";
 import { BotaoRedondo } from "./BotaoRedondo";
+import { CirculoCheck } from "./CirculoCheck";
 import { Fato, Fatos } from "./Fatos";
 import { LinhaBarra } from "./LinhaBarra";
 import { OpcaoCriar } from "./OpcaoCriar";
@@ -534,6 +536,47 @@ export function Catalogo() {
           nome="botao-redondo"
           legado={<button className="ctrl-btn">+</button>}
           novo={<BotaoRedondo rotulo="Mais um">+</BotaoRedondo>}
+        />
+        <Par
+          nome="botao-redondo-grande"
+          legado={<button className="ctrl-btn big">+</button>}
+          novo={<BotaoRedondo rotulo="Pausar" tamanho="grande" cor="destaque">+</BotaoRedondo>}
+        />
+        <Par
+          nome="botao-redondo-ok"
+          legado={<button className="ctrl-btn ok">+</button>}
+          novo={<BotaoRedondo rotulo="Concluir" cor="ok">+</BotaoRedondo>}
+        />
+        <Par
+          nome="botao-redondo-ok-grande"
+          legado={<button className="ctrl-btn ok big">+</button>}
+          novo={<BotaoRedondo rotulo="Concluir série" tamanho="grande" cor="ok">+</BotaoRedondo>}
+        />
+        <Par
+          nome="circulo-check"
+          legado={<div className="check-circle">{icone}</div>}
+          novo={<CirculoCheck>{icone}</CirculoCheck>}
+        />
+        <Par
+          nome="botao-mover"
+          legado={<button className="kb-move-btn">{icone}</button>}
+          novo={<BotaoMover rotulo="Subir etapa">{icone}</BotaoMover>}
+        />
+        <Par
+          nome="linha-tabela-cabecalho"
+          legado={
+            <div className="dev-row dev-head">
+              <span>tarefa</span>
+              <b>média</b>
+            </div>
+          }
+          novo={
+            <LinhaTabela cabecalho>
+              <CelRotulo>tarefa</CelRotulo>
+              <CelNegrito>média</CelNegrito>
+            </LinhaTabela>
+          }
+          cmp={[{}, { sel: "span" }, { sel: "b" }]}
         />
         <Par
           nome="alca-arrasto"

@@ -62,7 +62,8 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 | `BarraDetalhe`, `BotaoLink`, `Selecao` | `.detail-bar`, `.topbar .link-btn`, `.routine-select` | |
 | `BarraAcoes`, `CampoNome` | `.bottom-actions`, `input.name-input` | rodapé fixo com Salvar/Excluir; título grande de tela de edição |
 | `PontoCor`, `BotaoPlay`, `AvisoCartao` | `.r-dot`, `.play-btn`, `.notice-card` | |
-| `BotaoRedondo`, `AlcaArrasto`, `OpcaoCriar`, `Fatos`/`Fato` | `.ctrl-btn`, `.drag-handle`, `.novo-opcao`, `.routine-meta-line`/`.rc-fact` | |
+| `BotaoRedondo`, `AlcaArrasto`, `OpcaoCriar`, `Fatos`/`Fato` | `.ctrl-btn`, `.drag-handle`, `.novo-opcao`, `.routine-meta-line`/`.rc-fact` | `BotaoRedondo`: `tamanho` sm/md/grande (76px, botão principal do player) e `cor` neutro/destaque/ok; `ok`+`grande` mantém o verde no hover (o legado tinha regra mais específica); `pulso` anima |
+| `CirculoCheck`, `BotaoMover` | `.check-circle`, `.kb-move-btn` | etapa simples do player / conclusão; subir-descer de etapas (o Kanban reusa quando migrar). `LinhaTabela` ganhou `cabecalho` (`.dev-head`) |
 | `CartaoLista` / `CARTAO_LISTA`, `CartaoInfo`, `CartaoTitulo`, `ListaCartoes` | `.note-card`/`.routine-card`, `.note-info`, `.notes-list`/`.routine-list` | dentro de `SwipeItem` passe `CARTAO_LISTA` no `className` dele; lista vira grade de 2 colunas no desktop |
 | `SwipeItem` (`ui/`) | `.swipe-item/.swipe-track/.swipe-del-btn` | marcador `data-swipe-item` (lib/swipe.ts) |
 | `Chip variante="tag"`, `CampoBusca forma="caixa"` | `.tag-chip`, `.note-search` | |
