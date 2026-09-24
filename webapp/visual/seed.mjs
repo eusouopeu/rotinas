@@ -152,6 +152,43 @@ const templates = [
     cons: [{ id: "co1", text: "Custo da mudança", w: 4 }, { id: "co2", text: "Rua barulhenta", w: 3 }],
   },
   {
+    id: "t-mercado", type: "market", title: "Compras do mês", createdAt: t0 - 4 * DIA, updatedAt: t0 - DIA, shopMode: false,
+    aisleOrder: ["Hortifrúti", "Açougue e Peixaria", "Frios e Laticínios", "Padaria", "Mercearia", "Bebidas", "Congelados", "Limpeza", "Higiene", "Pet", "Outros"],
+    items: [
+      { id: "mi1", name: "banana", qty: 6, unit: "un", price: 7.5, aisle: "Hortifrúti", checked: true },
+      { id: "mi2", name: "tomate", qty: 1, unit: "kg", price: 9.9, aisle: "Hortifrúti", checked: false },
+      { id: "mi3", name: "frango", qty: 2, unit: "kg", price: 31.8, aisle: "Açougue e Peixaria", checked: false },
+      { id: "mi4", name: "leite", qty: 6, unit: "L", price: 34.2, aisle: "Frios e Laticínios", checked: false },
+      { id: "mi5", name: "arroz", qty: 5, unit: "kg", price: 0, aisle: "Mercearia", checked: false },
+      { id: "mi6", name: "detergente", qty: 3, unit: "un", price: 0, aisle: "Limpeza", checked: true },
+    ],
+  },
+  { id: "t-mercado0", type: "market", title: "Lista vazia", createdAt: t0 - 2 * DIA, updatedAt: t0 - 2 * DIA, shopMode: false,
+    aisleOrder: ["Hortifrúti", "Mercearia", "Outros"], items: [] },
+  {
+    id: "t-viagem", type: "travel", title: "Praia em janeiro", createdAt: t0 - 3 * DIA, updatedAt: t0 - DIA,
+    catOrder: ["Documentos", "Roupas", "Calçados", "Higiene", "Saúde", "Eletrônicos", "Acessórios", "Outros"],
+    items: [
+      { id: "vi1", name: "passaporte", cat: "Documentos", qty: 1, checked: true },
+      { id: "vi2", name: "passagens", cat: "Documentos", qty: 1, checked: false },
+      { id: "vi3", name: "camisetas", cat: "Roupas", qty: 5, checked: false },
+      { id: "vi4", name: "protetor solar", cat: "Higiene", qty: 2, checked: false },
+      { id: "vi5", name: "carregador", cat: "Eletrônicos", qty: 1, checked: true },
+    ],
+  },
+  { id: "t-viagem0", type: "travel", title: "Mala vazia", createdAt: t0 - 2 * DIA, updatedAt: t0 - 2 * DIA,
+    catOrder: ["Documentos", "Roupas", "Outros"], items: [] },
+  {
+    id: "t-matriz", type: "matrix", title: "Prioridades da semana", createdAt: t0 - 2 * DIA, updatedAt: t0 - DIA,
+    axisX: "urgência", axisY: "importância",
+    quadrants: [
+      { title: "Fazer agora", color: "#EC6AA8", mode: "check", items: [{ text: "Entregar relatório", checked: false, indent: 0 }, { text: "Revisar números", checked: true, indent: 1 }] },
+      { title: "Agendar", color: "#5B8DEF", mode: "ol", items: [{ text: "Planejar o trimestre", indent: 0 }, { text: "Marcar dentista", indent: 0 }, { text: "Levantar custos", indent: 1 }] },
+      { title: "Delegar", color: "#6B8F71", mode: "ul", items: [{ text: "Responder e-mails de rotina", indent: 0 }] },
+      { title: "Eliminar", color: "#C9B23E", mode: "ul", items: [] },
+    ],
+  },
+  {
     id: "t-kanban2", type: "kanban", title: "Viagem de fim de ano", createdAt: t0 - 6 * DIA, updatedAt: t0 - 3 * DIA,
     cols: [
       { title: "A fazer", items: [{ id: "k5", text: "Reservar hotel" }] },
