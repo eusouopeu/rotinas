@@ -188,6 +188,21 @@ const templates = [
       { title: "Eliminar", color: "#C9B23E", mode: "ul", items: [] },
     ],
   },
+  ...[
+    ["Almoço no centro", 42.5, "Alimentação", "2026-09-22", "12:40"],
+    ["Uber para o trabalho", 23.9, "Transporte", "2026-09-22", ""],
+    ["Mercado", 318.4, "Alimentação", "2026-09-20", ""],
+    ["Cinema", 56, "Lazer", "2026-09-19", "20:00"],
+    ["Farmácia", 89.9, "Saúde", "2026-09-15", ""],
+    ["Aluguel", 1800, "Moradia", "2026-09-05", ""],
+    ["Curso de inglês", 240, "Educação", "2026-08-28", ""],
+    ["Gasolina", 210, "Transporte", "2026-08-21", ""],
+    ["Jantar de aniversário", 176.3, "Alimentação", "2026-08-14", "21:10"],
+    ["Aluguel", 1800, "Moradia", "2026-08-05", ""],
+  ].map(([desc, value, cat, date, time], i) => ({
+    id: "t-gasto" + i, type: "expense", desc, value, cat, date, ...(time ? { time } : {}),
+    createdAt: t0 - (i + 1) * DIA, updatedAt: t0 - (i + 1) * DIA,
+  })),
   {
     id: "t-kanban2", type: "kanban", title: "Viagem de fim de ano", createdAt: t0 - 6 * DIA, updatedAt: t0 - 3 * DIA,
     cols: [
