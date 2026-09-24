@@ -4,6 +4,7 @@
 // heatmap anual, metas, gráficos, insights e relatório PDF. As visões, os
 // calendários e os gráficos moram em features/dados/.
 import { useAppStore } from "../store/useAppStore";
+import { NO_PAINEL } from "../features/dados/colunas";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
@@ -89,7 +90,7 @@ export function Stats() {
         <div id="statsBody" className="desktop:columns-2 desktop:gap-x-4 ultra:columns-3">
           {history.length === 0 ? (
             <EstadoVazio
-              className="min-h-[50vh]"
+              className={`min-h-[50vh] ${NO_PAINEL}`}
               titulo="Sem dados ainda"
               texto="Conclua rotinas para ver seu histórico, desvios de tempo e pontualidade aqui."
             />

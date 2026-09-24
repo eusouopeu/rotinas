@@ -14,6 +14,8 @@ import { Modal, ModalAcoes, ModalTexto } from "../../ui/Modal";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { ehModeloShare, ehRotinaShare, pareceBackup, type BackupPayload } from "../../lib/backup";
 import { localKey } from "../../lib/gamificacao";
+import { cn } from "../../lib/cn";
+import { AVISO, BOTAO_AVISO } from "../../components/GlobalBanner";
 import {
   backupHandle,
   checarBackupMaisRecente,
@@ -190,13 +192,12 @@ export function BackupCard() {
         </>
       )}
 
-      {/* aviso flutuante (posição fixa no topo): mesmas classes do banner global,
-          que segue no CSS legado até o GlobalBanner ser migrado */}
+      {/* aviso flutuante (posição fixa no topo): mesma cara do banner global */}
       {maisRecente && (
-        <div className="alert-banner undo-banner">
+        <div className={cn(AVISO, "flex items-center justify-between gap-3")}>
           <span>Backup mais recente encontrado (de outro aparelho)</span>
           <button
-            className="undo-btn"
+            className={BOTAO_AVISO}
             onClick={() => {
               setPending(maisRecente);
               setMaisRecente(null);
@@ -205,7 +206,7 @@ export function BackupCard() {
             Importar
           </button>
           <button
-            className="undo-btn"
+            className={BOTAO_AVISO}
             title="Dispensar"
             aria-label="Dispensar"
             onClick={() => {

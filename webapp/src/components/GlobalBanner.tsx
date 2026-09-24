@@ -9,9 +9,11 @@ import { useAppStore } from "../store/useAppStore";
 import { cn } from "../lib/cn";
 
 // aviso flutuante: faixa --caneta no topo; `hide` faz sumir (400ms) antes de sair
-const AVISO =
+export const AVISO =
   "fixed inset-x-4 top-[calc(var(--safe-top)+10px)] z-[999] animate-aviso rounded-app-sm bg-caneta px-4 py-3.5 font-sans text-base font-semibold text-on-caneta";
-const SUMIR = "[transform:translateY(-10px)] opacity-0 transition-all duration-[400ms] ease-[ease]";
+/** botão de ação dentro do aviso ("Desfazer", "Importar") */
+export const BOTAO_AVISO = "flex-none rounded-[8px] border-0 bg-veu-claro px-3.5 py-[7px] font-sans text-[13.5px] font-bold text-on-caneta";
+export const SUMIR = "[transform:translateY(-10px)] opacity-0 transition-all duration-[400ms] ease-[ease]";
 
 const THRESH = 44;
 
@@ -137,7 +139,7 @@ export function GlobalBanner() {
         >
           <span>{undoBanner.text}</span>
           <button
-            className="flex-none rounded-[8px] border-0 bg-veu-claro px-3.5 py-[7px] font-sans text-[13.5px] font-bold text-on-caneta"
+            className={BOTAO_AVISO}
             onClick={() => {
               const onUndo = undoBanner.onUndo;
               dismissUndoBanner();

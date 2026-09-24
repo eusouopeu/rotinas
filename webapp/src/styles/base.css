@@ -1,0 +1,102 @@
+/* Base global do app React (era o começo do app.css legado): caixa, foco,
+   documento, títulos, a caixa #app com a escala de fonte, barra de rolagem e as
+   variáveis de layout da casca. Vive na camada `base`: qualquer utilitário
+   vence. Tokens de cor/forma ficam em tokens.css (compartilhado com o legado). */
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+/* foco visível global (teclado/leitor de tela, sobretudo no desktop via Electron) */
+:focus-visible {
+  outline: 2px solid var(--caneta);
+  outline-offset: 2px;
+}
+form {
+  margin: 0;
+}
+/* overscroll-behavior no body sozinho não segura o rubber-band: com
+   <!DOCTYPE html>, quem rola o documento é o html, não o body */
+html {
+  height: 100%;
+  overscroll-behavior: none;
+}
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Montserrat", -apple-system, sans-serif;
+  overscroll-behavior: none;
+  user-select: none;
+}
+h1,
+h2,
+h3 {
+  font-family: "Lato", sans-serif;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Escala de acessibilidade (Ajustes → Aparência): transform, não `zoom` — o
+   `zoom` desalinha o hit-test de clique/toque (bug real de Chromium). O truque é
+   encolher a CAIXA de #app na proporção inversa da escala antes de ampliar
+   visualmente: o box pós-transform volta a cobrir o viewport e os descendentes
+   position:fixed (abas, FAB), ancorados a esse box, ficam nas bordas reais. Só
+   não alcança overlays anexados direto a document.body — ficam fora da escala. */
+#app {
+  width: calc(100% / var(--font-scale));
+  height: calc(100vh / var(--font-scale));
+  height: calc(100dvh / var(--font-scale));
+  transform-origin: top left;
+  transform: scale(var(--font-scale));
+  display: flex;
+  flex-direction: column;
+  padding-top: calc(var(--safe-top) + 18px);
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* medidas da casca (--tabbar-h base vive em tokens.css): a barra de abas fica mais baixa no celular deitado; no
+   desktop entram a sidebar (encolhe recolhida) e a barra de busca do topo */
+@media (orientation: landscape) and (max-height: 560px) {
+  :root {
+    --tabbar-h: 46px;
+  }
+}
+@media (min-width: 900px) {
+  :root {
+    --topbar-h: 60px;
+    --sidebar-w: 216px;
+  }
+  body.sidebar-collapsed {
+    --sidebar-w: 60px;
+  }
+  #app {
+    padding-top: 0;
+  }
+  /* barra de rolagem discreta: a padrão do macOS/Windows corta o arredondamento */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 6px;
+    border: 3px solid var(--paper);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--sub);
+  }
+}

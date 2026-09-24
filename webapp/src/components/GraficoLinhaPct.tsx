@@ -43,29 +43,29 @@ export function GraficoLinhaPct({ pontos, meta, ariaLabel }: Props) {
   const ultimo = pontos.length - 1;
 
   return (
-    <svg className="linha-pct" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel}>
+    <svg className="mx-auto block h-auto w-full max-w-[560px]" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel}>
       {[0, 25, 50, 75, 100].map((v) => (
         <g key={v}>
-          <line className="lp-grade" x1={ESQ} x2={W - DIR} y1={y(v)} y2={y(v)} />
-          <text className="lp-eixo" x={ESQ - 6} y={y(v) + 3.5} textAnchor="end">
+          <line className="stroke-line stroke-1" x1={ESQ} x2={W - DIR} y1={y(v)} y2={y(v)} />
+          <text className="fill-sub font-sans text-[10px]" x={ESQ - 6} y={y(v) + 3.5} textAnchor="end">
             {v}%
           </text>
         </g>
       ))}
-      {meta != null && <line className="lp-meta" x1={ESQ} x2={W - DIR} y1={y(meta)} y2={y(meta)} />}
+      {meta != null && <line className="stroke-ok stroke-[1.5px] [stroke-dasharray:4_4]" x1={ESQ} x2={W - DIR} y1={y(meta)} y2={y(meta)} />}
       {trechos.map((pts, i) => (
-        <polyline key={i} className="lp-linha" points={pts} />
+        <polyline key={i} className="fill-none stroke-caneta stroke-[2.5px] [stroke-linecap:round] [stroke-linejoin:round]" points={pts} />
       ))}
       {pontos.map((p, i) =>
         p.pct == null ? null : (
-          <circle key={i} className="lp-ponto" cx={x(i)} cy={y(p.pct)} r={3.5}>
+          <circle key={i} className="fill-caneta" cx={x(i)} cy={y(p.pct)} r={3.5}>
             <title>{`${p.label}: ${p.pct}%`}</title>
           </circle>
         ),
       )}
       {pontos.map((p, i) =>
         (ultimo - i) % 2 === 0 ? (
-          <text key={`x-${i}`} className="lp-eixo" x={x(i)} y={H - 6} textAnchor={i === ultimo ? "end" : "middle"}>
+          <text key={`x-${i}`} className="fill-sub font-sans text-[10px]" x={x(i)} y={H - 6} textAnchor={i === ultimo ? "end" : "middle"}>
             {p.label}
           </text>
         ) : null,

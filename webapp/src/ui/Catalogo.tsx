@@ -93,6 +93,9 @@ function Par({
   );
 }
 
+import cssLegado from "../../../app.css?inline";
+import { rolavel, tela } from "./Tela";
+
 const icone = <Icon name="settings" size={16} />;
 const noop = () => {};
 
@@ -101,8 +104,10 @@ export function Catalogo() {
   document.body.classList.toggle("dark", escuro);
 
   return (
-    <div className="screen">
-      <div data-catalogo className="tab-scroll pb-16">
+    <div {...tela()}>
+      {/* o app.css legado só existe aqui, na camada `legacy`, para o lado esquerdo dos pares */}
+      <style>{`@layer legacy {\n${cssLegado}\n}`}</style>
+      <div data-catalogo {...rolavel("pb-16")}>
         <CabecalhoTela titulo="ui/">
           <Botao variante="neutro" onClick={() => setEscuro(!escuro)}>
             tema
