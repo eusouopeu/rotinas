@@ -10,7 +10,7 @@ import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { Toggle } from "../../ui/Segmentado";
 import { Switch } from "../../ui/Switch";
-import { LinhaAjuste } from "./LinhaAjuste";
+import { LinhaValor } from "../../ui/LinhaValor";
 import { SecaoAjuste } from "./SecaoAjuste";
 
 const DIA_LABEL = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -75,30 +75,30 @@ export function SecaoAvisos() {
 
       <RotuloSecao>Som e vibração</RotuloSecao>
       <div className="pt-2.5">
-        <LinhaAjuste rotulo="Aviso sonoro">
+        <LinhaValor rotulo="Aviso sonoro">
           <Toggle options={SOM_MODOS.map((m) => ({ key: m, label: m }))} active={somModo} onSelect={setSomModo} />
-        </LinhaAjuste>
+        </LinhaValor>
         <Switch className="mt-3" checked={vibracao} onChange={setVibracao}>
           Vibrar
         </Switch>
-        <LinhaAjuste className="mt-3" rotulo="Testar">
+        <LinhaValor className="mt-3" rotulo="Testar">
           <Botao variante="pilula" onClick={() => alarmCue()}>
             tocar
           </Botao>
-        </LinhaAjuste>
+        </LinhaValor>
       </div>
 
       {isNative && (
         <>
           <RotuloSecao>Cronômetro</RotuloSecao>
           <div className="pt-2.5">
-            <LinhaAjuste rotulo="Fora do app">
+            <LinhaValor rotulo="Fora do app">
               <Toggle
                 options={CRONOMETRO_MODOS.map(({ key, label }) => ({ key, label }))}
                 active={cronometroModo}
                 onSelect={(m) => void setCronometroModo(m)}
               />
-            </LinhaAjuste>
+            </LinhaValor>
             <Legenda className="mt-3">{TEXTO_CRONOMETRO[cronometroModo]}</Legenda>
           </div>
         </>

@@ -138,6 +138,7 @@ export function RodaVidaResumo() {
                   className="my-1.5"
                   rotulo={l.label}
                   cor={l.color}
+                  corRotulo={l.color}
                   pct={max ? Math.max(3, Math.round((l.pontos / max) * 100)) : 0}
                   valor={valTxt(l)}
                   larguraValor={valCh + 0.5}

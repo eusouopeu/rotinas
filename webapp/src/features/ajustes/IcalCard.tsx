@@ -11,7 +11,7 @@ import { Botao } from "../../ui/Botao";
 import { Campo } from "../../ui/Campo";
 import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
-import { LinhaAjuste } from "./LinhaAjuste";
+import { LinhaValor } from "../../ui/LinhaValor";
 
 export function IcalCard() {
   const [url, setUrl] = useState(getIcalUrl());
@@ -60,7 +60,7 @@ export function IcalCard() {
     <>
       {url && (
         <>
-          <LinhaAjuste rotulo="Status" valor="configurado" corValor="var(--ok)" />
+          <LinhaValor rotulo="Status" valor="configurado" corValor="var(--ok)" />
           <Legenda className="mt-1.5">
             {cache ? `Última busca: ${new Date(cache.fetchedAt).toLocaleString("pt-BR")} · ${cache.eventos.length} evento(s).` : 'Ainda não buscou — toque em "Salvar e atualizar".'}
           </Legenda>

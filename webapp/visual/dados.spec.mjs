@@ -33,7 +33,7 @@ test("dados: semanal, dia selecionado", async ({ page }) => {
 
 test("dados: semana anterior", async ({ page }) => {
   await abrirDados(page);
-  await page.getByRole("button", { name: "‹" }).first().click();
+  await page.locator("button", { hasText: "‹" }).first().click();
   await fotoInteira(page, "dados-semanal-anterior");
 });
 
@@ -73,7 +73,7 @@ test("dados: mensal, filtro por rotina", async ({ page }) => {
 test("dados: mês anterior", async ({ page }) => {
   await abrirDados(page);
   await visao(page, "Mensal");
-  await page.getByRole("button", { name: "‹" }).first().click();
+  await page.locator("button", { hasText: "‹" }).first().click();
   await fotoInteira(page, "dados-mensal-anterior");
 });
 

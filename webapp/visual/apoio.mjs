@@ -36,6 +36,7 @@ export async function foto(page, nome, { desfocar = false } = {}) {
 /** Foto da tela inteira: estica a janela até caber o conteúdo rolável. */
 export async function fotoInteira(page, nome, seletor = ".tab-scroll") {
   await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => document.querySelectorAll("*").forEach((e) => e.scrollLeft && (e.scrollLeft = 0)));
   const extra = await page.locator(seletor).first().evaluate((el) => Math.max(0, el.scrollHeight - el.clientHeight));
   const { width, height } = page.viewportSize();
   await page.setViewportSize({ width, height: height + extra + 24 });

@@ -15,7 +15,7 @@ import { Cartao } from "../../ui/Cartao";
 import { Legenda } from "../../ui/Legenda";
 import { LinhaDado } from "../../ui/LinhaDado";
 import { RotuloSecao } from "../../ui/RotuloSecao";
-import { LinhaAjuste } from "./LinhaAjuste";
+import { LinhaValor } from "../../ui/LinhaValor";
 
 export function SyncCard() {
   const bridge = getSyncBridge();
@@ -51,7 +51,7 @@ export function SyncCard() {
   if (!status.hasClientCreds || forceEditCreds) {
     return (
       <>
-        <LinhaAjuste rotulo="Google Drive" valor="não configurado" corValor="var(--sub)" />
+        <LinhaValor rotulo="Google Drive" valor="não configurado" corValor="var(--sub)" />
         <Legenda className="mt-2">
           Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a Drive API ativada. Fica guardado só neste
           computador, nunca no repositório.
@@ -78,7 +78,7 @@ export function SyncCard() {
   if (!status.connected) {
     return (
       <>
-        <LinhaAjuste rotulo="Google Drive" valor="desconectado" corValor="var(--sub)" />
+        <LinhaValor rotulo="Google Drive" valor="desconectado" corValor="var(--sub)" />
         <Legenda className="mt-2">
           Cria uma pasta "brita-sync" no seu Drive.{" "}
           {isDesktop
@@ -118,7 +118,7 @@ export function SyncCard() {
 
   return (
     <>
-      <LinhaAjuste rotulo="Google Drive" valor="conectado" corValor="var(--ok)" />
+      <LinhaValor rotulo="Google Drive" valor="conectado" corValor="var(--ok)" />
       <Legenda className="mt-1.5">Último sync: {ultimo}.</Legenda>
       <div className="mt-3 flex gap-2">
         <Botao

@@ -11,6 +11,9 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "../components/Icon";
 import { GradePastas, PastaTile, SeparadorSecao } from "../features/modelos/PastaTile";
 import { AlcaArrasto } from "./AlcaArrasto";
+import { BotaoLink } from "./BotaoLink";
+import { Selecao } from "./Selecao";
+import { CelNegrito, CelNota, CelRotulo, LinhaTabela } from "./LinhaTabela";
 import { Botao } from "./Botao";
 import { BotaoRedondo } from "./BotaoRedondo";
 import { Fato, Fatos } from "./Fatos";
@@ -110,12 +113,10 @@ export function Catalogo() {
           legado={<button className="btn-cancel">Cancelar</button>}
           novo={<Botao variante="neutro">Cancelar</Botao>}
         />
-        {/* legado esqueceu font-family e caía na fonte do sistema (Arial); o primitivo usa Montserrat como o resto do app */}
         <Par
           nome="botao-perigo"
           legado={<button className="btn-danger-outline">Excluir</button>}
           novo={<Botao variante="perigo">Excluir</Botao>}
-          ignorar={["fontFamily", "largura", "altura"]}
         />
         <Par
           nome="botao-solido"
@@ -578,9 +579,43 @@ export function Catalogo() {
               <div className="bar-val">12 / 42</div>
             </div>
           }
-          novo={<LinhaBarra rotulo="Saúde" cor="var(--ok)" pct={40} valor="12 / 42" />}
+          novo={<LinhaBarra rotulo="Saúde" cor="var(--ok)" corRotulo="var(--ok)" pct={40} valor="12 / 42" />}
           cmp={[{}, { sel: ".bar-name" }, { sel: ".bar-track" }, { sel: ".bar-fill" }, { sel: ".bar-val" }]}
           cmpNovo={[{}, { sel: ":scope > div > div:nth-child(1)" }, { sel: ":scope > div > div:nth-child(2)" }, { sel: ":scope > div > div:nth-child(2) > div" }, { sel: ":scope > div > div:nth-child(3)" }]}
+        />
+        <Par
+          nome="selecao"
+          legado={<select className="routine-select"><option>Todas as rotinas</option></select>}
+          novo={<Selecao><option>Todas as rotinas</option></Selecao>}
+          cmp={[{ sel: "select" }]}
+          cmpNovo={[{}]}
+          ignorar={["display", "minWidth", "minHeight"]}
+        />
+        <Par
+          nome="botao-link"
+          legado={<div className="topbar" style={{ marginBottom: 0 }}><button className="link-btn muted">Depois</button></div>}
+          novo={<div><BotaoLink tom="suave">Depois</BotaoLink></div>}
+          cmp={[{ sel: "button" }]}
+          cmpNovo={[{ sel: "button" }]}
+          ignorar={["display", "borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius", "minWidth", "minHeight"]} /* sem borda: o raio 999 herdado do link-btn não aparece; display vem do flex do .topbar */
+        />
+        <Par
+          nome="linha-tabela"
+          legado={
+            <div className="dev-row">
+              <span>Treino A — Supino</span>
+              <b className="late">+00:50</b>
+              <span className="dev-n">15:00→15:50 · 10x</span>
+            </div>
+          }
+          novo={
+            <LinhaTabela>
+              <CelRotulo>Treino A — Supino</CelRotulo>
+              <CelNegrito status="atraso">+00:50</CelNegrito>
+              <CelNota>15:00→15:50 · 10x</CelNota>
+            </LinhaTabela>
+          }
+          cmp={[{}, { sel: "span:first-child" }, { sel: "b" }, { sel: "span:last-child" }]}
         />
         <Par
           nome="cartao"

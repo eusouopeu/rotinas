@@ -55,7 +55,12 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 | `Legenda` | `.stat-foot`, `.routine-meta`, `.dev-n` | texto pequeno cinza; sem margem (use `className="mt-3"`) |
 | `ChipsDia` | `.day-chips` + `.day-chip` | fileira D S T Q Q S S |
 | `Campo` (`variante` formulario/modelo/linha), `AreaTexto`, `CampoBusca`, `CampoNumero`/`LinhaNumero`, `CampoCor` | `.mk-e-name`, `.market-form-row input`, `.set-busca`, `.dur-input`, `.area-color-swatch` | `modelo` e `linha` NÃO trazem font-family (o legado usava a fonte do sistema nesses campos; trocar é decisão de harmonização) |
-| `LinhaDado` | `.dev-row` | rótulo + valor em negrito com filete |
+| `LinhaDado` | `.dev-row` | rótulo + valor em negrito com filete (2 colunas, uso simples) |
+| `LinhaTabela` + `CelRotulo`/`CelNota`/`CelNegrito` | `.dev-row` e filhos (`.dev-n`, `b.late/early/ontime`) | linhas de 3 colunas dos cartões de Dados; `coluna` empilha (execuções recentes), `toque` = clicável |
+| `LinhaBarra`, `GradeBarras`, `TrilhoBarra` | `.bar-row/.bar-name/.bar-track/.bar-fill/.bar-val`, `.bar-grid` | `cor` pinta a barra, `corRotulo` o nome, `corValor` o valor; `naGrade` alinha 3 colunas; `marcador` = ritmo esperado / meta tracejada |
+| `LinhaValor` | `.bar-row` de "nome … valor/controle" | Ajustes, Boletim |
+| `BarraDetalhe`, `BotaoLink`, `Selecao` | `.detail-bar`, `.topbar .link-btn`, `.routine-select` | |
+| `BotaoRedondo`, `AlcaArrasto`, `OpcaoCriar`, `Fatos`/`Fato` | `.ctrl-btn`, `.drag-handle`, `.novo-opcao`, `.routine-meta-line`/`.rc-fact` | |
 | `CartaoLista` / `CARTAO_LISTA`, `CartaoInfo`, `CartaoTitulo`, `ListaCartoes` | `.note-card`/`.routine-card`, `.note-info`, `.notes-list`/`.routine-list` | dentro de `SwipeItem` passe `CARTAO_LISTA` no `className` dele; lista vira grade de 2 colunas no desktop |
 | `SwipeItem` (`ui/`) | `.swipe-item/.swipe-track/.swipe-del-btn` | marcador `data-swipe-item` (lib/swipe.ts) |
 | `Chip variante="tag"`, `CampoBusca forma="caixa"` | `.tag-chip`, `.note-search` | |
@@ -70,7 +75,13 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 1. **Referência do que existe:** `npm run visual:baseline-head -- <roteiro>.spec.mjs` grava a referência a partir do último COMMIT (HEAD) — não do seu trabalho em andamento. Se a tela ainda não tem cobertura, escreva o roteiro antes (todos os estados: seções abertas, listas com dados, modais, variantes do app instalado com a ponte simulada de `ajustes.spec.mjs`) e commite roteiro + qualquer `data-*` de teste sozinhos.
 2. **Migre:** `python3 webapp/scripts/regras-legadas.py webapp/src/screens/Tela.tsx` lista, por classe usada, todas as regras do `app.css` que a tocam (com `@media` e seletores de contexto — ex.: `.set-secao-body > .stat-card` remove a moldura do cartão). Troque por primitivos/utilitários, tire `style={{}}` estático, quebre a tela em `features/<área>/`. Casca de tela (`screen with-tabbar`, `home-header`, tabbar, sidebar) continua legada até a fase 4.
 3. **Verifique:** `npm run visual` deve dar tudo idêntico (2 rodadas) — diferença só é aceitável se intencional e explicada; `npm test`; `npm run typecheck:react`.
-4. **Quirks preservados** (a migração não muda visual; harmonizar é uma rodada à parte): campos de `variante` modelo/linha usam a fonte do sistema; `Toggle`/`Chip` ganham cursor de mão; botão `perigo` usa Montserrat (único desvio já aceito).
+4. **Quirks preservados** (a migração não muda visual; harmonizar é uma rodada à parte): campos `modelo`/`linha`, o botão `perigo` (Excluir) e o botão de opção do `OpcaoCriar` usam a fonte do sistema (Arial) porque o legado esqueceu o `font-family`; `Toggle`/`Chip` ganham cursor de mão.
+5. **Armadilhas que já custaram tempo:**
+   - `tailwind-merge` trata `text-<tamanho>` como conflitante com `leading-*`: se você troca o tamanho de um componente que traz `leading-normal` (ex.: `ModalTexto`), escreva `leading-normal` DEPOIS do tamanho.
+   - Utilitário sempre vence o `app.css` (camada `legacy`): uma regra antiga de contexto/desktop que antes ganhava por especificidade ou por `@media` (ex.: `.home-header` sticky no desktop, `#statsBody > *` com `margin-bottom:14px`) deixa de valer onde você põe um utilitário do mesmo atributo — recrie-a com variante (`desktop:mb-3.5`).
+   - Seletores de teste: não use classes do legado; use `getByRole`/texto ou `data-*` estável (`data-rolagem`, `data-roda`, `data-seg`, `data-swipe-item`). `title`/`aria-label` do botão sem texto mudam o nome acessível.
+   - Achou diferença de pixel sem saber a origem? Compare, entre o HEAD (`git worktree add`) e a versão nova, o retângulo e o estilo computado de cada elemento do trecho (Playwright, `getBoundingClientRect` + `getComputedStyle`): a primeira diferença aponta o culpado.
+   - Foto de tela longa: `fotoInteira` (apoio.mjs) estica a janela; ela zera `scrollLeft` (digitar num campo pode rolar 1px de lado um contêiner com `overflow-x:hidden`) — o mesmo vale para o formulário com `autoFocus` (`desfocar`).
 
 ### Regressão visual
 

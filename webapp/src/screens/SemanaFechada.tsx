@@ -7,6 +7,15 @@
 // com troca de dias ali mesmo, (3) metas que vencem em breve + foco da
 // semana. Tudo vira uma única nota com seções (títulos recolhíveis).
 import { useEffect, useRef, useState } from "react";
+import { Botao } from "../ui/Botao";
+import { BotaoLink } from "../ui/BotaoLink";
+import { AreaTexto } from "../ui/Campo";
+import { Cartao } from "../ui/Cartao";
+import { ChipsDia } from "../ui/ChipsDia";
+import { Legenda } from "../ui/Legenda";
+import { LinhaValor } from "../ui/LinhaValor";
+import { RotuloSecao } from "../ui/RotuloSecao";
+import { cn } from "../lib/cn";
 import { useAppStore } from "../store/useAppStore";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV } from "../lib/constants";
 import { DAY_LETTERS } from "../lib/schedule";
@@ -31,18 +40,7 @@ function TextoCrescente({ id, value, onChange, placeholder }: { id: string; valu
     ref.current.style.height = "auto";
     ref.current.style.height = `${ref.current.scrollHeight}px`;
   }, [value]);
-  return (
-    <textarea
-      id={id}
-      ref={ref}
-      className="mk-e-name"
-      rows={2}
-      placeholder={placeholder}
-      style={{ width: "100%", resize: "none", overflow: "hidden", lineHeight: 1.5 }}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  );
+  return <AreaTexto id={id} ref={ref} rows={2} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />;
 }
 
 export function SemanaFechada() {
@@ -111,168 +109,136 @@ export function SemanaFechada() {
     setRoutineDays(id, novos);
   }
 
+  const CARTAO = "mb-1.5";
   return (
     <div className="screen">
-      <div className="topbar">
-        <button className="link-btn muted" id="sfSkip" onClick={sair}>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <BotaoLink tom="suave" id="sfSkip" onClick={sair}>
           Depois
-        </button>
-        <span className="ag-nav-gap" />
-        <span className="dev-n" aria-label={`Passo ${passo + 1} de ${PASSOS.length}`}>
+        </BotaoLink>
+        <Legenda aria-label={`Passo ${passo + 1} de ${PASSOS.length}`}>
           {passo + 1}/{PASSOS.length} · {PASSOS[passo]}
-        </span>
+        </Legenda>
       </div>
-      <div style={{ overflowY: "auto", flex: 1, paddingBottom: 24 }}>
-        <div className="home-header" style={{ marginBottom: 2 }}>
+      <div className="flex-1 overflow-y-auto pb-6">
+        <div className="home-header mb-0.5">
           <h1>Semana fechada</h1>
         </div>
-        <div className="routine-meta" style={{ marginBottom: 12 }}>
-          {periodoLabel}
-        </div>
+        <Legenda className="mb-3">{periodoLabel}</Legenda>
 
         {passo === 0 && (
           <>
-            <div className="stat-card" style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 48, fontWeight: 600, color: cor }}>
+            <Cartao className={`${CARTAO} text-center`}>
+              <div className="font-sans text-[48px] font-semibold" style={{ color: cor }}>
                 {sem.nota.toFixed(1)}
               </div>
               {sem.dispensada ? (
-                <div className="routine-meta">semana dispensada — não entra na média do mês</div>
+                <Legenda>semana dispensada — não entra na média do mês</Legenda>
               ) : (
-                <div className="routine-meta">
-                  {sem.nota >= gam.config.notaMinima ? "aprovado" : `abaixo da nota mínima (${gam.config.notaMinima})`}
-                </div>
+                <Legenda>{sem.nota >= gam.config.notaMinima ? "aprovado" : `abaixo da nota mínima (${gam.config.notaMinima})`}</Legenda>
               )}
               {sem.badge && (
-                <div style={{ marginTop: 10, fontSize: 18, color: BADGE_COR[sem.badge] }}>
+                <div className="mt-2.5 text-2xl" style={{ color: BADGE_COR[sem.badge] }}>
                   {BADGE_CHAR[sem.badge]} {BADGE_NOME[sem.badge]}
                 </div>
               )}
               {delta !== null && (
-                <div className="dev-n" style={{ marginTop: 6 }}>
+                <Legenda className="mt-1.5">
                   {delta >= 0 ? "+" : ""}
                   {delta.toFixed(1)} em relação à semana anterior
-                </div>
+                </Legenda>
               )}
-            </div>
+            </Cartao>
 
             {(sem.destaques || []).length > 0 && (
               <>
-                <div className="section-label">O que mais somou</div>
-                <div className="stat-card">
+                <RotuloSecao>O que mais somou</RotuloSecao>
+                <Cartao className={CARTAO}>
                   {sem.destaques!.map((d, i) => (
-                    <div className="bar-row" key={i}>
-                      <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                        {d.nome}
-                      </div>
-                      <div className="bar-val">{d.pontos.toFixed(1)}</div>
-                    </div>
+                    <LinhaValor key={i} rotulo={d.nome} valor={d.pontos.toFixed(1)} />
                   ))}
-                </div>
+                </Cartao>
               </>
             )}
 
-            <div className="section-label">O que você leva dessa semana</div>
-            <TextoCrescente
-              id="sfReflexao"
-              value={reflexao}
-              onChange={setReflexao}
-              placeholder="O que funcionou, o que atrapalhou..."
-            />
+            <RotuloSecao>O que você leva dessa semana</RotuloSecao>
+            <TextoCrescente id="sfReflexao" value={reflexao} onChange={setReflexao} placeholder="O que funcionou, o que atrapalhou..." />
           </>
         )}
 
         {passo === 1 && (
           <>
-            <div className="section-label">Rotinas que ficaram para trás</div>
+            <RotuloSecao>Rotinas que ficaram para trás</RotuloSecao>
             {atrasadas.length === 0 ? (
-              <div className="stat-card">
-                <div className="routine-meta">Todas as rotinas agendadas foram feitas. Nada para ajustar.</div>
-              </div>
+              <Cartao className={CARTAO}>
+                <Legenda>Todas as rotinas agendadas foram feitas. Nada para ajustar.</Legenda>
+              </Cartao>
             ) : (
-              <div className="stat-card">
+              <Cartao className={CARTAO}>
                 {atrasadas.map((a, i) => {
                   const r = routines.find((x) => x.id === a.id);
                   const porDias = !!r?.schedule && r.schedule.mode !== "intervalo";
                   return (
-                    <div key={a.id} style={{ paddingTop: i ? 12 : 0, marginTop: i ? 12 : 0, borderTop: i ? "1.5px solid var(--line)" : undefined }}>
-                      <div className="bar-row" style={{ padding: 0 }}>
-                        <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                          {a.nome}
-                        </div>
-                        <div className="bar-val" style={{ width: "auto", color: "var(--erro)" }}>
-                          {a.feitas} de {a.planejadas}
-                        </div>
-                      </div>
+                    <div key={a.id} className={cn(i > 0 && "mt-3 border-t-[1.5px] border-line pt-3")}>
+                      <LinhaValor rotulo={a.nome} valor={`${a.feitas} de ${a.planejadas}`} corValor="var(--erro)" />
                       {porDias ? (
-                        <div className="day-chips" style={{ marginTop: 8 }}>
-                          {DAY_LETTERS.map((l, d) => (
-                            <span
-                              key={d}
-                              className={"day-chip" + (r!.schedule!.days.includes(d) ? " active" : "")}
-                              title={DIAS_ABREV[d]}
-                              onClick={() => alternarDia(a.id, d)}
-                            >
-                              {l}
-                            </span>
-                          ))}
-                        </div>
+                        <ChipsDia
+                          className="mt-2"
+                          rotulos={DAY_LETTERS}
+                          titulos={DIAS_ABREV}
+                          ativos={r!.schedule!.days}
+                          onToggle={(d) => alternarDia(a.id, d)}
+                        />
                       ) : (
-                        <div className="stat-foot">Agendada por intervalo — ajuste no editor da rotina.</div>
+                        <Legenda className="mt-3">Agendada por intervalo — ajuste no editor da rotina.</Legenda>
                       )}
                     </div>
                   );
                 })}
-                <div className="stat-foot" style={{ marginTop: 12 }}>
-                  Tocar num dia já muda o agendamento. As mudanças entram na nota da revisão.
-                </div>
-              </div>
+                <Legenda className="mt-3">Tocar num dia já muda o agendamento. As mudanças entram na nota da revisão.</Legenda>
+              </Cartao>
             )}
           </>
         )}
 
         {passo === 2 && (
           <>
-            <div className="section-label">Metas que vencem em breve</div>
-            <div className="stat-card">
+            <RotuloSecao>Metas que vencem em breve</RotuloSecao>
+            <Cartao className={CARTAO}>
               {metas.length === 0 ? (
-                <div className="routine-meta">Nenhuma meta com prazo nos próximos 14 dias.</div>
+                <Legenda>Nenhuma meta com prazo nos próximos 14 dias.</Legenda>
               ) : (
                 metas.map((t) => {
                   const dias = daysUntil(t.date);
                   return (
-                    <div className="bar-row" key={t.id}>
-                      <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                        {t.title}
-                      </div>
-                      <div className="bar-val" style={{ width: "auto" }}>
-                        {t.topics != null ? `${t.done || 0}/${t.topics} · ` : ""}
-                        {dias === 0 ? "hoje" : `${dias} dia${dias > 1 ? "s" : ""}`}
-                      </div>
-                    </div>
+                    <LinhaValor
+                      key={t.id}
+                      rotulo={t.title}
+                      valor={`${t.topics != null ? `${t.done || 0}/${t.topics} · ` : ""}${dias === 0 ? "hoje" : `${dias} dia${dias > 1 ? "s" : ""}`}`}
+                    />
                   );
                 })
               )}
-            </div>
-            <div className="section-label">Foco da próxima semana</div>
+            </Cartao>
+            <RotuloSecao>Foco da próxima semana</RotuloSecao>
             <TextoCrescente id="sfFoco" value={foco} onChange={setFoco} placeholder="Uma ou duas prioridades para a semana que começa..." />
           </>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+        <div className="mt-4 flex gap-2">
           {passo > 0 && (
-            <button className="btn-cancel" style={{ flex: "0 0 37%" }} onClick={() => setPasso(passo - 1)}>
+            <Botao variante="neutro" className="flex-[0_0_37%]" onClick={() => setPasso(passo - 1)}>
               Voltar
-            </button>
+            </Botao>
           )}
           {passo < PASSOS.length - 1 ? (
-            <button className="btn-primary" style={{ flex: 1 }} onClick={() => setPasso(passo + 1)}>
+            <Botao className="flex-1" onClick={() => setPasso(passo + 1)}>
               Próximo
-            </button>
+            </Botao>
           ) : (
-            <button className="btn-primary" id="sfSalvar" style={{ flex: 1 }} onClick={handleSalvar}>
+            <Botao className="flex-1" id="sfSalvar" onClick={handleSalvar}>
               Começar a semana
-            </button>
+            </Botao>
           )}
         </div>
       </div>

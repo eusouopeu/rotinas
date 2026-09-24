@@ -10,7 +10,7 @@ import { getMcpBridge, getMiniPlayerBridge, getSyncBridge } from "../../lib/nati
 import { downloadFile } from "../../lib/exportFile";
 import { Botao } from "../../ui/Botao";
 import { Legenda } from "../../ui/Legenda";
-import { LinhaAjuste } from "./LinhaAjuste";
+import { LinhaValor } from "../../ui/LinhaValor";
 
 type Resultado = { label: string; status: "ok" | "erro" | "pulado"; detalhe: string };
 
@@ -154,7 +154,7 @@ export function DiagnosticsCard() {
       {resultados && (
         <div className="mt-2.5">
           {resultados.map((r) => (
-            <LinhaAjuste
+            <LinhaValor
               className="py-1"
               rotulo={
                 <>

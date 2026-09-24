@@ -6,7 +6,7 @@
 //   botão ("Nova área" + Adicionar); variante "compacto": campos dos popups de meta — fundo --card, 14.5px, foco em --caneta. NÃO traz
 //   font-family (herdava a fonte do sistema no legado; a troca é uma decisão de
 //   harmonização à parte, ver design-system.md).
-import type { InputHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../lib/cn";
 
@@ -40,14 +40,15 @@ export function Campo({
 }
 
 /** Área de texto com a mesma cara do Campo "modelo" (não redimensiona, linha 1.5). */
-export function AreaTexto({
-  className,
-  ...resto
-}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export const AreaTexto = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function AreaTexto(
+  { className, ...resto },
+  ref
+) {
   return (
     <textarea
+      ref={ref}
       className={cn(campo({ variante: "modelo" }), "resize-none overflow-hidden font-sans leading-normal", className)}
       {...resto}
     />
   );
-}
+});

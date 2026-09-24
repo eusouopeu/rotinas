@@ -6,7 +6,7 @@ import { downloadFile } from "../../lib/exportFile";
 import { Botao } from "../../ui/Botao";
 import { Legenda } from "../../ui/Legenda";
 import { IcalCard } from "./IcalCard";
-import { LinhaAjuste } from "./LinhaAjuste";
+import { LinhaValor } from "../../ui/LinhaValor";
 import { SecaoAjuste } from "./SecaoAjuste";
 
 export function SecaoCalendario() {
@@ -29,11 +29,11 @@ export function SecaoCalendario() {
     <SecaoAjuste titulo="Calendário externo">
       <div className="pt-2.5">
         <IcalCard />
-        <LinhaAjuste className="mt-3.5" rotulo="Exportar agenda (.ics)">
+        <LinhaValor className="mt-3.5" rotulo="Exportar agenda (.ics)">
           <Botao variante="pilula" onClick={exportar}>
             exportar
           </Botao>
-        </LinhaAjuste>
+        </LinhaValor>
         <Legenda className="mt-3">
           Rotinas com horário viram eventos recorrentes e compromissos avulsos viram eventos únicos — para abrir em
           outro calendário. É uma cópia, não uma sincronização: mudanças aqui não voltam para lá.

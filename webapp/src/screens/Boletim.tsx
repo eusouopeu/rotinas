@@ -4,7 +4,6 @@
 // badges. Lógica pura em lib/boletim.ts.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
-import { Icon } from "../components/Icon";
 import { BADGE_NOME } from "../lib/constants";
 import { localKey, isoToDate, addDaysISO, trimestreDe } from "../lib/gamificacao";
 import {
@@ -19,23 +18,15 @@ import {
   notaEvolucaoSemanas,
   correlacaoAreas,
   minutosPlanejadosSemana,
-  type BadgeContagem,
 } from "../lib/boletim";
-
-// Porta de linhaBadgesHtml (index.html:13334-13339) — sempre os 4 tipos,
-// mesmo com contagem zero (mostra "◇ 0" etc.), igual ao legado.
-function LinhaBadges({ cont }: { cont: BadgeContagem }) {
-  const tipos: Array<keyof BadgeContagem> = ["diamante", "ouro", "prata", "bronze"];
-  return (
-    <>
-      {tipos.map((tipo) => (
-        <span key={tipo} style={{ marginRight: 14, color: BADGE_COR[tipo] }}>
-          {BADGE_CHAR[tipo]} {cont[tipo]}
-        </span>
-      ))}
-    </>
-  );
-}
+import { LinhaBadges, LinhaSimples, BarrasSemanas } from "../features/boletim/pecas";
+import { Botao } from "../ui/Botao";
+import { BarraDetalhe } from "../ui/BarraDetalhe";
+import { Cartao } from "../ui/Cartao";
+import { Legenda } from "../ui/Legenda";
+import { LinhaBarra, TrilhoBarra } from "../ui/LinhaBarra";
+import { LinhaValor } from "../ui/LinhaValor";
+import { RotuloSecao } from "../ui/RotuloSecao";
 
 export function Boletim() {
   const gam = useAppStore((s) => s.gam);
@@ -96,83 +87,82 @@ export function Boletim() {
     setHorasBudget(v);
   }
 
+  const CARTAO = "mb-1.5";
+  const evolucaoSemanas = evolucao.map((s, i) => {
+    const dm = isoToDate(s.inicioISO);
+    return {
+      chave: s.inicioISO + (s.emCurso ? "-atual" : ""),
+      titulo: `Semana de ${dm.toLocaleDateString()}: ${s.nota.toFixed(1)} pts${s.emCurso ? " (em curso)" : ""}${s.dispensada ? " · dispensada" : ""}`,
+      rotulo: i === 0 || i === evolucao.length - 1 || s.emCurso ? `${String(dm.getDate()).padStart(2, "0")}/${String(dm.getMonth() + 1).padStart(2, "0")}` : "",
+      altura: Math.max(2, Math.round((Math.min(100, Math.max(0, s.nota)) / 100) * 70)),
+      cor: s.dispensada ? "var(--sub)" : "var(--caneta)",
+      opacidade: s.emCurso ? "0.55" : "1",
+    };
+  });
+
   return (
     <div className="screen">
-      <div className="detail-bar" style={{ marginBottom: 12 }}>
-        <button className="icon-btn borderless" title="Voltar" aria-label="Voltar" onClick={() => goTo({ tab: "home", screen: "home" })}>
-          <Icon name="chevronLeft" size={18} />
-        </button>
-        <h1 className="detail-title">Boletim</h1>
-      </div>
-      <div className="tab-scroll" style={{ paddingBottom: 24 }}>
-
-        <div className="stat-card" style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 48, fontWeight: 600, color: disp ? "var(--sub)" : r.cor }}>
+      <BarraDetalhe titulo="Boletim" className="mb-3" onVoltar={() => goTo({ tab: "home", screen: "home" })} />
+      <div className="tab-scroll pb-6" data-rolagem>
+        <Cartao className={`${CARTAO} text-center`}>
+          <div className="font-sans text-[48px] font-semibold" style={{ color: disp ? "var(--sub)" : r.cor }}>
             {r.nota.toFixed(1)}
           </div>
-          <div className="routine-meta">
+          <Legenda>
             de 100 &middot; semana termina sábado {String(fimSemana.getDate()).padStart(2, "0")}/{String(fimSemana.getMonth() + 1).padStart(2, "0")}
-          </div>
-          <div className="bar-track" style={{ margin: "12px 0 6px" }}>
-            <div className="bar-fill" style={{ width: `${pctNota}%`, background: disp ? "var(--sub)" : r.cor }} />
-          </div>
+          </Legenda>
+          <TrilhoBarra className="mt-3 mb-1.5" pct={pctNota} cor={disp ? "var(--sub)" : r.cor} />
           {disp ? (
             <>
-              <div style={{ color: "var(--sub)", fontWeight: 600 }}>Semana dispensada</div>
-              <div className="dev-n" style={{ marginTop: 4 }}>
-                não emite badge nem entra na média do mês
-              </div>
+              <div className="font-semibold text-sub">Semana dispensada</div>
+              <Legenda className="mt-1">não emite badge nem entra na média do mês</Legenda>
             </>
           ) : (
             <>
-              <div style={{ color: r.cor, fontWeight: 600 }}>{r.label}</div>
-              <div className="dev-n" style={{ marginTop: 4 }}>
+              <div className="font-semibold" style={{ color: r.cor }}>
+                {r.label}
+              </div>
+              <Legenda className="mt-1">
                 esperado até hoje: {r.esperado.toFixed(1)} &middot; saldo {r.saldo >= 0 ? "+" : ""}
                 {r.saldo.toFixed(1)}
-              </div>
+              </Legenda>
             </>
           )}
           {!gam.semanaAtual.totalBrutoAgendado && (
-            <div className="stat-foot" style={{ color: "var(--caneta)" }}>
+            <Legenda className="mt-3 text-caneta">
               Nenhuma rotina agendada nesta semana — a escala padrão está valendo ({BLOCOS_SEMANA_PADRAO} blocos médios de 30 min = 100). Ative o agendamento de uma
               rotina para o boletim medir a sua agenda de verdade.
-            </div>
+            </Legenda>
           )}
-        </div>
+        </Cartao>
 
         {!disp &&
           (r.nota < 100 ? (
-            <div className="stat-card">
-              <div className="section-label" style={{ marginTop: 0 }}>
-                Para fechar a semana
-              </div>
-              <div className="routine-meta">{r.porDia100.toFixed(1)} pontos/dia até sábado para chegar a 100</div>
+            <Cartao className={CARTAO}>
+              <RotuloSecao className="mt-0">Para fechar a semana</RotuloSecao>
+              <Legenda>{r.porDia100.toFixed(1)} pontos/dia até sábado para chegar a 100</Legenda>
               {r.nota < gam.config.notaMinima && (
-                <div className="routine-meta">
+                <Legenda>
                   {r.porDia60.toFixed(1)} pontos/dia para ao menos aprovar ({gam.config.notaMinima})
-                </div>
+                </Legenda>
               )}
-            </div>
+            </Cartao>
           ) : (
-            <div className="stat-card">
-              <div className="routine-meta" style={{ color: "var(--ok)" }}>
-                Meta da semana batida — o que vier agora é estouro ★
-              </div>
-            </div>
+            <Cartao className={CARTAO}>
+              <Legenda className="text-ok">Meta da semana batida — o que vier agora é estouro ★</Legenda>
+            </Cartao>
           ))}
 
-        <div className="section-label">Orçamento de tempo da semana</div>
-        <div className="stat-card">
-          <div className="bar-row">
-            <div className="bar-name">Planejado</div>
-            <div className="bar-track">
-              <div className="bar-fill" style={{ width: `${Math.min(100, Math.max(3, pctOrcamento))}%`, background: estourouOrcamento ? "var(--erro)" : "var(--caneta)" }} />
-            </div>
-            <div className="bar-val" style={{ width: "auto", whiteSpace: "nowrap", flex: "0 0 auto" }}>
-              {hOrcamento}h{mOrcamento > 0 ? mOrcamento + "min" : ""}
-            </div>
-          </div>
-          <div className="stat-foot" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <RotuloSecao>Orçamento de tempo da semana</RotuloSecao>
+        <Cartao className={CARTAO}>
+          <LinhaBarra
+            rotulo="Planejado"
+            pct={Math.min(100, Math.max(3, pctOrcamento))}
+            cor={estourouOrcamento ? "var(--erro)" : "var(--caneta)"}
+            larguraValor="auto"
+            valor={`${hOrcamento}h${mOrcamento > 0 ? mOrcamento + "min" : ""}`}
+          />
+          <Legenda className="mt-3 flex flex-wrap items-center gap-1.5">
             de{" "}
             <input
               type="number"
@@ -181,266 +171,178 @@ export function Boletim() {
               onChange={(e) => setHorasDraft(e.target.value)}
               onBlur={commitHoras}
               onKeyDown={(e) => e.key === "Enter" && commitHoras()}
-              style={{ width: 50, padding: "2px 4px" }}
+              className="w-[50px] px-1 py-0.5"
             />{" "}
             horas/semana disponíveis para rotinas
-            {estourouOrcamento && <span style={{ color: "var(--erro)" }}> &middot; {pctOrcamento}% do orçamento — planejado estoura o disponível</span>}
-          </div>
-        </div>
+            {estourouOrcamento && <span className="text-erro"> &middot; {pctOrcamento}% do orçamento — planejado estoura o disponível</span>}
+          </Legenda>
+        </Cartao>
 
         {evolucao.length >= 2 && (
           <>
-            <div className="section-label">Evolução do boletim</div>
-            <div className="stat-card">
-              <div className="hour-chart">
-                {evolucao.map((s, i) => {
-                  const h = Math.max(2, Math.round((Math.min(100, Math.max(0, s.nota)) / 100) * 70));
-                  const cor = s.dispensada ? "var(--sub)" : "var(--caneta)";
-                  const opacidade = s.emCurso ? "0.55" : "1";
-                  const mostraLabel = i === 0 || i === evolucao.length - 1 || s.emCurso;
-                  const dm = isoToDate(s.inicioISO);
-                  return (
-                    <div
-                      key={s.inicioISO + (s.emCurso ? "-atual" : "")}
-                      className="hour-col"
-                      title={`Semana de ${dm.toLocaleDateString()}: ${s.nota.toFixed(1)} pts${s.emCurso ? " (em curso)" : ""}${s.dispensada ? " · dispensada" : ""}`}
-                    >
-                      <span className="trend-lbl">{mostraLabel ? `${String(dm.getDate()).padStart(2, "0")}/${String(dm.getMonth() + 1).padStart(2, "0")}` : ""}</span>
-                      <div className="hour-bar-area">
-                        <div className="hour-bar" style={{ height: h, background: cor, opacity: opacidade }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <RotuloSecao>Evolução do boletim</RotuloSecao>
+            <Cartao className={CARTAO}>
+              <BarrasSemanas semanas={evolucaoSemanas} />
+            </Cartao>
           </>
         )}
 
-        <div style={{ margin: "10px 0 4px" }}>
-          <button className={disp ? "btn-cancel" : "btn-danger-outline"} onClick={alternarDispensaSemana} style={{ width: "100%" }}>
+        <div className="mt-2.5 mb-1">
+          <Botao variante={disp ? "neutro" : "perigo"} className="w-full" onClick={alternarDispensaSemana}>
             {disp ? "Reativar esta semana" : "Dispensar esta semana"}
-          </button>
+          </Botao>
         </div>
 
         {(!rodaAtiva || !habitoAtivo) && (
-          <div className="stat-card" style={{ marginBottom: 10 }}>
-            <div className="section-label" style={{ marginTop: 0 }}>
-              Recursos avançados disponíveis
-            </div>
+          <Cartao className="mb-2.5">
+            <RotuloSecao className="mt-0">Recursos avançados disponíveis</RotuloSecao>
             {!rodaAtiva && (
-              <div className="dev-n" style={{ marginBottom: 4 }}>
+              <Legenda className="mb-1">
                 Roda da vida desligada — rotinas de áreas diferentes ainda disputam o mesmo bolo de pontos da semana.
-              </div>
+              </Legenda>
             )}
-            {!habitoAtivo && <div className="dev-n">Hábito consolidado desligado — rotinas antigas não abrem espaço automaticamente para as que ainda não pegaram.</div>}
-            <button className="link-btn" onClick={() => goTo({ tab: "settings", screen: "settings" })} style={{ marginTop: 6 }}>
+            {!habitoAtivo && (
+              <Legenda>Hábito consolidado desligado — rotinas antigas não abrem espaço automaticamente para as que ainda não pegaram.</Legenda>
+            )}
+            <Botao variante="pilula" className="mt-1.5" onClick={() => goTo({ tab: "settings", screen: "settings" })}>
               Configurar em Ajustes &rarr;
-            </button>
-          </div>
+            </Botao>
+          </Cartao>
         )}
 
         {roda.linhas.length > 0 && (
           <>
-            <div className="section-label">Roda da vida — pontos desta semana</div>
-            <div className="stat-card">
+            <RotuloSecao>Roda da vida — pontos desta semana</RotuloSecao>
+            <Cartao className={CARTAO}>
               {roda.linhas.map((l) => (
-                <div key={l.label} className="bar-row">
-                  <div className="bar-name" style={{ color: l.color }}>
-                    {l.label}
-                  </div>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${roda.max ? Math.max(3, Math.round((l.pontos / roda.max) * 100)) : 0}%`, background: l.color }} />
-                  </div>
-                  <div className="bar-val" style={{ width: "auto", whiteSpace: "nowrap", flex: "0 0 auto" }}>
-                    {l.pontos.toFixed(1)}
-                    {l.previsto ? " / " + l.previsto.toFixed(0) : ""}
-                  </div>
-                </div>
+                <LinhaBarra
+                  key={l.label}
+                  rotulo={l.label}
+                  corRotulo={l.color}
+                  cor={l.color}
+                  pct={roda.max ? Math.max(3, Math.round((l.pontos / roda.max) * 100)) : 0}
+                  larguraValor="auto"
+                  valor={`${l.pontos.toFixed(1)}${l.previsto ? " / " + l.previsto.toFixed(0) : ""}`}
+                />
               ))}
-            </div>
+            </Cartao>
           </>
         )}
 
         {tend.length > 0 && (
           <>
-            <div className="section-label">Roda da vida — últimas {tend[0].valores.length} semanas</div>
-            <div className="stat-card">
+            <RotuloSecao>Roda da vida — últimas {tend[0].valores.length} semanas</RotuloSecao>
+            <Cartao className={CARTAO}>
               {tend.map((t) => (
-                <div key={t.label} className="bar-row">
-                  <div className="bar-name" style={{ color: t.color }}>
-                    {t.label}
-                  </div>
-                  <div className="bar-val" style={{ width: "auto", flex: 1, textAlign: "right", fontFamily: "'Montserrat'", fontSize: 12 }}>
-                    {t.valores.join(" · ")}
-                  </div>
-                </div>
+                <LinhaSimples key={t.label} rotulo={t.label} corRotulo={t.color} estender>
+                  {t.valores.join(" · ")}
+                </LinhaSimples>
               ))}
-              <div className="stat-foot">Pontos por semana, da mais antiga à mais recente (esquerda &rarr; direita).</div>
-            </div>
+              <Legenda className="mt-3">Pontos por semana, da mais antiga à mais recente (esquerda &rarr; direita).</Legenda>
+            </Cartao>
           </>
         )}
 
         {correlacoes.length > 0 && (
           <>
-            <div className="section-label">Correlação entre áreas — últimas {tend[0].valores.length} semanas</div>
-            <div className="stat-card">
+            <RotuloSecao>Correlação entre áreas — últimas {tend[0].valores.length} semanas</RotuloSecao>
+            <Cartao className={CARTAO}>
               {correlacoes.map((p) => {
                 const intensidade = Math.abs(p.r) >= 0.8 ? "forte" : "moderada";
                 const sentido = p.r >= 0 ? "junto" : "em direções opostas";
                 return (
                   <div key={`${p.a.label}-${p.b.label}`}>
-                    <div className="bar-row">
-                      <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                        <span style={{ color: p.a.color }}>{p.a.label}</span> &harr; <span style={{ color: p.b.color }}>{p.b.label}</span>
-                      </div>
-                      <div className="bar-val" style={{ width: "auto", color: Math.abs(p.r) >= 0.8 ? "var(--caneta)" : "var(--sub)" }}>
-                        {p.r >= 0 ? "+" : ""}
-                        {p.r.toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="dev-n" style={{ margin: "-2px 0 6px" }}>
+                    <LinhaValor
+                      rotulo={
+                        <>
+                          <span style={{ color: p.a.color }}>{p.a.label}</span> &harr; <span style={{ color: p.b.color }}>{p.b.label}</span>
+                        </>
+                      }
+                      valor={`${p.r >= 0 ? "+" : ""}${p.r.toFixed(2)}`}
+                      corValor={Math.abs(p.r) >= 0.8 ? "var(--caneta)" : "var(--sub)"}
+                    />
+                    <Legenda className="mt-[-2px] mb-1.5">
                       correlação {intensidade}, andam {sentido}
-                    </div>
+                    </Legenda>
                   </div>
                 );
               })}
-              <div className="stat-foot">Rudimentar: só mostra que duas áreas sobem/descem juntas nas últimas semanas — não prova que uma causa a outra.</div>
-            </div>
+              <Legenda className="mt-3">Rudimentar: só mostra que duas áreas sobem/descem juntas nas últimas semanas — não prova que uma causa a outra.</Legenda>
+            </Cartao>
           </>
         )}
 
-        <div className="section-label">Distribuição de pesos</div>
-        <div className="stat-card">
+        <RotuloSecao>Distribuição de pesos</RotuloSecao>
+        <Cartao className={CARTAO}>
           {tags.total ? (
             <>
-              <div className="bar-row">
-                <div className="bar-name">Alto</div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${larguraTag("alto")}%`, background: "var(--caneta)" }} />
-                </div>
-                <div className="bar-val">
-                  {tags.alto} &middot; {pctTag("alto")}%
-                </div>
-              </div>
-              <div className="bar-row">
-                <div className="bar-name">Médio</div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${larguraTag("medio")}%`, background: "var(--caneta-2)" }} />
-                </div>
-                <div className="bar-val">
-                  {tags.medio} &middot; {pctTag("medio")}%
-                </div>
-              </div>
-              <div className="bar-row">
-                <div className="bar-name">Baixo</div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${larguraTag("baixo")}%`, background: "var(--sub)" }} />
-                </div>
-                <div className="bar-val">
-                  {tags.baixo} &middot; {pctTag("baixo")}%
-                </div>
-              </div>
+              <LinhaBarra rotulo="Alto" pct={larguraTag("alto")} cor="var(--caneta)" valor={`${tags.alto} · ${pctTag("alto")}%`} />
+              <LinhaBarra rotulo="Médio" pct={larguraTag("medio")} cor="var(--caneta-2)" valor={`${tags.medio} · ${pctTag("medio")}%`} />
+              <LinhaBarra rotulo="Baixo" pct={larguraTag("baixo")} cor="var(--sub)" valor={`${tags.baixo} · ${pctTag("baixo")}%`} />
               {tagAlerta && (
-                <div className="stat-foot" style={{ color: "var(--caneta)" }}>
+                <Legenda className="mt-3 text-caneta">
                   {pctTag("alto")}% das etapas estão como "alto" — a tag está perdendo poder de distinguir. Vale rebaixar parte delas ou ajustar os multiplicadores em
                   Configurações.
-                </div>
+                </Legenda>
               )}
             </>
           ) : (
-            <div className="dev-n">Nenhuma etapa com tempo ainda.</div>
+            <Legenda>Nenhuma etapa com tempo ainda.</Legenda>
           )}
-          {tags.nenhum > 0 && <div className="stat-foot">{tags.nenhum} etapa(s) com peso "nenhum" — rodam normalmente, mas ficam fora do boletim.</div>}
-        </div>
+          {tags.nenhum > 0 && <Legenda className="mt-3">{tags.nenhum} etapa(s) com peso "nenhum" — rodam normalmente, mas ficam fora do boletim.</Legenda>}
+        </Cartao>
 
-        <div className="section-label">Vitrine de badges</div>
-        <div className="stat-card">
-          <div className="bar-row">
-            <div className="bar-name">Semanais</div>
-            <div className="bar-val" style={{ width: "auto" }}>
-              <LinhaBadges cont={semanas} />
-            </div>
-          </div>
-          <div className="bar-row">
-            <div className="bar-name">Mensais</div>
-            <div className="bar-val" style={{ width: "auto" }}>
-              <LinhaBadges cont={meses} />
-            </div>
-          </div>
-          <div className="bar-row">
-            <div className="bar-name">Trimestrais</div>
-            <div className="bar-val" style={{ width: "auto" }}>
-              <LinhaBadges cont={tris} />
-            </div>
-          </div>
-          <div className="bar-row">
-            <div className="bar-name">Anuais</div>
-            <div className="bar-val" style={{ width: "auto" }}>
-              <LinhaBadges cont={anos} />
-            </div>
-          </div>
-        </div>
+        <RotuloSecao>Vitrine de badges</RotuloSecao>
+        <Cartao className={CARTAO}>
+          <LinhaSimples rotulo="Semanais">
+            <LinhaBadges cont={semanas} />
+          </LinhaSimples>
+          <LinhaSimples rotulo="Mensais">
+            <LinhaBadges cont={meses} />
+          </LinhaSimples>
+          <LinhaSimples rotulo="Trimestrais">
+            <LinhaBadges cont={tris} />
+          </LinhaSimples>
+          <LinhaSimples rotulo="Anuais">
+            <LinhaBadges cont={anos} />
+          </LinhaSimples>
+        </Cartao>
 
         {bonusMes + bonusTri + bonusAno > 0 && (
           <>
-            <div className="section-label">Bônus de metas concluídas</div>
-            <div className="stat-card">
-              {bonusMes > 0 && (
-                <div className="bar-row">
-                  <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                    Neste mês
-                  </div>
-                  <div className="bar-val" style={{ color: "var(--ok)" }}>
-                    +{bonusMes}
-                  </div>
-                </div>
-              )}
-              {bonusTri > 0 && (
-                <div className="bar-row">
-                  <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                    Neste trimestre
-                  </div>
-                  <div className="bar-val" style={{ color: "var(--ok)" }}>
-                    +{bonusTri}
-                  </div>
-                </div>
-              )}
-              {bonusAno > 0 && (
-                <div className="bar-row">
-                  <div className="bar-name" style={{ width: "auto", flex: 1 }}>
-                    Neste ano
-                  </div>
-                  <div className="bar-val" style={{ color: "var(--ok)" }}>
-                    +{bonusAno}
-                  </div>
-                </div>
-              )}
-              <div className="stat-foot">Entram na nota do período ao fechar, não na semanal.</div>
-            </div>
+            <RotuloSecao>Bônus de metas concluídas</RotuloSecao>
+            <Cartao className={CARTAO}>
+              {bonusMes > 0 && <LinhaValor rotulo="Neste mês" valor={`+${bonusMes}`} corValor="var(--ok)" />}
+              {bonusTri > 0 && <LinhaValor rotulo="Neste trimestre" valor={`+${bonusTri}`} corValor="var(--ok)" />}
+              {bonusAno > 0 && <LinhaValor rotulo="Neste ano" valor={`+${bonusAno}`} corValor="var(--ok)" />}
+              <Legenda className="mt-3">Entram na nota do período ao fechar, não na semanal.</Legenda>
+            </Cartao>
           </>
         )}
 
         {ultimasBadges.length > 0 ? (
           <>
-            <div className="section-label">Últimas conquistas</div>
-            <div className="stat-card">
+            <RotuloSecao>Últimas conquistas</RotuloSecao>
+            <Cartao className={CARTAO}>
               {ultimasBadges.map((b, i) => (
-                <div key={i} className="bar-row">
-                  <div className="bar-name" style={{ color: BADGE_COR[b.tipo] }}>
-                    {BADGE_CHAR[b.tipo]} {BADGE_NOME[b.tipo]}
-                  </div>
-                  <div className="bar-val" style={{ width: "auto" }}>
-                    {b.escopo} &middot; {b.periodo} &middot; {b.nota.toFixed(1)}
-                  </div>
-                </div>
+                <LinhaSimples
+                  key={i}
+                  rotulo={
+                    <>
+                      {BADGE_CHAR[b.tipo]} {BADGE_NOME[b.tipo]}
+                    </>
+                  }
+                  corRotulo={BADGE_COR[b.tipo]}
+                >
+                  {b.escopo} &middot; {b.periodo} &middot; {b.nota.toFixed(1)}
+                </LinhaSimples>
               ))}
-            </div>
+            </Cartao>
           </>
         ) : (
-          <div className="dev-n" style={{ padding: "0 16px" }}>
+          <Legenda className="px-4">
             Nenhuma badge ainda — passe de {gam.config.notaMinima} pontos numa semana para conquistar a primeira.
-          </div>
+          </Legenda>
         )}
       </div>
     </div>

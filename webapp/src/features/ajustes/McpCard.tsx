@@ -13,7 +13,7 @@ import { LinhaNumero } from "../../ui/CampoNumero";
 import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { Toggle } from "../../ui/Segmentado";
-import { LinhaAjuste } from "./LinhaAjuste";
+import { LinhaValor } from "../../ui/LinhaValor";
 
 const MODOS: Array<[McpStatus["mode"], string]> = [
   ["off", "desligado"],
@@ -62,7 +62,7 @@ export function McpCard() {
 
   return (
     <>
-      <LinhaAjuste
+      <LinhaValor
         rotulo="Servidor MCP"
         valor={status.running ? "ativo" : "desligado"}
         corValor={status.running ? "var(--ok)" : "var(--sub)"}
