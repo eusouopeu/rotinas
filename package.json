@@ -15,8 +15,9 @@
     "test:react": "vitest run",
     "typecheck:react": "tsc --noEmit",
     "visual": "playwright test -c webapp/visual/playwright.config.mjs",
-    "visual:baseline": "playwright test -c webapp/visual/playwright.config.mjs --update-snapshots",
-    "format": "prettier --write"
+    "visual:baseline": "playwright test -c webapp/visual/playwright.config.mjs --update-snapshots=all",
+    "format": "prettier --write",
+    "visual:baseline-head": "bash webapp/visual/baseline-do-head.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",

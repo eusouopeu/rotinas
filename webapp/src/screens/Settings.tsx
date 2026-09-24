@@ -71,7 +71,7 @@ export function Settings() {
   return (
     <FiltroAjustes.Provider value={busca}>
     <div className="screen with-tabbar screen-wide">
-      <div className="settings-scroll" style={{ overflowY: "auto", flex: 1, paddingBottom: 24 }}>
+      <div className="settings-scroll" data-rolagem style={{ overflowY: "auto", flex: 1, paddingBottom: 24 }}>
         <div className="home-header" style={{ marginBottom: 6 }}>
           <h1>Ajustes</h1>
         </div>
