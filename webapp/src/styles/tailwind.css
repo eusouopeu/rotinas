@@ -14,6 +14,11 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "../../../app.css" layer(legacy);
 
+/* variantes de mídia que o legado já usa (app.css): celular deitado e cabeçalho
+   estreito. `desktop:`/`wide:`/`ultra:` vêm dos breakpoints do @theme. */
+@custom-variant paisagem (@media (orientation: landscape) and (max-height: 560px));
+@custom-variant estreito (@media (max-width: 420px));
+
 /* tema escuro = body.dark (mesmo mecanismo do legado): `dark:` só é preciso
    onde o token não muda sozinho — quase nunca, pois as cores são variáveis. */
 @custom-variant dark (&:where(body.dark, body.dark *));
@@ -76,4 +81,42 @@
   --font-*: initial;
   --font-sans: "Montserrat", -apple-system, sans-serif;
   --font-titulo: "Lato", sans-serif;
+
+  /* escala tipográfica em px (o app não usa rem): degraus inteiros do que
+     já existe. Meio-pixel (12.5, 13.5, 14.5, 15.5) e 17/19 ficam como valor
+     arbitrário (`text-[13.5px]`) até uma rodada de harmonização, para a
+     migração não mexer no visual. Sem line-height embutido: o app usa normal. */
+  --text-*: initial;
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 14px;
+  --text-lg: 15px;
+  --text-xl: 16px;
+  --text-2xl: 18px;
+  --text-3xl: 20px;
+  --text-4xl: 22px;
+  --text-5xl: 32px;
+
+  /* mesmos cortes de largura do app.css: 900 (desktop), 1200, 1400 */
+  --breakpoint-*: initial;
+  --breakpoint-desktop: 900px;
+  --breakpoint-wide: 1200px;
+  --breakpoint-ultra: 1400px;
+
+  --color-scrim: rgb(0 0 0 / 0.6);
+
+  --animate-entra: entra 0.25s ease;
+  --animate-entra-rapido: entra 0.15s ease;
+  @keyframes entra {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }

@@ -26,7 +26,7 @@ const desktop = { viewport: { width: 1280, height: 800 } };
 
 export default defineConfig({
   testDir: aqui,
-  testMatch: "telas.spec.mjs",
+  testMatch: ["telas.spec.mjs", "catalogo.spec.mjs"],
   snapshotPathTemplate: path.join(aqui, "referencia", "{projectName}", "{arg}{ext}"),
   outputDir: path.join(aqui, "resultado"),
   reporter: [["list"], ["html", { outputFolder: path.join(aqui, "relatorio"), open: "never" }]],

@@ -35,6 +35,27 @@ O React usa Tailwind v4 (`@tailwindcss/vite`), configurado em `webapp/src/styles
 - **CSS que sobra** (não expressável em utilitário): editor Markdown ao vivo, grade da agenda, animações — em arquivo `.css` ao lado da própria área, nunca no `app.css`.
 - **Formatação:** `.prettierrc.json` (largura 120) + `prettier-plugin-tailwindcss` ordena as classes sozinho. Formate só o arquivo que você está migrando (`npm run format -- webapp/src/screens/Metas.tsx`); o código antigo não tem formatação uniforme e formatar tudo geraria diffs enormes.
 
+### Primitivos (`webapp/src/ui/`)
+
+Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez de repetir classes. Todas aceitam `className` (passa por `cn()`, então o último utilitário ganha). Os nomes são em português, como o resto do código.
+
+| Componente | Substitui | Notas |
+|---|---|---|
+| `Botao` (`variante` primario/neutro/perigo, `tamanho` padrao/modal) | `.btn-primary/.btn-cancel/.btn-danger-outline` | não traz `flex-1`: use `className="flex-1"` na fileira |
+| `BotaoIcone` (`rotulo` obrigatório, `ligado`, `semBorda`, `tamanho` md/sm) | `.icon-btn`, `.bell-btn` | rotulo vira title + aria-label; área de toque +5px |
+| `Fab` (`rotulo`) | `.fab` | círculo no celular, pílula rotulada no desktop |
+| `Chip` (`ativo`, `cor`) | `.area-chip` | cor da área via `--chip` |
+| `SegPill` (`cheia`) / `Toggle` (`larga`, `quebra`, `grande`) | `.type-toggle` + `.seg-pill`/`.view-toggle` | pílula = trocar visão; Toggle = escolha pequena em formulário; `active` aceita lista |
+| `Switch` | `.switch-row` + checkbox | continua checkbox nativo, desenhado como interruptor |
+| `Campo`, `CampoDuracao` | inputs com caixa, `.dur-field` | número + unidade dentro da caixa |
+| `Cartao` (`raio` app/lg) | `.stat-card`, `.schedule-box` | |
+| `Modal`, `ModalTexto`, `ModalAcoes` | `.confirm-overlay/.confirm-box/.confirm-actions` | clique no fundo chama `onFechar` |
+| `EstadoVazio`, `RotuloSecao`, `CabecalhoTela` | `.empty-state`, `.section-label`, `.home-header` | |
+
+**Escala de texto** (`text-2xs` 10 · `xs` 11 · `sm` 12 · `md` 13 · `base` 14 · `lg` 15 · `xl` 16 · `2xl` 18 · `3xl` 20 · `4xl` 22 · `5xl` 32, em px): meio-pixel (12.5, 13.5, 14.5, 15.5) e 17/19 seguem como `text-[13.5px]` até uma rodada de harmonização escolhida pelo Pedro — a migração não muda o visual. Ao criar um nome novo em `@theme`, ensine-o ao `lib/cn.ts` (senão o tailwind-merge o lê como cor).
+
+**Catálogo:** `npm run dev:react` e abra `/#/ui` — cada primitivo ao lado do elemento equivalente do `app.css`, nos dois temas (botão "tema"). Só existe em desenvolvimento. `webapp/visual/catalogo.spec.mjs` compara os estilos computados dos dois lados (paridade) e reprova se um primitivo divergir; diferença intencional é declarada na linha do `<Par ignorar=[…]>` com o motivo. Primitivo novo = linha nova no catálogo. Divergências intencionais hoje: `Botao perigo` usa Montserrat (o legado caía em Arial por esquecimento), opções de `Toggle` têm cursor de mão, `BotaoIcone sm` centra com flex.
+
 ### Regressão visual
 
-`npm run visual:baseline` grava a referência (56 imagens: 14 telas × celular/desktop × claro/escuro, com dados fixos de `webapp/visual/seed.mjs` e data congelada em 23/09/2026); `npm run visual` compara e reprova qualquer diferença (relatório em `webapp/visual/relatorio`). Rode o baseline ANTES de migrar uma tela e o `visual` depois: mudança visual intencional → confira o relatório e rode o baseline de novo. A referência é gitignorada (depende da máquina); o Chromium do Playwright fica em `~/Library/Caches/ms-playwright` (`npx playwright install chromium`). Telas novas entram acrescentando um bloco em `webapp/visual/telas.spec.mjs`.
+`npm run visual:baseline` grava a referência (60 imagens: 14 telas + catálogo × celular/desktop × claro/escuro, com dados fixos de `webapp/visual/seed.mjs` e data congelada em 23/09/2026); `npm run visual` compara e reprova qualquer diferença (relatório em `webapp/visual/relatorio`). Rode o baseline ANTES de migrar uma tela e o `visual` depois: mudança visual intencional → confira o relatório e rode o baseline de novo. A referência é gitignorada (depende da máquina); o Chromium do Playwright fica em `~/Library/Caches/ms-playwright` (`npx playwright install chromium`). Telas novas entram acrescentando um bloco em `webapp/visual/telas.spec.mjs`.

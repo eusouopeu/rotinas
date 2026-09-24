@@ -8,7 +8,7 @@ import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { AreaInput, DateKbInput, TimeKbInput } from "../components/CamposTexto";
 import { Tabbar } from "../components/Tabbar";
-import { SegPill } from "../components/SegPill";
+import { SegPill } from "../ui/Segmentado";
 import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { exportPdfView } from "../lib/exportFile";
 import { metasPdfHtml } from "../lib/pdfExport";
@@ -133,7 +133,7 @@ export function Metas() {
 
         {/* as duas podem ficar ligadas juntas (lista única com dois blocos) */}
         <SegPill
-          className="view-toggle"
+          cheia
           style={{ marginBottom: 14 }}
           options={[
             { key: "recorrentes", label: "Recorrentes" },

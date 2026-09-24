@@ -27,7 +27,7 @@ import { relatorioFechamentoHtml } from "../lib/pdfExport";
 import { exportPdfView } from "../lib/exportFile";
 import type { CountdownDoc } from "../lib/types";
 import { Tabbar } from "../components/Tabbar";
-import { SegPill } from "../components/SegPill";
+import { SegPill } from "../ui/Segmentado";
 import { GraficoLinhaPct } from "../components/GraficoLinhaPct";
 
 const DOWL = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -929,7 +929,7 @@ export function Stats() {
         <div id="statsHead">
           <div className="stats-nav">
             <SegPill
-              className="view-toggle"
+              cheia
               options={[
                 { key: "semanal", label: "Semanal" },
                 { key: "mensal", label: "Mensal" },

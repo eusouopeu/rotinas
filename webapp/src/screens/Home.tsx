@@ -15,7 +15,7 @@ import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { StreakTag } from "../components/StreakTag";
-import { SegPill } from "../components/SegPill";
+import { SegPill } from "../ui/Segmentado";
 import { fmtTime } from "../lib/format";
 import { EXERCICIO_SET_SEG, rotinaCabeEmHoje, rotinasOrdenadas, routineDurationRaw } from "../lib/routines";
 import { AG_PX_MIN_ZOOM, blocosAgendaDia, computeGradeLayout, horaParaMin, itensAgendaDoDia, toggleLinhaFeita, type AgendaItemDia } from "../lib/agenda";
@@ -766,7 +766,7 @@ export function Home() {
         )}
 
         <SegPill
-          className="view-toggle"
+          cheia
           style={{ marginBottom: 14 }}
           options={[
             { key: "semana", label: "Semana" },

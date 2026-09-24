@@ -22,8 +22,14 @@ if (!isNative && !isDesktop && "serviceWorker" in navigator && location.protocol
 const container = document.getElementById("app");
 if (!container) throw new Error("Elemento #app não encontrado");
 
-createRoot(container).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+// Catálogo dos primitivos de ui/ (só `npm run dev:react`, em /#/ui): o
+// import.meta.env.DEV torna este ramo código morto no build de produção.
+if (import.meta.env.DEV && location.hash === "#/ui") {
+  import("./ui/Catalogo").then(({ Catalogo }) => createRoot(container).render(<Catalogo />));
+} else {
+  createRoot(container).render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+}

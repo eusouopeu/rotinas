@@ -9,7 +9,7 @@ import { useEffect, useRef } from "react";
 import { swipeClosed, swipeOpened } from "../lib/swipe";
 
 const REVEAL = 76;
-const IGNORE_SELECTOR = ".drag-handle, .order-btn, input, select, button, textarea, .type-toggle span";
+const IGNORE_SELECTOR = ".drag-handle, .order-btn, input, select, button, textarea, .type-toggle span, [data-seg]";
 
 interface SwipeItemProps {
   children: React.ReactNode;
