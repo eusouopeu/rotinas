@@ -121,6 +121,37 @@ const templates = [
     ],
   },
   {
+    id: "t-placar", type: "scoreboard", title: "Truco de sábado", createdAt: t0 - 8 * DIA, updatedAt: t0 - 2 * DIA, higherWins: true,
+    players: [{ id: "p1", name: "Ana" }, { id: "p2", name: "Bruno" }, { id: "p3", name: "" }],
+    rounds: [
+      { id: "rd1", scores: { p1: 12, p2: 8, p3: 5 } },
+      { id: "rd2", scores: { p1: 6, p2: 12, p3: 9 } },
+      { id: "rd3", scores: { p1: 12, p2: 3 } },
+    ],
+  },
+  {
+    id: "t-placar6", type: "scoreboard", title: "Torneio de dominó", createdAt: t0 - 9 * DIA, updatedAt: t0 - 4 * DIA, higherWins: false,
+    players: ["Ana", "Bruno", "Carla", "Davi", "Elis", "Fábio"].map((name, i) => ({ id: "q" + i, name })),
+    rounds: [
+      { id: "rq1", scores: { q0: 10, q1: 25, q2: 0, q3: 40, q4: 15, q5: 5 } },
+      { id: "rq2", scores: { q0: 5, q1: 0, q2: 30, q3: 10, q4: 20, q5: 45 } },
+    ],
+  },
+  { id: "t-placar0", type: "scoreboard", title: "Placar vazio", createdAt: t0 - 3 * DIA, updatedAt: t0 - 3 * DIA, higherWins: true, players: [], rounds: [] },
+  {
+    id: "t-rpd", type: "thoughtrecord", title: "Reunião de segunda", createdAt: t0 - 5 * DIA, updatedAt: t0 - 5 * DIA,
+    trigger: "Meu chefe adiou a apresentação sem explicar.",
+    emotions: "Ansiedade (7/10), frustração (5/10).",
+    distortion: "Leitura mental",
+    altThoughts: "Pode ter sido só uma questão de agenda.",
+    results: "Ansiedade caiu para 3/10.",
+  },
+  {
+    id: "t-proscons", type: "proscons", title: "Mudar de apartamento", createdAt: t0 - 7 * DIA, updatedAt: t0 - 2 * DIA,
+    pros: [{ id: "pr1", text: "Mais perto do trabalho", w: 5 }, { id: "pr2", text: "Varanda", w: 3 }, { id: "pr3", text: "Condomínio mais barato", w: 2 }],
+    cons: [{ id: "co1", text: "Custo da mudança", w: 4 }, { id: "co2", text: "Rua barulhenta", w: 3 }],
+  },
+  {
     id: "t-kanban2", type: "kanban", title: "Viagem de fim de ano", createdAt: t0 - 6 * DIA, updatedAt: t0 - 3 * DIA,
     cols: [
       { title: "A fazer", items: [{ id: "k5", text: "Reservar hotel" }] },
