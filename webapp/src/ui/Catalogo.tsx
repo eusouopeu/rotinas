@@ -10,7 +10,12 @@
 import { useState, type ReactNode } from "react";
 import { Icon } from "../components/Icon";
 import { GradePastas, PastaTile, SeparadorSecao } from "../features/modelos/PastaTile";
+import { AlcaArrasto } from "./AlcaArrasto";
 import { Botao } from "./Botao";
+import { BotaoRedondo } from "./BotaoRedondo";
+import { Fato, Fatos } from "./Fatos";
+import { LinhaBarra } from "./LinhaBarra";
+import { OpcaoCriar } from "./OpcaoCriar";
 import { CartaoInfo, CartaoLista, CartaoTitulo } from "./CartaoLista";
 import { CampoBusca } from "./CampoBusca";
 import { CampoCor } from "./CampoCor";
@@ -517,6 +522,65 @@ export function Catalogo() {
           }
           novo={<SeparadorSecao>Geral</SeparadorSecao>}
           cmp={[{}, { sel: "span" }, { pseudo: "::before" }, { pseudo: "::after" }]}
+        />
+        <Par
+          nome="botao-redondo-pequeno"
+          legado={<button className="ctrl-btn" style={{ width: 36, height: 36, fontSize: 15 }}>+</button>}
+          novo={<BotaoRedondo rotulo="Mais um" tamanho="sm">+</BotaoRedondo>}
+        />
+        <Par
+          nome="botao-redondo"
+          legado={<button className="ctrl-btn">+</button>}
+          novo={<BotaoRedondo rotulo="Mais um">+</BotaoRedondo>}
+        />
+        <Par
+          nome="alca-arrasto"
+          legado={<span className="rec-drag drag-handle">{icone}</span>}
+          novo={<AlcaArrasto />}
+          cmp={[{ sel: "span" }]}
+          cmpNovo={[{}]}
+          ignorar={["display", "largura"]}
+        />
+        <Par
+          nome="opcao-criar"
+          legado={
+            <button className="novo-opcao">
+              <Icon name="arrowPath" size={16} />
+              <b>Meta recorrente</b>
+              <span className="dev-n">hábito ou limite que repete</span>
+            </button>
+          }
+          novo={<OpcaoCriar icone="arrowPath" titulo="Meta recorrente" descricao="hábito ou limite que repete" />}
+          cmp={[{}, { sel: "b" }, { sel: "span" }, { sel: "svg" }]}
+        />
+        <Par
+          nome="fatos"
+          legado={
+            <div className="routine-meta routine-meta-line">
+              <span className="rc-fact">{icone} Médio</span>
+              <span className="rc-fact">{icone} 3x por semana</span>
+            </div>
+          }
+          novo={
+            <Fatos>
+              <Fato>{icone} Médio</Fato>
+              <Fato>{icone} 3x por semana</Fato>
+            </Fatos>
+          }
+          cmp={[{}, { sel: "span:first-child" }, { sel: "span:last-child" }]}
+        />
+        <Par
+          nome="linha-barra"
+          legado={
+            <div className="bar-row">
+              <div className="bar-name" style={{ color: "var(--ok)" }}>Saúde</div>
+              <div className="bar-track"><div className="bar-fill" style={{ width: "40%", background: "var(--ok)" }} /></div>
+              <div className="bar-val">12 / 42</div>
+            </div>
+          }
+          novo={<LinhaBarra rotulo="Saúde" cor="var(--ok)" pct={40} valor="12 / 42" />}
+          cmp={[{}, { sel: ".bar-name" }, { sel: ".bar-track" }, { sel: ".bar-fill" }, { sel: ".bar-val" }]}
+          cmpNovo={[{}, { sel: ":scope > div > div:nth-child(1)" }, { sel: ":scope > div > div:nth-child(2)" }, { sel: ":scope > div > div:nth-child(2) > div" }, { sel: ":scope > div > div:nth-child(3)" }]}
         />
         <Par
           nome="cartao"

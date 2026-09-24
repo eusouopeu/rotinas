@@ -76,7 +76,7 @@ test("metas: nova meta recorrente", async ({ page }) => {
   await abrirMetas(page);
   await fab(page).dispatchEvent("click");
   await page.getByPlaceholder("Alvo (ex.: Beber água)").fill("Alongar");
-  await foto(page, "metas-form-rec");
+  await foto(page, "metas-form-rec", { desfocar: true });
 });
 
 test("metas: nova meta recorrente negativa com lembretes", async ({ page }) => {
@@ -84,20 +84,20 @@ test("metas: nova meta recorrente negativa com lembretes", async ({ page }) => {
   await fab(page).dispatchEvent("click");
   await page.getByPlaceholder("Alvo (ex.: Beber água)").fill("Doce");
   await page.getByRole("button", { name: "Meta negativa" }).click();
-  await foto(page, "metas-form-rec-negativa");
+  await foto(page, "metas-form-rec-negativa", { desfocar: true });
 });
 
 test("metas: lembretes ligados", async ({ page }) => {
   await abrirMetas(page);
   await fab(page).dispatchEvent("click");
   await page.getByRole("button", { name: "Lembrar em horários fixos" }).click();
-  await foto(page, "metas-form-rec-lembretes");
+  await foto(page, "metas-form-rec-lembretes", { desfocar: true });
 });
 
 test("metas: editar meta recorrente", async ({ page }) => {
   await abrirMetas(page);
   await page.getByRole("heading", { name: "Treinar" }).click();
-  await foto(page, "metas-form-rec-editar");
+  await foto(page, "metas-form-rec-editar", { desfocar: true });
 });
 
 test("metas: nova meta com prazo", async ({ page }) => {
@@ -110,7 +110,7 @@ test("metas: nova meta com prazo", async ({ page }) => {
   await page.getByLabel("Tipo do item").fill("questões");
   await page.getByLabel("Prazo", { exact: true }).fill("15102026");
   await page.getByRole("button", { name: /Área|área/ }).first().isVisible().catch(() => {});
-  await foto(page, "metas-form-prazo");
+  await foto(page, "metas-form-prazo", { desfocar: true });
 });
 
 test("metas: prazo com áreas, dias e sugestões", async ({ page }) => {
@@ -132,5 +132,5 @@ test("metas: editar meta com prazo", async ({ page }) => {
   await alternar(page, "Prazos");
   await alternar(page, "Recorrentes");
   await page.getByRole("heading", { name: "Terminar o curso de inglês" }).click();
-  await foto(page, "metas-form-prazo-editar");
+  await foto(page, "metas-form-prazo-editar", { desfocar: true });
 });

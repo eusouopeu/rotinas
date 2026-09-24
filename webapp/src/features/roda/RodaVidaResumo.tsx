@@ -1,10 +1,13 @@
 import { useRef, useState } from "react";
-import { useAppStore } from "../store/useAppStore";
-import { pontosPorAreaSemana, ritmoInfo } from "../lib/boletim";
-import { load, save } from "../lib/storage";
-import { K_RODARESUMOABERTO } from "../lib/constants";
-import { Icon } from "./Icon";
-import { useIsDesktop } from "../lib/useIsDesktop";
+import { useAppStore } from "../../store/useAppStore";
+import { pontosPorAreaSemana, ritmoInfo } from "../../lib/boletim";
+import { load, save } from "../../lib/storage";
+import { K_RODARESUMOABERTO } from "../../lib/constants";
+import { Icon } from "../../components/Icon";
+import { useIsDesktop } from "../../lib/useIsDesktop";
+import { Cartao } from "../../ui/Cartao";
+import { Fato } from "../../ui/Fatos";
+import { LinhaBarra } from "../../ui/LinhaBarra";
 
 /** Quantas áreas cabem por página antes de precisar das setas ‹ ›. */
 const POR_PAGINA = 2;
@@ -73,13 +76,13 @@ export function RodaVidaResumo() {
   }
 
   return (
-    <div
-      className="stat-card roda-resumo-card"
+    <Cartao
+      className="mb-3.5 cursor-pointer"
+      data-roda="cartao"
       data-boletimcard="1"
       role="button"
       tabIndex={0}
       title="Ver o boletim da semana"
-      style={{ marginBottom: 14, cursor: "pointer" }}
       onClick={() => goTo({ tab: "home", screen: "boletim" })}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -89,7 +92,8 @@ export function RodaVidaResumo() {
       }}
     >
       <div
-        className="roda-head"
+        className="flex cursor-pointer items-center justify-between gap-2.5"
+        data-roda="cabecalho"
         role="button"
         tabIndex={0}
         aria-expanded={aberto}
@@ -102,26 +106,17 @@ export function RodaVidaResumo() {
           }
         }}
       >
-        <span className="roda-titulo">Roda da vida</span>
+        <span className="font-sans text-md tracking-[0.06em] text-ink uppercase">Roda da vida</span>
         <Icon name={aberto ? "chevronDown" : "chevronUp"} size={17} />
       </div>
 
       {aberto && (
         <>
-          <div className="roda-pager">
-            {temSetas && (
-              <button
-                className="roda-seta"
-                title="Áreas anteriores"
-                aria-label="Áreas anteriores"
-                disabled={pag === 0}
-                onClick={(e) => irPara(e, -1)}
-              >
-                <Icon name="chevronLeft" size={15} />
-              </button>
-            )}
+          <div className="mt-2 flex items-center gap-1">
+            {temSetas && <SetaPagina rotulo="Áreas anteriores" desabilitada={pag === 0} onClick={(e) => irPara(e, -1)} icone="chevronLeft" />}
             <div
-              className="roda-linhas"
+              className="min-w-0 flex-1"
+              data-roda="linhas"
               onTouchStart={(e) => {
                 arrasto.current = podeArrastar ? e.touches[0].clientX : null;
               }}
@@ -137,60 +132,68 @@ export function RodaVidaResumo() {
               }}
             >
               {visiveis.map((l) => (
-                <div className="bar-row" key={l.label}>
-                  <div className="bar-name" style={{ color: l.color }}>
-                    {l.label}
-                  </div>
-                  <div className="bar-track">
-                    <div
-                      className="bar-fill"
-                      style={{
-                        width: `${max ? Math.max(3, Math.round((l.pontos / max) * 100)) : 0}%`,
-                        background: l.color,
-                      }}
-                    />
-                  </div>
-                  <div className="bar-val" style={{ width: `${valCh + 0.5}ch`, whiteSpace: "nowrap", flex: "0 0 auto" }}>
-                    {valTxt(l)}
-                  </div>
-                </div>
+                <LinhaBarra
+                  key={l.label}
+                  data-roda="linha"
+                  className="my-1.5"
+                  rotulo={l.label}
+                  cor={l.color}
+                  pct={max ? Math.max(3, Math.round((l.pontos / max) * 100)) : 0}
+                  valor={valTxt(l)}
+                  larguraValor={valCh + 0.5}
+                />
               ))}
             </div>
-            {temSetas && (
-              <button
-                className="roda-seta"
-                title="Próximas áreas"
-                aria-label="Próximas áreas"
-                disabled={pag >= paginas - 1}
-                onClick={(e) => irPara(e, 1)}
-              >
-                <Icon name="chevronRight" size={15} />
-              </button>
-            )}
+            {temSetas && <SetaPagina rotulo="Próximas áreas" desabilitada={pag >= paginas - 1} onClick={(e) => irPara(e, 1)} icone="chevronRight" />}
           </div>
 
-          <div className="roda-boletim">
+          <div data-roda="rodape" className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3.5 gap-y-2 border-t-[1.5px] border-line pt-2.5 font-sans text-md text-ink">
             {r && (
-              <span className="rc-fact" title={`Nota da semana · ${r.label}`}>
+              <Fato data-roda="fato" title={`Nota da semana · ${r.label}`}>
                 <Icon name="hashtag" size={13} /> Nota <b style={{ color: r.cor }}>{num(r.nota)}</b>
-                <span className="roda-total">/100</span>
-              </span>
+                <span className="text-sub">/100</span>
+              </Fato>
             )}
             {r && (
-              <span className="rc-fact" title="Pontos que você deveria ter a esta altura da semana">
-                <b style={{ fontFamily: "'Lato',sans-serif" }}>&Sigma;</b> <b>{num(r.esperado)}</b>
-                <span className="roda-total">/100</span>
-              </span>
+              <Fato data-roda="fato" title="Pontos que você deveria ter a esta altura da semana">
+                <b className="font-titulo">&Sigma;</b> <b>{num(r.esperado)}</b>
+                <span className="text-sub">/100</span>
+              </Fato>
             )}
             {r && (
-              <span className="rc-fact" title="Dias restantes na semana">
+              <Fato data-roda="fato" title="Dias restantes na semana">
                 <Icon name="clock" size={13} /> {r.diasRestantes} dia
                 {r.diasRestantes > 1 ? "s" : ""}
-              </span>
+              </Fato>
             )}
           </div>
         </>
       )}
-    </div>
+    </Cartao>
+  );
+}
+
+function SetaPagina({
+  rotulo,
+  desabilitada,
+  onClick,
+  icone,
+}: {
+  rotulo: string;
+  desabilitada: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  icone: "chevronLeft" | "chevronRight";
+}) {
+  return (
+    <button
+      title={rotulo}
+      aria-label={rotulo}
+      disabled={desabilitada}
+      onClick={onClick}
+      data-roda="seta"
+      className="flex h-[38px] w-6 flex-none cursor-pointer items-center justify-center border-0 bg-transparent text-sub disabled:cursor-default disabled:opacity-25"
+    >
+      <Icon name={icone} size={15} />
+    </button>
   );
 }

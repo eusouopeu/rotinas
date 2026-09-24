@@ -9,7 +9,7 @@ export function Cartao({ raio = "app", className, ...resto }: Props) {
   return (
     <div
       className={cn(
-        "border-[1.5px] border-line bg-card p-4",
+        "border-[1.5px] border-line bg-card p-4 desktop:hover:border-caneta-soft",
         raio === "app" ? "rounded-app" : "rounded-lg",
         className
       )}

@@ -7,7 +7,7 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../lib/cn";
 
 const botaoIcone = cva(
-  "relative flex shrink-0 items-center justify-center rounded-app-sm border-[1.5px] text-lg transition-[transform,background-color] duration-120 ease-[ease] after:absolute after:-inset-[5px] after:rounded-lg active:scale-[0.92] active:bg-card-2",
+  "relative flex shrink-0 items-center justify-center rounded-app-sm border-[1.5px] text-lg transition-[transform,background-color] duration-120 ease-[ease] after:absolute after:-inset-[5px] after:rounded-lg active:scale-[0.92] active:bg-card-2 desktop:hover:border-caneta-soft desktop:hover:bg-card-2 desktop:hover:text-ink",
   {
     variants: {
       tamanho: { md: "size-9", sm: "size-[34px]" },

@@ -22,8 +22,13 @@ export async function preparar(page, { comDados = true } = {}) {
 
 export const aba = (page, nome) => page.locator(".tabbar button", { hasText: nome }).first().click();
 
-export async function foto(page, nome) {
+/** `desfocar`: tira o foco do campo (autoFocus de formulário) — o anel de foco
+ *  varia 1px entre execuções sob carga e não é o que se quer comparar. */
+export async function foto(page, nome, { desfocar = false } = {}) {
+  if (desfocar) await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.evaluate(() => document.fonts.ready);
+  // digitar em campos pode rolar 1px de lado um contêiner com overflow-x escondido
+  await page.evaluate(() => document.querySelectorAll("*").forEach((e) => e.scrollLeft && (e.scrollLeft = 0)));
   await page.waitForTimeout(400);
   await expect(page).toHaveScreenshot(`${nome}.png`);
 }

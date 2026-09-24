@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import { RodaVidaResumo } from "./RodaVidaResumo";
-import { useAppStore } from "../store/useAppStore";
-import { criarEstadoGamificacaoInicial } from "../lib/gamificacao";
-import type { GamificacaoState, SemanaAtual } from "../lib/types";
+import { useAppStore } from "../../store/useAppStore";
+import { criarEstadoGamificacaoInicial } from "../../lib/gamificacao";
+import type { GamificacaoState, SemanaAtual } from "../../lib/types";
 
 function baseGam(overridesSemana: Partial<SemanaAtual> = {}): GamificacaoState {
   const initial = criarEstadoGamificacaoInicial();
@@ -75,11 +75,11 @@ describe("RodaVidaResumo", () => {
     });
 
     const { container } = render(<RodaVidaResumo />);
-    const card = container.querySelector(".roda-resumo-card");
+    const card = container.querySelector('[data-roda="cartao"]');
     expect(card).not.toBeNull();
     expect(card?.getAttribute("data-boletimcard")).toBe("1");
 
-    const rows = container.querySelectorAll(".bar-row");
+    const rows = container.querySelectorAll('[data-roda="linha"]');
     expect(rows.length).toBe(2);
 
     expect(rows[0]?.textContent).toContain("Saúde");
@@ -104,7 +104,7 @@ describe("RodaVidaResumo", () => {
     });
 
     const { container } = render(<RodaVidaResumo />);
-    const rows = container.querySelectorAll(".bar-row");
+    const rows = container.querySelectorAll('[data-roda="linha"]');
     // "Trabalho" continua listada mesmo sem pontos nem agenda nesta semana
     // (fatia reservada, 22/09/2026); "Sem área" nunca vira linha.
     expect(rows.length).toBe(2);
@@ -121,12 +121,12 @@ describe("RodaVidaResumo", () => {
     });
 
     const { container } = render(<RodaVidaResumo />);
-    const footer = container.querySelector(".roda-boletim");
+    const footer = container.querySelector('[data-roda="rodape"]');
     expect(footer).not.toBeNull();
     expect(footer?.textContent).toContain("Nota 50/100");
     // Σ = pontos que deveriam estar feitos a esta altura da semana (0-100),
     // e não mais a contagem de itens concluídos
-    const sigma = Array.from(footer!.querySelectorAll(".rc-fact")).find((e) => e.textContent?.includes("Σ"));
+    const sigma = Array.from(footer!.querySelectorAll('[data-roda="fato"]')).find((e) => e.textContent?.includes("Σ"));
     expect(sigma?.textContent).toMatch(/Σ\s*[\d,]+\/100/);
     expect(footer?.textContent).toMatch(/\d+ dias?/);
   });
@@ -139,7 +139,7 @@ describe("RodaVidaResumo", () => {
     });
 
     const { container } = render(<RodaVidaResumo />);
-    const card = container.querySelector(".roda-resumo-card") as HTMLElement;
+    const card = container.querySelector('[data-roda="cartao"]') as HTMLElement;
     expect(card).not.toBeNull();
 
     fireEvent.click(card);
@@ -154,17 +154,17 @@ describe("RodaVidaResumo", () => {
     useAppStore.setState({ gam: baseGam({ concluidos: [{ pontos: 30, area: "saude" }] }) });
 
     const { container } = render(<RodaVidaResumo />);
-    const head = container.querySelector(".roda-head") as HTMLElement;
-    expect(container.querySelectorAll(".bar-row").length).toBe(2);
+    const head = container.querySelector('[data-roda="cabecalho"]') as HTMLElement;
+    expect(container.querySelectorAll('[data-roda="linha"]').length).toBe(2);
 
     fireEvent.click(head);
-    expect(container.querySelectorAll(".bar-row").length).toBe(0);
-    expect(container.querySelector(".roda-boletim")).toBeNull();
+    expect(container.querySelectorAll('[data-roda="linha"]').length).toBe(0);
+    expect(container.querySelector('[data-roda="rodape"]')).toBeNull();
     // o clique no cabeçalho não pode disparar a navegação do card inteiro
     expect(useAppStore.getState().view).toEqual({ tab: "home", screen: "home" });
 
     fireEvent.click(head);
-    expect(container.querySelectorAll(".bar-row").length).toBe(2);
+    expect(container.querySelectorAll('[data-roda="linha"]').length).toBe(2);
   });
 
   it("pagina as áreas de duas em duas arrastando no mobile, sem setas nem navegar", () => {
@@ -187,24 +187,24 @@ describe("RodaVidaResumo", () => {
     // jsdom não implementa matchMedia: useIsDesktop devolve false, que é
     // exatamente o caso "mobile" desta paginação
     const { container } = render(<RodaVidaResumo />);
-    expect(container.querySelectorAll(".roda-seta").length).toBe(0);
+    expect(container.querySelectorAll('[data-roda="seta"]').length).toBe(0);
 
-    let rows = container.querySelectorAll(".bar-row");
+    let rows = container.querySelectorAll('[data-roda="linha"]');
     expect(rows.length).toBe(2);
     expect(rows[0]?.textContent).toContain("Saúde");
     expect(rows[1]?.textContent).toContain("Trabalho");
 
-    const linhas = container.querySelector(".roda-linhas")!;
+    const linhas = container.querySelector('[data-roda="linhas"]')!;
     fireEvent.touchStart(linhas, { touches: [{ clientX: 200 }] });
     fireEvent.touchEnd(linhas, { changedTouches: [{ clientX: 100 }] });
-    rows = container.querySelectorAll(".bar-row");
+    rows = container.querySelectorAll('[data-roda="linha"]');
     expect(rows[0]?.textContent).toContain("Estudo");
     expect(rows[1]?.textContent).toContain("Lazer");
 
     // arrasto curto não troca de página nem vaza o clique para o card
     fireEvent.touchStart(linhas, { touches: [{ clientX: 200 }] });
     fireEvent.touchEnd(linhas, { changedTouches: [{ clientX: 190 }] });
-    expect(container.querySelectorAll(".bar-row")[0]?.textContent).toContain("Estudo");
+    expect(container.querySelectorAll('[data-roda="linha"]')[0]?.textContent).toContain("Estudo");
     expect(useAppStore.getState().view).toEqual({ tab: "home", screen: "home" });
   });
 });

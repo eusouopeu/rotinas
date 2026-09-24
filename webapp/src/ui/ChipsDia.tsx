@@ -7,15 +7,18 @@ type Props = {
   rotulos: readonly string[];
   ativos: number[];
   onToggle: (dia: number) => void;
+  /** dica ao passar o mouse, por dia (opcional) */
+  titulos?: readonly string[];
   className?: string;
 };
 
-export function ChipsDia({ rotulos, ativos, onToggle, className }: Props) {
+export function ChipsDia({ rotulos, ativos, onToggle, titulos, className }: Props) {
   return (
     <div className={cn("flex gap-1.5", className)}>
       {rotulos.map((l, d) => (
         <span
           key={d}
+          title={titulos?.[d]}
           onClick={() => onToggle(d)}
           className={cn(
             "flex-1 cursor-pointer rounded-[9px] border-[1.5px] py-2 text-center font-sans text-md",

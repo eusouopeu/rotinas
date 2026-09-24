@@ -3,6 +3,15 @@
 // ajuda). Todos guardam o mesmo formato de dado de antes — hora "HH:MM" e
 // data ISO "AAAA-MM-DD" — só a entrada muda.
 import { useEffect, useRef, useState } from "react";
+import { cn } from "../lib/cn";
+import { CAMPO_COMPACTO } from "./Campo";
+
+/** Caixa do campo de hora avulso (era .time-kb-input): 66px, centralizado. */
+const CAMPO_HORA_SOLTO =
+  "w-[66px] rounded-lg border-[1.5px] border-line bg-card-2 px-[9px] py-[7px] text-center font-sans text-base text-ink focus:border-caneta focus:outline-none";
+
+export type VarianteCampoDigitado = "solto" | "formulario";
+const caixa = (v: VarianteCampoDigitado) => (v === "solto" ? CAMPO_HORA_SOLTO : CAMPO_COMPACTO);
 
 /* Máscara dos campos de hora (timeKbInputHtml/wireTimeKbInputs,
    index.html:1851-1868): digita números, ganha ":" sozinho, normaliza no blur. */
@@ -12,18 +21,21 @@ export function TimeKbInput({
   label,
   className,
   disabled,
+  variante = "solto",
 }: {
   value: string;
   onChange: (v: string) => void;
   label: string;
   className?: string;
   disabled?: boolean;
+  /** "solto" = campo de hora avulso (Home); "formulario" = dentro de um popup de meta */
+  variante?: VarianteCampoDigitado;
 }) {
   return (
     <input
       type="text"
       inputMode="numeric"
-      className={className ?? "time-kb-input"}
+      className={cn(caixa(variante), className)}
       placeholder="--:--"
       maxLength={5}
       aria-label={label}
@@ -60,11 +72,13 @@ export function DateKbInput({
   onChange,
   label,
   className,
+  variante = "formulario",
 }: {
   value: string;
   onChange: (iso: string) => void;
   label: string;
   className?: string;
+  variante?: VarianteCampoDigitado;
 }) {
   const [texto, setTexto] = useState(() => isoParaBr(value));
   const ultimoIso = useRef(value);
@@ -90,7 +104,7 @@ export function DateKbInput({
     <input
       type="text"
       inputMode="numeric"
-      className={className}
+      className={cn(caixa(variante), className)}
       placeholder="dd/mm/aaaa"
       maxLength={10}
       aria-label={label}
@@ -163,9 +177,10 @@ export function AreaInput({
   }
 
   return (
-    <div className={"area-input" + (className ? " " + className : "")}>
+    <div className={cn("relative", className)}>
       <input
         type="text"
+        className={CAMPO_COMPACTO}
         aria-label={label}
         placeholder={placeholder}
         value={texto}
@@ -185,9 +200,13 @@ export function AreaInput({
         }}
       />
       {aberto && sugestoes.length > 0 && (
-        <div className="area-sugestoes">
+        <div className="absolute inset-x-0 top-[calc(100%+4px)] z-[5] flex max-h-[180px] flex-col overflow-y-auto rounded-[9px] border-[1.5px] border-line bg-card p-1">
           {sugestoes.map((a) => (
-            <span key={a} onMouseDown={() => escolher(a)}>
+            <span
+              key={a}
+              className="cursor-pointer rounded-xs px-2.5 py-2 font-sans text-md active:bg-card-2"
+              onMouseDown={() => escolher(a)}
+            >
               {a}
             </span>
           ))}
