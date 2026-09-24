@@ -2,6 +2,7 @@
 // cartão em edição (campo, excluir, salvar, cancelar).
 import { useState, type HTMLAttributes } from "react";
 import { Icon } from "../../components/Icon";
+import { Campo } from "../../ui/Campo";
 import { BotaoCompacto } from "../../ui/BotaoCompacto";
 import { BotaoMover } from "../../ui/BotaoMover";
 import { cn } from "../../lib/cn";
@@ -57,7 +58,6 @@ export function CartaoKanban(p: Props) {
   );
 }
 
-/** O campo e o botão "cancelar" ficam com a aparência crua do navegador, como no legado. */
 export function EdicaoCartao({
   texto,
   onSave,
@@ -72,7 +72,9 @@ export function EdicaoCartao({
   const [val, setVal] = useState(texto);
   return (
     <div className={cn(CARTAO, "items-stretch")}>
-      <input
+      <Campo
+        variante="modelo"
+        className="mb-0"
         type="text"
         value={val}
         autoFocus
@@ -85,9 +87,9 @@ export function EdicaoCartao({
         </BotaoCompacto>
         <BotaoCompacto onClick={() => onSave(val.trim() || texto)}>Salvar</BotaoCompacto>
       </div>
-      <button className="mt-1.5" onClick={onCancel}>
+      <BotaoCompacto variante="fantasma" className="mt-1.5" onClick={onCancel}>
         cancelar
-      </button>
+      </BotaoCompacto>
     </div>
   );
 }

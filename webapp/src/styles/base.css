@@ -33,12 +33,60 @@ body {
   overscroll-behavior: none;
   user-select: none;
 }
-/* botões, campos e menus usam a fonte do app (antes caíam na do sistema) */
+/* Ajustes sobre o preflight do Tailwind para manter o desenho do app: linha
+   normal no documento (o preflight põe 1.5), títulos com o tamanho do
+   navegador quando a tela não define um, e svg em linha como sempre foi. */
+html {
+  line-height: normal;
+}
+h1 {
+  font-size: 2em;
+}
+h2 {
+  font-size: 1.5em;
+}
+h3 {
+  font-size: 1.17em;
+}
+svg {
+  display: inline;
+  vertical-align: baseline;
+}
+/* Controles de formulário: o preflight zera tamanho, cor, fundo, borda e
+   recuo deles; o app foi desenhado com os do navegador onde a tela não define
+   nada (ver "Quirks preservados" em docs/design-system.md), então voltam ao
+   padrão do navegador. Só a FAMÍLIA da fonte é a do app. */
 button,
 input,
 select,
 textarea {
   font-family: inherit;
+  font-size: revert;
+  letter-spacing: revert;
+  color: revert;
+  background-color: revert;
+  border: revert;
+  border-radius: revert;
+  padding: revert;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  margin: revert;
+}
+/* texto corrido: margens do navegador onde a tela não zera */
+p,
+ul,
+ol,
+dl,
+dd,
+blockquote,
+figure,
+pre,
+hr,
+fieldset,
+menu {
+  margin: revert;
+  padding: revert;
 }
 h1,
 h2,

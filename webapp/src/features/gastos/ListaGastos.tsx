@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Icon } from "../../components/Icon";
 import { Botao } from "../../ui/Botao";
 import { BotaoApagar } from "../../ui/BotaoApagar";
-import { Campo } from "../../ui/Campo";
+import { Campo, SelecaoLinha } from "../../ui/Campo";
 import { Cartao } from "../../ui/Cartao";
 import { EstadoVazio } from "../../ui/EstadoVazio";
 import { CelNegrito, CelNota, LinhaTabela } from "../../ui/LinhaTabela";
@@ -27,11 +27,11 @@ function EdicaoGasto({
   const [cat, setCat] = useState(e.cat);
   const [date, setDate] = useState(e.date);
   const [time, setTime] = useState(e.time || "");
-  // os campos ficam com a aparência crua do navegador, como no legado
   return (
     <LinhaTabela className="flex-wrap gap-1.5">
       <Campo variante="modelo" type="text" value={desc} onChange={(ev) => setDesc(ev.target.value)} />
-      <input
+      <Campo
+        variante="linha"
         type="number"
         inputMode="decimal"
         min={0}
@@ -40,13 +40,25 @@ function EdicaoGasto({
         value={value}
         onChange={(ev) => setValue(ev.target.value)}
       />
-      <select className="flex-1" value={cat} onChange={(ev) => setCat(ev.target.value)}>
+      <SelecaoLinha value={cat} onChange={(ev) => setCat(ev.target.value)}>
         {EXP_CATS.map((c) => (
           <option key={c}>{c}</option>
         ))}
-      </select>
-      <input type="date" className="w-[130px]" value={date} onChange={(ev) => setDate(ev.target.value)} />
-      <input type="time" className="w-[100px]" value={time} onChange={(ev) => setTime(ev.target.value)} />
+      </SelecaoLinha>
+      <Campo
+        variante="linha"
+        type="date"
+        className="w-[130px]"
+        value={date}
+        onChange={(ev) => setDate(ev.target.value)}
+      />
+      <Campo
+        variante="linha"
+        type="time"
+        className="w-[100px]"
+        value={time}
+        onChange={(ev) => setTime(ev.target.value)}
+      />
       <Botao
         className="flex-1 px-3.5 py-2"
         onClick={() => {

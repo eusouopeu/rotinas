@@ -95,12 +95,11 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 
 > Variantes de largura: `paisagem:` é declarada antes de `desktop:`/`wide:`/`ultra:` em `tailwind.css` de propósito (no legado a largura vence o celular deitado). Não reordene. Telas: use `tela({ comAbas, comPill, larga }, "extras")` no `<div>` raiz e `rolavel()` na área que rola; cabeçalho de aba = `CabecalhoTela`.
 
-## Quirks preservados (para a rodada de harmonização)
+## Harmonização (24/09/2026) e quirks que restam
 
-A migração manteve pixel a pixel o que o legado fazia, inclusive o que é acidente do navegador. Ao harmonizar (e só então ligar o preflight do Tailwind), estes são os pontos:
+Decisões do Pedro: (1) fonte do app (Montserrat) em todos os botões, campos e menus; (2) escala de texto sem meio-pixel (10,5→`text-xs`, 11,5→`text-sm`, 12,5→`text-md`, 13,5→`text-base`, 14,5→`text-lg`, 15,5→`text-xl`; só restam os tamanhos de exibição `text-[17px]`, `[19px]`, `[23px]`…`[50px]`); (3) preflight do Tailwind ligado; (4) pill Notas/Outros no desktop deixada como está. A referência visual foi regravada depois de (1) e (2); o teste de paridade do catálogo foi encerrado (o legado deixou de ser a régua).
 
-- **Sem preflight:** `html` com line-height normal, `p`/`h*` com margens do navegador nos poucos lugares que não as zeram, `svg` inline, bordas/paddings de campo do navegador.
-- **Fonte do sistema** (não a Montserrat) em: botão "perigo", campos "modelo/linha/item" e `select`, botões só-ícone e o "Sair" do player, botão de opção do popup "Criar", "cancelar"/campo cru da edição do cartão do Kanban, campos da linha de gasto em edição.
-- **Escala de texto** com meios-pixels (`text-[13.5px]`, `[14.5px]`, `[15.5px]`, `[10.5px]`, `[11.5px]`, `[12.5px]`): unificar em `text-2xs…5xl`.
-- **Legado sem efeito:** cores de coluna do Kanban (`kb-s0..2`), `.color-chip`/`.mx-chip` sem seleção, pasta de Prós e contras fora da lista de pastas, pill de Notas/Outros sobrepondo o FAB rotulado no desktop.
+Feito: campo e botões da edição do cartão do Kanban e da linha de gasto ganharam `Campo`/`SelecaoLinha`/`BotaoCompacto`. Preflight: ligado com ajustes em `base.css` (line-height normal, títulos com tamanho do navegador, `svg` em linha, controles com cor/fundo/borda/recuo do navegador e margens de texto corrido do navegador onde a tela não define nada). Restam de propósito: o botão "perigo" sem borda arredondada extra, botões só-ícone sem fundo definido e a sobreposição da pill de Notas/Outros ao botão "Novo" no desktop. Cada ajuste de `base.css` pode sair quando o componente correspondente ganhar estilo próprio — rode `npm run visual` a cada retirada.
+
 - **Variantes:** `paisagem:` é declarada antes de `desktop:`/`wide:`/`ultra:` de propósito.
+- **Legado sem efeito:** cores de coluna do Kanban (`kb-s0..2`), `.color-chip`/`.mx-chip` sem seleção, pasta de Prós e contras fora da lista de pastas.
