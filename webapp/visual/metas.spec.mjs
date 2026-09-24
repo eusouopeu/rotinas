@@ -61,7 +61,7 @@ test("metas: roda da vida recolhida", async ({ page }) => {
 test("metas: roda da vida, próxima página (setas do desktop)", async ({ page }, info) => {
   test.skip(!info.project.name.startsWith("desktop"), "as setas só existem no desktop");
   await abrirMetas(page);
-  await page.getByRole("button", { name: "Próximas áreas" }).click();
+  await page.locator('button[aria-label="Próximas áreas"]').click();
   await foto(page, "metas-roda-pagina2");
 });
 

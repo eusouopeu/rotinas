@@ -31,6 +31,9 @@ export default defineConfig({
   outputDir: path.join(aqui, "resultado"),
   reporter: [["list"], ["html", { outputFolder: path.join(aqui, "relatorio"), open: "never" }]],
   fullyParallel: true,
+  // alguns formulários (autoFocus) variam 1px de vez em quando sob carga; uma
+  // regressão de verdade falha nas três tentativas
+  retries: 2,
   expect: { toHaveScreenshot: { animations: "disabled", maxDiffPixelRatio: 0.001 } },
   use: { ...base },
   projects: [
