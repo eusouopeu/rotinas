@@ -39,7 +39,7 @@ export function Modal({ children, onFechar, posicao = "centro", className }: Pro
 }
 
 export function ModalTexto({ className, ...resto }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("m-0 mb-[18px] text-[15.5px] leading-normal", className)} {...resto} />;
+  return <p className={cn("m-0 mb-[18px] text-xl leading-normal", className)} {...resto} />;
 }
 
 export function ModalAcoes({ className, ...resto }: HTMLAttributes<HTMLDivElement>) {

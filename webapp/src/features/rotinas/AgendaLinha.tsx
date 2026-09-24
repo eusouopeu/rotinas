@@ -28,7 +28,7 @@ export function AgendaLinha({ it, onClick, onDelete, onEdit }: Props) {
           em coluna entre os itens do dia, e o item sem fim ocupa só uma. */}
       <span
         className={cn(
-          "flex w-[54px] min-w-0 flex-[0_0_54px] flex-col font-sans text-[12.5px] leading-[1.22] text-sub",
+          "flex w-[54px] min-w-0 flex-[0_0_54px] flex-col font-sans text-md leading-[1.22] text-sub",
           apagado
         )}
       >

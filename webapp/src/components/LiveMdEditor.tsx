@@ -19,7 +19,7 @@ import { cn } from "../lib/cn";
 
 // tipografia do corpo da nota (compartilhada pelo modo live e pelo cru)
 const CORPO =
-  "w-full min-h-[52vh] border-0 bg-transparent p-0 text-[15.5px] leading-[1.65] text-ink focus:outline-none";
+  "w-full min-h-[52vh] border-0 bg-transparent p-0 text-xl leading-[1.65] text-ink focus:outline-none";
 
 type Sel = { value: string; start: number; end: number };
 export interface LiveMdEditorHandle {
@@ -237,7 +237,7 @@ export const LiveMdEditor = forwardRef<
         ref={cruRef}
         className={cn(
           CORPO,
-          "min-h-[60vh] resize-none [font-family:ui-monospace,SFMono-Regular,Menlo,monospace] text-[13.5px] leading-[1.6] [overflow-wrap:anywhere] whitespace-pre-wrap"
+          "min-h-[60vh] resize-none [font-family:ui-monospace,SFMono-Regular,Menlo,monospace] text-base leading-[1.6] [overflow-wrap:anywhere] whitespace-pre-wrap"
         )}
         value={value}
         placeholder={placeholder}

@@ -12,7 +12,7 @@ export function BotaoCompacto({ variante = "primario", className, type = "button
     <button
       type={type}
       className={cn(
-        "rounded-[9px] border-0 px-4 py-2 font-sans text-[13.5px]",
+        "rounded-[9px] border-0 px-4 py-2 font-sans text-base",
         variante === "primario" ? "bg-caneta font-semibold text-on-caneta" : "bg-card-2 font-normal text-sub",
         className
       )}

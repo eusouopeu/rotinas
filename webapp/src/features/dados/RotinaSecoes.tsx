@@ -101,7 +101,7 @@ export function EtapasRotina({
               <div className="flex items-center justify-between gap-2 pt-0.5 pb-2 pl-3">
                 <Legenda>A média real é {semSinal(s.medAct)}.</Legenda>
                 <button
-                  className="rounded-lg border-[1.5px] border-dashed border-caneta-soft bg-card-2 px-3 py-[5px] font-sans text-[12.5px] text-caneta"
+                  className="rounded-lg border-[1.5px] border-dashed border-caneta-soft bg-card-2 px-3 py-[5px] font-sans text-md text-caneta"
                   onClick={() => onAjustar(s)}
                 >
                   ajustar para {s.newSecLabel}
@@ -174,7 +174,7 @@ export function UltimasExecucoes({ stats, onApagar }: { stats: Stats; onApagar: 
             {h.cmpStr} {h.moodStr}
           </CelNota>
           <button
-            className="shrink-0 border-0 bg-transparent px-1.5 py-0.5 text-[13px] text-sub active:text-erro desktop:hover:text-erro"
+            className="shrink-0 border-0 bg-transparent px-1.5 py-0.5 text-md text-sub active:text-erro desktop:hover:text-erro"
             onClick={() => onApagar(h.ts)}
             title="Apagar este registro de execução"
             aria-label="Apagar registro"

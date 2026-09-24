@@ -141,7 +141,7 @@ export function SwipeItem({
     <div data-swipe-item className="relative shrink-0 grow-0 overflow-hidden rounded-app">
       {onLeft && (
         <button
-          className="absolute inset-y-0 right-0 z-0 w-[76px] border-0 bg-erro font-sans text-[12.5px] font-semibold text-on-caneta"
+          className="absolute inset-y-0 right-0 z-0 w-[76px] border-0 bg-erro font-sans text-md font-semibold text-on-caneta"
           onClick={() => {
             fechar();
             onLeft();
@@ -152,7 +152,7 @@ export function SwipeItem({
       )}
       {onRight && (
         <button
-          className="absolute inset-y-0 left-0 z-0 w-[76px] border-0 bg-caneta-2 font-sans text-[12.5px] font-semibold text-on-caneta"
+          className="absolute inset-y-0 left-0 z-0 w-[76px] border-0 bg-caneta-2 font-sans text-md font-semibold text-on-caneta"
           onClick={() => {
             fechar();
             onRight();

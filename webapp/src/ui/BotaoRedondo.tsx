@@ -13,9 +13,9 @@ const redondo = cva(
   {
     variants: {
       tamanho: {
-        md: "size-14 text-2xl paisagem:size-[46px] paisagem:text-[16px]",
+        md: "size-14 text-2xl paisagem:size-[46px] paisagem:text-xl",
         sm: "size-9 text-lg",
-        grande: "size-[76px] border-0 text-[24px] paisagem:size-[58px] paisagem:text-[20px]",
+        grande: "size-[76px] border-0 text-[24px] paisagem:size-[58px] paisagem:text-3xl",
       },
       cor: {
         neutro: "border-line bg-card",

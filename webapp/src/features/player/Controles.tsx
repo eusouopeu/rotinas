@@ -131,7 +131,7 @@ export function ControlesSimples({ onConcluir, ...c }: Comuns & { onConcluir: ()
 }
 
 const PULAR =
-  "rounded-[10px] border-[1.5px] border-dashed border-line bg-transparent px-4 py-2 font-sans text-[13.5px] text-sub";
+  "rounded-[10px] border-[1.5px] border-dashed border-line bg-transparent px-4 py-2 font-sans text-base text-sub";
 
 export function LinhaPular({
   podeVoltarSerie,

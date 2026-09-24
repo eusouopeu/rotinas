@@ -22,7 +22,7 @@ export const ACAO_NAV = "ml-1.5";
 /** Nome do dia ("Quarta"): Lato, uma linha só, com o pontinho de "hoje" antes. */
 export function NomeDia({ hoje, rotuloPonto, children }: { hoje?: boolean; rotuloPonto: string; children: ReactNode }) {
   return (
-    <span className="mr-1.5 min-w-0 flex-[0_1_auto] overflow-hidden font-titulo text-[15px] font-semibold text-ellipsis whitespace-nowrap">
+    <span className="mr-1.5 min-w-0 flex-[0_1_auto] overflow-hidden font-titulo text-lg font-semibold text-ellipsis whitespace-nowrap">
       {hoje && <PontoHoje rotulo={rotuloPonto} />}
       {children}
     </span>

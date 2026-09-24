@@ -12,7 +12,7 @@ export function LinhasTexto({ textos, icone }: { textos: string[]; icone: IconNa
           <span className="mt-px flex-none text-caneta">
             <Icon name={icone} size={14} />
           </span>
-          <span className="font-sans text-[13.5px] text-ink" dangerouslySetInnerHTML={{ __html: txt }} />
+          <span className="font-sans text-base text-ink" dangerouslySetInnerHTML={{ __html: txt }} />
         </div>
       ))}
     </>

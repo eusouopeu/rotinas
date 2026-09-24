@@ -52,7 +52,7 @@ export function GraficoLinhaPct({ pontos, meta, ariaLabel }: Props) {
       {[0, 25, 50, 75, 100].map((v) => (
         <g key={v}>
           <line className="stroke-line stroke-1" x1={ESQ} x2={W - DIR} y1={y(v)} y2={y(v)} />
-          <text className="fill-sub font-sans text-[10px]" x={ESQ - 6} y={y(v) + 3.5} textAnchor="end">
+          <text className="fill-sub font-sans text-2xs" x={ESQ - 6} y={y(v) + 3.5} textAnchor="end">
             {v}%
           </text>
         </g>
@@ -84,7 +84,7 @@ export function GraficoLinhaPct({ pontos, meta, ariaLabel }: Props) {
         (ultimo - i) % 2 === 0 ? (
           <text
             key={`x-${i}`}
-            className="fill-sub font-sans text-[10px]"
+            className="fill-sub font-sans text-2xs"
             x={x(i)}
             y={H - 6}
             textAnchor={i === ultimo ? "end" : "middle"}

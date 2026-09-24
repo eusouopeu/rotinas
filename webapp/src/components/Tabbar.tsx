@@ -36,7 +36,7 @@ export function Tabbar() {
       <button
         key={t.tab}
         className={cn(
-          "flex flex-1 flex-col items-center justify-center gap-[3px] border-0 bg-transparent font-sans text-[11.5px] text-sub paisagem:gap-px paisagem:text-[10.5px]",
+          "flex flex-1 flex-col items-center justify-center gap-[3px] border-0 bg-transparent font-sans text-sm text-sub paisagem:gap-px paisagem:text-xs",
           // sidebar do desktop: linha com ícone e rótulo; recolhida, só o ícone
           "desktop:flex-none desktop:flex-row desktop:justify-start desktop:gap-2.5 desktop:rounded-app-sm desktop:px-2.5 desktop:py-[9px] desktop:text-base desktop:transition-[background-color,color] desktop:duration-[140ms] desktop:ease-[ease]",
           "desktop:recolhido:justify-center desktop:recolhido:px-0",

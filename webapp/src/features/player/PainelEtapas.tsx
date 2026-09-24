@@ -47,14 +47,14 @@ function LinhaEtapa({
       </span>
       <span
         className={cn(
-          "min-w-0 flex-auto text-[14.5px]",
+          "min-w-0 flex-auto text-lg",
           estado === "feita" && "text-sub line-through",
           estado === "atual" && "font-semibold text-caneta"
         )}
       >
         {nome}
       </span>
-      <span className={cn("flex-none font-sans text-[11.5px] text-sub", estado === "feita" && "line-through")}>
+      <span className={cn("flex-none font-sans text-sm text-sub", estado === "feita" && "line-through")}>
         {duracao}
       </span>
       <span className="flex shrink-0 gap-1">

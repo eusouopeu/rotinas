@@ -51,7 +51,7 @@ export function LinhaBarra({
       {...resto}
     >
       <div
-        className={cn("overflow-hidden text-[13.5px] text-ellipsis whitespace-nowrap", !naGrade && "w-[34%]")}
+        className={cn("overflow-hidden text-base text-ellipsis whitespace-nowrap", !naGrade && "w-[34%]")}
         style={corRotulo ? { color: corRotulo } : undefined}
       >
         {rotulo}

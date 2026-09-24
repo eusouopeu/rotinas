@@ -22,7 +22,7 @@ export function PastaTile({
       )}
       {...resto}
     >
-      <span className="flex h-[19px] items-center justify-center text-[19px] desktop:h-[22px] desktop:text-[22px]">
+      <span className="flex h-[19px] items-center justify-center text-[19px] desktop:h-[22px] desktop:text-4xl">
         <Icon name={icone} size={iconeTam} />
       </span>
       <span>{rotulo}</span>
@@ -46,7 +46,7 @@ export function GradePastas({ className, ...resto }: HTMLAttributes<HTMLDivEleme
 export function SeparadorSecao({ children }: { children: string }) {
   return (
     <div className="mt-0.5 mb-3.5 flex items-center gap-2.5 before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
-      <span className="font-sans text-[10.5px] tracking-[0.08em] text-sub uppercase">{children}</span>
+      <span className="font-sans text-xs tracking-[0.08em] text-sub uppercase">{children}</span>
     </div>
   );
 }

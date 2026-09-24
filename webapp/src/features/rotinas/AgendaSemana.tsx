@@ -68,7 +68,7 @@ export function AgendaSemana() {
     return (
       <div key={iso}>
         <div className="mt-4 mb-1.5 flex items-center gap-2">
-          <span className="min-w-0 flex-auto overflow-hidden font-titulo text-[15px] font-semibold text-ellipsis whitespace-nowrap">
+          <span className="min-w-0 flex-auto overflow-hidden font-titulo text-lg font-semibold text-ellipsis whitespace-nowrap">
             {DIAS_NOME[dow].charAt(0).toUpperCase() + DIAS_NOME[dow].slice(1)}
             {ehHoje ? " · hoje" : ""}
           </span>

@@ -16,7 +16,7 @@ type Props = {
 export function LinhaValor({ rotulo, valor, corValor, children, className }: Props) {
   return (
     <div className={cn("my-2 flex items-center gap-2.5", className)}>
-      <div className="min-w-0 flex-1 overflow-hidden text-[13.5px] text-ellipsis whitespace-nowrap">{rotulo}</div>
+      <div className="min-w-0 flex-1 overflow-hidden text-base text-ellipsis whitespace-nowrap">{rotulo}</div>
       {valor !== undefined && (
         <div
           className="text-right font-sans text-sm text-sub tabular-nums"

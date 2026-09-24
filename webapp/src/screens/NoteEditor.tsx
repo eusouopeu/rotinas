@@ -142,7 +142,7 @@ export function NoteEditor() {
               if (e.target.value !== note.title) updateNote(note.id, { title: e.target.value });
             }}
           />
-          <div className="truncate font-sans text-[10.5px] tracking-[0.01em] text-sub">
+          <div className="truncate font-sans text-xs tracking-[0.01em] text-sub">
             {criadoEmLabel(note.createdAt)}
           </div>
         </CabecaNota>

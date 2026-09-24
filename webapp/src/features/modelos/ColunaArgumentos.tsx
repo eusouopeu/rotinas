@@ -81,7 +81,7 @@ export function ColunaArgumentos({ label, tom, items, onAdd, onSetWeight, onDele
                     <span
                       key={w}
                       className={cn(
-                        "flex size-6 items-center justify-center rounded-[6px] border-[1.5px] border-line font-sans text-[11.5px] text-sub",
+                        "flex size-6 items-center justify-center rounded-[6px] border-[1.5px] border-line font-sans text-sm text-sub",
                         i.w === w && cn(tom.fundo, "border-transparent text-on-caneta")
                       )}
                       onClick={() => onSetWeight(i.id, w)}

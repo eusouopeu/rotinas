@@ -13,7 +13,7 @@ export const AVISO =
   "fixed inset-x-4 top-[calc(var(--safe-top)+10px)] z-[999] animate-aviso rounded-app-sm bg-caneta px-4 py-3.5 font-sans text-base font-semibold text-on-caneta";
 /** botão de ação dentro do aviso ("Desfazer", "Importar") */
 export const BOTAO_AVISO =
-  "flex-none rounded-[8px] border-0 bg-veu-claro px-3.5 py-[7px] font-sans text-[13.5px] font-bold text-on-caneta";
+  "flex-none rounded-[8px] border-0 bg-veu-claro px-3.5 py-[7px] font-sans text-base font-bold text-on-caneta";
 export const SUMIR = "[transform:translateY(-10px)] opacity-0 transition-all duration-[400ms] ease-[ease]";
 
 const THRESH = 44;
@@ -120,7 +120,7 @@ export function GlobalBanner() {
       {banner && banner.celebrate && (
         <div
           ref={topRef}
-          className={cn(AVISO, "flex animate-aviso-festa items-center gap-2 text-[14.5px]", topHiding && SUMIR)}
+          className={cn(AVISO, "flex animate-aviso-festa items-center gap-2 text-lg", topHiding && SUMIR)}
           dangerouslySetInnerHTML={{ __html: `🏆 <span>${banner.text}</span>` }}
         />
       )}

@@ -87,7 +87,7 @@ export function GradeDia({
           <span
             className={cn(
               "absolute top-[-8px] left-0 pr-[7px] font-sans text-sub",
-              h.min % 60 ? "text-2xs font-normal" : "text-[11.5px] font-semibold",
+              h.min % 60 ? "text-2xs font-normal" : "text-sm font-semibold",
               fundoRotulo === "paper" ? "bg-paper" : "bg-card",
               ocultarRotulos && "hidden"
             )}
@@ -142,7 +142,7 @@ export function GradeDia({
           >
             <span
               className={cn(
-                "min-w-0 flex-[1_1_0] text-[12.5px] leading-[1.25] break-words",
+                "min-w-0 flex-[1_1_0] text-md leading-[1.25] break-words",
                 b.feito && "line-through",
                 b.adiado && "text-sub"
               )}

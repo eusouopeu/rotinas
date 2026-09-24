@@ -23,7 +23,7 @@ export function LinhaTabela({
         coluna ? "flex-col items-start gap-0.5" : "items-center gap-2.5",
         toque && "cursor-pointer active:opacity-60",
         cabecalho &&
-          "border-b-sub [&>*]:font-sans [&>*]:text-[10.5px] [&>*]:font-normal [&>*]:tracking-[0.05em] [&>*]:text-sub [&>*]:uppercase",
+          "border-b-sub [&>*]:font-sans [&>*]:text-xs [&>*]:font-normal [&>*]:tracking-[0.05em] [&>*]:text-sub [&>*]:uppercase",
         className
       )}
       {...resto}

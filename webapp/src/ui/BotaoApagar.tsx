@@ -15,7 +15,7 @@ export function BotaoApagar({
     <button
       type={type}
       className={cn(
-        "shrink-0 border-0 bg-transparent px-1.5 py-0.5 text-[13px] text-sub active:text-erro desktop:hover:text-erro",
+        "shrink-0 border-0 bg-transparent px-1.5 py-0.5 text-md text-sub active:text-erro desktop:hover:text-erro",
         className
       )}
       {...resto}

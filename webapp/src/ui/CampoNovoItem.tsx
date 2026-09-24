@@ -12,7 +12,7 @@ export function CampoNovoItem({ tamanho = "lista", className, type = "text", ...
       type={type}
       className={cn(
         "w-full border-0 border-t-[1.5px] border-dashed border-line bg-transparent px-0.5 pb-0.5 text-ink focus:outline-none",
-        tamanho === "cartao" ? "pt-2 text-[13.5px]" : "pt-[7px] text-md",
+        tamanho === "cartao" ? "pt-2 text-base" : "pt-[7px] text-md",
         className
       )}
       {...resto}

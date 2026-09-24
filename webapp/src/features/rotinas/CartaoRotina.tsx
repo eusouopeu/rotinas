@@ -89,7 +89,7 @@ export function CartaoRotina({
           )}
           {rotinaEhHabito(r, gam) && (
             <span
-              className="ml-1.5 rounded-pill border-[1.5px] border-ok px-[7px] py-px align-middle font-sans text-[10.5px] text-ok"
+              className="ml-1.5 rounded-pill border-[1.5px] border-ok px-[7px] py-px align-middle font-sans text-xs text-ok"
               title={`Hábito consolidado: vale ${Math.round((gam.config.habito.fator || 0.6) * 100)}% do peso, para abrir espaço ao que ainda não pegou`}
             >
               hábito

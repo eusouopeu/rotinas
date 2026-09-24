@@ -60,7 +60,7 @@ function Miolo({ children }: { children: ReactNode }) {
 }
 
 const Nome = ({ children }: { children: ReactNode }) => (
-  <h2 className="text-center text-[26px] paisagem:text-[20px]">{children}</h2>
+  <h2 className="text-center text-[26px] paisagem:text-3xl">{children}</h2>
 );
 
 function CampoSerie({

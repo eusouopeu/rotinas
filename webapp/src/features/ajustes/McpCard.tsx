@@ -103,7 +103,7 @@ export function McpCard() {
       </Botao>
 
       <RotuloSecao className="mt-3.5 mb-1">Conexão</RotuloSecao>
-      <AreaTexto rows={6} readOnly className="text-[11.5px] leading-[1.4]" value={mcpConfigJson(status)} />
+      <AreaTexto rows={6} readOnly className="text-sm leading-[1.4]" value={mcpConfigJson(status)} />
       <div className="mt-2 flex gap-2">
         <Botao
           variante="neutro"

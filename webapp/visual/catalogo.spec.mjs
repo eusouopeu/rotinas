@@ -26,7 +26,9 @@ const PROPS = [
   "textAlign", "opacity", "cursor", "content", "transform", "translate", "maxWidth", "minWidth", "minHeight",
 ];
 
-test("paridade: primitivos = classes legadas", async ({ page }, info) => {
+// Encerrada na harmonização (24/09/2026): fonte e escala de texto mudaram de propósito,
+// então o legado deixou de ser a régua. Serviu à migração; a régua agora é a captura.
+test.skip("paridade: primitivos = classes legadas", async ({ page }, info) => {
   test.skip(info.project.name.startsWith("desktop"), "paridade só no celular");
   const diffs = await page.evaluate((props) => {
     const fam = (s) => s.split(",")[0].replace(/["']/g, "").trim();

@@ -33,6 +33,13 @@ body {
   overscroll-behavior: none;
   user-select: none;
 }
+/* botões, campos e menus usam a fonte do app (antes caíam na do sistema) */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
 h1,
 h2,
 h3 {

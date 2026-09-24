@@ -58,7 +58,7 @@ export function NotaAnexada({ routineId, onClose }: { routineId: string; onClose
           <Icon name="xmark" size={14} />
         </BotaoIcone>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto text-[14.5px] leading-[1.55]">
+      <div className="min-h-0 flex-1 overflow-y-auto text-lg leading-[1.55]">
         {editando ? (
           <AreaTexto
             className="min-h-[40vh]"

@@ -45,7 +45,7 @@ export function CartaoKanban(p: Props) {
           </BotaoMover>
           <BotaoMover
             rotulo={p.paraFeito ? "Marcar como feito" : "Mover para a próxima coluna"}
-            className={p.paraFeito ? "text-[14px] text-ok" : undefined}
+            className={p.paraFeito ? "text-base text-ok" : undefined}
             disabled={!p.podeAvancar}
             onClick={p.onAvancar}
           >

@@ -24,7 +24,7 @@ const campo = cva("border-[1.5px] border-line text-ink", {
       compacto: CAMPO_COMPACTO,
       // campo de item das listas (mercado, viagem): grande, 15px, bordas mais redondas
       item: "mb-2 w-full rounded-[12px] bg-card px-3.5 py-[11px] text-lg focus:border-caneta focus:outline-none",
-      modelo: "mb-2 w-full rounded-[9px] bg-card px-2.5 py-[9px] text-[14.5px] focus:border-caneta focus:outline-none",
+      modelo: "mb-2 w-full rounded-[9px] bg-card px-2.5 py-[9px] text-lg focus:border-caneta focus:outline-none",
     },
   },
   defaultVariants: { variante: "formulario" },

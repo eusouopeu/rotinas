@@ -56,7 +56,7 @@ export function QuadranteMatriz({
         style={{ color: q.color }}
         onChange={(e) => onPatch({ title: e.target.value })}
       />
-      <span className="font-sans text-[10.5px] text-sub">{q.items.length} item(ns)</span>
+      <span className="font-sans text-xs text-sub">{q.items.length} item(ns)</span>
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1.5">
         <div className="flex flex-wrap gap-1">
           {MATRIX_COLORS.map((c) => (
@@ -65,7 +65,7 @@ export function QuadranteMatriz({
         </div>
         <div className="flex items-center gap-1">
           <Toggle<Modo>
-            className="text-[10px] desktop:text-[10px]"
+            className="text-2xs desktop:text-2xs"
             options={(["check", "ul", "ol"] as const).map((m) => ({ key: m, label: ICONE_MODO[m] }))}
             active={q.mode}
             onSelect={(m) => onPatch({ mode: m })}
@@ -129,7 +129,7 @@ function LinhaQuadrante({
   onEditar: () => void;
   onAlternar: () => void;
 }) {
-  const tamanho = grande ? "text-lg" : "text-[13.5px]";
+  const tamanho = grande ? "text-lg" : "text-base";
   if (q.mode === "check") {
     return (
       <ItemChecklist className={cn("my-[3px]", tamanho, "leading-[1.4]", it.indent && "ml-4")}>

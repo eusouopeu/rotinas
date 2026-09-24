@@ -2,7 +2,7 @@
 // horário de início, tendência da pontualidade e tempo por mês do ano.
 import { cn } from "../../lib/cn";
 
-const ROTULO = "font-sans text-[9.5px] text-sub";
+const ROTULO = "font-sans text-2xs text-sub";
 const COR_STATUS: Record<string, string> = { late: "bg-erro", early: "bg-ok", ontime: "bg-caneta" };
 
 export function BarrasDiaSemana({

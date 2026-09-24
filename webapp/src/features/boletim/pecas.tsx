@@ -20,7 +20,7 @@ export function LinhaSimples({
   return (
     <div className="my-2 flex items-center gap-2.5">
       <div
-        className="w-[34%] overflow-hidden text-[13.5px] text-ellipsis whitespace-nowrap"
+        className="w-[34%] overflow-hidden text-base text-ellipsis whitespace-nowrap"
         style={corRotulo ? { color: corRotulo } : undefined}
       >
         {rotulo}
@@ -56,7 +56,7 @@ export function BarrasSemanas({
     <div className="flex h-[84px] items-end gap-0.5">
       {semanas.map((s) => (
         <div key={s.chave} className="flex h-full flex-1 flex-col items-center" title={s.titulo}>
-          <span className="h-3 font-sans text-[9.5px] leading-3 text-sub">{s.rotulo}</span>
+          <span className="h-3 font-sans text-2xs leading-3 text-sub">{s.rotulo}</span>
           <div className="flex w-full flex-1 items-end justify-center">
             <div
               className="w-full max-w-[12px] rounded-[2px_2px_0_0] bg-caneta"

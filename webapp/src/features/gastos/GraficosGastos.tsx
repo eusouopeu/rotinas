@@ -85,14 +85,14 @@ export function GraficosGastos({ docs }: { docs: ExpenseDoc[] }) {
           ) : (
             r.buckets.map((b) => (
               <div key={b.chave} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                <div className="text-right font-sans text-[10px] text-sub tabular-nums">
+                <div className="text-right font-sans text-2xs text-sub tabular-nums">
                   {brl(b.valor).replace("R$ ", "")}
                 </div>
                 <div
                   className="w-[60%] max-w-[26px] rounded-[4px_4px_0_0] bg-caneta"
                   style={{ height: Math.max(4, Math.round((b.valor / maxB) * 60)) }}
                 />
-                <Legenda className="text-[10px]">{b.label}</Legenda>
+                <Legenda className="text-2xs">{b.label}</Legenda>
               </div>
             ))
           )}
@@ -114,7 +114,7 @@ export function GraficosGastos({ docs }: { docs: ExpenseDoc[] }) {
             r.segmentos.map((s) => (
               <div className="my-[5px] flex items-center gap-2.5" key={s.label}>
                 <span className="size-2.5 flex-none rounded-[3px]" style={{ background: s.color }} />
-                <div className="flex-1 overflow-hidden text-[13.5px] text-ellipsis whitespace-nowrap">{s.label}</div>
+                <div className="flex-1 overflow-hidden text-base text-ellipsis whitespace-nowrap">{s.label}</div>
                 <div className="w-[52px] text-right font-sans text-sm text-sub tabular-nums">{brl(s.valor)}</div>
               </div>
             ))

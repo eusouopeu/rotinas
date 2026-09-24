@@ -21,7 +21,7 @@ export function DesktopTopbar() {
         <Icon name="bars3" size={16} />
       </BotaoIcone>
       <button
-        className="flex h-[38px] min-w-0 flex-[0_1_420px] cursor-pointer items-center gap-2 rounded-[20px] border-[1.5px] border-line bg-card px-3.5 font-sans text-[13.5px] text-sub hover:border-caneta-soft hover:text-ink electron:[-webkit-app-region:no-drag]"
+        className="flex h-[38px] min-w-0 flex-[0_1_420px] cursor-pointer items-center gap-2 rounded-[20px] border-[1.5px] border-line bg-card px-3.5 font-sans text-base text-sub hover:border-caneta-soft hover:text-ink electron:[-webkit-app-region:no-drag]"
         title="Busca global (/)"
         onClick={openSearch}
       >

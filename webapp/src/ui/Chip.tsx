@@ -14,7 +14,7 @@ export function Chip({ ativo, cor = "var(--caneta)", variante = "area", classNam
         "cursor-pointer border-[1.5px] font-sans",
         variante === "tag"
           ? cn(
-              "rounded-xl px-[11px] py-[5px] text-[12.5px]",
+              "rounded-xl px-[11px] py-[5px] text-md",
               ativo ? "border-transparent bg-caneta text-on-caneta" : "border-line bg-card text-sub"
             )
           : cn(

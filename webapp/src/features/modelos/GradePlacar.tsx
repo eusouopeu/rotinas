@@ -9,9 +9,9 @@ import type { ScoreboardDoc } from "../../lib/types";
 
 type Densidade = "normal" | "compacto" | "mini";
 
-const NOME: Record<Densidade, string> = { normal: "text-base", compacto: "text-sm", mini: "text-[10.5px]" };
-const TOTAL: Record<Densidade, string> = { normal: "text-[20px]", compacto: "text-xl", mini: "text-[13.5px]" };
-const PONTO: Record<Densidade, string> = { normal: "text-xl", compacto: "text-base", mini: "text-[12.5px]" };
+const NOME: Record<Densidade, string> = { normal: "text-base", compacto: "text-sm", mini: "text-xs" };
+const TOTAL: Record<Densidade, string> = { normal: "text-3xl", compacto: "text-xl", mini: "text-base" };
+const PONTO: Record<Densidade, string> = { normal: "text-xl", compacto: "text-base", mini: "text-md" };
 
 const CEL = "flex min-w-0 items-center justify-center border-b-[1.5px] border-line py-1.5 px-0.5";
 const INDICE = "sticky left-0 z-[1] bg-paper font-sans text-xs text-sub";
@@ -53,7 +53,7 @@ export function GradePlacar({ doc, totais, lideres, onRenomear, onRemoverJogador
             />
             {n > 1 && (
               <BotaoApagar
-                className="p-0 text-[10px] leading-none"
+                className="p-0 text-2xs leading-none"
                 title="Remover jogador"
                 aria-label="Remover jogador"
                 onClick={() => onRemoverJogador(p.id, pi)}
