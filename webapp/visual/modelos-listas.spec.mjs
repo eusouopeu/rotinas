@@ -12,7 +12,7 @@ async function abrir(page, titulo) {
   await page.locator("input").first().waitFor();
   await page.waitForTimeout(200);
 }
-const rolagem = ".screen > div:last-child";
+const rolagem = ".screen > div:last-child, [data-tela] > div:last-child";
 const botao = (page, nome) => page.locator(`button[aria-label="${nome}"]`);
 
 test("mercado: lista", async ({ page }) => {

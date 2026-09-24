@@ -3,7 +3,7 @@
 import { test } from "@playwright/test";
 import { foto, fotoInteira, preparar } from "./apoio.mjs";
 
-const ROLAGEM = "[data-rolagem], .screen > div:nth-child(2)";
+const ROLAGEM = "[data-rolagem], .screen > div:nth-child(2), [data-tela] > div:nth-child(2)";
 const botao = (page, titulo) => page.locator(`button[title="${titulo}"]`);
 
 async function novaRotina(page) {

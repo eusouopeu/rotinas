@@ -44,7 +44,7 @@ test("stats de rotina: completo", async ({ page }) => {
   }
   await page.locator('text="Treino A" >> visible=true').first().click();
   await page.getByText("Resumo geral").waitFor();
-  await fotoInteira(page, "rotina-stats", ".screen > div:nth-child(2)");
+  await fotoInteira(page, "rotina-stats", ".screen > div:nth-child(2), [data-tela] > div:nth-child(2)");
 });
 
 test("player: etapa de tempo", async ({ page }) => {

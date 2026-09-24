@@ -16,13 +16,13 @@ const proximo = (page) => page.getByRole("button", { name: "Próximo" }).click()
 
 test("boletim: completo", async ({ page }) => {
   await abrirBoletim(page);
-  await fotoInteira(page, "boletim-completo", "[data-rolagem], .tab-scroll, .screen > div:nth-child(2)");
+  await fotoInteira(page, "boletim-completo", "[data-rolagem], .tab-scroll, .screen > div:nth-child(2), [data-tela] > div:nth-child(2)");
 });
 
 test("boletim: semana dispensada", async ({ page }) => {
   await abrirBoletim(page);
   await page.getByRole("button", { name: /Dispensar esta semana/ }).click();
-  await fotoInteira(page, "boletim-dispensada", "[data-rolagem], .tab-scroll, .screen > div:nth-child(2)");
+  await fotoInteira(page, "boletim-dispensada", "[data-rolagem], .tab-scroll, .screen > div:nth-child(2), [data-tela] > div:nth-child(2)");
 });
 
 test("boletim: horas disponíveis em edição", async ({ page }) => {
