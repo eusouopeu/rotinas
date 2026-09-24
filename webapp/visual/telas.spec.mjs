@@ -36,12 +36,12 @@ test("rotinas: lista", async ({ page }) => {
 });
 
 test("rotinas: popup de criar", async ({ page }) => {
-  await page.locator(".fab").click();
+  await page.locator('button[title="Novo"]').click();
   await foto(page, "rotinas-criar");
 });
 
 test("editor de rotina (nova)", async ({ page }) => {
-  await page.locator(".fab").click();
+  await page.locator('button[title="Novo"]').click();
   await page.getByText("sequência de etapas com tempo").click();
   await foto(page, "editor-rotina");
 });

@@ -4,6 +4,7 @@
 // no tooltip e cor de marco (bronze/prata/ouro/diamante, mesmos tons dos
 // badges do Boletim) quando o streak atual cruza um patamar.
 import { Icon } from "./Icon";
+import { cn } from "../lib/cn";
 import { BADGE_COR } from "../lib/constants";
 import { marcoStreak, streakInfoFor, type StreakInfo } from "../lib/stats";
 import type { HistoryEntry } from "../lib/history";
@@ -41,7 +42,14 @@ export function StreakTag({
       ? { color: cor, borderColor: cor }
       : undefined;
   return (
-    <span className={"streak-tag" + (feitaHoje ? " cheia" : "")} title={tituloStreak(info)} style={estilo}>
+    <span
+      className={cn(
+        "ml-1.5 inline-flex items-center gap-[3px] rounded-pill border-[1.5px] border-streak py-0.5 pr-[7px] pl-[5px] align-middle font-sans text-[10.5px] leading-none font-semibold text-streak [&_.icon-svg]:[stroke-width:2]",
+        feitaHoje && "bg-streak text-card"
+      )}
+      title={tituloStreak(info)}
+      style={estilo}
+    >
       <Icon name="fire" size={12} />
       {info.atual}
     </span>
