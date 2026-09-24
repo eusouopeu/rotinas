@@ -2,6 +2,7 @@
 // cartão em edição (campo, excluir, salvar, cancelar).
 import { useState, type HTMLAttributes } from "react";
 import { Icon } from "../../components/Icon";
+import { BotaoCompacto } from "../../ui/BotaoCompacto";
 import { BotaoMover } from "../../ui/BotaoMover";
 import { cn } from "../../lib/cn";
 
@@ -56,8 +57,6 @@ export function CartaoKanban(p: Props) {
   );
 }
 
-const ACAO = "rounded-[9px] border-0 px-4 py-2 font-sans text-[13.5px]";
-
 /** O campo e o botão "cancelar" ficam com a aparência crua do navegador, como no legado. */
 export function EdicaoCartao({
   texto,
@@ -81,15 +80,10 @@ export function EdicaoCartao({
         onKeyDown={(e) => e.key === "Enter" && onSave(val.trim() || texto)}
       />
       <div className="mt-2.5 flex justify-between gap-2">
-        <button className={cn(ACAO, "bg-card-2 font-normal text-erro")} onClick={onDelete}>
+        <BotaoCompacto variante="fantasma" className="text-erro" onClick={onDelete}>
           <Icon name="trash" size={15} />
-        </button>
-        <button
-          className={cn(ACAO, "bg-caneta font-semibold text-on-caneta")}
-          onClick={() => onSave(val.trim() || texto)}
-        >
-          Salvar
-        </button>
+        </BotaoCompacto>
+        <BotaoCompacto onClick={() => onSave(val.trim() || texto)}>Salvar</BotaoCompacto>
       </div>
       <button className="mt-1.5" onClick={onCancel}>
         cancelar

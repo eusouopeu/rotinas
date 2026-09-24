@@ -1,15 +1,23 @@
 // Faixa com o botão "PDF" à direita, logo abaixo do cabeçalho de um documento
 // (Kanban, prós e contras), e a mensagem de erro da exportação, se houver.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { BotaoIcone } from "../../ui/BotaoIcone";
 import { Legenda } from "../../ui/Legenda";
+import { BarraDoc } from "./BarraDoc";
 
-/** `exportar` devolve o resultado de exportPdfView; a barra mostra o erro. */
-export function BarraPdf({ exportar }: { exportar: () => Promise<{ ok: boolean; erro?: string }> }) {
+/** `antes`: outros botões da faixa, à esquerda do PDF. `exportar` devolve o resultado de exportPdfView; a barra mostra o erro. */
+export function BarraPdf({
+  exportar,
+  antes,
+}: {
+  exportar: () => Promise<{ ok: boolean; erro?: string }>;
+  antes?: ReactNode;
+}) {
   const [erro, setErro] = useState("");
   return (
     <>
-      <div className="mb-5 flex items-center justify-end gap-3">
+      <BarraDoc>
+        {antes}
         <BotaoIcone
           rotulo="Exportar PDF"
           onClick={async () => {
@@ -20,7 +28,7 @@ export function BarraPdf({ exportar }: { exportar: () => Promise<{ ok: boolean; 
         >
           PDF
         </BotaoIcone>
-      </div>
+      </BarraDoc>
       {erro && <Legenda className="mt-3 text-erro">{erro}</Legenda>}
     </>
   );

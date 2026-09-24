@@ -3,14 +3,14 @@
 import { test, expect } from "@playwright/test";
 import { HOJE, seedLocalStorage } from "./seed.mjs";
 
-async function preparar(page, { comDados = true } = {}) {
+async function preparar(page, { comDados = true, extra = {} } = {}) {
   await page.addInitScript(
     ({ seed, comDados }) => {
       if (comDados && !localStorage.getItem("rotinas_v2_migrated")) {
         for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, JSON.stringify(v));
       }
     },
-    { seed: seedLocalStorage, comDados }
+    { seed: { ...seedLocalStorage, ...extra }, comDados }
   );
   await page.clock.setFixedTime(new Date(HOJE));
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -79,7 +79,9 @@ test("modelos: pasta de kanbans", async ({ page }) => {
 });
 
 test("modelos: pasta vazia", async ({ page }) => {
-  await preparar(page);
+  // sem nenhuma lista de mercado nos dados de exemplo
+  const templates = seedLocalStorage.rotinas_v2_templates.filter((t) => t.type !== "market");
+  await preparar(page, { extra: { rotinas_v2_templates: templates } });
   await aba(page, "Modelos");
   await page.getByText("Outros", { exact: true }).first().click();
   await page.getByText("Listas de mercado", { exact: true }).first().click();

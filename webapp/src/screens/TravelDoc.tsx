@@ -4,6 +4,13 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
+import { BarraPdf } from "../features/modelos/BarraPdf";
+import { ChipsSugestao, EdicaoItem, LinhaItem, SecaoItens } from "../features/modelos/ItensLista";
+import { Botao } from "../ui/Botao";
+import { BotaoIcone } from "../ui/BotaoIcone";
+import { Campo, SelecaoLinha } from "../ui/Campo";
+import { EstadoVazio } from "../ui/EstadoVazio";
+import { Legenda } from "../ui/Legenda";
 import { CabecalhoDoc } from "../features/modelos/CabecalhoDoc";
 import { TRAVEL_DB, guessTravelCat } from "../lib/templates";
 import { exportPdfView } from "../lib/exportFile";
@@ -24,7 +31,6 @@ export function TravelDoc({ doc }: { doc: TravelDocType }) {
   const [qty, setQty] = useState("1");
   const [cat, setCat] = useState(doc.catOrder[0] || "Outros");
   const [editId, setEditId] = useState<string | null>(null);
-  const [erro, setErro] = useState("");
 
   function save(patch: Partial<TravelDocType>) {
     updateTemplateDoc({ ...doc, ...patch });
@@ -52,39 +58,24 @@ export function TravelDoc({ doc }: { doc: TravelDocType }) {
   return (
     <div className="screen">
       <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
-      <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
-        <button
-          className="icon-btn"
-          title="Desmarcar tudo (reusar)"
-          aria-label="Desmarcar tudo (reusar)"
-          onClick={() => {
-            if (window.confirm("Desmarcar todos os itens para reusar a lista?")) {
-              save({ items: doc.items.map((i) => ({ ...i, checked: false })) });
-            }
-          }}
-        >
-          <Icon name="arrowPath" size={15} />
-        </button>
-        <button
-          className="icon-btn"
-          title="Exportar PDF"
-          aria-label="Exportar PDF"
-          onClick={async () => {
-            setErro("");
-            const r = await exportPdfView(doc.title, travelPdfHtml(doc), "Listas de viagem");
-            if (!r.ok && r.erro) setErro(r.erro);
-          }}
-        >
-          PDF
-        </button>
-      </div>
-      {erro && (
-        <div className="stat-foot" style={{ color: "var(--erro)" }}>
-          {erro}
-        </div>
-      )}
-      <div className="market-form">
-        <input
+      <BarraPdf
+        antes={
+          <BotaoIcone
+            rotulo="Desmarcar tudo (reusar)"
+            onClick={() => {
+              if (window.confirm("Desmarcar todos os itens para reusar a lista?")) {
+                save({ items: doc.items.map((i) => ({ ...i, checked: false })) });
+              }
+            }}
+          >
+            <Icon name="arrowPath" size={15} />
+          </BotaoIcone>
+        }
+        exportar={() => exportPdfView(doc.title, travelPdfHtml(doc), "Listas de viagem")}
+      />
+      <div className="mb-3.5">
+        <Campo
+          variante="item"
           type="text"
           placeholder="Item"
           autoComplete="off"
@@ -96,102 +87,79 @@ export function TravelDoc({ doc }: { doc: TravelDocType }) {
           onKeyDown={(e) => e.key === "Enter" && addItem()}
         />
         {suggestions.length > 0 && (
-          <div className="mk-chips">
-            {suggestions.map((s) => (
-              <span
-                key={s}
-                className="tag-chip"
-                onClick={() => {
-                  setName(s);
-                  setCat(guessTravelCat(s));
-                }}
-              >
-                {s}
-              </span>
-            ))}
-          </div>
+          <ChipsSugestao
+            itens={suggestions}
+            onEscolher={(s) => {
+              setName(s);
+              setCat(guessTravelCat(s));
+            }}
+          />
         )}
-        <div className="market-form-row">
-          <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex gap-2">
+          <SelecaoLinha value={cat} onChange={(e) => setCat(e.target.value)}>
             {doc.catOrder.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
-          </select>
-          <input
+          </SelecaoLinha>
+          <Campo
+            variante="linha"
             type="number"
             inputMode="numeric"
             min={1}
+            className="w-16"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
-            style={{ width: 64 }}
           />
-          <button className="btn-primary" style={{ flex: "0 0 auto", padding: "10px 20px" }} onClick={addItem}>
+          <Botao className="flex-none px-5 py-2.5" onClick={addItem}>
             +
-          </button>
+          </Botao>
         </div>
       </div>
-      <div style={{ overflowY: "auto", flex: 1, paddingBottom: 20 }}>
-        <div className="stat-foot" style={{ margin: "2px 0 8px" }}>
+      <div className="flex-1 overflow-y-auto pb-5">
+        <Legenda className="mt-0.5 mb-2">
           {pending} pendente(s) de {doc.items.length}
-        </div>
+        </Legenda>
         {doc.items.length === 0 && (
-          <div className="empty-state" style={{ minHeight: "25vh" }}>
-            <p>Adicione itens — eles serão agrupados por categoria.</p>
-          </div>
+          <EstadoVazio className="min-h-[25vh]" texto="Adicione itens — eles serão agrupados por categoria." />
         )}
         {order.map((c) => {
           const items = byCat[c] || [];
           if (items.length === 0 && !hasAnyItem) return null;
           const sorted = [...items].sort((a, b) => (a.checked ? 1 : 0) - (b.checked ? 1 : 0));
           return (
-            <div key={c}>
-              <div className="section-label">{c}</div>
-              <div className="stat-card" style={{ padding: "10px 14px" }}>
-                {sorted.length === 0 ? (
-                  <div className="dev-n" style={{ padding: "4px 2px", opacity: 0.6 }}>
-                    — vazia —
-                  </div>
+            <SecaoItens key={c} titulo={c} vazia={sorted.length === 0}>
+              {sorted.map((it) =>
+                editId === it.id ? (
+                  <EditRow
+                    key={it.id}
+                    it={it}
+                    order={order}
+                    onCancel={() => setEditId(null)}
+                    onSave={(patch) => {
+                      save({ items: doc.items.map((x) => (x.id === it.id ? { ...x, ...patch } : x)) });
+                      setEditId(null);
+                    }}
+                    onDelete={() => {
+                      save({ items: doc.items.filter((x) => x.id !== it.id) });
+                      setEditId(null);
+                    }}
+                  />
                 ) : (
-                  sorted.map((it) =>
-                    editId === it.id ? (
-                      <EditRow
-                        key={it.id}
-                        it={it}
-                        order={order}
-                        onCancel={() => setEditId(null)}
-                        onSave={(patch) => {
-                          save({ items: doc.items.map((x) => (x.id === it.id ? { ...x, ...patch } : x)) });
-                          setEditId(null);
-                        }}
-                        onDelete={() => {
-                          save({ items: doc.items.filter((x) => x.id !== it.id) });
-                          setEditId(null);
-                        }}
-                      />
-                    ) : (
-                      <div className={"checklist-item mk-item" + (it.checked ? " checked" : "")} key={it.id}>
-                        <span
-                          className="checklist-box"
-                          onClick={() =>
-                            save({ items: doc.items.map((x) => (x.id === it.id ? { ...x, checked: !x.checked } : x)) })
-                          }
-                        >
-                          {it.checked ? <Icon name="check" size={14} /> : null}
-                        </span>
-                        <span className="txt mk-name" onClick={() => setEditId(it.id)}>
-                          {it.name}
-                        </span>
-                        <span className="mk-right" onClick={() => setEditId(it.id)}>
-                          {it.qty && it.qty > 1 ? "×" + it.qty : ""}
-                        </span>
-                      </div>
-                    ),
-                  )
-                )}
-              </div>
-            </div>
+                  <LinhaItem
+                    key={it.id}
+                    marcado={it.checked}
+                    nome={it.name}
+                    direita={it.qty && it.qty > 1 ? "×" + it.qty : ""}
+                    onMarcar={() =>
+                      save({ items: doc.items.map((x) => (x.id === it.id ? { ...x, checked: !x.checked } : x)) })
+                    }
+                    onEditar={() => setEditId(it.id)}
+                  />
+                )
+              )}
+            </SecaoItens>
           );
         })}
       </div>
@@ -216,33 +184,27 @@ function EditRow({
   const [cat, setCat] = useState(it.cat);
   const [qty, setQty] = useState(String(it.qty || 1));
   return (
-    <div className="mk-edit">
-      <input type="text" className="mk-e-name" value={name} onChange={(e) => setName(e.target.value)} />
-      <div className="market-form-row">
-        <select className="tv-e-cat" value={cat} onChange={(e) => setCat(e.target.value)} style={{ flex: 1, minWidth: 0 }}>
-          {order.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-        <input
-          type="number"
-          className="tv-e-qty"
-          inputMode="numeric"
-          min={1}
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          style={{ width: 64 }}
-        />
-      </div>
-      <div className="notice-actions">
-        <button onClick={() => onSave({ name: name.trim() || it.name, cat, qty: +qty || it.qty })}>ok</button>
-        <button className="ghost" style={{ color: "var(--erro)" }} onClick={onDelete}>
-          excluir
-        </button>
-        <button className="ghost" onClick={onCancel}>
-          cancelar
-        </button>
-      </div>
-    </div>
+    <EdicaoItem
+      nome={name}
+      onNome={setName}
+      onOk={() => onSave({ name: name.trim() || it.name, cat, qty: +qty || it.qty })}
+      onExcluir={onDelete}
+      onCancelar={onCancel}
+    >
+      <SelecaoLinha value={cat} onChange={(e) => setCat(e.target.value)}>
+        {order.map((c) => (
+          <option key={c}>{c}</option>
+        ))}
+      </SelecaoLinha>
+      <Campo
+        variante="linha"
+        type="number"
+        inputMode="numeric"
+        min={1}
+        className="w-16"
+        value={qty}
+        onChange={(e) => setQty(e.target.value)}
+      />
+    </EdicaoItem>
   );
 }

@@ -5,6 +5,15 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
+import { BarraDoc } from "../features/modelos/BarraDoc";
+import { ChipsSugestao, EdicaoItem, LinhaItem, SecaoItens } from "../features/modelos/ItensLista";
+import { Botao } from "../ui/Botao";
+import { BotaoIcone } from "../ui/BotaoIcone";
+import { BotaoOrdem } from "../ui/BotaoOrdem";
+import { BotaoTracejado } from "../ui/BotaoTracejado";
+import { Campo, SelecaoLinha } from "../ui/Campo";
+import { EstadoVazio } from "../ui/EstadoVazio";
+import { Legenda } from "../ui/Legenda";
 import { CabecalhoDoc } from "../features/modelos/CabecalhoDoc";
 import { GROCERY_DB, brl, bumpMkFreq, guessAisle, marketShareText, topMkFreq, type MkFreqMap } from "../lib/templates";
 import { K_MKFREQ } from "../lib/constants";
@@ -98,19 +107,16 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
   return (
     <div className="screen">
       <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
-      <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
-        <button
-          className={"icon-btn" + (doc.shopMode ? " pin-btn pinned" : "")}
-          title="Modo compra"
-          aria-label="Modo compra"
+      <BarraDoc>
+        <BotaoIcone
+          rotulo="Modo compra"
+          className={doc.shopMode ? "border-caneta-soft text-2xl text-caneta" : undefined}
           onClick={() => save({ shopMode: !doc.shopMode })}
         >
           <Icon name="market" size={15} />
-        </button>
-        <button
-          className="icon-btn"
-          title="Recomprar (desmarcar tudo)"
-          aria-label="Recomprar (desmarcar tudo)"
+        </BotaoIcone>
+        <BotaoIcone
+          rotulo="Recomprar (desmarcar tudo)"
           onClick={() => {
             if (window.confirm("Desmarcar todos os itens para recomprar?")) {
               save({ items: doc.items.map((i) => ({ ...i, checked: false })) });
@@ -118,27 +124,23 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
           }}
         >
           <Icon name="arrowPath" size={15} />
-        </button>
-        <button className="icon-btn" title="Compartilhar como texto" aria-label="Compartilhar como texto" onClick={compartilhar}>
+        </BotaoIcone>
+        <BotaoIcone rotulo="Compartilhar como texto" onClick={compartilhar}>
           <Icon name="arrowUpRight" size={13} />
-        </button>
-      </div>
-      <div style={{ overflowY: "auto", flex: 1, paddingBottom: 20 }}>
+        </BotaoIcone>
+      </BarraDoc>
+      <div className="flex-1 overflow-y-auto pb-5">
         {!doc.shopMode && (
-          <div className="market-form">
+          <div className="mb-3.5">
             {freqChips.length > 0 && (
-              <div className="mk-chips">
-                <span className="dev-n" style={{ marginRight: 2 }}>
-                  frequentes:
-                </span>
-                {freqChips.map((f) => (
-                  <span key={f.name} className="tag-chip" onClick={() => addItem(f)}>
-                    {f.name}
-                  </span>
-                ))}
-              </div>
+              <ChipsSugestao
+                rotulo="frequentes:"
+                itens={freqChips.map((f) => f.name)}
+                onEscolher={(n) => addItem(freqChips.find((f) => f.name === n))}
+              />
             )}
-            <input
+            <Campo
+              variante="item"
               type="text"
               placeholder="Item"
               autoComplete="off"
@@ -150,23 +152,17 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
               onKeyDown={(e) => e.key === "Enter" && addItem()}
             />
             {suggestions.length > 0 && (
-              <div className="mk-chips">
-                {suggestions.map((s) => (
-                  <span
-                    key={s}
-                    className="tag-chip"
-                    onClick={() => {
-                      setName(s);
-                      setAisle(guessAisle(s));
-                    }}
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
+              <ChipsSugestao
+                itens={suggestions}
+                onEscolher={(s) => {
+                  setName(s);
+                  setAisle(guessAisle(s));
+                }}
+              />
             )}
-            <div className="market-form-row" style={{ marginBottom: 8 }}>
-              <input
+            <div className="mb-2 flex gap-2">
+              <Campo
+                variante="linha"
                 type="number"
                 inputMode="decimal"
                 min={0}
@@ -174,16 +170,17 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
                 placeholder="qtd"
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
-                style={{ flex: 1, minWidth: 0 }}
+                className="min-w-0 flex-1"
               />
-              <select value={unit} onChange={(e) => setUnit(e.target.value)} style={{ flex: 1, minWidth: 0 }}>
+              <SelecaoLinha value={unit} onChange={(e) => setUnit(e.target.value)}>
                 {["un", "g", "kg", "L", "ml"].map((u) => (
                   <option key={u} value={u}>
                     {u}
                   </option>
                 ))}
-              </select>
-              <input
+              </SelecaoLinha>
+              <Campo
+                variante="linha"
                 type="number"
                 inputMode="decimal"
                 min={0}
@@ -191,47 +188,52 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
                 placeholder="R$ (opc)"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                style={{ flex: 1, minWidth: 0 }}
+                className="min-w-0 flex-1"
               />
             </div>
-            <div className="market-form-row">
-              <select value={aisle} onChange={(e) => setAisle(e.target.value)} style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex gap-2">
+              <SelecaoLinha value={aisle} onChange={(e) => setAisle(e.target.value)}>
                 {doc.aisleOrder.map((a) => (
                   <option key={a} value={a}>
                     {a}
                   </option>
                 ))}
-              </select>
-              <button className="btn-primary" style={{ flex: "0 0 auto", padding: "10px 24px" }} onClick={() => addItem()}>
+              </SelecaoLinha>
+              <Botao className="flex-none px-6 py-2.5" onClick={() => addItem()}>
                 +
-              </button>
+              </Botao>
             </div>
           </div>
         )}
 
-        {doc.shopMode && <div className="shop-counter">{pending.length}<span> restante(s)</span></div>}
+        {doc.shopMode && (
+          <div className="bg-caneta bg-clip-text py-2 pb-0.5 text-center font-sans text-[44px] text-transparent">
+            {pending.length}
+            <span className="text-base text-sub [-webkit-text-fill-color:var(--sub)]"> restante(s)</span>
+          </div>
+        )}
         {listTotal > 0 ? (
-          <div className="stat-foot" style={{ margin: "2px 0 8px" }}>
+          <Legenda className="mt-0.5 mb-2">
             carrinho {brl(cartTotal)} · lista {brl(listTotal)}
-          </div>
+          </Legenda>
         ) : !doc.shopMode ? (
-          <div className="stat-foot" style={{ margin: "2px 0 8px" }}>
+          <Legenda className="mt-0.5 mb-2">
             {pending.length} pendente(s) de {doc.items.length}
-          </div>
+          </Legenda>
         ) : null}
         {!doc.shopMode && (
-          <button className="link-btn" style={{ fontSize: 13, padding: "0 0 8px" }} onClick={() => setReorderAisles(!reorderAisles)}>
-            {reorderAisles ? "concluir ordenação" : (
+          <Botao variante="pilula" className="px-0 pt-0 pb-2" onClick={() => setReorderAisles(!reorderAisles)}>
+            {reorderAisles ? (
+              "concluir ordenação"
+            ) : (
               <>
                 <Icon name="arrowsUpDown" size={13} /> ordenar gôndolas
               </>
             )}
-          </button>
+          </Botao>
         )}
         {doc.items.length === 0 && (
-          <div className="empty-state" style={{ minHeight: "30vh" }}>
-            <p>Adicione itens — eles serão agrupados por gôndola.</p>
-          </div>
+          <EstadoVazio className="min-h-[30vh]" texto="Adicione itens — eles serão agrupados por gôndola." />
         )}
 
         {order.map((a, ai) => {
@@ -240,71 +242,59 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
           if (doc.shopMode ? visible.length === 0 : visible.length === 0 && !hasAnyItem) return null;
           visible = [...visible].sort((x, y) => (x.checked ? 1 : 0) - (y.checked ? 1 : 0));
           return (
-            <div key={a}>
-              <div className="section-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {a}
-                {reorderAisles && (
+            <SecaoItens
+              key={a}
+              titulo={a}
+              vazia={visible.length === 0}
+              extra={
+                reorderAisles && (
                   <>
-                    <button className="order-btn" disabled={ai === 0} onClick={() => moveAisle(ai, -1)}>
+                    <BotaoOrdem disabled={ai === 0} onClick={() => moveAisle(ai, -1)}>
                       <Icon name="arrowUp" size={14} />
-                    </button>
-                    <button className="order-btn" disabled={ai === order.length - 1} onClick={() => moveAisle(ai, +1)}>
+                    </BotaoOrdem>
+                    <BotaoOrdem disabled={ai === order.length - 1} onClick={() => moveAisle(ai, +1)}>
                       <Icon name="arrowDown" size={14} />
-                    </button>
+                    </BotaoOrdem>
                   </>
-                )}
-              </div>
-              <div className="stat-card" style={{ padding: "10px 14px" }}>
-                {visible.length === 0 ? (
-                  <div className="dev-n" style={{ padding: "4px 2px", opacity: 0.6 }}>
-                    — vazia —
-                  </div>
+                )
+              }
+            >
+              {visible.map((it) =>
+                editId === it.id ? (
+                  <EditRow
+                    key={it.id}
+                    it={it}
+                    order={order}
+                    onCancel={() => setEditId(null)}
+                    onSave={(patch) => {
+                      save({ items: doc.items.map((x) => (x.id === it.id ? { ...x, ...patch } : x)) });
+                      setEditId(null);
+                    }}
+                    onDelete={() => {
+                      save({ items: doc.items.filter((x) => x.id !== it.id) });
+                      setEditId(null);
+                    }}
+                  />
                 ) : (
-                  visible.map((it) =>
-                    editId === it.id ? (
-                      <EditRow
-                        key={it.id}
-                        it={it}
-                        order={order}
-                        onCancel={() => setEditId(null)}
-                        onSave={(patch) => {
-                          save({ items: doc.items.map((x) => (x.id === it.id ? { ...x, ...patch } : x)) });
-                          setEditId(null);
-                        }}
-                        onDelete={() => {
-                          save({ items: doc.items.filter((x) => x.id !== it.id) });
-                          setEditId(null);
-                        }}
-                      />
-                    ) : (
-                      <div className={"checklist-item mk-item" + (it.checked ? " checked" : "")} key={it.id}>
-                        <span
-                          className="checklist-box"
-                          onClick={() =>
-                            save({ items: doc.items.map((x) => (x.id === it.id ? { ...x, checked: !x.checked } : x)) })
-                          }
-                        >
-                          {it.checked ? <Icon name="check" size={14} /> : null}
-                        </span>
-                        <span className="txt mk-name" onClick={() => setEditId(it.id)}>
-                          {it.name}
-                        </span>
-                        <span className="mk-right" onClick={() => setEditId(it.id)}>
-                          {itemRight(it)}
-                        </span>
-                      </div>
-                    ),
-                  )
-                )}
-              </div>
-            </div>
+                  <LinhaItem
+                    key={it.id}
+                    marcado={it.checked}
+                    nome={it.name}
+                    direita={itemRight(it)}
+                    onMarcar={() =>
+                      save({ items: doc.items.map((x) => (x.id === it.id ? { ...x, checked: !x.checked } : x)) })
+                    }
+                    onEditar={() => setEditId(it.id)}
+                  />
+                )
+              )}
+            </SecaoItens>
           );
         })}
 
         {!doc.shopMode && doc.items.some((i) => i.checked) && (
-          <button
-            className="add-step-btn"
-            style={{ width: "100%" }}
+          <BotaoTracejado
+            className="w-full"
             onClick={() => {
               const n = doc.items.filter((i) => i.checked).length;
               if (window.confirm(`Remover ${n} item(ns) marcado(s)?`)) {
@@ -313,7 +303,7 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
             }}
           >
             limpar itens marcados
-          </button>
+          </BotaoTracejado>
         )}
       </div>
     </div>
@@ -339,60 +329,44 @@ function EditRow({
   const [price, setPrice] = useState(it.price ? String(it.price) : "");
   const [aisle, setAisle] = useState(it.aisle);
   return (
-    <div className="mk-edit">
-      <input type="text" className="mk-e-name" value={name} onChange={(e) => setName(e.target.value)} />
-      <div className="market-form-row">
-        <input
-          type="number"
-          className="mk-e-qty"
-          inputMode="decimal"
-          min={0}
-          step="any"
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-        />
-        <select className="mk-e-unit" value={unit} onChange={(e) => setUnit(e.target.value)}>
-          {["un", "g", "kg", "L", "ml"].map((u) => (
-            <option key={u}>{u}</option>
-          ))}
-        </select>
-        <input
-          type="number"
-          className="mk-e-price"
-          inputMode="decimal"
-          min={0}
-          step="0.01"
-          placeholder="R$"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-        <select className="mk-e-aisle" value={aisle} onChange={(e) => setAisle(e.target.value)}>
-          {order.map((a) => (
-            <option key={a}>{a}</option>
-          ))}
-        </select>
-      </div>
-      <div className="notice-actions">
-        <button
-          onClick={() =>
-            onSave({
-              name: name.trim() || it.name,
-              qty: +qty || it.qty,
-              unit,
-              price: +price || 0,
-              aisle,
-            })
-          }
-        >
-          ok
-        </button>
-        <button className="ghost" style={{ color: "var(--erro)" }} onClick={onDelete}>
-          excluir
-        </button>
-        <button className="ghost" onClick={onCancel}>
-          cancelar
-        </button>
-      </div>
-    </div>
+    <EdicaoItem
+      nome={name}
+      onNome={setName}
+      onOk={() => onSave({ name: name.trim() || it.name, qty: +qty || it.qty, unit, price: +price || 0, aisle })}
+      onExcluir={onDelete}
+      onCancelar={onCancel}
+    >
+      <Campo
+        variante="linha"
+        type="number"
+        className="w-16"
+        inputMode="decimal"
+        min={0}
+        step="any"
+        value={qty}
+        onChange={(e) => setQty(e.target.value)}
+      />
+      <SelecaoLinha value={unit} onChange={(e) => setUnit(e.target.value)}>
+        {["un", "g", "kg", "L", "ml"].map((u) => (
+          <option key={u}>{u}</option>
+        ))}
+      </SelecaoLinha>
+      <Campo
+        variante="linha"
+        type="number"
+        className="w-16"
+        inputMode="decimal"
+        min={0}
+        step="0.01"
+        placeholder="R$"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+      />
+      <SelecaoLinha value={aisle} onChange={(e) => setAisle(e.target.value)}>
+        {order.map((a) => (
+          <option key={a}>{a}</option>
+        ))}
+      </SelecaoLinha>
+    </EdicaoItem>
   );
 }

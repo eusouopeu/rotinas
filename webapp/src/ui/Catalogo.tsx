@@ -16,7 +16,13 @@ import { BotaoLink } from "./BotaoLink";
 import { Selecao } from "./Selecao";
 import { CelNegrito, CelNota, CelRotulo, LinhaTabela } from "./LinhaTabela";
 import { Botao } from "./Botao";
+import { BotaoApagar } from "./BotaoApagar";
+import { BotaoCompacto } from "./BotaoCompacto";
 import { BotaoMover } from "./BotaoMover";
+import { BotaoOrdem } from "./BotaoOrdem";
+import { BotaoTracejado } from "./BotaoTracejado";
+import { CampoNovoItem } from "./CampoNovoItem";
+import { CampoTitulo } from "./CampoTitulo";
 import { BotaoRedondo } from "./BotaoRedondo";
 import { CirculoCheck } from "./CirculoCheck";
 import { Fato, Fatos } from "./Fatos";
@@ -577,6 +583,47 @@ export function Catalogo() {
             </LinhaTabela>
           }
           cmp={[{}, { sel: "span" }, { sel: "b" }]}
+        />
+        <Par
+          nome="botao-compacto"
+          legado={<div className="notice-actions"><button>ok</button></div>}
+          novo={<div className="flex gap-2"><BotaoCompacto>ok</BotaoCompacto></div>}
+          cmp={[{ sel: "button" }]}
+          cmpNovo={[{ sel: "button" }]}
+        />
+        <Par
+          nome="botao-compacto-fantasma"
+          legado={<div className="notice-actions"><button className="ghost">cancelar</button></div>}
+          novo={<div className="flex gap-2"><BotaoCompacto variante="fantasma">cancelar</BotaoCompacto></div>}
+          cmp={[{ sel: "button" }]}
+          cmpNovo={[{ sel: "button" }]}
+        />
+        <Par
+          nome="botao-ordem"
+          legado={<button className="order-btn">{icone}</button>}
+          novo={<BotaoOrdem>{icone}</BotaoOrdem>}
+        />
+        <Par
+          nome="botao-apagar"
+          legado={<button className="del-exec">{icone}</button>}
+          novo={<BotaoApagar>{icone}</BotaoApagar>}
+        />
+        <Par
+          nome="campo-titulo"
+          legado={<input className="note-title-input" defaultValue="Título" />}
+          novo={<CampoTitulo defaultValue="Título" />}
+        />
+        <Par
+          nome="campo-novo-item"
+          legado={<div className="mx-add"><input type="text" placeholder="+ item" /></div>}
+          novo={<div><CampoNovoItem placeholder="+ item" /></div>}
+          cmp={[{ sel: "input" }]}
+          cmpNovo={[{ sel: "input" }]}
+        />
+        <Par
+          nome="botao-tracejado"
+          legado={<button className="add-step-btn">limpar</button>}
+          novo={<BotaoTracejado>limpar</BotaoTracejado>}
         />
         <Par
           nome="alca-arrasto"

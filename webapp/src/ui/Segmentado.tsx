@@ -4,12 +4,12 @@
 //  - Toggle: escolha pequena dentro de formulário (peso, tipo de etapa).
 // `active` aceita lista quando mais de uma opção pode ficar ligada (Metas).
 // data-seg impede o SwipeItem de começar um arrasto em cima do seletor.
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { cn } from "../lib/cn";
 
 export interface SegOpcao<K extends string> {
   key: K;
-  label: string;
+  label: ReactNode;
 }
 
 interface Base<K extends string> {

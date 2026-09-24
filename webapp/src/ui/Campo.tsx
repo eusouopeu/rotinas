@@ -6,7 +6,7 @@
 //   botão ("Nova área" + Adicionar); variante "compacto": campos dos popups de meta — fundo --card, 14.5px, foco em --caneta. NÃO traz
 //   font-family (herdava a fonte do sistema no legado; a troca é uma decisão de
 //   harmonização à parte, ver design-system.md).
-import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../lib/cn";
 
@@ -22,8 +22,9 @@ const campo = cva("border-[1.5px] border-line text-ink", {
       // campo de uma linha de formulário rápido (era .market-form-row input)
       linha: "rounded-md bg-card px-2 py-[9px] text-base",
       compacto: CAMPO_COMPACTO,
-      modelo:
-        "mb-2 w-full rounded-[9px] bg-card px-2.5 py-[9px] text-[14.5px] focus:border-caneta focus:outline-none",
+      // campo de item das listas (mercado, viagem): grande, 15px, bordas mais redondas
+      item: "mb-2 w-full rounded-[12px] bg-card px-3.5 py-[11px] text-lg focus:border-caneta focus:outline-none",
+      modelo: "mb-2 w-full rounded-[9px] bg-card px-2.5 py-[9px] text-[14.5px] focus:border-caneta focus:outline-none",
     },
   },
   defaultVariants: { variante: "formulario" },
@@ -31,24 +32,32 @@ const campo = cva("border-[1.5px] border-line text-ink", {
 
 type Variantes = VariantProps<typeof campo>;
 
-export function Campo({
-  variante,
-  className,
-  ...resto
-}: InputHTMLAttributes<HTMLInputElement> & Variantes) {
+export function Campo({ variante, className, ...resto }: InputHTMLAttributes<HTMLInputElement> & Variantes) {
   return <input className={cn(campo({ variante }), className)} {...resto} />;
 }
 
 /** Área de texto com a mesma cara do Campo "modelo" (não redimensiona, linha 1.5). */
-export const AreaTexto = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function AreaTexto(
-  { className, ...resto },
-  ref
-) {
+export const AreaTexto = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  function AreaTexto({ className, ...resto }, ref) {
+    return (
+      <textarea
+        ref={ref}
+        className={cn(campo({ variante: "modelo" }), "resize-none overflow-hidden font-sans leading-normal", className)}
+        {...resto}
+      />
+    );
+  }
+);
+
+/** Menu de escolha ao lado dos campos "linha" (mesma moldura e altura deles). */
+export function SelecaoLinha({ className, ...resto }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <textarea
-      ref={ref}
-      className={cn(campo({ variante: "modelo" }), "resize-none overflow-hidden font-sans leading-normal", className)}
+    <select
+      className={cn(
+        "min-w-0 flex-1 rounded-md border-[1.5px] border-line bg-card px-2 py-[9px] text-base text-ink",
+        className
+      )}
       {...resto}
     />
   );
-});
+}
