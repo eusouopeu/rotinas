@@ -183,6 +183,20 @@ const gamificacao = {
   ],
 };
 
+// Agenda: bloco escrito na nota do dia, cartões do kanban do dia e compromissos
+const diario = {
+  "dia:2026-09-23": "- [x] 09:00-10:00 Reunião de alinhamento\n- [ ] 14:00 Estudar inglês\n- [>] 16:30-17:30 Dentista (adiado)\n",
+};
+const diaKanban = [
+  { id: "dk1", text: "Comprar presente", col: "todo", per: "dia:2026-09-23", ord: 0, hIni: "11:00", hFim: "11:45", tagValor: "baixo" },
+  { id: "dk2", text: "Ligar para o contador", col: "done", per: "dia:2026-09-23", ord: 1, hIni: "", hFim: "", tagValor: "medio" },
+  { id: "dk3", text: "Revisar contrato", col: "todo", per: "dia:2026-09-24", ord: 0, hIni: "10:00", hFim: "", tagValor: "alto" },
+];
+const compromissos = [
+  { id: "cp1", title: "Consulta médica", date: "2026-09-23", time: "15:30", notify: "nodia", createdAt: t0 - 5 * DIA },
+  { id: "cp2", title: "Aniversário da Ana", date: "2026-09-25", time: "", notify: "nenhuma", createdAt: t0 - 5 * DIA },
+];
+
 // chaves do localStorage legado: K_PREFIX + nome (src/lib/constants.ts)
 export const seedLocalStorage = {
   rotinas_v2_routines: routines,
@@ -190,4 +204,7 @@ export const seedLocalStorage = {
   rotinas_v2_notes: notes,
   rotinas_v2_templates: templates,
   rotinas_v2_gamificacao: gamificacao,
+  rotinas_v2_diario: diario,
+  rotinas_v2_diakanban: diaKanban,
+  rotinas_v2_compromissos: compromissos,
 };
