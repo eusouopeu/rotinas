@@ -13,18 +13,18 @@ describe("Home — cabeçalho da view Dia", () => {
 
   it("no dia de hoje mostra o ponto e esconde o botão de calendário", () => {
     const { container, queryByLabelText } = render(<Home />);
-    expect(container.querySelector(".ag-dia-hoje-dot")).not.toBeNull();
+    expect(container.querySelector('[aria-label="hoje"]')).not.toBeNull();
     expect(queryByLabelText("Ir para hoje")).toBeNull();
   });
 
   it("ao navegar para outro dia some o ponto e aparece o calendário, que volta para hoje", () => {
     const { container, getByLabelText, queryByLabelText } = render(<Home />);
     fireEvent.click(getByLabelText("Próximo dia"));
-    expect(container.querySelector(".ag-dia-hoje-dot")).toBeNull();
+    expect(container.querySelector('[aria-label="hoje"]')).toBeNull();
 
     const calendario = getByLabelText("Ir para hoje");
     fireEvent.click(calendario);
-    expect(container.querySelector(".ag-dia-hoje-dot")).not.toBeNull();
+    expect(container.querySelector('[aria-label="hoje"]')).not.toBeNull();
     expect(queryByLabelText("Ir para hoje")).toBeNull();
   });
 });
