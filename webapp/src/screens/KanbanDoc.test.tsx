@@ -43,12 +43,12 @@ describe("KanbanDoc — reordenar cartões por arraste", () => {
     const doc = baseDoc();
     render(<KanbanDoc doc={doc} />);
 
-    const cols = document.querySelectorAll(".kb-col");
+    const cols = document.querySelectorAll("[data-coluna-kanban]");
     mockRect(cols[0] as HTMLElement, { top: 0, height: 500, left: 0, right: 200 });
     mockRect(cols[1] as HTMLElement, { top: 0, height: 500, left: 200, right: 400 });
     mockRect(cols[2] as HTMLElement, { top: 0, height: 500, left: 400, right: 600 });
 
-    const handles = document.querySelectorAll(".kb-drag");
+    const handles = document.querySelectorAll("[data-alca-kanban]");
     expect(handles).toHaveLength(2);
     const handle = handles[0] as HTMLElement;
     handle.setPointerCapture = () => {};

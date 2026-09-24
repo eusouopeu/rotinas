@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
-import { TmplDocHeader } from "../components/TmplDocHeader";
+import { CabecalhoDoc } from "../features/modelos/CabecalhoDoc";
 import { MATRIX_COLORS } from "../lib/templates";
 import { exportPdfView } from "../lib/exportFile";
 import { matrixPdfHtml } from "../lib/pdfExport";
@@ -112,7 +112,7 @@ export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
 
   return (
     <div className="screen">
-      <TmplDocHeader doc={doc} onTitleChange={(title) => save({ title })} />
+      <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
         <button className="icon-btn" title="Rótulos dos eixos" aria-label="Rótulos dos eixos" onClick={() => setShowAxes(!showAxes)}>
           <Icon name="tag" size={15} />

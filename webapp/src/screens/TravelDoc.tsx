@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
-import { TmplDocHeader } from "../components/TmplDocHeader";
+import { CabecalhoDoc } from "../features/modelos/CabecalhoDoc";
 import { TRAVEL_DB, guessTravelCat } from "../lib/templates";
 import { exportPdfView } from "../lib/exportFile";
 import { travelPdfHtml } from "../lib/pdfExport";
@@ -51,7 +51,7 @@ export function TravelDoc({ doc }: { doc: TravelDocType }) {
 
   return (
     <div className="screen">
-      <TmplDocHeader doc={doc} onTitleChange={(title) => save({ title })} />
+      <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
         <button
           className="icon-btn"

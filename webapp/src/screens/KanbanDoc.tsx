@@ -5,9 +5,12 @@
 // removido (ver docs/react-migration.md).
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
-import { Icon } from "../components/Icon";
-import { TmplDocHeader } from "../components/TmplDocHeader";
+import { CabecalhoDoc } from "../features/modelos/CabecalhoDoc";
 import { computeKanbanDragTarget, useDragReorder } from "../lib/dnd";
+import { BarraPdf } from "../features/modelos/BarraPdf";
+import { CartaoKanban, EdicaoCartao } from "../features/modelos/CartaoKanban";
+import { CampoNovoItem } from "../ui/CampoNovoItem";
+import { cn } from "../lib/cn";
 import { exportPdfView } from "../lib/exportFile";
 import { kanbanPdfHtml } from "../lib/pdfExport";
 import type { KanbanDoc as KanbanDocType } from "../lib/types";
@@ -19,7 +22,6 @@ function uid(): string {
 export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
   const [editing, setEditing] = useState<{ ci: number; ii: number } | null>(null);
-  const [erro, setErro] = useState("");
 
   function save(cols: KanbanDocType["cols"]) {
     updateTemplateDoc({ ...doc, cols });
@@ -45,49 +47,35 @@ export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
   }
 
   const { dragFrom, dragOver, dragHandleProps } = useDragReorder((from, to) =>
-    moveCardTo(from.container, from.index, to.container, to.index),
+    moveCardTo(from.container, from.index, to.container, to.index)
   );
 
   return (
     <div className="screen">
-      <TmplDocHeader doc={doc} onTitleChange={(title) => updateTemplateDoc({ ...doc, title })} />
-      <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
-        <button
-          className="icon-btn"
-          title="Exportar PDF"
-          aria-label="Exportar PDF"
-          onClick={async () => {
-            setErro("");
-            const r = await exportPdfView(doc.title, kanbanPdfHtml(doc), "Kanbans");
-            if (!r.ok && r.erro) setErro(r.erro);
-          }}
-        >
-          PDF
-        </button>
-      </div>
-      {erro && (
-        <div className="stat-foot" style={{ color: "var(--erro)" }}>
-          {erro}
-        </div>
-      )}
-      <div className="kb-board">
+      <CabecalhoDoc doc={doc} onTitleChange={(title) => updateTemplateDoc({ ...doc, title })} />
+      <BarraPdf exportar={() => exportPdfView(doc.title, kanbanPdfHtml(doc), "Kanbans")} />
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pb-3.5 paisagem:flex-row paisagem:items-stretch paisagem:gap-2">
         {doc.cols.map((c, ci) => (
           <div
-            className={"kb-col" + (dragOver?.container === ci ? " kb-drop" : "")}
+            className={cn(
+              "flex max-h-[min(46vh,360px)] min-h-0 w-full flex-none flex-col rounded-[14px] border-[1.5px] border-line bg-card p-2.5 paisagem:max-h-none paisagem:w-auto paisagem:min-w-0 paisagem:flex-[1_1_0]",
+              dragOver?.container === ci && "border-caneta-2"
+            )}
             key={ci}
+            data-coluna-kanban
             ref={(el) => {
               colRefs.current[ci] = el;
             }}
           >
-            <div className="kb-head">
-              {c.title} <span className="dev-n">{c.items.length}</span>
+            <div className="mb-2 flex items-center justify-between font-titulo text-lg font-semibold">
+              {c.title} <span className="font-sans text-sm text-sub">{c.items.length}</span>
             </div>
-            <div className="kb-cards">
+            <div className="min-h-[60px] flex-1 overflow-y-auto">
               {c.items.map((it, ii) =>
                 editing && editing.ci === ci && editing.ii === ii ? (
-                  <CardEdit
+                  <EdicaoCartao
                     key={it.id}
-                    text={it.text}
+                    texto={it.text}
                     onCancel={() => setEditing(null)}
                     onDelete={() => {
                       const cols = doc.cols.map((x) => ({ ...x, items: [...x.items] }));
@@ -103,58 +91,40 @@ export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
                     }}
                   />
                 ) : (
-                  <div
-                    className={"kb-card" + (dragFrom?.container === ci && dragFrom.index === ii ? " dragging" : "")}
+                  <CartaoKanban
                     key={it.id}
-                    ref={(el) => {
+                    texto={it.text}
+                    arrastando={dragFrom?.container === ci && dragFrom.index === ii}
+                    cartaoRef={(el) => {
                       cardRefs.current.set(it.id, el);
                     }}
-                  >
-                    <div className="kb-card-top">
-                      <span
-                        className="kb-drag"
-                        {...dragHandleProps({ container: ci, index: ii }, (x, y) => {
-                          const columns = doc.cols.map((_, i) => ({
-                            containerIndex: i,
-                            rect: colRefs.current[i]!.getBoundingClientRect(),
-                          }));
-                          const draggedId = it.id;
-                          return computeKanbanDragTarget(
-                            columns,
-                            (containerIndex) =>
-                              doc.cols[containerIndex].items
-                                .filter((x2) => x2.id !== draggedId)
-                                .map((x2) => cardRefs.current.get(x2.id))
-                                .filter((el): el is HTMLDivElement => el != null)
-                                .map((el) => el.getBoundingClientRect()),
-                            x,
-                            y,
-                            ci,
-                          );
-                        })}
-                      >
-                        <Icon name="bars3" size={15} />
-                      </span>
-                      <span className="kb-text" onClick={() => setEditing({ ci, ii })}>
-                        {it.text}
-                      </span>
-                    </div>
-                    <div className="kb-card-bot">
-                      <div className="kb-moves">
-                        <button className="kb-move-btn" disabled={ci === 0} onClick={() => moveCard(ci, ii, -1)}>
-                          &lsaquo;
-                        </button>
-                        <button
-                          className={"kb-move-btn" + (ci === doc.cols.length - 2 ? " para-feito" : "")}
-                          disabled={ci === doc.cols.length - 1}
-                          onClick={() => moveCard(ci, ii, 1)}
-                        >
-                          {ci === doc.cols.length - 2 ? <Icon name="check" size={14} /> : "›"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ),
+                    alcaProps={dragHandleProps({ container: ci, index: ii }, (x, y) => {
+                      const columns = doc.cols.map((_, i) => ({
+                        containerIndex: i,
+                        rect: colRefs.current[i]!.getBoundingClientRect(),
+                      }));
+                      const draggedId = it.id;
+                      return computeKanbanDragTarget(
+                        columns,
+                        (containerIndex) =>
+                          doc.cols[containerIndex].items
+                            .filter((x2) => x2.id !== draggedId)
+                            .map((x2) => cardRefs.current.get(x2.id))
+                            .filter((el): el is HTMLDivElement => el != null)
+                            .map((el) => el.getBoundingClientRect()),
+                        x,
+                        y,
+                        ci
+                      );
+                    })}
+                    podeVoltar={ci > 0}
+                    podeAvancar={ci < doc.cols.length - 1}
+                    paraFeito={ci === doc.cols.length - 2}
+                    onEditar={() => setEditing({ ci, ii })}
+                    onVoltar={() => moveCard(ci, ii, -1)}
+                    onAvancar={() => moveCard(ci, ii, 1)}
+                  />
+                )
               )}
             </div>
             <form
@@ -169,46 +139,11 @@ export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
                 inp.value = "";
               }}
             >
-              <input type="text" className="kb-add" placeholder="+ item (Enter)" enterKeyHint="done" />
+              <CampoNovoItem tamanho="cartao" placeholder="+ item (Enter)" enterKeyHint="done" />
             </form>
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function CardEdit({
-  text,
-  onSave,
-  onDelete,
-  onCancel,
-}: {
-  text: string;
-  onSave: (text: string) => void;
-  onDelete: () => void;
-  onCancel: () => void;
-}) {
-  const [val, setVal] = useState(text);
-  return (
-    <div className="kb-card kb-editing">
-      <input
-        type="text"
-        className="kb-e-text"
-        value={val}
-        autoFocus
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && onSave(val.trim() || text)}
-      />
-      <div className="notice-actions kb-e-acoes" style={{ marginTop: 10, justifyContent: "space-between" }}>
-        <button className="ghost" style={{ color: "var(--erro)" }} onClick={onDelete}>
-          <Icon name="trash" size={15} />
-        </button>
-        <button onClick={() => onSave(val.trim() || text)}>Salvar</button>
-      </div>
-      <button className="ghost" style={{ marginTop: 6 }} onClick={onCancel}>
-        cancelar
-      </button>
     </div>
   );
 }

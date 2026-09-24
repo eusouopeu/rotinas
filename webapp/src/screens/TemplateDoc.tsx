@@ -2,6 +2,8 @@
 // doc.type. "expense" (registro de gastos, com import de CSV — countdown
 // vive em Metas) segue caindo no fallback "ainda não portado".
 import { useAppStore } from "../store/useAppStore";
+import { BotaoLink } from "../ui/BotaoLink";
+import { EstadoVazio } from "../ui/EstadoVazio";
 import { ScoreboardDoc } from "./ScoreboardDoc";
 import { ThoughtRecordDoc } from "./ThoughtRecordDoc";
 import { ProsConsDoc } from "./ProsConsDoc";
@@ -40,24 +42,24 @@ export function TemplateDoc() {
 
   return (
     <div className="screen">
-      <div className="topbar">
-        <button
-          className="link-btn muted"
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <BotaoLink
+          tom="suave"
           onClick={() =>
             goTo(
               view.folderKind && view.folderKey
                 ? { tab: "templates", screen: "tmplFolder", folderKind: view.folderKind, folderKey: view.folderKey }
-                : { tab: "templates", screen: "templateFolders" },
+                : { tab: "templates", screen: "templateFolders" }
             )
           }
         >
           &larr; Modelos
-        </button>
+        </BotaoLink>
       </div>
-      <div className="empty-state">
-        <h2>Editor ainda não portado</h2>
-        <p>Este tipo de documento ("{doc.type}") ainda só existe no app antigo.</p>
-      </div>
+      <EstadoVazio
+        titulo="Editor ainda não portado"
+        texto={`Este tipo de documento ("${doc.type}") ainda só existe no app antigo.`}
+      />
     </div>
   );
 }

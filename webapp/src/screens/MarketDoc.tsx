@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
-import { TmplDocHeader } from "../components/TmplDocHeader";
+import { CabecalhoDoc } from "../features/modelos/CabecalhoDoc";
 import { GROCERY_DB, brl, bumpMkFreq, guessAisle, marketShareText, topMkFreq, type MkFreqMap } from "../lib/templates";
 import { K_MKFREQ } from "../lib/constants";
 import { load, save as saveKey } from "../lib/storage";
@@ -97,7 +97,7 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
 
   return (
     <div className="screen">
-      <TmplDocHeader doc={doc} onTitleChange={(title) => save({ title })} />
+      <CabecalhoDoc doc={doc} onTitleChange={(title) => save({ title })} />
       <div className="topbar" style={{ borderTop: "none", justifyContent: "flex-end" }}>
         <button
           className={"icon-btn" + (doc.shopMode ? " pin-btn pinned" : "")}
