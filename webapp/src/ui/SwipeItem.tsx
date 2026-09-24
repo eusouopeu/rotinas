@@ -7,6 +7,7 @@
 // React, o offset intermediário nunca precisa re-renderizar a árvore.
 import { useEffect, useRef } from "react";
 import { swipeClosed, swipeOpened } from "../lib/swipe";
+import { cn } from "../lib/cn";
 
 const REVEAL = 76;
 const IGNORE_SELECTOR = ".drag-handle, .order-btn, input, select, button, textarea, .type-toggle span, [data-seg]";
@@ -124,16 +125,16 @@ export function SwipeItem({ children, onLeft, leftLabel = "Excluir", onRight, ri
     track?.__closeSwipe?.();
   }
 
-  // A classe do card visível (routine-card/note-card/...) vai no TRACK, não
+  // A classe do card visível (CartaoLista, routine-card...) vai no TRACK, não
   // no wrap: é ela quem carrega o layout/fundo/raio do card de verdade — o
   // wrap só existe pra cortar (overflow:hidden) o que fica atrás dele
   // (index.html:2204-2210, cardEl mantém sua classe própria + "swipe-track";
   // o wrap ganha só "swipe-item").
   return (
-    <div className="swipe-item">
+    <div data-swipe-item className="relative shrink-0 grow-0 overflow-hidden rounded-app">
       {onLeft && (
         <button
-          className="swipe-del-btn"
+          className="absolute inset-y-0 right-0 z-0 w-[76px] border-0 bg-erro font-sans text-[12.5px] font-semibold text-on-caneta"
           onClick={() => {
             fechar();
             onLeft();
@@ -144,7 +145,7 @@ export function SwipeItem({ children, onLeft, leftLabel = "Excluir", onRight, ri
       )}
       {onRight && (
         <button
-          className="swipe-dup-btn"
+          className="absolute inset-y-0 left-0 z-0 w-[76px] border-0 bg-caneta-2 font-sans text-[12.5px] font-semibold text-on-caneta"
           onClick={() => {
             fechar();
             onRight();
@@ -153,7 +154,7 @@ export function SwipeItem({ children, onLeft, leftLabel = "Excluir", onRight, ri
           {rightLabel}
         </button>
       )}
-      <div ref={trackRef} className={"swipe-track" + (className ? " " + className : "")}>
+      <div ref={trackRef} className={cn("relative z-[1] touch-pan-y will-change-transform", className)}>
         {children}
       </div>
     </div>

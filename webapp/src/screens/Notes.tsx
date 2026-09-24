@@ -5,7 +5,17 @@ import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Tabbar } from "../components/Tabbar";
 import { ModelosTabPill } from "../components/ModelosTabPill";
-import { SwipeItem } from "../components/SwipeItem";
+import { SwipeItem } from "../ui/SwipeItem";
+import { Botao } from "../ui/Botao";
+import { BotaoIcone } from "../ui/BotaoIcone";
+import { CampoBusca } from "../ui/CampoBusca";
+import { CARTAO_LISTA, CartaoInfo, CartaoTitulo } from "../ui/CartaoLista";
+import { Chip } from "../ui/Chip";
+import { EstadoVazio } from "../ui/EstadoVazio";
+import { Fab } from "../ui/Fab";
+import { Legenda } from "../ui/Legenda";
+import { ListaCartoes } from "../ui/ListaCartoes";
+import { cn } from "../lib/cn";
 import { allTags, extractTags, relativeTime, stripMdForSnippet } from "../lib/notes";
 
 export function Notes() {
@@ -32,97 +42,94 @@ export function Notes() {
   return (
     <div className="screen with-tabbar com-modelos-pill">
       <div className="tab-scroll">
-        <div className="home-header" style={{ marginBottom: 10 }}>
+        <div className="home-header mb-2.5">
           <h1>Notas</h1>
         </div>
 
-        <input
+        <CampoBusca
+          forma="caixa"
           type="search"
-          className="note-search"
+          className="mb-3.5"
           placeholder="Buscar notas..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
 
         {(arquivadas > 0 || verArquivadas) && (
-          <div className="ag-nav-row" style={{ marginBottom: 10 }}>
-            <span className="ag-nav-gap" />
-            <button className="link-btn" onClick={() => setVerArquivadas((v) => !v)}>
+          <div className="mb-2.5 flex justify-end">
+            <Botao variante="pilula" className="ml-2.5 whitespace-nowrap" onClick={() => setVerArquivadas((v) => !v)}>
               {verArquivadas ? "ver notas ativas" : `ver arquivadas (${arquivadas})`}
-            </button>
+            </Botao>
           </div>
         )}
 
         {tags.length > 0 && (
-          <div className="tag-bar">
+          <div className="mb-3.5 flex flex-wrap gap-2">
             {tags.map((t) => (
-              <span key={t} className={"tag-chip" + (tag === t ? " active" : "")} onClick={() => setTag(tag === t ? null : t)}>
+              <Chip key={t} variante="tag" ativo={tag === t} onClick={() => setTag(tag === t ? null : t)}>
                 #{t}
-              </span>
+              </Chip>
             ))}
           </div>
         )}
 
-        <div className="notes-list" style={{ flex: "0 0 auto", overflow: "visible" }}>
+        <ListaCartoes>
           {sorted.length === 0 ? (
-            <div className="empty-state" style={{ minHeight: "40vh" }}>
-              {q || tag ? (
-                <>
-                  <h2>Nada encontrado</h2>
-                  <p>Nenhuma nota corresponde ao filtro.</p>
-                </>
-              ) : (
-                <>
-                  <h2>Nenhuma nota ainda</h2>
-                  <p>Listas de compras, tarefas, notas de estudo — tudo rápido, em markdown.</p>
-                  <button className="btn-primary" style={{ marginTop: 14 }} onClick={() => openNote(null)}>
-                    + Nova nota
-                  </button>
-                </>
+            <EstadoVazio
+              className="min-h-[40vh] desktop:col-span-full"
+              titulo={q || tag ? "Nada encontrado" : "Nenhuma nota ainda"}
+              texto={
+                q || tag
+                  ? "Nenhuma nota corresponde ao filtro."
+                  : "Listas de compras, tarefas, notas de estudo — tudo rápido, em markdown."
+              }
+            >
+              {!(q || tag) && (
+                <Botao className="mt-3.5" onClick={() => openNote(null)}>
+                  + Nova nota
+                </Botao>
               )}
-            </div>
+            </EstadoVazio>
           ) : (
             sorted.map((n, idx) => (
               <SwipeItem
                 key={n.id}
-                className="note-card"
+                className={CARTAO_LISTA}
                 onLeft={() => {
                   deleteNote(n.id);
                   showUndoBanner("Nota excluída", () => addNoteAt(idx, n));
                 }}
               >
-                <div className="note-info" onClick={() => openNote(n.id)}>
-                  <h3>
-                    {n.pinned && <span className="pin-mark">&#9733; </span>}
+                <CartaoInfo onClick={() => openNote(n.id)}>
+                  <CartaoTitulo>
+                    {n.pinned && <span className="text-base text-caneta">&#9733; </span>}
                     {n.title || "Sem título"}
-                  </h3>
-                  <div className="note-snippet">{stripMdForSnippet(n.content)}</div>
-                  <div className="routine-meta" style={{ marginTop: 6 }}>
+                  </CartaoTitulo>
+                  <div className="mt-1 truncate text-md leading-[1.4] text-sub">{stripMdForSnippet(n.content)}</div>
+                  <Legenda className="mt-1.5">
                     {relativeTime(n.updatedAt)}
                     {(n.subjects || []).length > 0 && " · " + n.subjects!.slice(0, 3).join(", ") + (n.subjects!.length > 3 ? "…" : "")}
-                  </div>
-                </div>
-                <button
-                  className={"icon-btn borderless pin-btn" + (n.pinned ? " pinned" : "")}
-                  title="Fixar nota"
-                  aria-label="Fixar nota"
+                  </Legenda>
+                </CartaoInfo>
+                <BotaoIcone
+                  rotulo="Fixar nota"
+                  semBorda
+                  className={cn("text-2xl", n.pinned ? "text-caneta" : "text-line")}
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleNotePinned(n.id);
                   }}
                 >
                   &#9733;
-                </button>
+                </BotaoIcone>
               </SwipeItem>
             ))
           )}
-        </div>
+        </ListaCartoes>
       </div>
 
       <ModelosTabPill active="notes" />
-      <button className="fab" title="Novo" onClick={() => openNote(null)}>
-        +
-      </button>
+      <Fab rotulo="Novo" className="desktop:bottom-7" onClick={() => openNote(null)} />
       <Tabbar />
     </div>
   );

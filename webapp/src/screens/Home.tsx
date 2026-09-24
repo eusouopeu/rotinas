@@ -28,7 +28,7 @@ import { addDaysISO, isoToDate, localKey } from "../lib/gamificacao";
 import { computeSchedule, diasChipLabel, formatHM } from "../lib/schedule";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV, DIAS_NOME } from "../lib/constants";
 import { semanaFechadaPendente } from "../lib/semanaFechada";
-import { SwipeItem } from "../components/SwipeItem";
+import { SwipeItem } from "../ui/SwipeItem";
 import { attachSwipeDownSearch } from "../lib/swipe";
 import { execucaoDoDia, execucaoMinutos } from "../lib/history";
 

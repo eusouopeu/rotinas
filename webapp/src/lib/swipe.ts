@@ -24,7 +24,7 @@ if (typeof document !== "undefined") {
     "pointerdown",
     (e) => {
       if (!current) return;
-      const wrap = current.el.closest(".swipe-item");
+      const wrap = current.el.closest("[data-swipe-item]");
       if (wrap && wrap.contains(e.target as Node)) return;
       current.close();
       current = null;

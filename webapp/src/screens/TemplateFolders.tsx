@@ -6,9 +6,16 @@
 // incluindo o seletor de preset da matriz (openMatrixPresetPicker).
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
-import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
 import { ModelosTabPill } from "../components/ModelosTabPill";
+import { Botao } from "../ui/Botao";
+import { CampoBusca } from "../ui/CampoBusca";
+import { CartaoInfo, CartaoLista, CartaoTitulo } from "../ui/CartaoLista";
+import { Fab } from "../ui/Fab";
+import { Legenda } from "../ui/Legenda";
+import { ListaCartoes } from "../ui/ListaCartoes";
+import { Modal, ModalAcoes, ModalTexto } from "../ui/Modal";
+import { GradePastas, PastaTile, SeparadorSecao } from "../features/modelos/PastaTile";
 import { TMPL_SECOES, TMPL_TYPES, type MatrixPreset } from "../lib/templates";
 import type { IconName } from "../lib/icons";
 
@@ -91,16 +98,11 @@ export function TemplateFolders() {
   }
 
   const grade = (tiles: Tile[]) => (
-    <div className="tmpl-new-grid">
+    <GradePastas>
       {tiles.map((f) => (
-        <button key={f.key} className="tmpl-new" onClick={() => abrirPasta(f.key)}>
-          <span className="tmpl-ic">
-            <Icon name={f.icon} size={22} />
-          </span>
-          <span>{f.label}</span>
-        </button>
+        <PastaTile key={f.key} icone={f.icon} rotulo={f.label} onClick={() => abrirPasta(f.key)} />
       ))}
-    </div>
+    </GradePastas>
   );
 
   return (
@@ -109,113 +111,91 @@ export function TemplateFolders() {
         <div className="home-header">
           <h1>Modelos</h1>
         </div>
-        <input
+        <CampoBusca
+          forma="caixa"
           type="search"
-          className="note-search"
+          className="mb-3.5"
           placeholder="Buscar modelos..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         {q && docsAchados.length > 0 && (
-          <div className="notes-list" style={{ flex: "0 0 auto", overflow: "visible", marginBottom: 12 }}>
+          <ListaCartoes className="mb-3">
             {docsAchados.map((t) => {
               const rid = t.type === "journal" ? (t as { routineId?: string }).routineId : undefined;
               return (
-                <div
+                <CartaoLista
                   key={t.id}
-                  className="note-card"
                   onClick={() =>
                     goTo({ tab: "templates", screen: "templateDoc", id: t.id, folderKind: rid ? "routine" : "type", folderKey: rid || t.type })
                   }
                 >
-                  <div className="note-info">
-                    <h3>{(t as { title?: string }).title}</h3>
-                    <div className="routine-meta">{TMPL_TYPES.find((x) => x.type === t.type)?.label || t.type}</div>
-                  </div>
-                </div>
+                  <CartaoInfo>
+                    <CartaoTitulo>{(t as { title?: string }).title}</CartaoTitulo>
+                    <Legenda>{TMPL_TYPES.find((x) => x.type === t.type)?.label || t.type}</Legenda>
+                  </CartaoInfo>
+                </CartaoLista>
               );
             })}
-          </div>
+          </ListaCartoes>
         )}
-        <div className="tmpl-folders">
+        <div className="flex-none">
           {secoes
             .map((s) => ({ ...s, tiles: s.tiles.filter((f) => !q || f.label.toLowerCase().includes(q)) }))
             .filter((s) => s.tiles.length)
             .map((s) => (
               <div key={s.key}>
-                <div className="tmpl-sep">
-                  <span>{s.label}</span>
-                </div>
+                <SeparadorSecao>{s.label}</SeparadorSecao>
                 {grade(s.tiles)}
               </div>
             ))}
-          <div className="tmpl-sep">
-            <span>Anotações de Rotinas</span>
-          </div>
+          <SeparadorSecao>Anotações de Rotinas</SeparadorSecao>
           {rotinasTiles.length ? (
             grade(rotinasTiles.filter((f) => !q || f.label.toLowerCase().includes(q)))
           ) : (
-            <div className="dev-n" style={{ margin: "0 2px 8px" }}>
-              Nenhuma ainda — nasce sozinha ao registrar anotações numa rotina.
-            </div>
+            <Legenda className="mx-0.5 mb-2">Nenhuma ainda — nasce sozinha ao registrar anotações numa rotina.</Legenda>
           )}
         </div>
       </div>
 
       <ModelosTabPill active="outros" />
-      <button className="fab" title="Novo modelo" onClick={() => setCriando(true)}>
-        +
-      </button>
+      <Fab rotulo="Novo modelo" className="desktop:bottom-7" onClick={() => setCriando(true)} />
 
       {criando && (
-        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setCriando(false)}>
-          <div className="confirm-box" style={{ textAlign: "left" }}>
-            <p style={{ margin: "0 0 10px" }}>Criar novo:</p>
-            <div className="tmpl-new-grid">
-              <button className="tmpl-new" onClick={() => criar("notasimples")}>
-                <span className="tmpl-ic">
-                  <Icon name="notes" size={22} />
-                </span>
-                <span>Notas simples</span>
-              </button>
-              {TMPL_TYPES.map((t) => (
-                <button key={t.type} className="tmpl-new" onClick={() => criar(t.type)}>
-                  <span className="tmpl-ic">
-                    <Icon name={t.icon} size={22} />
-                  </span>
-                  <span>{t.label}</span>
-                </button>
-              ))}
-            </div>
-            <div className="confirm-actions" style={{ marginTop: 14 }}>
-              <button className="btn-cancel" onClick={() => setCriando(false)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
+        <Modal onFechar={() => setCriando(false)} className="text-left">
+          <ModalTexto className="mb-2.5">Criar novo:</ModalTexto>
+          <GradePastas>
+            <PastaTile icone="notes" rotulo="Notas simples" onClick={() => criar("notasimples")} />
+            {TMPL_TYPES.map((t) => (
+              <PastaTile key={t.type} icone={t.icon} rotulo={t.label} onClick={() => criar(t.type)} />
+            ))}
+          </GradePastas>
+          <ModalAcoes className="mt-3.5">
+            <Botao variante="neutro" tamanho="modal" onClick={() => setCriando(false)}>
+              Cancelar
+            </Botao>
+          </ModalAcoes>
+        </Modal>
       )}
 
       {matrixPicker && (
-        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && setMatrixPicker(false)}>
-          <div className="confirm-box">
-            <p>Começar a matriz como:</p>
-            <div className="confirm-actions" style={{ flexDirection: "column" }}>
-              <button className="btn-confirm" style={{ background: "var(--caneta)" }} onClick={() => criarMatriz("eisenhower")}>
-                Matriz de Eisenhower
-              </button>
-              <button className="btn-confirm" style={{ background: "var(--caneta)" }} onClick={() => criarMatriz("swot")}>
-                Análise SWOT
-              </button>
-              <button className="btn-confirm" style={{ background: "var(--card-2)", color: "var(--ink)" }} onClick={() => criarMatriz("blank")}>
-                Em branco
-              </button>
-              <button className="btn-cancel" onClick={() => setMatrixPicker(false)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
+        <Modal onFechar={() => setMatrixPicker(false)}>
+          <ModalTexto>Começar a matriz como:</ModalTexto>
+          <ModalAcoes className="flex-col">
+            <Botao variante="solido" tamanho="modal" onClick={() => criarMatriz("eisenhower")}>
+              Matriz de Eisenhower
+            </Botao>
+            <Botao variante="solido" tamanho="modal" onClick={() => criarMatriz("swot")}>
+              Análise SWOT
+            </Botao>
+            <Botao variante="solido" tamanho="modal" className="bg-card-2 text-ink" onClick={() => criarMatriz("blank")}>
+              Em branco
+            </Botao>
+            <Botao variante="neutro" tamanho="modal" onClick={() => setMatrixPicker(false)}>
+              Cancelar
+            </Botao>
+          </ModalAcoes>
+        </Modal>
       )}
 
       <Tabbar />

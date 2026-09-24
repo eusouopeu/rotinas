@@ -13,7 +13,7 @@ import { RodaVidaResumo } from "../components/RodaVidaResumo";
 import { exportPdfView } from "../lib/exportFile";
 import { metasPdfHtml } from "../lib/pdfExport";
 import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
-import { SwipeItem } from "../components/SwipeItem";
+import { SwipeItem } from "../ui/SwipeItem";
 import {
   cdPace,
   daysUntil,

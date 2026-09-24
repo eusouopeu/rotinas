@@ -56,6 +56,10 @@ Peças genéricas, sem regra de negócio; toda tela nova/migrada as usa em vez d
 | `ChipsDia` | `.day-chips` + `.day-chip` | fileira D S T Q Q S S |
 | `Campo` (`variante` formulario/modelo/linha), `AreaTexto`, `CampoBusca`, `CampoNumero`/`LinhaNumero`, `CampoCor` | `.mk-e-name`, `.market-form-row input`, `.set-busca`, `.dur-input`, `.area-color-swatch` | `modelo` e `linha` NÃO trazem font-family (o legado usava a fonte do sistema nesses campos; trocar é decisão de harmonização) |
 | `LinhaDado` | `.dev-row` | rótulo + valor em negrito com filete |
+| `CartaoLista` / `CARTAO_LISTA`, `CartaoInfo`, `CartaoTitulo`, `ListaCartoes` | `.note-card`/`.routine-card`, `.note-info`, `.notes-list`/`.routine-list` | dentro de `SwipeItem` passe `CARTAO_LISTA` no `className` dele; lista vira grade de 2 colunas no desktop |
+| `SwipeItem` (`ui/`) | `.swipe-item/.swipe-track/.swipe-del-btn` | marcador `data-swipe-item` (lib/swipe.ts) |
+| `Chip variante="tag"`, `CampoBusca forma="caixa"` | `.tag-chip`, `.note-search` | |
+| `features/modelos/PastaTile` (`PastaTile`, `GradePastas`, `SeparadorSecao`) | `.tmpl-new`, `.tmpl-new-grid`, `.tmpl-sep` | |
 
 **Escala de texto** (`text-2xs` 10 · `xs` 11 · `sm` 12 · `md` 13 · `base` 14 · `lg` 15 · `xl` 16 · `2xl` 18 · `3xl` 20 · `4xl` 22 · `5xl` 32, em px): meio-pixel (12.5, 13.5, 14.5, 15.5) e 17/19 seguem como `text-[13.5px]` até uma rodada de harmonização escolhida pelo Pedro — a migração não muda o visual. Ao criar um nome novo em `@theme`, ensine-o ao `lib/cn.ts` (senão o tailwind-merge o lê como cor).
 

@@ -4,7 +4,12 @@
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { Tabbar } from "../components/Tabbar";
-import { SwipeItem } from "../components/SwipeItem";
+import { SwipeItem } from "../ui/SwipeItem";
+import { CARTAO_LISTA, CartaoInfo, CartaoTitulo } from "../ui/CartaoLista";
+import { EstadoVazio } from "../ui/EstadoVazio";
+import { Fab } from "../ui/Fab";
+import { Legenda } from "../ui/Legenda";
+import { ListaCartoes } from "../ui/ListaCartoes";
 import { relativeTime } from "../lib/notes";
 import { TMPL_TYPES, tmplMeta } from "../lib/templates";
 
@@ -36,9 +41,9 @@ export function TmplFolder() {
     <div className="screen with-tabbar">
       <div className="tab-scroll">
         <div className="home-header">
-          <h1 style={{ fontSize: 22 }}>
+          <h1 className="text-4xl">
             <span
-              style={{ cursor: "pointer", color: "var(--sub)", fontSize: 22 }}
+              className="cursor-pointer text-4xl text-sub"
               onClick={() => goTo({ tab: "templates", screen: "templateFolders" })}
             >
               <Icon name="chevronLeft" size={18} />
@@ -48,32 +53,26 @@ export function TmplFolder() {
         </div>
 
         {docs.length === 0 ? (
-          <div className="empty-state">
-            <h2>Pasta vazia</h2>
-            <p>Crie o primeiro documento aqui.</p>
-          </div>
+          <EstadoVazio titulo="Pasta vazia" texto="Crie o primeiro documento aqui." />
         ) : (
-          <div className="notes-list" style={{ flex: "0 0 auto", overflow: "visible" }}>
+          <ListaCartoes>
             {docs.map((t) => (
-              <SwipeItem key={t.id} className="note-card" onLeft={() => deleteTemplateDocWithUndo(t.id)}>
-                <div
-                  className="note-info"
+              <SwipeItem key={t.id} className={CARTAO_LISTA} onLeft={() => deleteTemplateDocWithUndo(t.id)}>
+                <CartaoInfo
                   onClick={() => goTo({ tab: "templates", screen: "templateDoc", id: t.id, folderKind: kind, folderKey: key })}
                 >
-                  <h3>{("title" in t && typeof t.title === "string" && t.title) || "Sem título"}</h3>
-                  <div className="routine-meta" style={{ marginTop: 4 }}>
+                  <CartaoTitulo>{("title" in t && typeof t.title === "string" && t.title) || "Sem título"}</CartaoTitulo>
+                  <Legenda className="mt-1">
                     {tmplMeta(t)} · {relativeTime(typeof t.updatedAt === "number" ? t.updatedAt : 0)}
-                  </div>
-                </div>
+                  </Legenda>
+                </CartaoInfo>
               </SwipeItem>
             ))}
-          </div>
+          </ListaCartoes>
         )}
       </div>
 
-      <button className="fab" title="Novo" onClick={() => createTemplateDoc(key, "type", key)}>
-        +
-      </button>
+      <Fab rotulo="Novo" onClick={() => createTemplateDoc(key, "type", key)} />
       <Tabbar />
     </div>
   );

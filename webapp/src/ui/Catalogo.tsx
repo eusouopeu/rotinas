@@ -9,7 +9,9 @@
 // que ele bate com o que existia.
 import { useState, type ReactNode } from "react";
 import { Icon } from "../components/Icon";
+import { GradePastas, PastaTile, SeparadorSecao } from "../features/modelos/PastaTile";
 import { Botao } from "./Botao";
+import { CartaoInfo, CartaoLista, CartaoTitulo } from "./CartaoLista";
 import { CampoBusca } from "./CampoBusca";
 import { CampoCor } from "./CampoCor";
 import { CampoNumero, LinhaNumero } from "./CampoNumero";
@@ -448,6 +450,74 @@ export function Catalogo() {
           cmp={[{}, { sel: "span" }, { sel: "b" }]}
         />
 
+        <Par
+          nome="chip-tag"
+          legado={<span className="tag-chip">#casa</span>}
+          novo={<Chip variante="tag">#casa</Chip>}
+          ignorar={["cursor"]}
+        />
+        <Par
+          nome="chip-tag-ativo"
+          legado={<span className="tag-chip active">#casa</span>}
+          novo={<Chip variante="tag" ativo>#casa</Chip>}
+          ignorar={["cursor"]}
+        />
+        <Par
+          nome="busca-caixa"
+          legado={<input type="search" className="note-search" placeholder="Buscar notas..." />}
+          novo={<CampoBusca forma="caixa" type="search" className="mb-3.5" placeholder="Buscar notas..." />}
+          cmp={[{ sel: "input" }]}
+          cmpNovo={[{}]}
+          ignorar={["display", "minWidth", "minHeight"]}
+        />
+        <Par
+          nome="cartao-lista"
+          legado={
+            <div className="note-card">
+              <div className="note-info">
+                <h3>Compras da semana</h3>
+                <div className="routine-meta">2h · casa</div>
+              </div>
+            </div>
+          }
+          novo={
+            <CartaoLista>
+              <CartaoInfo>
+                <CartaoTitulo>Compras da semana</CartaoTitulo>
+                <Legenda>2h · casa</Legenda>
+              </CartaoInfo>
+            </CartaoLista>
+          }
+          cmp={[{}, { sel: ".note-info, div > div" }, { sel: "h3" }]}
+          cmpNovo={[{}, { sel: "div > div" }, { sel: "h3" }]}
+        />
+        <Par
+          nome="pasta-tile"
+          legado={
+            <div className="tmpl-new-grid">
+              <button className="tmpl-new">
+                <span className="tmpl-ic"><Icon name="settings" size={22} /></span>
+                <span>Kanbans</span>
+              </button>
+            </div>
+          }
+          novo={
+            <GradePastas>
+              <PastaTile icone="settings" rotulo="Kanbans" />
+            </GradePastas>
+          }
+          cmp={[{}, { sel: "button" }, { sel: "button > span:first-child" }]}
+        />
+        <Par
+          nome="separador-secao"
+          legado={
+            <div className="tmpl-sep">
+              <span>Geral</span>
+            </div>
+          }
+          novo={<SeparadorSecao>Geral</SeparadorSecao>}
+          cmp={[{}, { sel: "span" }, { pseudo: "::before" }, { pseudo: "::after" }]}
+        />
         <Par
           nome="cartao"
           legado={

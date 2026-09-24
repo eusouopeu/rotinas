@@ -81,7 +81,7 @@ for (let d = -13; d <= 0; d++) {
 const notes = [
   {
     id: "n1", title: "Compras da semana", pinned: true, subjects: ["casa"], updatedAt: t0 - 2 * 3600000, createdAt: t0 - 5 * DIA,
-    content: "# Compras da semana\n\n- [x] Arroz\n- [ ] Feijão\n- [ ] Café\n\n**Lembrar:** conferir a validade do azeite.\n",
+    content: "# Compras da semana #casa\n\n- [x] Arroz\n- [ ] Feijão\n- [ ] Café\n\n**Lembrar:** conferir a validade do azeite.\n",
   },
   {
     id: "n2", title: "Ideias de projeto", subjects: ["trabalho", "ideias"], updatedAt: t0 - DIA, createdAt: t0 - 9 * DIA,
@@ -89,7 +89,11 @@ const notes = [
   },
   {
     id: "n3", title: "Leitura: hábitos atômicos", subjects: ["estudo"], updatedAt: t0 - 4 * DIA, createdAt: t0 - 20 * DIA,
-    content: "## Capítulo 3\n\nPequenas mudanças, grandes resultados.\n\n> O ambiente molda o comportamento.\n",
+    content: "## Capítulo 3 #estudo\n\nPequenas mudanças, grandes resultados.\n\n> O ambiente molda o comportamento.\n",
+  },
+  {
+    id: "n4", title: "Rascunho antigo", subjects: [], arquivada: true, updatedAt: t0 - 30 * DIA, createdAt: t0 - 40 * DIA,
+    content: "Nota arquivada, fora da lista principal.\n",
   },
 ];
 
@@ -104,6 +108,14 @@ const templates = [
       { id: "mr1", titulo: "Beber 2 L de água", tipo: "diaria", vezes: 1, area: "Saúde", tagValor: "baixo", criadoEm: t0 - 15 * DIA, pontua: true },
       { id: "mr2", titulo: "Treinar", tipo: "semanal", vezes: 3, area: "Saúde", tagValor: "medio", criadoEm: t0 - 15 * DIA, pontua: true },
       { id: "mr3", titulo: "Redes sociais", tipo: "diaria", vezes: 2, area: "Foco", negativa: true, criadoEm: t0 - 15 * DIA },
+    ],
+  },
+  {
+    id: "t-kanban2", type: "kanban", title: "Viagem de fim de ano", createdAt: t0 - 6 * DIA, updatedAt: t0 - 3 * DIA,
+    cols: [
+      { title: "A fazer", items: [{ id: "k5", text: "Reservar hotel" }] },
+      { title: "Fazendo", items: [] },
+      { title: "Feito", items: [{ id: "k6", text: "Comprar passagens" }, { id: "k7", text: "Renovar passaporte" }] },
     ],
   },
   {
