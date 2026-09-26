@@ -16,6 +16,7 @@ import {
   recordeStreakFor,
   recordeStreakSemanalFor,
   streakInfoFor,
+  sequenciaPorQuantidadeFor,
   marcoStreak,
   gerarInsights,
   intensityClass,
@@ -174,7 +175,7 @@ describe("computeStreakSemanalFor / recordeStreakSemanalFor (tolerante a trocar 
     expect(recordeStreakFor("r1", [r], [])).toBe(0); // porta diária não se aplica a essa rotina restrita
   });
 
-  it("streakInfoFor decide a unidade certa (semanas para restrita por dias, dias pro resto)", () => {
+  it("streakInfoFor: restrita por dias conta dias corridos + execuções", () => {
     const restrita = routine({
       id: "r1",
       schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] },
@@ -184,7 +185,8 @@ describe("computeStreakSemanalFor / recordeStreakSemanalFor (tolerante a trocar 
       schedule: { enabled: true, anchor: "start", time: "07:00", days: [0, 1, 2, 3, 4, 5, 6] },
     });
     const infoRestrita = streakInfoFor("r1", [restrita], [hist({ routineId: "r1", date: "2026-01-15" })]);
-    expect(infoRestrita.unidade).toBe("semanas");
+    expect(infoRestrita.unidade).toBe("dias");
+    expect(infoRestrita.execucoes).toBe(1);
     const infoDiaria = streakInfoFor("r2", [diaria], [hist({ routineId: "r2", date: "2026-01-15" })]);
     expect(infoDiaria.unidade).toBe("dias");
   });
@@ -518,5 +520,43 @@ describe("resumo de período, áreas do ano e heatmap por quadrimestre", () => {
     const rows = getAreasAno(2026, h, rotinas, gam);
     expect(rows[0]).toMatchObject({ id: area.id, label: area.label, minutos: 30, pct: 75 });
     expect(rows[1]).toMatchObject({ label: "Sem área", minutos: 10, pct: 25 });
+  });
+});
+
+describe("sequenciaPorQuantidadeFor (seg/qua/sex = 3 por semana, dia livre)", () => {
+  // Semanas dom–sáb. Jan/2026: 4–10, 11–17, 18–24. Hoje = qui 22.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-22T12:00:00"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const r = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } });
+
+  it("não zera na virada da semana: dias corridos e execuções continuam somando", () => {
+    const history = [
+      "2026-01-05",
+      "2026-01-06",
+      "2026-01-10",
+      "2026-01-11",
+      "2026-01-13",
+      "2026-01-17",
+      "2026-01-19",
+    ].map((date) => hist({ date }));
+    const q = sequenciaPorQuantidadeFor("r1", [r], history);
+    expect(q.dias).toBe(18); // 05 → 22
+    expect(q.execucoes).toBe(7);
+  });
+
+  it("zera só quando uma semana fechada tem menos execuções que os dias marcados", () => {
+    const history = ["2026-01-05", "2026-01-07", "2026-01-09", "2026-01-12", "2026-01-14", "2026-01-19"].map((date) =>
+      hist({ date })
+    );
+    const q = sequenciaPorQuantidadeFor("r1", [r], history);
+    // semana 11–17 teve 2 < 3: recomeça na semana atual, em 19
+    expect(q.dias).toBe(4);
+    expect(q.execucoes).toBe(1);
+    expect(q.recordeDias).toBe(10); // 05 → 14
   });
 });

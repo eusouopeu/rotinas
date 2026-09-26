@@ -95,12 +95,24 @@ public class TimerOverlayService extends Service {
     private String ultimaAssinatura = null;
     /* Com a tela apagada a bolha não é visível; aí a contagem tem que ir para
        a barra/Now Bar mesmo no modo "bolha" (pedido do Pedro, 22/09/2026). */
-    private boolean telaLigada = true;
+    /* "Em uso" = tela acesa E desbloqueada. A tela de bloqueio acesa conta
+       como fora de uso: é nela que a Now Bar aparece, então a contagem tem
+       que continuar promovida ali (26/09/2026 — antes SCREEN_ON rebaixava a
+       notificação mesmo com o aparelho ainda bloqueado). */
+    private boolean emUso = true;
+
+    private boolean calcularEmUso() {
+        android.os.PowerManager pm = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+        android.app.KeyguardManager km = (android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        boolean acesa = pm == null || pm.isInteractive();
+        boolean bloqueada = km != null && km.isKeyguardLocked();
+        return acesa && !bloqueada;
+    }
 
     private final android.content.BroadcastReceiver telaReceiver = new android.content.BroadcastReceiver() {
         @Override
         public void onReceive(Context c, Intent i) {
-            telaLigada = !Intent.ACTION_SCREEN_OFF.equals(i.getAction());
+            emUso = Intent.ACTION_SCREEN_OFF.equals(i.getAction()) ? false : calcularEmUso();
             refreshNotification();
         }
     };
@@ -179,10 +191,12 @@ public class TimerOverlayService extends Service {
             startForeground(NOTIF_ID, n);
         }
         emPrimeiroPlano = true;
+        emUso = calcularEmUso();
         ultimaAssinatura = assinaturaNotificacao();
         android.content.IntentFilter f = new android.content.IntentFilter();
         f.addAction(Intent.ACTION_SCREEN_OFF);
         f.addAction(Intent.ACTION_SCREEN_ON);
+        f.addAction(Intent.ACTION_USER_PRESENT);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(telaReceiver, f, Context.RECEIVER_NOT_EXPORTED);
@@ -213,7 +227,10 @@ public class TimerOverlayService extends Service {
         b.setContentTitle(label.isEmpty() ? "Rotina em andamento" : label)
                 .setSmallIcon(android.R.drawable.ic_menu_recent_history)
                 .setContentIntent(pi)
-                .setOngoing(true);
+                .setOngoing(true)
+                // atualizações (troca de etapa, bloquear/desbloquear) nunca
+                // voltam a tocar/vibrar/abrir heads-up: só o primeiro post alerta.
+                .setOnlyAlertOnce(true);
         /* Android 12+ posta a notificação de foreground service só depois de 10s
            (janela de tolerância para serviços curtos). Era exatamente o "só
            aparece depois de 10 segundos" — IMMEDIATE desliga essa espera. */
@@ -226,7 +243,7 @@ public class TimerOverlayService extends Service {
            competir com a bolha: fica muda, sem cronômetro, fora da tela de
            bloqueio e sem chip na Now Bar. A exceção é a tela apagada — aí a
            bolha não é visível e a contagem precisa ir para a Now Bar. */
-        boolean naBarra = "barra".equals(modo) || !telaLigada;
+        boolean naBarra = "barra".equals(modo) || !emUso;
 
         if (exhausted) {
             b.setContentText("Toque para continuar");
@@ -263,8 +280,10 @@ public class TimerOverlayService extends Service {
      *  nunca o tempo corrente (o chronometer conta sozinho). Sem isso cada
      *  alt-tab repostava a mesma notificação e o chip da Now Bar reanimava. */
     private String assinaturaNotificacao() {
-        boolean naBarra = "barra".equals(modo) || !telaLigada;
-        return label + "|" + endTs + "|" + paused + "|" + exhausted + "|" + naBarra;
+        boolean naBarra = "barra".equals(modo) || !emUso;
+        // endTs em segundos: o JS recalcula o fim a cada troca de plano e um
+        // milissegundo de diferença repostava a notificação a cada bloqueio.
+        return label + "|" + (endTs / 1000) + "|" + paused + "|" + exhausted + "|" + naBarra;
     }
 
     private void refreshNotification() {

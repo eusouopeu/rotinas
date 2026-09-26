@@ -148,6 +148,7 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
         naoFeita,
         exercicioId: step.exercicioId,
         series: results,
+        elapsedSec: skipped ? 0 : elapsed,
       };
     } else {
       actual = {

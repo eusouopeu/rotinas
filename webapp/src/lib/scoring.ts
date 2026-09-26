@@ -481,8 +481,19 @@ export function metaRecPenalidadeUnidade(rec: MetaRecorrente, config: Gamificaca
   return -pesoBruto(rec.tagValor || "medio", config.divisorDuracao, config);
 }
 
-export function metaRecPontosUnidade(rec: MetaRecorrente, config: GamificacaoConfig): number {
-  return pesoBruto(rec.tagValor || "medio", config.divisorDuracao, config);
+/** Meta positiva: o peso da meta é dividido entre os `vezes` itens do
+ * período (6 copos/dia = 1/6 do peso cada); o item `n` além do limite vale
+ * metade de um item normal. */
+export function metaRecPontosUnidade(rec: MetaRecorrente, config: GamificacaoConfig, n = 1): number {
+  const unidade = pesoBruto(rec.tagValor || "medio", config.divisorDuracao, config) / Math.max(1, rec.vezes || 1);
+  return n > rec.vezes ? unidade / 2 : unidade;
+}
+
+/** Soma dos pontos brutos dos `feitas` primeiros itens de uma meta positiva. */
+export function metaRecPontosBrutos(rec: MetaRecorrente, config: GamificacaoConfig, feitas: number): number {
+  let t = 0;
+  for (let n = 1; n <= feitas; n++) t += metaRecPontosUnidade(rec, config, n);
+  return t;
 }
 
 /**
@@ -548,13 +559,13 @@ export function sincronizarPontosMetaRec(
   const atual = avancarGamificacaoAteAgora(routines, gam);
   if (!atual.semanaAtual) return atual;
   const per = rec.tipo === "semanal" ? "semana:" + inicioSemanaISO(data) : "dia:" + localKey(data);
-  const pb = metaRecPontosUnidade(rec, atual.config);
 
   const concluidos = [...atual.semanaAtual.concluidos];
   if (feitasDepois > feitasAntes) {
-    if (pb <= 0) return atual; // peso "nenhum" não pontua
+    if (metaRecPontosUnidade(rec, atual.config) <= 0) return atual; // peso "nenhum" não pontua
     const fator = fatorParaArea(rec.area || "", atual.semanaAtual.fatoresArea, atual.semanaAtual.fatorNormalizacao);
     for (let n = feitasAntes + 1; n <= feitasDepois; n++) {
+      const pb = metaRecPontosUnidade(rec, atual.config, n);
       const itemId = metaRecItemIdPos(rec.id, per, n);
       if (concluidos.some((c) => c.itemId === itemId)) continue;
       concluidos.push({

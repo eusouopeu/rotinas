@@ -14,6 +14,8 @@ import {
   metaRecFeitas,
   metaRecPeriodoAtual,
   metaRecProgresso,
+  metaRecSaldo,
+  metaRecSequencia,
   sincronizarPontosMeta,
   toggleMetasSubview,
 } from "./metas";
@@ -23,6 +25,7 @@ import {
   metaRecItemIdPos,
   metaRecPenalidadeUnidade,
   metaRecPontosUnidade,
+  metaRecPontosBrutos,
   sincronizarPenalidadeMetaRec,
   sincronizarPontosMetaRec,
 } from "./scoring";
@@ -253,10 +256,10 @@ describe("metas recorrentes: ajuste de progresso", () => {
     expect(a1.feitasAntes).toBe(2);
     expect(a1.feitasDepois).toBe(3);
 
-    // Acima de vezes -> clampa em 3
+    // Acima de vezes -> ultrapassa o limite (26/09/2026)
     const a2 = ajustarProgressoMetaRec(a1.rec, 1, hoje);
-    expect(a2.rec.progresso!.feitas).toBe(3);
-    expect(a2.feitasDepois).toBe(3);
+    expect(a2.rec.progresso!.feitas).toBe(4);
+    expect(a2.feitasDepois).toBe(4);
 
     // Abaixo de zero -> clampa em 0
     const a3 = ajustarProgressoMetaRec(a1.rec, -5, hoje);
@@ -463,5 +466,50 @@ describe("toggleMetasSubview e loadMetasSubviewSel", () => {
     // Tentativa de desmarcar o único ativo é ignorada
     const naoMuda = toggleMetasSubview(sub, "prazos");
     expect(naoMuda).toEqual(["prazos"]);
+  });
+});
+
+describe("metas recorrentes: saldo, sequência e pontos por item (26/09/2026)", () => {
+  const base = (o: Partial<MetaRecorrente> = {}): MetaRecorrente => ({
+    id: "m1",
+    titulo: "Água",
+    tipo: "diaria",
+    vezes: 4,
+    criadoEm: 0,
+    ...o,
+  });
+
+  it("negativa começa com saldo cheio e vai abaixo de zero", () => {
+    const hoje = new Date(2026, 8, 4);
+    const rec = base({ negativa: true });
+    expect(metaRecSaldo(rec, hoje)).toBe(4);
+    const r5 = ajustarProgressoMetaRec(rec, 5, hoje).rec;
+    expect(metaRecSaldo(r5, hoje)).toBe(-1);
+  });
+
+  it("sequência não zera na virada: soma períodos cumpridos e quebra no não cumprido", () => {
+    const d1 = new Date(2026, 8, 4);
+    const d2 = new Date(2026, 8, 5);
+    const d3 = new Date(2026, 8, 6);
+    let rec = ajustarProgressoMetaRec(base(), 4, d1).rec;
+    expect(metaRecSequencia(rec, d1)).toBe(1);
+    rec = ajustarProgressoMetaRec(rec, 4, d2).rec; // fecha d1 cumprido
+    expect(rec.sequencia).toBe(1);
+    expect(metaRecSequencia(rec, d2)).toBe(2);
+    rec = ajustarProgressoMetaRec(rec, 1, new Date(2026, 8, 8)).rec; // d2 ok, 6 e 7 vazios
+    expect(rec.sequencia).toBe(0);
+    // negativa: dia vazio conta como cumprido
+    let neg = ajustarProgressoMetaRec(base({ negativa: true }), 1, d1).rec;
+    neg = ajustarProgressoMetaRec(neg, 0, d3).rec;
+    expect(neg.sequencia).toBe(2);
+  });
+
+  it("positiva divide o peso pelos itens e o excedente vale metade", () => {
+    const gam = criarEstadoGamificacaoInicial();
+    const rec = base({ vezes: 6, pontua: true, tagValor: "alto" });
+    const um = metaRecPontosUnidade(rec, gam.config, 1);
+    expect(metaRecPontosBrutos(rec, gam.config, 6)).toBeCloseTo(um * 6);
+    expect(metaRecPontosUnidade(rec, gam.config, 7)).toBeCloseTo(um / 2);
+    expect(metaRecPontosBrutos(rec, gam.config, 8)).toBeCloseTo(um * 7);
   });
 });

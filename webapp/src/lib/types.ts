@@ -184,6 +184,10 @@ export interface MetaRecorrente {
   tagValor?: Tag;
   criadoEm: number;
   progresso?: MetaRecProgresso | null;
+  /** Sequência contínua de períodos fechados cumpridos (positiva: feitas >=
+   * vezes; negativa: feitas <= vezes). Atualizada na virada do período por
+   * metaRecProgresso; nunca zera só porque a semana virou. */
+  sequencia?: number;
 }
 
 export interface CountdownDoc {

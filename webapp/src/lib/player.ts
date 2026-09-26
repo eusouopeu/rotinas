@@ -22,6 +22,10 @@ export interface StepActual {
   gamItemId?: string;
   exercicioId?: string;
   series?: Array<{ reps: number; peso: number }>;
+  /** Etapa "exercicio": tempo real gasto (sem pausas). `actual` guarda séries
+   * x descanso, que é o que pontua; este campo alimenta a estimativa de
+   * duração por série (lib/routines.ts:duracaoSerieEstimada). */
+  elapsedSec?: number;
 }
 
 // Sub-loop de séries dentro de uma etapa "exercicio" (index.html:11271) —
@@ -314,4 +318,27 @@ export function adiarEtapaPlayer(steps: RoutineStep[], idx: number): AdiarEtapaR
   const nextBlock = steps.slice(nextStart, nextStart + nextLen);
   const novo = steps.slice(0, idx).concat(nextBlock, curBlock, steps.slice(nextStart + nextLen));
   return { steps: novo, adiadaNome: curBlock[0].name, proximaNome: nextBlock[0].name };
+}
+
+/** Segundos que ainda faltam na rotina em andamento, para a previsão de
+ * término: o que resta da etapa atual + as etapas seguintes. Exercício usa a
+ * estimativa por série (`serieSeg`), que já inclui o descanso entre séries. */
+export function segundosRestantesEstimados(
+  p: PlayerState,
+  serieSeg: (step: RoutineStep) => number,
+  agora = Date.now()
+): number {
+  const ref = p.paused && p.pausedAt ? p.pausedAt : agora;
+  let total = 0;
+  p.steps.forEach((s, i) => {
+    if (i < p.idx) return;
+    if (s.type === "exercicio") {
+      const feitas = i === p.idx ? p.ex?.results.length || 0 : 0;
+      total += Math.max(0, (s.sets || 1) - feitas) * serieSeg(s);
+    } else if (s.type === "timer") {
+      if (i === p.idx) total += p.stepEndTs != null ? Math.max(0, (p.stepEndTs - ref) / 1000) : 0;
+      else total += s.seconds || 0;
+    }
+  });
+  return Math.round(total);
 }

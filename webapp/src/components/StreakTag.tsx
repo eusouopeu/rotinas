@@ -13,7 +13,9 @@ import type { Routine } from "../lib/types";
 function tituloStreak(info: StreakInfo): string {
   const unidadeSingular = info.unidade === "semanas" ? "semana" : "dia";
   const base = `${info.atual} ${unidadeSingular}${info.atual > 1 ? "s" : ""} seguido${info.atual > 1 ? "s" : ""}`;
-  return info.recorde > info.atual ? `${base} · recorde: ${info.recorde}` : base;
+  const comExec =
+    info.execucoes != null ? `${base} · ${info.execucoes} execuç${info.execucoes === 1 ? "ão" : "ões"}` : base;
+  return info.recorde > info.atual ? `${comExec} · recorde: ${info.recorde}` : comExec;
 }
 
 /** `feitaHoje`: o selo inverte as cores (fundo cheio na cor da sequência,
@@ -52,6 +54,7 @@ export function StreakTag({
     >
       <Icon name="fire" size={12} />
       {info.atual}
+      {info.execucoes != null && <span className="opacity-75">· {info.execucoes}×</span>}
     </span>
   );
 }

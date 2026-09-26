@@ -16,7 +16,9 @@ import {
   computeRemaining,
   filaOverlay,
   parseRepsRange,
+  segundosRestantesEstimados,
 } from "../lib/player";
+import { estimadorSerie } from "../lib/routines";
 import { timeUpCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
 import { cancelarAlertaFundo, sincronizarAlertaFundo } from "../lib/notifications";
@@ -39,6 +41,7 @@ export function Player() {
   const playerState = useAppStore((s) => s.playerState);
   const routine = useAppStore((s) => s.routines.find((r) => r.id === playerState?.routineId));
   const exercicios = useAppStore((s) => s.exercicios);
+  const history = useAppStore((s) => s.history);
   const togglePause = useAppStore((s) => s.togglePause);
   const advanceStep = useAppStore((s) => s.advanceStep);
   const goPrevStep = useAppStore((s) => s.goPrevStep);
@@ -151,7 +154,10 @@ export function Player() {
     const ref = playerState.paused && playerState.pausedAt ? playerState.pausedAt : Date.now();
     const remMs = cd.endTs - ref;
     overlayShow({
-      endTs: playerState.paused ? 0 : Date.now() + remMs,
+      // o fim exato da etapa (não Date.now() + resto): recalcular a cada troca
+      // de plano mudava o valor em milissegundos e o serviço repostava a
+      // notificação a cada bloqueio/desbloqueio.
+      endTs: playerState.paused ? 0 : cd.endTs,
       remainingMs: remMs,
       paused: !!playerState.paused,
       auto: cd.auto,
@@ -232,6 +238,8 @@ export function Player() {
   }
 
   const temNota = !!routine?.notaId;
+  const fimTs = Date.now() + segundosRestantesEstimados(playerState, estimadorSerie(history)) * 1000;
+  const fimPrevisto = new Date(fimTs).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   // só faz sentido adiar se existe um próximo BLOCO (tarefa + a pausa dela)
   // inteiro pra trocar de lugar (index.html:12441-12443).
   const curBlockLen = !step.isRest && playerState.steps[playerState.idx + 1]?.isRest ? 2 : 1;
@@ -258,6 +266,7 @@ export function Player() {
           posicao={playerState.idx + 1}
           total={playerState.steps.length}
           temNota={temNota}
+          fimPrevisto={fimPrevisto}
           onSair={handleExit}
           onEtapas={() => setOverlay("steps")}
           onNota={() => setOverlay("nota")}

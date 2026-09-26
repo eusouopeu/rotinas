@@ -317,6 +317,7 @@ export interface RoutineDetailStats {
   streak: number;
   streakRecorde: number;
   streakUnidade: "dias" | "semanas";
+  streakExecucoes?: number;
   medDev: number | null;
   medDevStr: string;
   medDevClass: "early" | "ontime" | "late";
@@ -691,6 +692,64 @@ export interface StreakInfo {
   atual: number;
   recorde: number;
   unidade: "dias" | "semanas";
+  /** Rotina restrita a dias da semana: execuções dentro da sequência atual. */
+  execucoes?: number;
+}
+
+function diasEntre(aISO: string, bISO: string): number {
+  return Math.round((isoToDate(bISO).getTime() - isoToDate(aISO).getTime()) / 86400000);
+}
+
+/** Sequência de rotina restrita a dias da semana (pedido de 26/09/2026): o
+ * dia marcado só serve para "hoje" e para a agenda; a sequência vale pela
+ * QUANTIDADE — só quebra quando uma semana fechada teve menos execuções que
+ * `schedule.days.length`. Devolve dois valores contínuos (não zeram na
+ * virada da semana): dias corridos desde a primeira execução da sequência
+ * até hoje, e quantas execuções (dias distintos) houve nela. */
+export function sequenciaPorQuantidadeFor(
+  routineId: string,
+  routines: Routine[],
+  history: HistoryEntry[]
+): { dias: number; execucoes: number; recordeDias: number } {
+  const r = routines.find((x) => x.id === routineId);
+  const zero = { dias: 0, execucoes: 0, recordeDias: 0 };
+  if (!restritaPorDiasDaSemana(r)) return zero;
+  const requerido = r.schedule.days!.length;
+  const execs = [...new Set(history.filter((h) => h.routineId === routineId).map((h) => h.date))].sort();
+  if (execs.length === 0) return zero;
+  const execDates = new Set(execs);
+  const ws = weekStartDow();
+  const hojeKey = localKey();
+  const hojeSemanaISO = inicioSemanaISO(new Date(), ws);
+  // percorre as semanas da primeira execução até a atual, abrindo uma
+  // sequência na primeira execução e fechando-a na semana fechada que falhou.
+  let cursorISO = inicioSemanaISO(isoToDate(execs[0]), ws);
+  let inicio: string | null = null;
+  let ultimo: string | null = null;
+  let execucoes = 0;
+  let recordeDias = 0;
+  let guard = 0;
+  while (guard++ < 600) {
+    const count = execucoesNaSemana(cursorISO, execDates);
+    const naSemana = execs.filter((k) => k >= cursorISO && diasEntre(cursorISO, k) < 7);
+    if (naSemana.length > 0) {
+      if (!inicio) inicio = naSemana[0];
+      ultimo = naSemana[naSemana.length - 1];
+      execucoes += naSemana.length;
+    }
+    if (cursorISO === hojeSemanaISO) break;
+    if (count < requerido) {
+      if (inicio && ultimo) recordeDias = Math.max(recordeDias, diasEntre(inicio, ultimo) + 1);
+      inicio = null;
+      ultimo = null;
+      execucoes = 0;
+    }
+    const prox = isoToDate(cursorISO);
+    prox.setDate(prox.getDate() + 7);
+    cursorISO = inicioSemanaISO(prox, ws);
+  }
+  const dias = inicio ? diasEntre(inicio, hojeKey) + 1 : 0;
+  return { dias, execucoes: inicio ? execucoes : 0, recordeDias: Math.max(recordeDias, dias) };
 }
 
 /** Ponto único de leitura de streak de uma rotina (recomendações 2/7 de
@@ -700,11 +759,8 @@ export interface StreakInfo {
 export function streakInfoFor(routineId: string, routines: Routine[], history: HistoryEntry[]): StreakInfo {
   const r = routines.find((x) => x.id === routineId);
   if (restritaPorDiasDaSemana(r)) {
-    return {
-      atual: computeStreakSemanalFor(routineId, routines, history),
-      recorde: recordeStreakSemanalFor(routineId, routines, history),
-      unidade: "semanas",
-    };
+    const q = sequenciaPorQuantidadeFor(routineId, routines, history);
+    return { atual: q.dias, recorde: q.recordeDias, unidade: "dias", execucoes: q.execucoes };
   }
   return {
     atual: computeStreakFor(routineId, routines, history),
@@ -1771,6 +1827,7 @@ export function getRoutineDetailStats(
     streak: streakInfo.atual,
     streakRecorde: streakInfo.recorde,
     streakUnidade: streakInfo.unidade,
+    streakExecucoes: streakInfo.execucoes,
     medDev,
     medDevStr: medDev != null ? fmtS(medDev) : "",
     medDevClass,

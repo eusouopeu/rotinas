@@ -43,6 +43,8 @@ export function ResumoRotina({ stats }: { stats: Stats }) {
         <CelRotulo>Sequência atual</CelRotulo>
         <CelNegrito status="pontual">
           {stats.streak} {unidade(stats)}
+          {stats.streakExecucoes != null &&
+            ` · ${stats.streakExecucoes} execuç${stats.streakExecucoes === 1 ? "ão" : "ões"}`}
         </CelNegrito>
       </LinhaTabela>
       {stats.streakRecorde > 0 && (

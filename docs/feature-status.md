@@ -32,3 +32,4 @@
 - Roda: nomes editáveis, sem reordenação de área; campos têm larguras preservadas.
 
 Consulte `architecture.md` e `gamification.md` antes de mudar qualquer item. Se houver ponta visual, peça tela/função específica; não reconstrua uma área inteira.
+- 26/09/2026: selo de sequência de rotina com dias marcados mostra dias corridos + execuções (`🔥 18 · 7×`) e só zera com semana fechada abaixo da quantidade; metas recorrentes ganharam sequência contínua (chama no cartão), ultrapassagem do limite, saldo colorido na negativa (4/4 verde → 0 neutro → negativo vermelho) e pontos fracionados por item na positiva (excedente vale meio item); player mostra previsão de término (`~HH:MM`) no topo, com a duração por série aprendida das três últimas execuções.

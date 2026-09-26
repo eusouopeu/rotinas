@@ -148,9 +148,51 @@ export function metaRecPeriodoAtual(rec: Pick<MetaRecorrente, "tipo">, data: Dat
 export function metaRecProgresso(rec: MetaRecorrente, data: Date = new Date()): MetaRecProgresso {
   const per = metaRecPeriodoAtual(rec, data);
   if (!rec.progresso || rec.progresso.periodo !== per) {
+    if (rec.progresso) rec.sequencia = sequenciaAoFechar(rec, rec.progresso, data);
     rec.progresso = { periodo: per, feitas: 0 };
   }
   return rec.progresso;
+}
+
+function periodoCumprido(rec: Pick<MetaRecorrente, "negativa" | "vezes">, feitas: number): boolean {
+  return rec.negativa ? feitas <= rec.vezes : feitas >= rec.vezes;
+}
+
+/** Quantos períodos inteiros existem entre o período fechado e o atual (0 =
+ * adjacentes). Períodos sem nenhum registro contam como feitas = 0. */
+function periodosVazios(rec: Pick<MetaRecorrente, "tipo">, perFechado: string, data: Date): number {
+  const ini = perFechado.slice(perFechado.indexOf(":") + 1);
+  const [y, m, d] = ini.split("-").map(Number);
+  const atual = metaRecPeriodoAtual(rec, data);
+  const iniAtual = atual.slice(atual.indexOf(":") + 1);
+  const [ya, ma, da] = iniAtual.split("-").map(Number);
+  const dias = Math.round((Date.UTC(ya, ma - 1, da) - Date.UTC(y, m - 1, d)) / 86400000);
+  const passo = rec.tipo === "semanal" ? 7 : 1;
+  return Math.max(0, Math.round(dias / passo) - 1);
+}
+
+/** Sequência depois de fechar `fechado`: soma o período se cumprido e os
+ * períodos vazios no meio (vazio cumpre meta negativa e quebra a positiva). */
+function sequenciaAoFechar(rec: MetaRecorrente, fechado: MetaRecProgresso, data: Date): number {
+  let seq = rec.sequencia || 0;
+  seq = periodoCumprido(rec, fechado.feitas) ? seq + 1 : 0;
+  const vazios = periodosVazios(rec, fechado.periodo, data);
+  if (vazios > 0) seq = periodoCumprido(rec, 0) ? seq + vazios : 0;
+  return seq;
+}
+
+/** Sequência exibida: períodos fechados em sequência + o atual quando já
+ * cumprido (positiva). Meta negativa só soma o período atual ao fechar. */
+export function metaRecSequencia(rec: MetaRecorrente, data: Date = new Date()): number {
+  const feitas = metaRecFeitas(rec, data);
+  const base = rec.sequencia || 0;
+  return !rec.negativa && feitas >= rec.vezes ? base + 1 : base;
+}
+
+/** Meta negativa: saldo que ainda resta (vezes - feitas); abaixo de zero é o
+ * que desconta pontos no boletim. */
+export function metaRecSaldo(rec: MetaRecorrente, data: Date = new Date()): number {
+  return rec.vezes - metaRecFeitas(rec, data);
 }
 
 export function metaRecFeitas(rec: MetaRecorrente, data: Date = new Date()): number {
@@ -228,7 +270,9 @@ export function ajustarProgressoMetaRec(
   const p = metaRecProgresso(rec, data);
   const excessoAntes = metaRecExcesso(rec, data);
   const feitasAntes = !rec.negativa && rec.pontua ? p.feitas : 0;
-  p.feitas = Math.max(0, rec.negativa ? p.feitas + delta : Math.min(rec.vezes, p.feitas + delta));
+  // positiva e negativa podem passar do limite (excesso positivo vale meio item;
+  // negativo vira saldo abaixo de zero e desconta).
+  p.feitas = Math.max(0, p.feitas + delta);
   const excessoDepois = metaRecExcesso(rec, data);
   const feitasDepois = !rec.negativa && rec.pontua ? p.feitas : 0;
   return {

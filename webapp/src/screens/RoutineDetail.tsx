@@ -12,7 +12,7 @@ import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { StreakTag } from "../components/StreakTag";
 import { fmtTime } from "../lib/format";
-import { EXERCICIO_SET_SEG, routineDurationRaw } from "../lib/routines";
+import { estimadorSerie, routineDurationRaw } from "../lib/routines";
 import { computeSchedule, diasChipLabel } from "../lib/schedule";
 import { corDaRotina, fillStyle } from "../lib/scoring";
 import { descansoEntreSeries } from "../lib/exercicios";
@@ -47,7 +47,7 @@ export function RoutineDetail() {
     );
   }
 
-  const dur = routineDurationRaw(r, EXERCICIO_SET_SEG);
+  const dur = routineDurationRaw(r, estimadorSerie(history));
   const sched = computeSchedule(r);
 
   return (

@@ -9,13 +9,15 @@ type Props = {
   posicao: number;
   total: number;
   temNota: boolean;
+  /** "HH:MM" da previsão de término (etapas restantes + estimativa por série). */
+  fimPrevisto?: string;
   onSair: () => void;
   onEtapas: () => void;
   onNota: () => void;
   onRapido: () => void;
 };
 
-export function TopoPlayer({ posicao, total, temNota, onSair, onEtapas, onNota, onRapido }: Props) {
+export function TopoPlayer({ posicao, total, temNota, fimPrevisto, onSair, onEtapas, onNota, onRapido }: Props) {
   return (
     <div className="flex w-full items-center justify-between px-1">
       <button className={BOTAO} onClick={onSair}>
@@ -33,6 +35,11 @@ export function TopoPlayer({ posicao, total, temNota, onSair, onEtapas, onNota, 
         <button className={BOTAO} title="Lançar rápido" aria-label="Lançar rápido" onClick={onRapido}>
           +
         </button>
+        {fimPrevisto && (
+          <div className="font-sans text-sm text-sub" title="Previsão de término">
+            ~{fimPrevisto}
+          </div>
+        )}
         <div className="font-sans text-sm text-sub">
           {posicao} / {total}
         </div>

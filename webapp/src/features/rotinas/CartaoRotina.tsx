@@ -5,7 +5,7 @@
 import { Icon } from "../../components/Icon";
 import { StreakTag } from "../../components/StreakTag";
 import { fmtTime } from "../../lib/format";
-import { EXERCICIO_SET_SEG, routineDurationRaw } from "../../lib/routines";
+import { estimadorSerie, routineDurationRaw } from "../../lib/routines";
 import { computeSchedule, diasChipLabel, formatHM } from "../../lib/schedule";
 import { corDaRotina, fillStyle, rotinaEhHabito } from "../../lib/scoring";
 import { execucaoDoDia, execucaoMinutos, type HistoryEntry } from "../../lib/history";
@@ -42,7 +42,7 @@ export function CartaoRotina({
   onAbrir,
   onIniciar,
 }: Props) {
-  const dur = routineDurationRaw(r, EXERCICIO_SET_SEG);
+  const dur = routineDurationRaw(r, estimadorSerie(history));
   const sched = computeSchedule(r);
   const execHoje = execucaoDoDia(history, r.id, hojeISO);
   const execMin = execHoje ? execucaoMinutos(execHoje) : null;
