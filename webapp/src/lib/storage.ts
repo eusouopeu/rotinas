@@ -48,6 +48,7 @@ export interface CapacitorPlugins {
   Share?: import("./nativeBridge").SharePlugin;
   TimerOverlay?: import("./nativeBridge").TimerOverlayPlugin;
   Widgets?: { refresh(): Promise<void> | void };
+  Shortcuts?: import("./atalhos").ShortcutsPlugin;
   App?: import("./nativeBridge").AppPlugin;
 }
 

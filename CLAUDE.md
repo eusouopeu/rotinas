@@ -35,6 +35,7 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 - Preserve o editor Markdown live: uma instância, digitação nativa, cursor/foco e `liveAplicar`; leia `docs/architecture.md` antes de mexer nele.
 - Para mudanças visuais: apenas tokens CSS `var(--x)`, ação primária sólida `--caneta`, bordas em vez de sombra decorativa; leia `docs/design-system.md`.
 - Não recrie funcionalidades removidas ou já concluídas; consulte `docs/feature-status.md`.
+- Ao gerar recomendações de melhoria, não repita as já implementadas nem as da seção "Recomendações refutadas" de `docs/aprimoramentos.md`. Quando o Pedro escolher algumas, registre as não escolhidas nessa seção ("descrição – refutada em data") na mesma rodada.
 - Nunca leia `node_modules/`, `dist/`, `build/`, vendor ou artefatos gerados para contexto.
 - Em testes jsdom, proteja uso de APIs de navegador ausentes, especialmente `matchMedia`.
 

@@ -105,9 +105,12 @@ export function metasRecSemana(inicioISO: string, templates: unknown[], agora: D
 }
 
 /** Conteúdo da nota da revisão: seções com título (viram toggles no editor). */
-export function notaRevisaoSemana(p: { reflexao: string; ajustes: string[]; foco: string }): string {
+/** Desde 27/09/2026 (recomendação 9) a reflexão livre virou duas perguntas:
+ * `reflexao` = o que funcionou, `travou` = o que atrapalhou. */
+export function notaRevisaoSemana(p: { reflexao: string; travou?: string; ajustes: string[]; foco: string }): string {
   const partes: string[] = [];
-  if (p.reflexao.trim()) partes.push("## O que levo da semana\n" + p.reflexao.trim());
+  if (p.reflexao.trim()) partes.push("## O que funcionou\n" + p.reflexao.trim());
+  if (p.travou?.trim()) partes.push("## O que travou\n" + p.travou.trim());
   if (p.ajustes.length) partes.push("## Ajustes nas rotinas\n" + p.ajustes.map((a) => "- " + a).join("\n"));
   if (p.foco.trim()) partes.push("## Foco da próxima semana\n" + p.foco.trim());
   return partes.join("\n\n");

@@ -105,7 +105,7 @@ export interface AppState {
   theme: Theme;
   fontScale: number;
   weekStart: number;
-  homeView: "rotinas" | "semana" | "dia";
+  homeView: "rotinas" | "semana" | "dia" | "mes";
   soHoje: boolean;
   listaExpandida: boolean;
   /** Visão Lista: esconde as rotinas já executadas hoje. */
@@ -185,7 +185,7 @@ export interface AppState {
   setTheme: (t: Theme) => void;
   setFontScale: (n: number) => void;
   setWeekStart: (d: number) => void;
-  setHomeView: (v: "rotinas" | "semana" | "dia") => void;
+  setHomeView: (v: "rotinas" | "semana" | "dia" | "mes") => void;
   setListaExpandida: (v: boolean) => void;
   setSoHoje: (v: boolean) => void;
   setOcultarFeitas: (v: boolean) => void;
@@ -427,7 +427,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       theme: load<Theme>(K_THEME, "auto"),
       fontScale: load<number>(K_FONTSCALE, 1),
       weekStart: load<number>(K_WEEKSTART, 0),
-      homeView: load<"rotinas" | "semana" | "dia">(K_HOMEVIEW, "semana"),
+      homeView: load<"rotinas" | "semana" | "dia" | "mes">(K_HOMEVIEW, "semana"),
       soHoje: load<boolean>(K_SOHOJE, false),
       listaExpandida: load<boolean>(K_LISTAEXPANDIDA, false),
       ocultarFeitas: load<boolean>(K_OCULTARFEITAS, false),

@@ -65,9 +65,12 @@ describe("metasProximasSemana", () => {
 describe("notaRevisaoSemana", () => {
   it("monta seções só com o que foi preenchido", () => {
     expect(notaRevisaoSemana({ reflexao: " dormi cedo ", ajustes: ["Rotina a: seg → ter"], foco: "" })).toBe(
-      "## O que levo da semana\ndormi cedo\n\n## Ajustes nas rotinas\n- Rotina a: seg → ter"
+      "## O que funcionou\ndormi cedo\n\n## Ajustes nas rotinas\n- Rotina a: seg → ter"
     );
     expect(notaRevisaoSemana({ reflexao: "", ajustes: [], foco: "" })).toBe("");
+    expect(notaRevisaoSemana({ reflexao: "", travou: " celular ", ajustes: [], foco: "ler" })).toBe(
+      "## O que travou\ncelular\n\n## Foco da próxima semana\nler"
+    );
   });
 });
 

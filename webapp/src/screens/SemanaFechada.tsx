@@ -5,7 +5,9 @@
 // Desde 13/09/2026 (recomendação 6) é uma revisão guiada em três passos:
 // (1) resultado + o que levo da semana, (2) rotinas que ficaram para trás,
 // com troca de dias ali mesmo, (3) metas que vencem em breve + foco da
-// semana. Tudo vira uma única nota com seções (títulos recolhíveis).
+// semana. Tudo vira uma única nota com seções (títulos recolhíveis). Em
+// 27/09/2026 (recomendação 9) o passo 1 passou a ter duas perguntas: o que
+// funcionou e o que travou.
 import { useEffect, useRef, useState } from "react";
 import { Botao } from "../ui/Botao";
 import { BotaoLink } from "../ui/BotaoLink";
@@ -79,6 +81,7 @@ export function SemanaFechada() {
 
   const [passo, setPasso] = useState(0);
   const [reflexao, setReflexao] = useState("");
+  const [travou, setTravou] = useState("");
   const [foco, setFoco] = useState("");
 
   const semanas = gam.historico.semanas;
@@ -126,7 +129,7 @@ export function SemanaFechada() {
   };
 
   const handleSalvar = () => {
-    const conteudo = notaRevisaoSemana({ reflexao, ajustes, foco });
+    const conteudo = notaRevisaoSemana({ reflexao, travou, ajustes, foco });
     if (conteudo) addNote(tituloNotaReflexao(sem.inicioISO, sem.nota), conteudo);
     sair();
   };
@@ -191,12 +194,19 @@ export function SemanaFechada() {
               </>
             )}
 
-            <RotuloSecao>O que você leva dessa semana</RotuloSecao>
+            <RotuloSecao>O que funcionou</RotuloSecao>
             <TextoCrescente
               id="sfReflexao"
               value={reflexao}
               onChange={setReflexao}
-              placeholder="O que funcionou, o que atrapalhou..."
+              placeholder="Hábitos, horários ou decisões que deram certo..."
+            />
+            <RotuloSecao>O que travou</RotuloSecao>
+            <TextoCrescente
+              id="sfTravou"
+              value={travou}
+              onChange={setTravou}
+              placeholder="O que atrapalhou e o que dá para mudar..."
             />
           </>
         )}

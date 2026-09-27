@@ -55,7 +55,8 @@ export function ExpenseFolder() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [cat, setCat] = useState("");
-  const [novo, setNovo] = useState(false);
+  // atalho "Nova despesa" do launcher chega com id "nova": abre o formulário
+  const [novo, setNovo] = useState(() => useAppStore.getState().view.id === "nova");
   const [importState, setImportState] = useState<ImportState | null>(null);
   const [aviso, setAviso] = useState("");
   const csvFileRef = useRef<HTMLInputElement>(null);

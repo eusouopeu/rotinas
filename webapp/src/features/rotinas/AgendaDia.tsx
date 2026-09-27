@@ -15,7 +15,7 @@ import { GradeDia } from "./GradeDia";
 import { ACAO_NAV, DataNav, LinhaNav, NomeDia, Sobra } from "./NavAgenda";
 import { TarefaPopup } from "./TarefaPopup";
 
-export function AgendaDia() {
+export function AgendaDia({ inicialISO }: { inicialISO?: string } = {}) {
   const routines = useAppStore((s) => s.routines);
   const gam = useAppStore((s) => s.gam);
   const history = useAppStore((s) => s.history);
@@ -29,7 +29,7 @@ export function AgendaDia() {
   const setDiarioTexto = useAppStore((s) => s.setDiarioTexto);
 
   const hojeISO = localKey();
-  const [iso, setIso] = useState(hojeISO);
+  const [iso, setIso] = useState(inicialISO || hojeISO);
   // `ini` = minuto do dia clicado na grade vazia (null = sem horário sugerido)
   const [popup, setPopup] = useState<{ ini: number | null } | null>(null);
 

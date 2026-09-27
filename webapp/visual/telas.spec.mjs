@@ -40,6 +40,17 @@ test("rotinas: popup de criar", async ({ page }) => {
   await foto(page, "rotinas-criar");
 });
 
+test("rotinas: mês", async ({ page }) => {
+  await page.getByText("Mês", { exact: true }).first().click();
+  await foto(page, "rotinas-mes");
+});
+
+test("rotinas: rotinas prontas", async ({ page }) => {
+  await page.locator('button[title="Novo"]').click();
+  await page.getByText("Rotina pronta", { exact: true }).click();
+  await foto(page, "rotinas-prontas");
+});
+
 test("editor de rotina (nova)", async ({ page }) => {
   await page.locator('button[title="Novo"]').click();
   await page.getByText("sequência de etapas com tempo").click();

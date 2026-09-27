@@ -8,6 +8,7 @@ import { computeRemaining } from "./lib/player";
 import { isDesktop } from "./lib/storage";
 import { onAppStateChange } from "./lib/nativeBridge";
 import { publicarSequenciaWidget } from "./lib/widgets";
+import { ATALHO_DESPESA, ATALHO_NOTA, ouvirAtalhos, publicarAtalhos } from "./lib/atalhos";
 import { criarDispatcherMcp } from "./lib/mcpDispatch";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
@@ -220,6 +221,22 @@ export function App() {
       unsubscribe();
     };
   }, []);
+
+  // Atalhos do launcher (index.html:2913-2918): só depois do boot, para o
+  // toque que abriu o app já encontrar as rotinas carregadas.
+  useEffect(() => {
+    if (!booted) return;
+    ouvirAtalhos((id) => {
+      const s = useAppStore.getState();
+      if (id === ATALHO_NOTA) s.openNote(null);
+      else if (id === ATALHO_DESPESA) s.goTo({ tab: "templates", screen: "expenseFolder", id: "nova" });
+      else if (s.routines.some((r) => r.id === id)) s.startPlayer(id);
+    });
+    publicarAtalhos(useAppStore.getState().routines);
+    return useAppStore.subscribe((s, antes) => {
+      if (s.routines !== antes.routines) publicarAtalhos(s.routines);
+    });
+  }, [booted]);
 
   useThemeEffect(theme);
   useFontScaleEffect(fontScale);

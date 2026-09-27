@@ -41,6 +41,7 @@ const ESTILO_EM_LINHA: Record<string, number> = {
   "features/modelos/QuadranteMatriz.tsx": 4,
   "features/player/Controles.tsx": 1,
   "features/roda/RodaVidaResumo.tsx": 1,
+  "features/rotinas/AgendaMes.tsx": 1,
   "features/rotinas/GradeDia.tsx": 4,
   "screens/Boletim.tsx": 4,
   "screens/Home.tsx": 2,

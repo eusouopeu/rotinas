@@ -32,3 +32,21 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Pausar só uma rotina (sai da agenda, do "hoje", do boletim, dos alarmes e não quebra a sequência) – implementado em 27/09/2026
 - Atraso previsto ("+N min") em relação ao fim agendado no topo do player – implementado em 27/09/2026
 - Pausas e estimativas passadas como parâmetro, sem registros globais escondidos – implementado em 27/09/2026
+- Visão Mês na agenda da aba Rotinas (bolinha por item do dia; tocar abre a visão Dia na data) – implementado em 27/09/2026
+- Atalhos do launcher Android: Nova nota, Nova despesa e as duas primeiras rotinas – implementado em 27/09/2026
+- Biblioteca de rotinas prontas no popup Criar (Manhã produtiva, Treino de força A, Bloco de estudo, Revisão semanal) – implementado em 27/09/2026
+- Semana fechada pergunta separadamente "o que funcionou" e "o que travou" – implementado em 27/09/2026
+- Aviso de backup atrasado na aba Rotinas (7+ dias sem exportação, auto-backup ou sync) – implementado em 27/09/2026
+
+## Recomendações refutadas
+
+Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição – refutada em data". Não voltar a sugeri-las sem pedido explícito.
+
+- Visão Ano na agenda (a visão Mês foi feita; a do ano ficou de fora) – refutada em 27/09/2026
+- Adiar com swipe no Kanban e na agenda – refutada em 27/09/2026
+- Ditado por voz nas notas e no lançamento rápido do player – refutada em 27/09/2026
+- Replanejar o dia a partir do atraso previsto no player – refutada em 27/09/2026
+- Aviso de conflito de horário na agenda – refutada em 27/09/2026
+- Progressão automática de carga (+2,5 kg após duas execuções completas) – refutada em 27/09/2026
+- Mapa de calor anual por rotina/meta – refutada em 27/09/2026
+- Registro local de erros exportável em Ajustes › Diagnóstico – refutada em 27/09/2026

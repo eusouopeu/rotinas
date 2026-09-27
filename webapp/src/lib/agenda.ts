@@ -414,3 +414,18 @@ export function blocosAgendaDia(
   });
   return blocos;
 }
+
+/* Grade da visão Mês (features/rotinas/AgendaMes.tsx, 27/09/2026). */
+function isoDe(ano: number, mes: number, dia: number): string {
+  return `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
+/** Células da grade (null = vão antes do dia 1), começando no dia que abre a semana. */
+export function celulasMes(ano: number, mes: number, weekStart: number): (string | null)[] {
+  const primeiroDow = new Date(ano, mes, 1).getDay();
+  const vazios = (primeiroDow - weekStart + 7) % 7;
+  const nDias = new Date(ano, mes + 1, 0).getDate();
+  const out: (string | null)[] = Array.from({ length: vazios }, () => null);
+  for (let d = 1; d <= nDias; d++) out.push(isoDe(ano, mes, d));
+  return out;
+}

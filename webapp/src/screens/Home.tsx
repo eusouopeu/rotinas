@@ -11,8 +11,10 @@ import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../features/roda/RodaVidaResumo";
 import { AgendaDia } from "../features/rotinas/AgendaDia";
 import { AgendaSemana } from "../features/rotinas/AgendaSemana";
+import { AgendaMes } from "../features/rotinas/AgendaMes";
 import { CartaoRotina } from "../features/rotinas/CartaoRotina";
 import { CartaoFixo } from "../features/rotinas/CartaoFixo";
+import { AvisoBackup } from "../features/rotinas/AvisoBackup";
 import { SelecaoArea } from "../features/rotinas/SelecaoArea";
 import { TarefaPopup } from "../features/rotinas/TarefaPopup";
 import { rotinaCabeEmHoje, rotinasOrdenadas } from "../lib/routines";
@@ -22,6 +24,7 @@ import { BADGE_CHAR, BADGE_COR, BADGE_NOME } from "../lib/constants";
 import { semanaFechadaPendente } from "../lib/semanaFechada";
 import { attachSwipeDownSearch } from "../lib/swipe";
 import { execucaoDoDia } from "../lib/history";
+import { montarRotinaPronta, ROTINAS_PRONTAS } from "../lib/rotinasProntas";
 import { Botao } from "../ui/Botao";
 import { BotaoIcone } from "../ui/BotaoIcone";
 import { BotaoPlay } from "../ui/BotaoPlay";
@@ -56,9 +59,15 @@ export function Home() {
   const filtroArea = useAppStore((s) => s.filtroArea);
   const setFiltroArea = useAppStore((s) => s.setFiltroArea);
   const openSearch = useAppStore((s) => s.openSearch);
+  const exercicios = useAppStore((s) => s.exercicios);
+  const upsertExercicio = useAppStore((s) => s.upsertExercicio);
+  const importRotinaShare = useAppStore((s) => s.importRotinaShare);
   const headerRef = useRef<HTMLDivElement>(null);
   const [novoAberto, setNovoAberto] = useState(false);
   const [novoEvento, setNovoEvento] = useState(false);
+  // dia tocado na visão Mês: abre a visão Dia já naquela data
+  const [diaAlvo, setDiaAlvo] = useState<string | null>(null);
+  const [prontasAberto, setProntasAberto] = useState(false);
 
   const semFechada = semanaFechadaPendente(gam);
   /* Rotina deixada pela metade (index.html:3616-3637): só vale se a rotina
@@ -93,6 +102,8 @@ export function Home() {
         </CabecalhoTela>
 
         <RodaVidaResumo />
+
+        <AvisoBackup />
 
         {rotinaEmAndamento && (
           <CartaoFixo
@@ -141,10 +152,14 @@ export function Home() {
           options={[
             { key: "semana", label: "Semana" },
             { key: "dia", label: "Dia" },
+            { key: "mes", label: "Mês" },
             { key: "rotinas", label: "Lista" },
           ]}
           active={homeView}
-          onSelect={setHomeView}
+          onSelect={(v) => {
+            setDiaAlvo(null);
+            setHomeView(v);
+          }}
         />
 
         {homeView === "rotinas" && (
@@ -200,7 +215,14 @@ export function Home() {
         {homeView === "semana" ? (
           <AgendaSemana />
         ) : homeView === "dia" ? (
-          <AgendaDia />
+          <AgendaDia key={diaAlvo || ""} inicialISO={diaAlvo || undefined} />
+        ) : homeView === "mes" ? (
+          <AgendaMes
+            onAbrirDia={(iso) => {
+              setDiaAlvo(iso);
+              setHomeView("dia");
+            }}
+          />
         ) : routines.length === 0 ? (
           <EstadoVazio
             titulo="Nenhuma rotina ainda"
@@ -249,6 +271,15 @@ export function Home() {
               }}
             />
             <OpcaoCriar
+              icone="templates"
+              titulo="Rotina pronta"
+              descricao="comece por um modelo e ajuste depois"
+              onClick={() => {
+                setNovoAberto(false);
+                setProntasAberto(true);
+              }}
+            />
+            <OpcaoCriar
               icone="calendar"
               titulo="Evento"
               descricao="compromisso avulso na agenda"
@@ -260,6 +291,41 @@ export function Home() {
           </div>
           <ModalAcoes className="mt-3.5">
             <Botao variante="neutro" tamanho="modal" onClick={() => setNovoAberto(false)}>
+              Cancelar
+            </Botao>
+          </ModalAcoes>
+        </Modal>
+      )}
+      {prontasAberto && (
+        <Modal onFechar={() => setProntasAberto(false)} className="text-left">
+          <ModalTexto className="mb-3">Rotinas prontas</ModalTexto>
+          <div className="flex flex-col gap-2">
+            {ROTINAS_PRONTAS.map((tpl) => (
+              <button
+                key={tpl.name}
+                type="button"
+                className="flex w-full items-center gap-2.5 rounded-app-sm border-[1.5px] border-line bg-card px-3.5 py-3 text-left text-ink active:bg-card-2"
+                onClick={() => {
+                  const r = montarRotinaPronta(tpl, exercicios, (nome, grupo) =>
+                    upsertExercicio({ nome, grupos: [grupo], pesoAtual: 0 })
+                  );
+                  importRotinaShare(r);
+                  setProntasAberto(false);
+                  setHomeView("rotinas");
+                }}
+              >
+                <span className="text-xl">{tpl.icon}</span>
+                <span className="min-w-0 flex-auto">
+                  <b className="block">{tpl.name}</b>
+                  <span className="font-sans text-sm text-sub">
+                    {tpl.descricao} · {tpl.steps.length} etapas
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <ModalAcoes className="mt-3.5">
+            <Botao variante="neutro" tamanho="modal" onClick={() => setProntasAberto(false)}>
               Cancelar
             </Botao>
           </ModalAcoes>
