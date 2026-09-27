@@ -4,6 +4,7 @@
 // badges. Lógica pura em lib/boletim.ts.
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
+import { estimadorSerie } from "../lib/routines";
 import { BADGE_NOME } from "../lib/constants";
 import { localKey, isoToDate, addDaysISO, trimestreDe } from "../lib/gamificacao";
 import {
@@ -32,6 +33,7 @@ import { rolavel, tela } from "../ui/Tela";
 export function Boletim() {
   const gam = useAppStore((s) => s.gam);
   const routines = useAppStore((s) => s.routines);
+  const history = useAppStore((s) => s.history);
   const horasBudget = useAppStore((s) => s.horasBudget);
   const setHorasBudget = useAppStore((s) => s.setHorasBudget);
   const alternarDispensaSemana = useAppStore((s) => s.alternarDispensaSemana);
@@ -72,7 +74,7 @@ export function Boletim() {
   const larguraTag = (t: "alto" | "medio" | "baixo") => (tags[t] === 0 ? 0 : Math.max(3, pctTag(t)));
   const tagAlerta = tags.total >= 5 && pctTag("alto") >= 70;
 
-  const planMin = minutosPlanejadosSemana(routines, gam.semanaAtual.inicioISO);
+  const planMin = minutosPlanejadosSemana(routines, gam.semanaAtual.inicioISO, estimadorSerie(history));
   const budgetMin = horasBudget * 60;
   const pctOrcamento = budgetMin > 0 ? Math.round((planMin / budgetMin) * 100) : 0;
   const estourouOrcamento = budgetMin > 0 && planMin > budgetMin;

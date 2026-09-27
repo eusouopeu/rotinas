@@ -12,6 +12,7 @@ import { createAgendaSlice } from "./slices/agendaSlice";
 import { createBackupSlice } from "./slices/backupSlice";
 import {
   algumSnoozeAtivo,
+  isCountdownDoc,
   autoBackupNative,
   novoDraft,
   pedirPermissaoNotificacao,
@@ -62,19 +63,17 @@ import {
   K_WEEKSTART,
 } from "../lib/constants";
 import { type BackupPayload } from "../lib/backup";
-import { criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
+import { addDaysISO, criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import type { MatrixPreset } from "../lib/templates";
 import { novoDraftSchedule } from "../lib/schedule";
 import { podarNaoFeitasDeOutrosDias, type NaoFeitasMap, type PlayerState } from "../lib/player";
 import type { SomModo } from "../lib/sound";
 import { checarNudges } from "../lib/nudge";
 import { checkStorageWarning } from "../lib/storageWarning";
-import { loadMetasSubviewSel, type MetasSubview } from "../lib/metas";
+import { loadMetasSubviewSel, reancorarMetasRecSemana, type MetasSubview } from "../lib/metas";
 import { avancarGamificacaoAteAgora } from "../lib/scoring";
 import type { HistoryEntry } from "../lib/history";
-import { definirHistoricoEstimativa } from "../lib/routines";
-import { publicarSequenciaWidget } from "../lib/widgets";
-import { definirPausasSequencia } from "../lib/stats";
+import { agendarAtualizacaoWidgets, publicarSequenciaWidget } from "../lib/widgets";
 import type {
   AnyTemplateDoc,
   AppView,
@@ -171,6 +170,10 @@ export interface AppState {
   adjustRoutineStep: (routineId: string, stepName: string, newSec: number) => void;
   /** Troca só os dias da semana do agendamento (revisão da Semana fechada). */
   setRoutineDays: (id: string, days: number[]) => void;
+  /** Pausa só esta rotina por `dias` a partir de hoje (substitui a pausa em vigor). */
+  pausarRotina: (id: string, dias: number) => void;
+  /** Encerra a pausa em vigor (ou a marcada para depois) desta rotina. */
+  retomarRotina: (id: string) => void;
 
   openEditor: (id?: string | null) => void;
   updateDraft: (patch: Partial<Routine>) => void;
@@ -563,6 +566,35 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
   },
 
+  pausarRotina: (id, dias) => {
+    const hoje = localKey();
+    const ate = addDaysISO(hoje, Math.max(1, dias) - 1);
+    const routines = get().routines.map((r) => {
+      if (r.id !== id) return r;
+      const outras = (r.pausas || []).filter((p) => p.ate < hoje);
+      return { ...r, pausas: [...outras, { de: hoje, ate }] };
+    });
+    save(K_ROUTINES, routines);
+    set({ routines });
+    syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
+  },
+  retomarRotina: (id) => {
+    const hoje = localKey();
+    const ontem = addDaysISO(hoje, -1);
+    const routines = get().routines.map((r) => {
+      if (r.id !== id || !r.pausas?.length) return r;
+      // pausa que já começou fica no histórico até ontem (as sequências
+      // antigas dependem dela); a que nem começou some
+      const pausas = r.pausas
+        .map((p) => (p.ate < hoje ? p : p.de < hoje ? { ...p, ate: ontem } : null))
+        .filter((p): p is NonNullable<typeof p> => !!p);
+      return { ...r, pausas };
+    });
+    save(K_ROUTINES, routines);
+    set({ routines });
+    syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
+  },
+
   openEditor: (id) => {
     const existente = id ? get().routines.find((r) => r.id === id) : null;
     const editorDraft: Routine = existente ? JSON.parse(JSON.stringify(existente)) : novoDraft();
@@ -609,8 +641,18 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     set({ fontScale });
   },
   setWeekStart: (weekStart) => {
+    // reancora as metas semanais ANTES de gravar o início novo: a chave do
+    // período em curso ainda é calculada com o início antigo
+    let mudou = false;
+    const templates = get().templates.map((t) => {
+      if (!isCountdownDoc(t) || weekStart === get().weekStart) return t;
+      const novo = reancorarMetasRecSemana(t, weekStart);
+      if (novo !== t) mudou = true;
+      return novo;
+    });
     save(K_WEEKSTART, weekStart);
-    set({ weekStart });
+    if (mudou) save(K_TEMPLATES, templates);
+    set(mudou ? { weekStart, templates } : { weekStart });
   },
   setHomeView: (homeView) => {
     save(K_HOMEVIEW, homeView);
@@ -668,6 +710,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       gam: st.gam,
       metas: st.metaDoc().targets || [],
       weekStart: st.weekStart,
+      snoozes: st.snoozes,
       onBanner: (texto) => get().showAlertBanner(texto),
     });
   },
@@ -777,12 +820,11 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   dismissUndoBanner: () => set({ undoBanner: null }),
 }));
 
-// Efeitos de mudança do histórico/rotinas fora do React (26/09/2026): a
-// estimativa de série aprendida vira o padrão de routineDurationRaw antes do
-// próximo render, e o widget de sequência recebe o valor já calculado.
+// Widget de sequência recebe o valor já calculado a cada mudança do que
+// entra na conta (histórico, rotinas, pausas) — fora do React.
 useAppStore.subscribe((s, prev) => {
-  if (s.history !== prev.history) definirHistoricoEstimativa(s.history);
-  if (s.snoozes !== prev.snoozes) definirPausasSequencia(s.snoozes);
   if (s.history !== prev.history || s.routines !== prev.routines || s.snoozes !== prev.snoozes)
-    publicarSequenciaWidget(s.routines, s.history);
+    publicarSequenciaWidget(s.routines, s.history, s.snoozes);
+  // widget de metas do dia lê as metas direto do arquivo: redesenha ao mudar
+  if (s.templates !== prev.templates) agendarAtualizacaoWidgets();
 });

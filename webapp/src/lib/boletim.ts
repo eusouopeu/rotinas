@@ -6,8 +6,8 @@
 import { BLOCOS_SEMANA_PADRAO, isoToDate, addDaysISO, offsetSemana, pontosGanhosPorArea } from "./gamificacao";
 import { stepTagEfetiva } from "./scoring";
 import { routineDurationRaw } from "./routines";
-import { rotinaAgendadaEm } from "./schedule";
-import type { GamificacaoConfig, GamificacaoState, Routine, SemanaAtual } from "./types";
+import { rotinaAgendadaEm, rotinaPausadaEm } from "./schedule";
+import type { GamificacaoConfig, GamificacaoState, Routine, RoutineStep, SemanaAtual } from "./types";
 
 export { BLOCOS_SEMANA_PADRAO };
 
@@ -309,12 +309,16 @@ export function correlacaoAreas(
 
 /** Porta de minutosPlanejadosSemana (index.html:1840-1847) — minutos totais
  * de rotinas agendadas nos 7 dias da semana `inicioISO`. */
-export function minutosPlanejadosSemana(routines: Routine[], inicioISO: string): number {
+export function minutosPlanejadosSemana(
+  routines: Routine[],
+  inicioISO: string,
+  serieSeg?: (step: RoutineStep) => number
+): number {
   let totalSeg = 0;
   for (let off = 0; off < 7; off++) {
     const dataDia = isoToDate(addDaysISO(inicioISO, off));
     routines.forEach((r) => {
-      if (rotinaAgendadaEm(r, dataDia)) totalSeg += routineDurationRaw(r);
+      if (rotinaAgendadaEm(r, dataDia) && !rotinaPausadaEm(r, dataDia)) totalSeg += routineDurationRaw(r, serieSeg);
     });
   }
   return Math.round(totalSeg / 60);

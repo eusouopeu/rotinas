@@ -1,4 +1,5 @@
 import type { HistoryEntry } from "../../lib/history";
+import { useAppStore } from "../../store/useAppStore";
 import { computeStreak, computeStreakFor, type ResumoPeriodo as Dados } from "../../lib/stats";
 import type { Routine } from "../../lib/types";
 import { ResumoGrade } from "./Resumo";
@@ -27,7 +28,10 @@ export function ResumoPeriodo({
   history: HistoryEntry[];
   filtro: string | null;
 }) {
-  const streak = filtro ? computeStreakFor(filtro, routines, history) : computeStreak(routines, history);
+  const snoozes = useAppStore((s) => s.snoozes);
+  const streak = filtro
+    ? computeStreakFor(filtro, routines, history, snoozes)
+    : computeStreak(routines, history, undefined, snoozes);
   const tiles = [
     { l: "horas", v: fmtHorasMin(atual.minutos), d: pctDelta(atual.minutos, anterior.minutos), u: "%" },
     { l: "execuções", v: String(atual.execucoes), d: pctDelta(atual.execucoes, anterior.execucoes), u: "%" },

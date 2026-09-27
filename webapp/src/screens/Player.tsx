@@ -7,7 +7,7 @@
 // UI de criação em nenhum editor do React — não é regressão desta rodada,
 // nunca existiu aqui). O círculo de progresso (SVG dasharray) é o mesmo
 // truque do original.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import {
   activeCountdown,
@@ -19,6 +19,7 @@ import {
   segundosRestantesEstimados,
 } from "../lib/player";
 import { estimadorEtapaTempo, estimadorSerie } from "../lib/routines";
+import { computeSchedule, rotinaAgendadaEm } from "../lib/schedule";
 import { sugestaoCarga } from "../lib/exercicios";
 import { timeUpCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
@@ -226,6 +227,22 @@ export function Player() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step?.id, exSetIdx, exPhase]);
 
+  // o player redesenha a cada segundo: a sugestão só muda com a etapa ou o
+  // histórico (os estimadores de lib/routines já são memorizados por histórico)
+  const sugestao = useMemo(
+    () =>
+      step?.type === "exercicio"
+        ? sugestaoCarga(
+            exercicios.find((e) => e.id === step.exercicioId),
+            step.exercicioId,
+            parseRepsRange(step.reps),
+            history
+          )
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [step?.type, step?.exercicioId, step?.reps, exercicios, history]
+  );
+
   if (!playerState || !step) return null;
 
   const rem = computeRemaining(playerState);
@@ -249,6 +266,15 @@ export function Player() {
     ) *
       1000;
   const fimPrevisto = new Date(fimTs).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  // atraso sobre o fim agendado de hoje (recomendação 10): só com rotina
+  // agendada hoje e horário; passar da meia-noite não conta
+  const schedHoje =
+    routine && rotinaAgendadaEm(routine, new Date()) ? computeSchedule(routine, estimadorSerie(history)) : null;
+  const fimDate = new Date(fimTs);
+  const atrasoMin =
+    schedHoje && fimDate.toDateString() === new Date().toDateString() && schedHoje.endMin >= schedHoje.startMin
+      ? fimDate.getHours() * 60 + fimDate.getMinutes() - schedHoje.endMin
+      : 0;
   // só faz sentido adiar se existe um próximo BLOCO (tarefa + a pausa dela)
   // inteiro pra trocar de lugar (index.html:12441-12443).
   const curBlockLen = !step.isRest && playerState.steps[playerState.idx + 1]?.isRest ? 2 : 1;
@@ -276,6 +302,7 @@ export function Player() {
           total={playerState.steps.length}
           temNota={temNota}
           fimPrevisto={fimPrevisto}
+          atrasoMin={atrasoMin}
           onSair={handleExit}
           onEtapas={() => setOverlay("steps")}
           onNota={() => setOverlay("nota")}
@@ -308,12 +335,7 @@ export function Player() {
             peso={peso}
             onReps={setReps}
             onPeso={setPeso}
-            sugestao={sugestaoCarga(
-              exercicios.find((e) => e.id === step.exercicioId),
-              step.exercicioId,
-              parseRepsRange(step.reps),
-              history
-            )}
+            sugestao={sugestao}
           />
         ) : (
           <CorpoSimples posicao={playerState.idx + 1} nome={step.name} />

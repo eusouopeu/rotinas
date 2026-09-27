@@ -13,7 +13,7 @@ import {
   janelaSemanaLabel,
   weekStartDow,
 } from "./gamificacao";
-import { rotinaAgendadaEm, computeSchedule } from "./schedule";
+import { rotinaAgendadaEm, rotinaPausadaEm, computeSchedule } from "./schedule";
 import { areaDaRotina, areaInfoRoda, corDaRotina, fillStyle } from "./scoring";
 import { fmtClock, fmtTime, fmtMinLabel } from "./format";
 import { daysUntil, metaConcluida } from "./metas";
@@ -343,21 +343,17 @@ export function snoozedOn(snoozes: Snooze[], dateObj: Date): boolean {
   return snoozes.some((s) => t >= s.from && t <= s.to);
 }
 
-/* Pausas da agenda para as sequências (27/09/2026): dia pausado (férias,
-   doença) conta como não devido — não soma nem quebra. A store registra as
-   pausas aqui a cada mudança (mesmo padrão de definirHistoricoEstimativa), para
-   todos os leitores de sequência (selo, Dados, aviso, widget, PDF) valerem igual. */
-let pausasSequencia: Snooze[] = [];
-
-export function definirPausasSequencia(snoozes: Snooze[]): void {
-  pausasSequencia = snoozes || [];
-}
-
-function diaPausado(d: Date): boolean {
-  if (!pausasSequencia.length) return false;
+/* Pausas nas sequências (27/09/2026): dia dentro de uma pausa geral da
+   agenda (`snoozes`, passado explicitamente por quem chama) ou de uma pausa
+   só da rotina (`Routine.pausas`) conta como não devido — não soma nem
+   quebra. Até a v76 as pausas gerais chegavam por um registro global
+   preenchido pela store; agora são parâmetro, sem estado escondido. */
+function diaPausado(d: Date, pausas: Snooze[], r?: Routine): boolean {
+  if (r && rotinaPausadaEm(r, d)) return true;
+  if (!pausas.length) return false;
   const meioDia = new Date(d);
   meioDia.setHours(12, 0, 0, 0);
-  return snoozedOn(pausasSequencia, meioDia);
+  return snoozedOn(pausas, meioDia);
 }
 
 /** Porta de solidColor (index.html:2388) — fallback diferente de
@@ -406,7 +402,7 @@ export function getWeekGridData(
     const planned = routines.filter((r) => {
       if (!rotinaAgendadaEm(r, d)) return false;
       if (r.createdAt && d.getTime() < new Date(new Date(r.createdAt).setHours(0, 0, 0, 0)).getTime()) return false;
-      if (snoozedOn(snoozes, d)) return false;
+      if (snoozedOn(snoozes, d) || rotinaPausadaEm(r, d)) return false;
       return true;
     });
 
@@ -465,7 +461,7 @@ export function getDayDetailData(
     const done = executed.some((h) => h.routineId === r.id);
     if (done) return;
     if (r.createdAt && d.getTime() < new Date(new Date(r.createdAt).setHours(0, 0, 0, 0)).getTime()) return;
-    if (snoozedOn(snoozes, d)) return;
+    if (snoozedOn(snoozes, d) || rotinaPausadaEm(r, d)) return;
 
     const sched = computeSchedule(r);
     const status = isPastOrToday && key < localKey(new Date()) ? "não feita" : "agendada";
@@ -505,7 +501,12 @@ export function startTsOf(h: HistoryEntry): number {
 }
 
 /** Porta de computeStreakFor (index.html:2397-2414). */
-export function computeStreakFor(routineId: string, routines: Routine[], history: HistoryEntry[]): number {
+export function computeStreakFor(
+  routineId: string,
+  routines: Routine[],
+  history: HistoryEntry[],
+  pausas: Snooze[] = []
+): number {
   const r = routines.find((x) => x.id === routineId);
   const days = new Set(history.filter((h) => h.routineId === routineId).map((h) => h.date));
   if (days.size === 0) return 0;
@@ -521,7 +522,7 @@ export function computeStreakFor(routineId: string, routines: Routine[], history
   let guard = 0;
   while (guard++ < 3700) {
     const key = localKey(d);
-    if ((restrito && !rotinaAgendadaEm(r, d)) || (!days.has(key) && diaPausado(d))) {
+    if ((restrito && !rotinaAgendadaEm(r, d)) || (!days.has(key) && diaPausado(d, pausas, r))) {
       d.setDate(d.getDate() - 1);
       continue;
     }
@@ -539,11 +540,16 @@ export function computeStreakFor(routineId: string, routines: Routine[], history
 
 /** Porta de algumaRotinaDevidaEm (index.html:2420-2422). */
 export function algumaRotinaDevidaEm(date: Date, routines: Routine[]): boolean {
-  return routines.some((r) => rotinaAgendadaEm(r, date));
+  return routines.some((r) => rotinaAgendadaEm(r, date) && !rotinaPausadaEm(r, date));
 }
 
 /** Porta de computeStreak (index.html:2423-2436). */
-export function computeStreak(routines: Routine[], history: HistoryEntry[], agora: Date = new Date()): number {
+export function computeStreak(
+  routines: Routine[],
+  history: HistoryEntry[],
+  agora: Date = new Date(),
+  pausas: Snooze[] = []
+): number {
   if (history.length === 0) return 0;
   const days = new Set(history.map((h) => h.date));
   const todayKey = localKey(agora);
@@ -557,7 +563,7 @@ export function computeStreak(routines: Routine[], history: HistoryEntry[], agor
       d.setDate(d.getDate() - 1);
     } else if (key === todayKey) {
       d.setDate(d.getDate() - 1);
-    } else if (!algumaRotinaDevidaEm(d, routines) || diaPausado(d)) {
+    } else if (!algumaRotinaDevidaEm(d, routines) || diaPausado(d, pausas)) {
       d.setDate(d.getDate() - 1);
     } else {
       break;
@@ -639,7 +645,12 @@ export function computeStreakSemanalFor(routineId: string, routines: Routine[], 
  * a atual) — mesma regra de tolerância de dia-não-devido de computeStreakFor,
  * só que percorrendo para frente desde a primeira execução em vez de para
  * trás a partir de hoje. */
-export function recordeStreakFor(routineId: string, routines: Routine[], history: HistoryEntry[]): number {
+export function recordeStreakFor(
+  routineId: string,
+  routines: Routine[],
+  history: HistoryEntry[],
+  pausas: Snooze[] = []
+): number {
   const r = routines.find((x) => x.id === routineId);
   const execs = history.filter((h) => h.routineId === routineId).map((h) => h.date);
   if (execs.length === 0) return 0;
@@ -658,7 +669,7 @@ export function recordeStreakFor(routineId: string, routines: Routine[], history
   while (guard++ < 3700) {
     const key = localKey(d);
     if (key > hojeKey) break;
-    const devido = (restrito ? rotinaAgendadaEm(r!, d) : true) && (dias.has(key) || !diaPausado(d));
+    const devido = (restrito ? rotinaAgendadaEm(r!, d) : true) && (dias.has(key) || !diaPausado(d, pausas, r));
     if (!devido) {
       // não conta nem quebra
     } else if (dias.has(key)) {
@@ -719,13 +730,13 @@ function diasEntre(aISO: string, bISO: string): number {
 
 /** Dias marcados da rotina, na semana que começa em `inicioISO`, que caíram
  * numa pausa da agenda — a exigência da semana cai na mesma quantidade. */
-function diasPausadosAgendados(r: Routine, inicioISO: string): number {
-  if (!pausasSequencia.length) return 0;
+function diasPausadosAgendados(r: Routine, inicioISO: string, pausas: Snooze[]): number {
+  if (!pausas.length && !r.pausas?.length) return 0;
   let n = 0;
   for (let i = 0; i < 7; i++) {
     const d = isoToDate(inicioISO);
     d.setDate(d.getDate() + i);
-    if (rotinaAgendadaEm(r, d) && diaPausado(d)) n++;
+    if (rotinaAgendadaEm(r, d) && diaPausado(d, pausas, r)) n++;
   }
   return n;
 }
@@ -739,7 +750,8 @@ function diasPausadosAgendados(r: Routine, inicioISO: string): number {
 export function sequenciaPorQuantidadeFor(
   routineId: string,
   routines: Routine[],
-  history: HistoryEntry[]
+  history: HistoryEntry[],
+  pausas: Snooze[] = []
 ): { dias: number; execucoes: number; recordeDias: number } {
   const r = routines.find((x) => x.id === routineId);
   const zero = { dias: 0, execucoes: 0, recordeDias: 0 };
@@ -768,7 +780,7 @@ export function sequenciaPorQuantidadeFor(
       execucoes += naSemana.length;
     }
     if (cursorISO === hojeSemanaISO) break;
-    if (count < requerido - diasPausadosAgendados(r, cursorISO)) {
+    if (count < requerido - diasPausadosAgendados(r, cursorISO, pausas)) {
       if (inicio && ultimo) recordeDias = Math.max(recordeDias, diasEntre(inicio, ultimo) + 1);
       inicio = null;
       ultimo = null;
@@ -786,15 +798,20 @@ export function sequenciaPorQuantidadeFor(
  * 08/09/2026) — decide entre streak por dia ou por semana (tolerante a
  * trocar o dia) conforme o agendamento da rotina, e já traz o recorde junto
  * do valor atual. Usado pelo card da Home, RoutineDetail e RoutineStats. */
-export function streakInfoFor(routineId: string, routines: Routine[], history: HistoryEntry[]): StreakInfo {
+export function streakInfoFor(
+  routineId: string,
+  routines: Routine[],
+  history: HistoryEntry[],
+  pausas: Snooze[] = []
+): StreakInfo {
   const r = routines.find((x) => x.id === routineId);
   if (restritaPorDiasDaSemana(r)) {
-    const q = sequenciaPorQuantidadeFor(routineId, routines, history);
+    const q = sequenciaPorQuantidadeFor(routineId, routines, history, pausas);
     return { atual: q.dias, recorde: q.recordeDias, unidade: "dias", execucoes: q.execucoes };
   }
   return {
-    atual: computeStreakFor(routineId, routines, history),
-    recorde: recordeStreakFor(routineId, routines, history),
+    atual: computeStreakFor(routineId, routines, history, pausas),
+    recorde: recordeStreakFor(routineId, routines, history, pausas),
     unidade: "dias",
   };
 }
@@ -1088,7 +1105,7 @@ export function getMonthGridData(
     const planned = routines.filter((r) => {
       if (!rotinaAgendadaEm(r, d)) return false;
       if (r.createdAt && d.getTime() < new Date(new Date(r.createdAt).setHours(0, 0, 0, 0)).getTime()) return false;
-      if (snoozedOn(snoozes, d)) return false;
+      if (snoozedOn(snoozes, d) || rotinaPausadaEm(r, d)) return false;
       return true;
     });
 
@@ -1144,7 +1161,7 @@ export function planejadasEm(d: Date, routines: Routine[], snoozes: Snooze[]): R
   return routines.filter((r) => {
     if (!rotinaAgendadaEm(r, d)) return false;
     if (r.createdAt && d.getTime() < new Date(new Date(r.createdAt).setHours(0, 0, 0, 0)).getTime()) return false;
-    if (snoozedOn(snoozes, d)) return false;
+    if (snoozedOn(snoozes, d) || rotinaPausadaEm(r, d)) return false;
     return true;
   });
 }
@@ -1478,7 +1495,7 @@ export function getPeriodExtrasData(
     let guard = 0;
 
     while (d <= today && guard++ < 400) {
-      if (rotinaAgendadaEm(r, d) && !snoozedOn(snoozes, d)) {
+      if (rotinaAgendadaEm(r, d) && !snoozedOn(snoozes, d) && !rotinaPausadaEm(r, d)) {
         plannedDays++;
         if (doneSet.has(localKey(d))) doneDays++;
       }
@@ -1504,7 +1521,7 @@ export function getPeriodExtrasData(
   const streakRoutines = routineFilter ? routines.filter((r) => r.id === routineFilter) : routines;
   const streaks: RoutineStreakData[] = streakRoutines
     .map((r) => {
-      const info = streakInfoFor(r.id, routines, history);
+      const info = streakInfoFor(r.id, routines, history, snoozes);
       return { routineId: r.id, routineName: r.name, icon: r.icon, streak: info.atual, streakUnidade: info.unidade };
     })
     .filter((x) => x.streak > 0)
@@ -1692,7 +1709,8 @@ export function getPeriodExtrasData(
 export function getRoutineDetailStats(
   routine: Routine,
   history: HistoryEntry[],
-  gam?: GamificacaoState
+  gam?: GamificacaoState,
+  snoozes: Snooze[] = []
 ): RoutineDetailStats {
   const entries = history.filter((h) => h.routineId === routine.id && h.ts);
   const all = history.filter((h) => h.routineId === routine.id);
@@ -1847,7 +1865,7 @@ export function getRoutineDetailStats(
     };
   });
 
-  const streakInfo = streakInfoFor(routine.id, [routine], history);
+  const streakInfo = streakInfoFor(routine.id, [routine], history, snoozes);
   const routineColor = gam ? fillStyle(corDaRotina(routine, gam)) : "var(--caneta)";
 
   return {
@@ -1890,14 +1908,15 @@ export interface CacheSequenciaWidget {
 export function cacheSequenciaWidget(
   routines: Routine[],
   history: HistoryEntry[],
-  agora: Date = new Date()
+  agora: Date = new Date(),
+  pausas: Snooze[] = []
 ): CacheSequenciaWidget {
   const amanha = new Date(agora);
   amanha.setDate(amanha.getDate() + 1);
   return {
     hoje: localKey(agora),
-    valor: computeStreak(routines, history, agora),
+    valor: computeStreak(routines, history, agora, pausas),
     amanha: localKey(amanha),
-    valorAmanha: computeStreak(routines, history, amanha),
+    valorAmanha: computeStreak(routines, history, amanha, pausas),
   };
 }

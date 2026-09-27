@@ -8,7 +8,8 @@ import { DIAS_ABREV } from "./constants";
 import { isoToDate } from "./gamificacao";
 import { execucaoDoDia, execucaoMinutos, type HistoryEntry } from "./history";
 import { icalEventosDoDia, type IcalCache } from "./ical";
-import { computeSchedule, rotinaAgendadaEm } from "./schedule";
+import { computeSchedule, rotinaAgendadaEm, rotinaPausadaEm } from "./schedule";
+import { estimadorSerie } from "./routines";
 import { corDaRotina } from "./scoring";
 import type { Compromisso, DiaKanbanCard, GamificacaoState, Routine } from "./types";
 
@@ -278,9 +279,10 @@ export function itensAgendaDoDia(
   icalCache: IcalCache | null = null
 ): AgendaItemDia[] {
   const out: AgendaItemDia[] = [];
+  const serie = estimadorSerie(history);
   routines.forEach((r) => {
-    if (!rotinaAgendadaEm(r, data)) return;
-    const sched = computeSchedule(r);
+    if (!rotinaAgendadaEm(r, data) || rotinaPausadaEm(r, data)) return;
+    const sched = computeSchedule(r, serie);
     if (!sched) return;
     const exec = execucaoDoDia(history, r.id, iso);
     const real = exec ? execucaoMinutos(exec) : null;

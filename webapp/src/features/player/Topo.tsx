@@ -11,13 +11,25 @@ type Props = {
   temNota: boolean;
   /** "HH:MM" da previsão de término (etapas restantes + estimativa por série). */
   fimPrevisto?: string;
+  /** Minutos que a previsão passa do fim agendado da rotina hoje (> 0). */
+  atrasoMin?: number;
   onSair: () => void;
   onEtapas: () => void;
   onNota: () => void;
   onRapido: () => void;
 };
 
-export function TopoPlayer({ posicao, total, temNota, fimPrevisto, onSair, onEtapas, onNota, onRapido }: Props) {
+export function TopoPlayer({
+  posicao,
+  total,
+  temNota,
+  fimPrevisto,
+  atrasoMin,
+  onSair,
+  onEtapas,
+  onNota,
+  onRapido,
+}: Props) {
   return (
     <div className="flex w-full items-center justify-between px-1">
       <button className={BOTAO} onClick={onSair}>
@@ -38,6 +50,11 @@ export function TopoPlayer({ posicao, total, temNota, fimPrevisto, onSair, onEta
         {fimPrevisto && (
           <div className="font-sans text-sm text-sub" title="Previsão de término">
             ~{fimPrevisto}
+            {!!atrasoMin && atrasoMin > 0 && (
+              <span className="ml-1 text-erro" title="Além do fim agendado">
+                +{atrasoMin} min
+              </span>
+            )}
           </div>
         )}
         <div className="font-sans text-sm text-sub">

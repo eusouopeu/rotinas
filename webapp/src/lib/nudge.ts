@@ -26,11 +26,11 @@ import { ritmoInfo } from "./boletim";
 import { localKey } from "./gamificacao";
 import { daysUntil, metaConcluida } from "./metas";
 import { notifIdFor } from "./notifications";
-import { rotinaAgendadaEm } from "./schedule";
+import { rotinaAgendadaEm, rotinaPausadaEm } from "./schedule";
 import { computeStreakFor } from "./stats";
 import { isDesktop, isNative, load, save } from "./storage";
 import type { HistoryEntry } from "./history";
-import type { GamificacaoState, MetaTarget, Routine } from "./types";
+import type { GamificacaoState, MetaTarget, Routine, Snooze } from "./types";
 
 /** Porta de nudgeDias (index.html:13580-13583) — sexta por padrão. */
 export function nudgeDias(): number[] {
@@ -90,6 +90,8 @@ export interface NudgeCtx {
   gam: GamificacaoState;
   metas: MetaTarget[];
   weekStart: number;
+  /** Pausas gerais da agenda (sequências não contam dia pausado). */
+  snoozes?: Snooze[];
   onBanner: (texto: string) => void;
   agora?: Date;
 }
@@ -151,9 +153,9 @@ export function checarNudgeStreak(ctx: NudgeCtx): boolean {
   if (load<string>(K_NUDGESTREAKDONE, "") === hojeKey) return false;
   const min = ctx.gam.config.habito.streakMin || 21;
   const limiar = Math.max(3, min - 3);
-  const streakDe = (id: string) => computeStreakFor(id, ctx.routines, ctx.history);
+  const streakDe = (id: string) => computeStreakFor(id, ctx.routines, ctx.history, ctx.snoozes || []);
   const emRisco = ctx.routines.filter((r) => {
-    if (!rotinaAgendadaEm(r, hoje)) return false;
+    if (!rotinaAgendadaEm(r, hoje) || rotinaPausadaEm(r, hoje)) return false;
     if (ctx.history.some((h) => h.routineId === r.id && h.date === hojeKey)) return false;
     return streakDe(r.id) >= limiar;
   });

@@ -13,6 +13,7 @@ import type {
   CountdownDoc,
   ProsConsDoc,
   MetaRecorrente,
+  Snooze,
 } from "./types";
 import type { HistoryEntry } from "./history";
 import { localKey, anoMesDoFimDaSemana, addDaysISO, isoToDate } from "./gamificacao";
@@ -167,7 +168,8 @@ function relatorioSemanalHtml(
   history: HistoryEntry[],
   routines: Routine[],
   targets: MetaTarget[],
-  hojeIso: string
+  hojeIso: string,
+  snoozes: Snooze[] = []
 ): { title: string; inner: string } {
   if (!gam.semanaAtual) {
     return {
@@ -178,7 +180,7 @@ function relatorioSemanalHtml(
   const sem = gam.semanaAtual;
   const nota = notaSemanaAtual(sem);
   const porArea = pontosPorAreaSemana(sem, gam.config);
-  const streak = computeStreak(routines, history);
+  const streak = computeStreak(routines, history, undefined, snoozes);
   let inner = `<h1>Relatório da semana</h1><p class="score">Pontuação: ${nota.toFixed(1)} pts</p>`;
   if (streak > 0) inner += `<p class="meta">Sequência atual: ${streak} dia(s)</p>`;
   if (porArea.linhas.length) {
@@ -274,7 +276,7 @@ export function metasRecRelatorioHtml(
       return ref >= ini && ref <= fim;
     });
     if (!periodos.length) continue;
-    const ok = periodos.filter((p) => metaRecCumprido(rec, p.feitas)).length;
+    const ok = periodos.filter((p) => metaRecCumprido(rec, p)).length;
     const un = semanal ? "semana" : "dia";
     const seq = metaRecSequencia(rec, agora);
     linhas.push(
@@ -295,7 +297,8 @@ export function relatorioFechamentoHtml(
   routines: Routine[],
   targets: MetaTarget[] = [],
   hojeIso = localKey(),
-  recorrentes: MetaRecorrente[] = []
+  recorrentes: MetaRecorrente[] = [],
+  snoozes: Snooze[] = []
 ): { title: string; innerHtml: string } {
   let res: { title: string; inner: string };
   let ini: string;
@@ -306,7 +309,7 @@ export function relatorioFechamentoHtml(
     res = relatorioAnualHtml(gam, history, targets, hojeIso);
     ini = hojeIso.slice(0, 4) + "-01-01";
   } else {
-    res = relatorioSemanalHtml(gam, history, routines, targets, hojeIso);
+    res = relatorioSemanalHtml(gam, history, routines, targets, hojeIso, snoozes);
     ini = gam.semanaAtual?.inicioISO || hojeIso;
   }
   // entra antes do "gerado em", que fecha o relatório

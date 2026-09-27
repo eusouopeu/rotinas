@@ -212,7 +212,7 @@ export function App() {
       // sequência do widget (index.html:2744 redesenhava os widgets aqui).
       else {
         const s = useAppStore.getState();
-        publicarSequenciaWidget(s.routines, s.history);
+        publicarSequenciaWidget(s.routines, s.history, s.snoozes);
       }
     });
     return () => {

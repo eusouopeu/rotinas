@@ -1,6 +1,6 @@
 import type { HistoryEntry } from "./history";
 import type { Routine, RoutineStep } from "./types";
-import { computeSchedule, rotinaAgendadaEm } from "./schedule";
+import { computeSchedule, rotinaAgendadaEm, rotinaPausadaEm } from "./schedule";
 
 // Estimativa inicial de UMA série de exercício (execução + descanso), usada
 // até o exercício ter EXECUCOES_PARA_ESTIMAR execuções com tempo real
@@ -27,23 +27,26 @@ export function duracaoSerieEstimada(step: Pick<RoutineStep, "id" | "exercicioId
   return Math.round(amostras.reduce((x, y) => x + y, 0) / amostras.length);
 }
 
-let estimadorPadrao: (step: RoutineStep) => number = () => EXERCICIO_SET_SEG;
-
-/** A store chama a cada mudança do histórico: a estimativa aprendida passa a
- * ser o padrão de routineDurationRaw também para quem não tem o histórico à
- * mão (agenda/computeSchedule, boletim). */
-export function definirHistoricoEstimativa(history: HistoryEntry[]): void {
-  estimadorPadrao = estimadorSerie(history);
-}
-
 /** Estimador por etapa para routineDurationRaw/segundosRestantesEstimados. */
+/* Memo por referência do histórico (27/09/2026): o histórico é imutável na
+   store (cada mudança gera um array novo), então o mesmo array devolve o
+   mesmo estimador e as médias já calculadas. O player redesenha a cada
+   segundo e a agenda chama isto por dia — sem o memo, cada chamada
+   reordenava o histórico inteiro. WeakMap: some junto com o array antigo. */
+const memoSerie = new WeakMap<HistoryEntry[], (step: RoutineStep) => number>();
+const memoEtapa = new WeakMap<HistoryEntry[], Map<string, (step: RoutineStep) => number>>();
+
 export function estimadorSerie(history: HistoryEntry[]): (step: RoutineStep) => number {
+  const pronto = memoSerie.get(history);
+  if (pronto) return pronto;
   const cache = new Map<string, number>();
-  return (step) => {
+  const fn = (step: RoutineStep) => {
     const k = step.exercicioId || "step:" + step.id;
     if (!cache.has(k)) cache.set(k, duracaoSerieEstimada(step, history));
     return cache.get(k)!;
   };
+  memoSerie.set(history, fn);
+  return fn;
 }
 
 /** Duração aprendida das etapas de tempo (e descansos) de uma rotina
@@ -51,6 +54,16 @@ export function estimadorSerie(history: HistoryEntry[]): (step: RoutineStep) => 
  * que a etapa foi concluída nessa rotina; com menos de três, o planejado.
  * Etapa pulada ou "não fazer" não entra na média. */
 export function estimadorEtapaTempo(history: HistoryEntry[], routineId: string): (step: RoutineStep) => number {
+  let porRotina = memoEtapa.get(history);
+  if (!porRotina) memoEtapa.set(history, (porRotina = new Map()));
+  const pronto = porRotina.get(routineId);
+  if (pronto) return pronto;
+  const fn = criarEstimadorEtapaTempo(history, routineId);
+  porRotina.set(routineId, fn);
+  return fn;
+}
+
+function criarEstimadorEtapaTempo(history: HistoryEntry[], routineId: string): (step: RoutineStep) => number {
   const ordenado = history.filter((h) => h.routineId === routineId).sort((a, b) => (b.ts || 0) - (a.ts || 0));
   const cache = new Map<string, number>();
   return (step) => {
@@ -75,12 +88,14 @@ export function estimadorEtapaTempo(history: HistoryEntry[], routineId: string):
  * como estão salvos, sem passar por playbackSteps (que expande descansos
  * automáticos entre etapas — ainda não portado). Suficiente para o card da
  * lista mostrar uma duração aproximada; não é a duração exata de execução.
- * `exercicioSetSeg` pode ser fixo ou um estimador por etapa (estimadorSerie).
+ * `exercicioSetSeg` pode ser fixo ou um estimador por etapa (estimadorSerie);
+ * omitido, vale a estimativa inicial fixa — quem tem o histórico passa o
+ * estimador (agenda, card, detalhe, boletim). Não há mais padrão global.
  */
 export function routineDurationRaw(r: Routine, exercicioSetSeg?: number | ((step: RoutineStep) => number)): number {
   const serie =
     exercicioSetSeg === undefined
-      ? estimadorPadrao
+      ? () => EXERCICIO_SET_SEG
       : typeof exercicioSetSeg === "function"
         ? exercicioSetSeg
         : () => exercicioSetSeg;
@@ -98,7 +113,7 @@ export function rotinaSemDiaFixo(r: Routine): boolean {
   return !r || !r.schedule || !r.schedule.enabled;
 }
 export function rotinaCabeEmHoje(r: Routine, hoje = new Date()): boolean {
-  return rotinaAgendadaEm(r, hoje) || rotinaSemDiaFixo(r);
+  return (rotinaAgendadaEm(r, hoje) && !rotinaPausadaEm(r, hoje)) || rotinaSemDiaFixo(r);
 }
 
 /* Porta de rotinasOrdenadas (index.html:3259-3269) — a lista da Home fica

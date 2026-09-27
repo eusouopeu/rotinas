@@ -18,7 +18,6 @@ import {
   streakInfoFor,
   sequenciaPorQuantidadeFor,
   cacheSequenciaWidget,
-  definirPausasSequencia,
   marcoStreak,
   gerarInsights,
   intensityClass,
@@ -578,7 +577,6 @@ describe("pausa da agenda protege as sequências", () => {
     vi.setSystemTime(new Date("2026-01-22T12:00:00"));
   });
   afterEach(() => {
-    definirPausasSequencia([]);
     vi.useRealTimers();
   });
   const pausa = (de: string, ate: string) => [
@@ -588,9 +586,16 @@ describe("pausa da agenda protege as sequências", () => {
   it("diária: dias pausados não quebram nem somam", () => {
     const history = ["2026-01-16", "2026-01-17", "2026-01-21", "2026-01-22"].map((date) => hist({ date }));
     expect(computeStreakFor("r1", [routine()], history)).toBe(2);
-    definirPausasSequencia(pausa("2026-01-18", "2026-01-20"));
-    expect(computeStreakFor("r1", [routine()], history)).toBe(4);
-    expect(computeStreak([routine()], history)).toBe(4);
+    const p = pausa("2026-01-18", "2026-01-20");
+    expect(computeStreakFor("r1", [routine()], history, p)).toBe(4);
+    expect(computeStreak([routine()], history, undefined, p)).toBe(4);
+  });
+
+  it("pausa só da rotina vale como a geral", () => {
+    const history = ["2026-01-16", "2026-01-17", "2026-01-21", "2026-01-22"].map((date) => hist({ date }));
+    const r = routine({ pausas: [{ de: "2026-01-18", ate: "2026-01-20" }] });
+    expect(computeStreakFor("r1", [r], history)).toBe(4);
+    expect(computeStreak([r], history)).toBe(4);
   });
 
   it("por quantidade: dia marcado pausado reduz a exigência da semana", () => {
@@ -600,7 +605,6 @@ describe("pausa da agenda protege as sequências", () => {
       hist({ date })
     );
     expect(sequenciaPorQuantidadeFor("r1", [r], history).dias).toBe(4);
-    definirPausasSequencia(pausa("2026-01-16", "2026-01-16"));
-    expect(sequenciaPorQuantidadeFor("r1", [r], history).dias).toBe(18);
+    expect(sequenciaPorQuantidadeFor("r1", [r], history, pausa("2026-01-16", "2026-01-16")).dias).toBe(18);
   });
 });

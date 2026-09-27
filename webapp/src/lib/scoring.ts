@@ -26,7 +26,7 @@ import {
   pesoBruto,
   trimestreDe,
 } from "./gamificacao";
-import { rotinaAgendadaEm } from "./schedule";
+import { rotinaAgendadaEm, rotinaPausadaEm } from "./schedule";
 import { playbackSteps } from "./player";
 import type {
   DiaKanbanCard,
@@ -106,7 +106,9 @@ export function construirAgendaSemana(
     const dataDia = new Date(base);
     dataDia.setDate(dataDia.getDate() + dia);
     routines.forEach((r) => {
-      if (!rotinaAgendadaEm(r, dataDia)) return;
+      // pausa da rotina conhecida no congelamento tira o dia da agenda da
+      // semana; pausar no meio da semana não mexe no que já congelou
+      if (!rotinaAgendadaEm(r, dataDia) || rotinaPausadaEm(r, dataDia)) return;
       const area = areaDaRotina(r, gam);
       r.steps.forEach((s) => {
         /* Etapa de exercício entra na agenda da semana como no legado

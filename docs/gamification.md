@@ -40,13 +40,13 @@ Rotina restrita a dias da semana (modo "dias", menos de 7): o dia marcado serve 
 
 ## Estimativa de duração de exercício (26/09/2026)
 
-Cada série de exercício (execução + descanso) começa estimada em 75s (`EXERCICIO_SET_SEG`). Com três execuções medidas do exercício (em qualquer rotina), a estimativa passa a ser a média de `elapsedSec / séries` das três mais recentes (`duracaoSerieEstimada`, `lib/routines.ts`). `StepActual.elapsedSec` é o tempo real da etapa sem pausas, gravado só para etapa "exercicio"; `actual` continua séries x descanso, que é o que pontua. Usada na duração do card/detalhe da rotina e na previsão de término no topo do player (`segundosRestantesEstimados`). Desde 27/09/2026 a store registra o histórico em `definirHistoricoEstimativa` (subscribe da store), então `routineDurationRaw` sem estimador explícito — agenda/`computeSchedule` e boletim — também usa a estimativa aprendida.
+Cada série de exercício (execução + descanso) começa estimada em 75s (`EXERCICIO_SET_SEG`). Com três execuções medidas do exercício (em qualquer rotina), a estimativa passa a ser a média de `elapsedSec / séries` das três mais recentes (`duracaoSerieEstimada`, `lib/routines.ts`). `StepActual.elapsedSec` é o tempo real da etapa sem pausas, gravado só para etapa "exercicio"; `actual` continua séries x descanso, que é o que pontua. Usada na duração do card/detalhe da rotina e na previsão de término no topo do player (`segundosRestantesEstimados`). Quem tem o histórico passa o estimador explicitamente: `computeSchedule(routine, estimadorSerie(history))` na agenda, no card e no detalhe, e `minutosPlanejadosSemana(..., estimadorSerie(history))` no boletim. Sem estimador, vale a inicial fixa — não há padrão global (o registro `definirHistoricoEstimativa` da v75 saiu na v77). `estimadorSerie` e `estimadorEtapaTempo` são memorizados por referência do array de histórico (WeakMap): a store troca o array a cada mudança, então o mesmo array devolve as mesmas médias sem reordenar o histórico a cada chamada (o player redesenha a cada segundo).
 
 Sugestão de carga (27/09/2026, `lib/exercicios.ts:sugestaoCarga`): na primeira série, o player mostra a última execução do exercício; se todas as séries bateram o topo da faixa de reps com carga, sugere subir 2,5 kg (composto) ou 1 kg (isolado) com um toque que preenche o campo — nunca preenche sozinho.
 
 ## Pausa da agenda nas sequências (27/09/2026)
 
-Dia dentro de uma pausa da agenda (`snoozes`) conta como não devido em todas as sequências de rotina: não soma nem quebra (`computeStreakFor`, `computeStreak`, `recordeStreakFor`). Na sequência por quantidade, cada dia marcado da rotina que caiu na pausa reduz a exigência daquela semana. Dia pausado em que a rotina foi feita mesmo assim continua contando. A store registra as pausas em `definirPausasSequencia` (subscribe, mesmo padrão da estimativa), então selo, Dados, aviso, widget e PDF usam a mesma regra.
+Dia dentro de uma pausa da agenda (`snoozes`) conta como não devido em todas as sequências de rotina: não soma nem quebra (`computeStreakFor`, `computeStreak`, `recordeStreakFor`). Na sequência por quantidade, cada dia marcado da rotina que caiu na pausa reduz a exigência daquela semana. Dia pausado em que a rotina foi feita mesmo assim continua contando. As pausas gerais entram como parâmetro (`pausas: Snooze[]`) em todas as funções de sequência — selo, Dados, aviso, widget e PDF passam `snoozes` da store; o registro global da v76 saiu na v77.
 
 ## Metas recorrentes na revisão e no relatório (27/09/2026)
 
@@ -55,3 +55,15 @@ A revisão da Semana fechada (passo 2) lista as metas recorrentes com período n
 ## Previsão de término com etapas de tempo (27/09/2026)
 
 `estimadorEtapaTempo(history, routineId)`: etapa de tempo (e descanso) passa a valer a média do tempo real das últimas três conclusões dela na rotina (pulada/"não fazer" fora); com menos de três, o planejado. Na etapa atual, o aprendido menos o já decorrido. Só a previsão do player usa isso; card e agenda seguem o planejado das etapas de tempo.
+
+## Pausa só de uma rotina (27/09/2026, v77)
+
+`Routine.pausas` (lista de `{de, ate}` em datas locais inclusivas) pausa uma rotina sem pausar as outras. `rotinaPausadaEm(r, d)` (`lib/schedule.ts`) entra em todo ponto que já respeitava a pausa geral e mais: agenda do dia (`itensAgendaDoDia`), filtro "hoje" (`rotinaCabeEmHoje`), agenda da semana congelada (`construirAgendaSemana` — só a pausa conhecida no congelamento; pausar no meio da semana não mexe no que congelou), minutos planejados do boletim, cumprimento em Dados, aviso de sequência em risco, alarmes e sequências (dia pausado não soma nem quebra; na sequência por quantidade reduz a exigência da semana). Com pausa em vigor ou marcada, o alarme de rotina de dias fixos vira avulso (próximas 10 ocorrências fora da pausa), porque o recorrente por dia da semana não pula datas; o app reagenda ao abrir. Retomar encerra a pausa ontem (a parte já vivida fica no histórico — as sequências antigas dependem dela) ou apaga a que nem começou. UI: `features/rotinas/PausaRotina.tsx` no detalhe; o card mostra "pausada até dd/mm".
+
+## Limite por período e troca do início da semana nas metas (27/09/2026, v77)
+
+Cada período da meta recorrente guarda `vezes` (o limite em vigor nele): mudar o limite da meta não reclassifica o passado (`metaRecCumprido(rec, periodo)`); o período em curso passa a usar o limite novo. Trocar o início da semana em Ajustes reancora as metas semanais (`reancorarMetasRecSemana`, chamado por `setWeekStart` antes de gravar o início novo): o período em curso vai para a semana nova que contém hoje e cada período fechado para a semana nova que contém o meio da antiga.
+
+## Atraso no player (27/09/2026, v77)
+
+Com a rotina agendada hoje, o topo do player mostra "+N min" em vermelho ao lado da previsão quando ela passa do fim agendado (`computeSchedule` com a estimativa aprendida).

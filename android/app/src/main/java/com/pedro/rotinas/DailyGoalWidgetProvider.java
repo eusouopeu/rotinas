@@ -42,7 +42,7 @@ public class DailyGoalWidgetProvider extends AppWidgetProvider {
                 v.setViewVisibility(ROW_WRAP_IDS[i], android.view.View.VISIBLE);
                 v.setTextViewText(ROW_TITLE_IDS[i], g.titulo);
                 v.setTextViewText(ROW_PROG_IDS[i], g.progresso());
-                v.setTextColor(ROW_PROG_IDS[i], g.completa() ? 0xFF6B8F71 : 0xFF8A8478);
+                v.setTextColor(ROW_PROG_IDS[i], g.cor());
             } else {
                 v.setViewVisibility(ROW_WRAP_IDS[i], android.view.View.GONE);
             }

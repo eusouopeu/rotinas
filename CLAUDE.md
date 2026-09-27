@@ -83,3 +83,4 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 - Tokens, layout, botões, responsividade e ícones: `docs/design-system.md`
 - Inventário de recursos existentes/removidos: `docs/feature-status.md`
 - Testes, commit/push, APK e checklist de entrega: `docs/release.md`
+- Registro das melhorias entregues ("descrição – implementado em data"): `docs/aprimoramentos.md`

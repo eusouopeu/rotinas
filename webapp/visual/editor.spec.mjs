@@ -96,6 +96,16 @@ test("detalhe: rotina agendada", async ({ page }) => {
   await foto(page, "detalhe-treino");
 });
 
+test("detalhe: pausar só esta rotina", async ({ page }) => {
+  await abrirDetalhe(page, /Treino A/);
+  await page.getByText("pausar só esta rotina").click();
+  await foto(page, "detalhe-treino-pausar");
+  await page.getByRole("button", { name: "1 semana" }).click();
+  await foto(page, "detalhe-treino-pausada");
+  await page.getByRole("button", { name: "Voltar" }).first().click();
+  await foto(page, "lista-treino-pausada");
+});
+
 test("detalhe: rotina feita hoje", async ({ page }) => {
   await abrirDetalhe(page, /Manhã/);
   await foto(page, "detalhe-manha");

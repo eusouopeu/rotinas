@@ -3,7 +3,9 @@
 // no React fora da tela de Estatísticas (Home, RoutineDetail), com recorde
 // no tooltip e cor de marco (bronze/prata/ouro/diamante, mesmos tons dos
 // badges do Boletim) quando o streak atual cruza um patamar.
+import { useMemo } from "react";
 import { Icon } from "./Icon";
+import { useAppStore } from "../store/useAppStore";
 import { cn } from "../lib/cn";
 import { BADGE_COR } from "../lib/constants";
 import { marcoStreak, streakInfoFor, type StreakInfo } from "../lib/stats";
@@ -32,7 +34,13 @@ export function StreakTag({
   history: HistoryEntry[];
   feitaHoje?: boolean;
 }) {
-  const info = streakInfoFor(routineId, routines, history);
+  const snoozes = useAppStore((s) => s.snoozes);
+  // memo (27/09/2026): a conta percorre anos de dias e rodava em todo card a
+  // cada redesenho da Home; só refaz quando algo que entra nela muda
+  const info = useMemo(
+    () => streakInfoFor(routineId, routines, history, snoozes),
+    [routineId, routines, history, snoozes]
+  );
   if (info.atual <= 0) return null;
   const marco = marcoStreak(info);
   const cor = marco ? BADGE_COR[marco] : undefined;

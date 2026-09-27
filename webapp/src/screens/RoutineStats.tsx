@@ -46,7 +46,8 @@ export function RoutineStats() {
     );
   }
 
-  const stats = getRoutineDetailStats(routine, history, gam);
+  const snoozes = useAppStore((s) => s.snoozes);
+  const stats = getRoutineDetailStats(routine, history, gam, snoozes);
 
   function ajustar(s: { name: string; plan: number; newSec: number; newSecLabel: string }) {
     if (window.confirm(`Ajustar a etapa "${s.name}" de ${fmtTime(s.plan).replace("+", "")} para ${s.newSecLabel}?`)) {

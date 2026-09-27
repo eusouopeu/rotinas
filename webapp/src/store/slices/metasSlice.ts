@@ -157,7 +157,11 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
     const feitasAntes = !alvo.negativa && alvo.pontua ? metaRecFeitas(alvo) : 0;
 
     let atualizado: MetaRecorrente = { ...virarPeriodoMetaRec(alvo), ...patch };
-    if (patch.vezes != null) atualizado.vezes = Math.max(1, patch.vezes);
+    if (patch.vezes != null) {
+      atualizado.vezes = Math.max(1, patch.vezes);
+      // o limite novo vale a partir do período atual; os fechados guardam o deles
+      if (atualizado.progresso) atualizado.progresso = { ...atualizado.progresso, vezes: atualizado.vezes };
+    }
     let gam = get().gam;
     const excessoDepois = atualizado.negativa ? metaRecExcesso(atualizado) : 0;
     gam = sincronizarPenalidadeMetaRec(gam, atualizado, excessoAntes, excessoDepois, new Date(), get().routines);

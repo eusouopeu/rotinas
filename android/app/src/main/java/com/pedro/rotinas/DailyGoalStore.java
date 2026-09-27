@@ -45,19 +45,33 @@ public final class DailyGoalStore {
             this.countdown = true; this.feitas = 0; this.vezes = 0; this.negativa = false;
         }
 
-        /** "2/4" (positiva), "1 de no máx. 2" (negativa) ou "faltam Xd" (prazo) */
+        /** "2/4" (positiva, pode passar: "7/6"), saldo "3/4" (negativa — o
+         *  que resta, como no cartão do app desde a v74; abaixo de zero é o
+         *  que desconta) ou "faltam Xd" (prazo). */
         public String progresso() {
             if (countdown) {
                 if (diasRestantes == 0) return "hoje";
                 if (diasRestantes < 0) return "atrasada";
                 return "faltam " + diasRestantes + "d";
             }
-            return negativa ? (feitas + " de no máx. " + vezes) : (feitas + "/" + vezes);
+            return negativa ? ((vezes - feitas) + "/" + vezes) : (feitas + "/" + vezes);
         }
 
         public boolean completa() {
             if (countdown) return false;
-            return negativa ? feitas > vezes : feitas >= vezes;
+            return negativa ? feitas <= vezes : feitas >= vezes;
+        }
+
+        /** Mesmas cores do cartão da meta: negativa verde com saldo, neutra
+         *  em zero, vermelha abaixo; positiva verde quando cumprida. */
+        public int cor() {
+            final int verde = 0xFF6B8F71, neutra = 0xFF8A8478, vermelha = 0xFFB0503F;
+            if (countdown) return neutra;
+            if (negativa) {
+                int saldo = vezes - feitas;
+                return saldo > 0 ? verde : saldo == 0 ? neutra : vermelha;
+            }
+            return feitas >= vezes ? verde : neutra;
         }
     }
 

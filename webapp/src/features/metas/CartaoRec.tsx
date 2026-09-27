@@ -52,20 +52,17 @@ function MiniCalendario({ rec }: { rec: MetaRecorrente }) {
   if (!fechados.length) return null;
   const atual = v.progresso!;
   const txt = (p: MetaRecProgresso) =>
-    `${rotuloPeriodo(p)}: ${rec.negativa ? `${rec.vezes - p.feitas} de saldo` : `${p.feitas}/${rec.vezes}`}`;
+    `${rotuloPeriodo(p)}: ${rec.negativa ? `${(p.vezes ?? rec.vezes) - p.feitas} de saldo` : `${p.feitas}/${p.vezes ?? rec.vezes}`}`;
   const itens = [
     ...fechados.map((p) => ({
       p,
-      rotulo: `${txt(p)}, ${metaRecCumprido(rec, p.feitas) ? "cumprido" : "não cumprido"}`,
-      classe: metaRecCumprido(rec, p.feitas) ? "bg-ok" : "bg-erro",
+      rotulo: `${txt(p)}, ${metaRecCumprido(rec, p) ? "cumprido" : "não cumprido"}`,
+      classe: metaRecCumprido(rec, p) ? "bg-ok" : "bg-erro",
     })),
     {
       p: atual,
       rotulo: `${txt(atual)}, em curso`,
-      classe: cn(
-        "border-[1.5px] border-line",
-        !rec.negativa && metaRecCumprido(rec, atual.feitas) && "border-ok bg-ok"
-      ),
+      classe: cn("border-[1.5px] border-line", !rec.negativa && metaRecCumprido(rec, atual) && "border-ok bg-ok"),
     },
   ];
   const detalhe = itens.find((x) => x.p.periodo === aberto);

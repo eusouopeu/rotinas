@@ -7,13 +7,32 @@ import type { HistoryEntry } from "./history";
 import { atualizarWidgets } from "./nativeBridge";
 import { cacheSequenciaWidget } from "./stats";
 import { isNative, load, save } from "./storage";
-import type { Routine } from "./types";
+import type { Routine, Snooze } from "./types";
 
-export function publicarSequenciaWidget(routines: Routine[], history: HistoryEntry[], agora = new Date()): void {
+export function publicarSequenciaWidget(
+  routines: Routine[],
+  history: HistoryEntry[],
+  snoozes: Snooze[],
+  agora = new Date()
+): void {
   if (!isNative) return;
-  const novo = cacheSequenciaWidget(routines, history, agora);
+  const novo = cacheSequenciaWidget(routines, history, agora, snoozes);
   const atual = load<typeof novo | null>(K_WIDGETSTREAK, null);
   if (JSON.stringify(atual) === JSON.stringify(novo)) return;
   save(K_WIDGETSTREAK, novo);
-  atualizarWidgets();
+  agendarAtualizacaoWidgets();
+}
+
+let timerWidgets: ReturnType<typeof setTimeout> | null = null;
+
+/** Redesenho dos widgets depois que a gravação assíncrona dos arquivos
+ * (fila do storage) teve tempo de terminar — chamar na hora fazia o widget
+ * ler o arquivo anterior. Agrupa rajadas (vários toques seguidos no contador). */
+export function agendarAtualizacaoWidgets(atrasoMs = 1200): void {
+  if (!isNative) return;
+  if (timerWidgets) clearTimeout(timerWidgets);
+  timerWidgets = setTimeout(() => {
+    timerWidgets = null;
+    atualizarWidgets();
+  }, atrasoMs);
 }

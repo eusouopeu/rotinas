@@ -11,6 +11,7 @@
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
 import { StreakTag } from "../components/StreakTag";
+import { PausaRotina } from "../features/rotinas/PausaRotina";
 import { fmtTime } from "../lib/format";
 import { estimadorSerie, routineDurationRaw } from "../lib/routines";
 import { computeSchedule, diasChipLabel } from "../lib/schedule";
@@ -47,8 +48,9 @@ export function RoutineDetail() {
     );
   }
 
-  const dur = routineDurationRaw(r, estimadorSerie(history));
-  const sched = computeSchedule(r);
+  const serie = estimadorSerie(history);
+  const dur = routineDurationRaw(r, serie);
+  const sched = computeSchedule(r, serie);
 
   return (
     <div {...tela({})}>
@@ -75,6 +77,7 @@ export function RoutineDetail() {
               <Icon name="clock" size={13} /> {sched.startStr} &rarr; {sched.endStr}
             </div>
             <div className="mt-1.5 flex items-center gap-1 font-sans text-xs text-sub">{diasChipLabel(r)}</div>
+            <PausaRotina r={r} />
             <div className="h-2.5" />
           </>
         )}

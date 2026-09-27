@@ -155,22 +155,22 @@ export const METAREC_HISTORICO_MAX = 60;
 export function virarPeriodoMetaRec(rec: MetaRecorrente, data: Date = new Date()): MetaRecorrente {
   const per = metaRecPeriodoAtual(rec, data);
   if (rec.progresso && rec.progresso.periodo === per) return rec;
-  if (!rec.progresso) return { ...rec, progresso: { periodo: per, feitas: 0 } };
-  const fechado = rec.progresso;
-  const historico = [...(rec.historico || []), { ...fechado }];
+  if (!rec.progresso) return { ...rec, progresso: { periodo: per, feitas: 0, vezes: rec.vezes } };
+  const fechado = { ...rec.progresso, vezes: rec.progresso.vezes ?? rec.vezes };
+  const historico = [...(rec.historico || []), fechado];
   const vazios = Math.min(periodosVazios(rec, fechado.periodo, data), METAREC_HISTORICO_MAX);
   const passo = rec.tipo === "semanal" ? 7 : 1;
   const ini = fechado.periodo.slice(fechado.periodo.indexOf(":") + 1);
   for (let i = 1; i <= vazios; i++) {
     const d = isoParaData(ini);
     d.setDate(d.getDate() + i * passo);
-    historico.push({ periodo: metaRecPeriodoAtual(rec, d), feitas: 0 });
+    historico.push({ periodo: metaRecPeriodoAtual(rec, d), feitas: 0, vezes: rec.vezes });
   }
   return {
     ...rec,
     sequencia: sequenciaAoFechar(rec, fechado, data),
     historico: historico.slice(-METAREC_HISTORICO_MAX),
-    progresso: { periodo: per, feitas: 0 },
+    progresso: { periodo: per, feitas: 0, vezes: rec.vezes },
   };
 }
 
@@ -197,8 +197,49 @@ export function virarMetasRecDoc(doc: CountdownDoc, data: Date = new Date()): Co
   return mudou ? { ...doc, recorrentes: novas } : doc;
 }
 
-export function metaRecCumprido(rec: Pick<MetaRecorrente, "negativa" | "vezes">, feitas: number): boolean {
-  return periodoCumprido(rec, feitas);
+/** Período cumprido pelo limite DELE (`p.vezes`), não o atual da meta. */
+/**
+ * Troca do início da semana (27/09/2026): a chave do período semanal é a data
+ * em que a semana começa, então mudar o início em Ajustes deixava histórico e
+ * progresso com chaves que não batem mais — a sequência zerava e a Semana
+ * fechada não achava o período. Reancora: o período em curso vira a semana
+ * nova que contém hoje (preserva o progresso); cada período fechado vira a
+ * semana nova que contém o meio da semana antiga (dias +3), o que mantém
+ * semanas vizinhas distintas. Colisão com o período em curso é descartada.
+ * Meta diária não muda. Devolve o mesmo doc se nada mudou.
+ */
+export function reancorarMetasRecSemana(doc: CountdownDoc, novoInicio: number, hoje: Date = new Date()): CountdownDoc {
+  const recs = doc.recorrentes || [];
+  if (!recs.some((r) => r.tipo === "semanal")) return doc;
+  const chave = (iso: string) => {
+    const d = isoParaData(iso);
+    d.setDate(d.getDate() + 3);
+    return "semana:" + inicioSemanaISO(d, novoInicio);
+  };
+  const atualNovo = "semana:" + inicioSemanaISO(hoje, novoInicio);
+  const atualVelho = metaRecPeriodoAtual({ tipo: "semanal" }, hoje);
+  let mudou = false;
+  const novas = recs.map((r) => {
+    if (r.tipo !== "semanal") return r;
+    const iniDe = (per: string) => per.slice(per.indexOf(":") + 1);
+    const progresso = r.progresso
+      ? { ...r.progresso, periodo: r.progresso.periodo === atualVelho ? atualNovo : chave(iniDe(r.progresso.periodo)) }
+      : r.progresso;
+    const vistos = new Set<string>([progresso?.periodo || ""]);
+    const historico = (r.historico || [])
+      .map((p) => ({ ...p, periodo: chave(iniDe(p.periodo)) }))
+      .filter((p) => (vistos.has(p.periodo) ? false : (vistos.add(p.periodo), true)));
+    mudou = true;
+    return { ...r, progresso, historico };
+  });
+  return mudou ? { ...doc, recorrentes: novas } : doc;
+}
+
+export function metaRecCumprido(
+  rec: Pick<MetaRecorrente, "negativa" | "vezes">,
+  p: Pick<MetaRecProgresso, "feitas" | "vezes">
+): boolean {
+  return periodoCumprido({ negativa: rec.negativa, vezes: p.vezes ?? rec.vezes }, p.feitas);
 }
 
 function periodoCumprido(rec: Pick<MetaRecorrente, "negativa" | "vezes">, feitas: number): boolean {
@@ -222,7 +263,7 @@ function periodosVazios(rec: Pick<MetaRecorrente, "tipo">, perFechado: string, d
  * períodos vazios no meio (vazio cumpre meta negativa e quebra a positiva). */
 function sequenciaAoFechar(rec: MetaRecorrente, fechado: MetaRecProgresso, data: Date): number {
   let seq = rec.sequencia || 0;
-  seq = periodoCumprido(rec, fechado.feitas) ? seq + 1 : 0;
+  seq = metaRecCumprido(rec, fechado) ? seq + 1 : 0;
   const vazios = periodosVazios(rec, fechado.periodo, data);
   if (vazios > 0) seq = periodoCumprido(rec, 0) ? seq + vazios : 0;
   return seq;

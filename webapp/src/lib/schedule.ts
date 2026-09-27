@@ -1,6 +1,6 @@
 // Porta de index.html:2919-2929 (formatHM/computeSchedule) — puro, sem DOM.
 import { routineDurationRaw } from "./routines";
-import type { Routine } from "./types";
+import type { Routine, RoutineStep, RotinaPausa } from "./types";
 
 export const DAY_LETTERS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -19,9 +19,15 @@ export interface ComputedSchedule {
   durMin: number;
 }
 
-export function computeSchedule(routine: Routine): ComputedSchedule | null {
+/** `serieSeg`: estimativa por série de exercício (estimadorSerie do
+ * histórico); omitida, a inicial fixa. Muda o fim (âncora início) ou o
+ * início (âncora fim) de rotinas com exercício. */
+export function computeSchedule(
+  routine: Routine,
+  serieSeg?: number | ((step: RoutineStep) => number)
+): ComputedSchedule | null {
   if (!routine.schedule || !routine.schedule.enabled || !routine.schedule.time) return null;
-  const durMin = Math.round(routineDurationRaw(routine) / 60);
+  const durMin = Math.round(routineDurationRaw(routine, serieSeg) / 60);
   const [h, m] = routine.schedule.time.split(":").map(Number);
   const anchorMin = h * 60 + m;
   let startMin: number;
@@ -59,6 +65,22 @@ export function rotinaAgendadaEm(r: Routine, date: Date): boolean {
     return diffDias >= 0 && diffDias % n === 0;
   }
   return (r.schedule.days || []).includes(date.getDay());
+}
+
+/** Pausa só desta rotina (lesão, viagem): no dia pausado ela sai da agenda,
+ * do "hoje", da pontuação da semana, dos alarmes e das sequências — mesmo
+ * papel da pausa geral da agenda, só que por rotina (27/09/2026). */
+export function rotinaPausadaEm(r: Routine, date: Date): boolean {
+  if (!r.pausas || !r.pausas.length) return false;
+  const k = isoOf(date);
+  return r.pausas.some((p) => k >= p.de && k <= p.ate);
+}
+
+/** Pausa em vigor hoje ou marcada para depois (a mais próxima), para o card e o detalhe. */
+export function pausaAtualOuFutura(r: Routine, hoje = new Date()): RotinaPausa | null {
+  const k = isoOf(hoje);
+  const vigentes = (r.pausas || []).filter((p) => p.ate >= k).sort((a, b) => a.de.localeCompare(b.de));
+  return vigentes[0] || null;
 }
 
 const DIAS_ABREV = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];

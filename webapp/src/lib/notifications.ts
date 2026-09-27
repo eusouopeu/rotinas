@@ -4,7 +4,7 @@
 // LocalNotificationsPlugin.
 import { BADGE_NOME, K_DIGESTSEMANAL } from "./constants";
 import { metaRecHorarios } from "./metas";
-import { computeSchedule, rotinaAgendadaEm } from "./schedule";
+import { computeSchedule, pausaAtualOuFutura, rotinaAgendadaEm, rotinaPausadaEm } from "./schedule";
 import type { LocalNotificationsPlugin } from "./nativeBridge";
 import { somModo } from "./sound";
 import { isDesktop, isNative, load } from "./storage";
@@ -67,7 +67,7 @@ function proximasOcorrenciasIntervalo(r: Routine, count: number, from: Date): Da
   const out: Date[] = [];
   const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
   for (let guard = 0; guard < 3660 && out.length < count; guard++) {
-    if (rotinaAgendadaEm(r, d)) out.push(new Date(d));
+    if (rotinaAgendadaEm(r, d) && !rotinaPausadaEm(r, d)) out.push(new Date(d));
     d.setDate(d.getDate() + 1);
   }
   return out;
@@ -91,7 +91,10 @@ export function planoNotificacaoRotinas(routines: Routine[], agora: number): Not
     if (!sched || !r.schedule) return;
     const title = "Hora de começar: " + r.name;
     const body = "Início previsto às " + sched.startStr;
-    if (r.schedule.mode === "intervalo") {
+    // intervalo, ou rotina de dias fixos com pausa em vigor/marcada: alarme
+    // recorrente por dia da semana não sabe pular datas, então vira avulso
+    // (próximas 10 ocorrências fora da pausa; o app reagenda ao abrir)
+    if (r.schedule.mode === "intervalo" || pausaAtualOuFutura(r, new Date(agora))) {
       proximasOcorrenciasIntervalo(r, 10, new Date(agora)).forEach((data, i) => {
         const quando = new Date(data);
         quando.setHours(Math.floor(sched.startMin / 60), sched.startMin % 60, 0, 0);

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  definirHistoricoEstimativa,
   duracaoSerieEstimada,
   EXERCICIO_SET_SEG,
   routineDurationRaw,
@@ -58,11 +57,11 @@ describe("duracaoSerieEstimada", () => {
       steps: [{ id: "s1", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 4 }],
     };
     expect(routineDurationRaw(r, estimadorSerie(h))).toBe(400);
-    // sem estimador explícito (agenda/boletim): usa o histórico registrado
+    // sem estimador: a inicial fixa (não há mais padrão global)
     expect(routineDurationRaw(r)).toBe(4 * EXERCICIO_SET_SEG);
-    definirHistoricoEstimativa(h);
-    expect(routineDurationRaw(r)).toBe(400);
-    definirHistoricoEstimativa([]);
+    // memo pela referência do histórico
+    expect(estimadorSerie(h)).toBe(estimadorSerie(h));
+    expect(estimadorSerie([...h])).not.toBe(estimadorSerie(h));
   });
 });
 

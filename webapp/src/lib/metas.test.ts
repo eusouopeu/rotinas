@@ -17,6 +17,8 @@ import {
   metaRecSaldo,
   metaRecSequencia,
   virarPeriodoMetaRec,
+  metaRecCumprido,
+  reancorarMetasRecSemana,
   sincronizarPontosMeta,
   toggleMetasSubview,
 } from "./metas";
@@ -181,12 +183,17 @@ describe("metas recorrentes: período e progresso", () => {
     };
     const v = virarPeriodoMetaRec(rec, hoje); // 04/09: 02 e 03 ficaram vazios
     expect(v.historico).toEqual([
-      { periodo: "dia:2026-09-01", feitas: 4 },
-      { periodo: "dia:2026-09-02", feitas: 0 },
-      { periodo: "dia:2026-09-03", feitas: 0 },
+      { periodo: "dia:2026-09-01", feitas: 4, vezes: 4 },
+      { periodo: "dia:2026-09-02", feitas: 0, vezes: 4 },
+      { periodo: "dia:2026-09-03", feitas: 0, vezes: 4 },
     ]);
-    expect(v.progresso).toEqual({ periodo: "dia:2026-09-04", feitas: 0 });
+    expect(v.progresso).toEqual({ periodo: "dia:2026-09-04", feitas: 0, vezes: 4 });
     expect(virarPeriodoMetaRec(v, hoje)).toBe(v);
+
+    // aumentar o limite depois não reclassifica o dia 01 (4/4 cumprido)
+    const mais = { ...v, vezes: 8 };
+    expect(metaRecCumprido(mais, mais.historico![0])).toBe(true);
+    expect(metaRecCumprido(mais, { feitas: 4 })).toBe(false); // período sem limite gravado usa o atual
   });
 
   it("metaRecCompleta, metaRecExcesso e metaRecExcedida calculam corretamente", () => {
@@ -534,5 +541,39 @@ describe("metas recorrentes: saldo, sequência e pontos por item (26/09/2026)", 
     expect(metaRecPontosBrutos(rec, gam.config, 6)).toBeCloseTo(um * 6);
     expect(metaRecPontosUnidade(rec, gam.config, 7)).toBeCloseTo(um / 2);
     expect(metaRecPontosBrutos(rec, gam.config, 8)).toBeCloseTo(um * 7);
+  });
+});
+
+describe("reancorarMetasRecSemana (troca do início da semana)", () => {
+  it("leva o período em curso para a semana nova de hoje e reancora o histórico", () => {
+    const hoje = new Date(2026, 8, 23); // qua; semana de domingo começa 20/09
+    const doc: CountdownDoc = {
+      id: "d",
+      type: "countdown",
+      title: "Metas",
+      targets: [],
+      createdAt: 0,
+      updatedAt: 0,
+      recorrentes: [
+        {
+          id: "t",
+          titulo: "Treinar",
+          tipo: "semanal",
+          vezes: 3,
+          criadoEm: 0,
+          progresso: { periodo: "semana:2026-09-20", feitas: 2 },
+          historico: [
+            { periodo: "semana:2026-09-06", feitas: 3 },
+            { periodo: "semana:2026-09-13", feitas: 1 },
+          ],
+        },
+        { id: "a", titulo: "Água", tipo: "diaria", vezes: 1, criadoEm: 0 },
+      ],
+    };
+    const novo = reancorarMetasRecSemana(doc, 1, hoje); // passa a começar na segunda
+    const t = novo.recorrentes![0];
+    expect(t.progresso).toEqual({ periodo: "semana:2026-09-21", feitas: 2 });
+    expect(t.historico!.map((p) => p.periodo)).toEqual(["semana:2026-09-07", "semana:2026-09-14"]);
+    expect(novo.recorrentes![1]).toBe(doc.recorrentes![1]);
   });
 });

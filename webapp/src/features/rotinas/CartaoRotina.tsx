@@ -5,8 +5,10 @@
 import { Icon } from "../../components/Icon";
 import { StreakTag } from "../../components/StreakTag";
 import { fmtTime } from "../../lib/format";
+import { localKey } from "../../lib/gamificacao";
 import { estimadorSerie, routineDurationRaw } from "../../lib/routines";
-import { computeSchedule, diasChipLabel, formatHM } from "../../lib/schedule";
+import { computeSchedule, diasChipLabel, formatHM, pausaAtualOuFutura } from "../../lib/schedule";
+import { ddmm } from "./PausaRotina";
 import { corDaRotina, fillStyle, rotinaEhHabito } from "../../lib/scoring";
 import { execucaoDoDia, execucaoMinutos, type HistoryEntry } from "../../lib/history";
 import type { GamificacaoState, Routine } from "../../lib/types";
@@ -42,8 +44,10 @@ export function CartaoRotina({
   onAbrir,
   onIniciar,
 }: Props) {
-  const dur = routineDurationRaw(r, estimadorSerie(history));
-  const sched = computeSchedule(r);
+  const serie = estimadorSerie(history);
+  const dur = routineDurationRaw(r, serie);
+  const sched = computeSchedule(r, serie);
+  const pausa = pausaAtualOuFutura(r);
   const execHoje = execucaoDoDia(history, r.id, hojeISO);
   const execMin = execHoje ? execucaoMinutos(execHoje) : null;
 
@@ -85,6 +89,12 @@ export function CartaoRotina({
           {sched && (
             <Fato title="Dias">
               <Icon name="calendar" size={13} /> {diasChipLabel(r)}
+            </Fato>
+          )}
+          {pausa && (
+            <Fato title="Só esta rotina está pausada">
+              <Icon name="pause" size={13} />{" "}
+              {pausa.de > localKey() ? `pausa a partir de ${ddmm(pausa.de)}` : `pausada até ${ddmm(pausa.ate)}`}
             </Fato>
           )}
           {rotinaEhHabito(r, gam) && (

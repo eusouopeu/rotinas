@@ -51,6 +51,14 @@ export interface Routine {
   // como "sem restrição de data", igual ao legado.
   createdAt?: number;
   weeklyGoalTimes?: number;
+  /** Pausas só desta rotina (27/09/2026), datas locais inclusivas. Ficam
+   * guardadas depois de acabar: as sequências antigas dependem delas. */
+  pausas?: RotinaPausa[];
+}
+
+export interface RotinaPausa {
+  de: string; // "AAAA-MM-DD"
+  ate: string; // "AAAA-MM-DD", inclusive
 }
 
 export interface GamificacaoConfig {
@@ -170,6 +178,9 @@ export interface Exercicio {
 export interface MetaRecProgresso {
   periodo: string; // "dia:AAAA-MM-DD" ou "semana:AAAA-MM-DD"
   feitas: number;
+  /** Limite em vigor naquele período (27/09/2026). Mudar `vezes` da meta não
+   * reclassifica o passado; ausente (período antigo) = `vezes` atual. */
+  vezes?: number;
 }
 
 export interface MetaRecorrente {

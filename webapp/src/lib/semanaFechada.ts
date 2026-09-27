@@ -81,19 +81,19 @@ export function metasRecSemana(inicioISO: string, templates: unknown[], agora: D
     if (rec.tipo === "semanal") {
       const p = periodos.find((x) => x.periodo === "semana:" + inicioISO);
       if (!p) continue;
-      const ok = metaRecCumprido(rec, p.feitas);
+      const ok = metaRecCumprido(rec, p);
       const resumo = rec.negativa
         ? ok
-          ? `dentro do limite (${p.feitas}/${rec.vezes})`
-          : `passou do limite (${p.feitas}/${rec.vezes})`
-        : `${p.feitas} de ${rec.vezes}`;
+          ? `dentro do limite (${p.feitas}/${p.vezes ?? rec.vezes})`
+          : `passou do limite (${p.feitas}/${p.vezes ?? rec.vezes})`
+        : `${p.feitas} de ${p.vezes ?? rec.vezes}`;
       out.push({ ...base, resumo, ok, unidade: "semana" });
       continue;
     }
     const dias = Array.from({ length: 7 }, (_, k) => "dia:" + addDaysISO(inicioISO, k));
     const daSemana = periodos.filter((x) => dias.includes(x.periodo));
     if (!daSemana.length) continue;
-    const cumpridos = daSemana.filter((x) => metaRecCumprido(rec, x.feitas)).length;
+    const cumpridos = daSemana.filter((x) => metaRecCumprido(rec, x)).length;
     const resumo = rec.negativa
       ? cumpridos === daSemana.length
         ? `dentro do limite ${daSemana.length === 1 ? "no único dia" : `nos ${daSemana.length} dias`}`

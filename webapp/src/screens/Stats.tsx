@@ -45,7 +45,8 @@ export function Stats() {
       routines,
       doc?.targets ?? [],
       undefined,
-      doc?.recorrentes ?? []
+      doc?.recorrentes ?? [],
+      snoozes
     );
     exportPdfView(title, innerHtml, "Relatórios");
   }
