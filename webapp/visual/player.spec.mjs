@@ -82,6 +82,21 @@ test("player: exercício, série", async ({ page }) => {
   await foto(page, "player-exercicio");
 });
 
+test("player: exercício, sugestão de carga", async ({ page }) => {
+  // última execução do Supino reto com as 3 séries no topo da faixa (8-12)
+  const anterior = {
+    date: "2026-09-21", ts: new Date("2026-09-21T19:00:00-03:00").getTime(), startedTs: 0,
+    routineId: "r-treino-b", routineName: "Treino B", plannedSec: 180, actualSec: 400,
+    pauses: 0, pausedSec: 0, skippedCount: 0,
+    steps: [{ id: "b1", name: "Supino reto", tag: "medio", isRest: false, planned: 180, actual: 180, skipped: false,
+      exercicioId: "ex1", elapsedSec: 330, series: [1, 2, 3].map(() => ({ reps: 12, peso: 60 })) }],
+  };
+  await iniciar(page, "Treino B", {
+    extra: { ...EXTRA.extra, rotinas_v2_history: [...seedLocalStorage.rotinas_v2_history, anterior] },
+  });
+  await foto(page, "player-exercicio-sugestao");
+});
+
 test("player: exercício, descanso da série", async ({ page }) => {
   await iniciar(page, "Treino B");
   await botao(page, "Concluir série").click();

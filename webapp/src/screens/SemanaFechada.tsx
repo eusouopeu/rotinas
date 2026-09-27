@@ -17,6 +17,7 @@ import { LinhaValor } from "../ui/LinhaValor";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store/useAppStore";
+import { Icon } from "../components/Icon";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME, DIAS_ABREV } from "../lib/constants";
 import { DAY_LETTERS } from "../lib/schedule";
@@ -29,6 +30,7 @@ import {
   tituloNotaReflexao,
   rotinasAtrasadasSemana,
   metasProximasSemana,
+  metasRecSemana,
   notaRevisaoSemana,
 } from "../lib/semanaFechada";
 import { tela } from "../ui/Tela";
@@ -100,6 +102,7 @@ export function SemanaFechada() {
   const cor = calcularCorSemana(sem, gam.config.notaMinima);
   const { label: periodoLabel } = formatarPeriodoSemana(sem.inicioISO);
   const metas = metasProximasSemana(templates);
+  const metasRec = metasRecSemana(sem.inicioISO, templates);
 
   const nomesDias = (dias: number[]) =>
     dias.length
@@ -232,6 +235,32 @@ export function SemanaFechada() {
                 </Legenda>
               </Cartao>
             )}
+          </>
+        )}
+
+        {passo === 1 && metasRec.length > 0 && (
+          <>
+            <RotuloSecao>Metas recorrentes</RotuloSecao>
+            <Cartao className={CARTAO}>
+              {metasRec.map((m) => (
+                <LinhaValor
+                  key={m.id}
+                  rotulo={
+                    <>
+                      {m.titulo}
+                      {m.sequencia > 0 && (
+                        <span className="ml-1.5 font-sans text-sm text-streak">
+                          <Icon name="fire" size={12} /> {m.sequencia} {m.unidade}
+                          {m.sequencia > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </>
+                  }
+                  valor={m.resumo}
+                  corValor={m.ok ? "var(--ok)" : "var(--erro)"}
+                />
+              ))}
+            </Cartao>
           </>
         )}
 

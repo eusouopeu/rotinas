@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { kanbanPdfHtml, matrixPdfHtml, metasPdfHtml, prosConsPdfHtml, travelPdfHtml } from "./pdfExport";
-import type { CountdownDoc, KanbanDoc, MatrixDoc, ProsConsDoc, TravelDoc } from "./types";
+import {
+  kanbanPdfHtml,
+  matrixPdfHtml,
+  metasPdfHtml,
+  metasRecRelatorioHtml,
+  prosConsPdfHtml,
+  travelPdfHtml,
+} from "./pdfExport";
+import type { CountdownDoc, KanbanDoc, MatrixDoc, MetaRecorrente, ProsConsDoc, TravelDoc } from "./types";
 
 describe("pdfExport", () => {
   it("matrixPdfHtml escapa HTML e inclui título/eixos/quadrantes", () => {
@@ -142,5 +149,28 @@ describe("pdfExport", () => {
     expect(htmlEmpate).toContain("Prós (3)");
     expect(htmlEmpate).toContain("Contras (3)");
     expect(htmlEmpate).toContain("Placar: 0 — empate");
+  });
+});
+
+describe("metasRecRelatorioHtml", () => {
+  it("conta os períodos cumpridos no intervalo e mostra a sequência", () => {
+    const rec: MetaRecorrente = {
+      id: "a",
+      titulo: "Água <2L>",
+      tipo: "diaria",
+      vezes: 1,
+      criadoEm: 0,
+      sequencia: 1,
+      progresso: { periodo: "dia:2026-09-03", feitas: 1 },
+      historico: [
+        { periodo: "dia:2026-08-31", feitas: 1 },
+        { periodo: "dia:2026-09-01", feitas: 0 },
+        { periodo: "dia:2026-09-02", feitas: 1 },
+      ],
+    };
+    const html = metasRecRelatorioHtml([rec], "2026-09-01", "2026-09-03", new Date(2026, 8, 3, 12));
+    expect(html).toContain("<h2>Metas recorrentes</h2>");
+    expect(html).toContain("Água &lt;2L&gt;</b>: 2 de 3 dias cumpridos · sequência atual: 2 dias");
+    expect(metasRecRelatorioHtml([rec], "2026-10-01", "2026-10-31", new Date(2026, 8, 3, 12))).toBe("");
   });
 });

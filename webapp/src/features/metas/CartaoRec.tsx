@@ -44,28 +44,55 @@ function rotuloPeriodo(p: MetaRecProgresso): string {
 /** Últimos períodos da meta (recomendação 6 de 26/09/2026): cheio verde =
  *  cumprido, cheio vermelho = não cumprido, vazado = período atual em curso. */
 function MiniCalendario({ rec }: { rec: MetaRecorrente }) {
+  // detalhe por toque (27/09/2026): `title` só aparece com mouse, e no celular
+  // as bolinhas ficavam mudas
+  const [aberto, setAberto] = useState<string | null>(null);
   const v = virarPeriodoMetaRec(rec);
   const fechados = (v.historico || []).slice(-6);
   if (!fechados.length) return null;
   const atual = v.progresso!;
   const txt = (p: MetaRecProgresso) =>
     `${rotuloPeriodo(p)}: ${rec.negativa ? `${rec.vezes - p.feitas} de saldo` : `${p.feitas}/${rec.vezes}`}`;
+  const itens = [
+    ...fechados.map((p) => ({
+      p,
+      rotulo: `${txt(p)}, ${metaRecCumprido(rec, p.feitas) ? "cumprido" : "não cumprido"}`,
+      classe: metaRecCumprido(rec, p.feitas) ? "bg-ok" : "bg-erro",
+    })),
+    {
+      p: atual,
+      rotulo: `${txt(atual)}, em curso`,
+      classe: cn(
+        "border-[1.5px] border-line",
+        !rec.negativa && metaRecCumprido(rec, atual.feitas) && "border-ok bg-ok"
+      ),
+    },
+  ];
+  const detalhe = itens.find((x) => x.p.periodo === aberto);
   return (
-    <div className="mt-1.5 flex items-center gap-1" aria-label="Últimos períodos">
-      {fechados.map((p) => (
-        <span
-          key={p.periodo}
-          title={txt(p)}
-          className={cn("inline-block size-2.5 rounded-full", metaRecCumprido(rec, p.feitas) ? "bg-ok" : "bg-erro")}
-        />
-      ))}
-      <span
-        title={`${txt(atual)} (em curso)`}
-        className={cn(
-          "inline-block size-2.5 rounded-full border-[1.5px] border-line",
-          !rec.negativa && metaRecCumprido(rec, atual.feitas) && "border-ok bg-ok"
-        )}
-      />
+    <div className="mt-1">
+      <div className="flex items-center" role="group" aria-label="Últimos períodos">
+        {itens.map((x) => (
+          <button
+            key={x.p.periodo}
+            type="button"
+            aria-label={x.rotulo}
+            aria-pressed={aberto === x.p.periodo}
+            title={x.rotulo}
+            className="border-0 bg-transparent p-1"
+            onClick={() => setAberto(aberto === x.p.periodo ? null : x.p.periodo)}
+          >
+            <span
+              className={cn(
+                "block size-2.5 rounded-full",
+                x.classe,
+                aberto === x.p.periodo && "ring-2 ring-caneta ring-offset-1"
+              )}
+            />
+          </button>
+        ))}
+      </div>
+      {detalhe && <div className="font-sans text-sm text-sub">{detalhe.rotulo}</div>}
     </div>
   );
 }

@@ -46,6 +46,30 @@ export function estimadorSerie(history: HistoryEntry[]): (step: RoutineStep) => 
   };
 }
 
+/** Duração aprendida das etapas de tempo (e descansos) de uma rotina
+ * (recomendação 7 de 27/09/2026): média do tempo real das últimas três vezes
+ * que a etapa foi concluída nessa rotina; com menos de três, o planejado.
+ * Etapa pulada ou "não fazer" não entra na média. */
+export function estimadorEtapaTempo(history: HistoryEntry[], routineId: string): (step: RoutineStep) => number {
+  const ordenado = history.filter((h) => h.routineId === routineId).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const cache = new Map<string, number>();
+  return (step) => {
+    if (cache.has(step.id)) return cache.get(step.id)!;
+    const amostras: number[] = [];
+    for (const h of ordenado) {
+      const a = (h.steps || []).find((x) => x.id === step.id);
+      if (a && !a.skipped && a.actual > 0) amostras.push(a.actual);
+      if (amostras.length >= EXECUCOES_PARA_ESTIMAR) break;
+    }
+    const v =
+      amostras.length < EXECUCOES_PARA_ESTIMAR
+        ? step.seconds || 0
+        : Math.round(amostras.reduce((x, y) => x + y, 0) / amostras.length);
+    cache.set(step.id, v);
+    return v;
+  };
+}
+
 /**
  * Versão simplificada de routineDuration (index.html:1087+): soma os passos
  * como estão salvos, sem passar por playbackSteps (que expande descansos

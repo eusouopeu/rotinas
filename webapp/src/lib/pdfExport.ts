@@ -12,12 +12,21 @@ import type {
   MetaTarget,
   CountdownDoc,
   ProsConsDoc,
+  MetaRecorrente,
 } from "./types";
 import type { HistoryEntry } from "./history";
-import { localKey, anoMesDoFimDaSemana } from "./gamificacao";
+import { localKey, anoMesDoFimDaSemana, addDaysISO, isoToDate } from "./gamificacao";
 import { notaSemanaAtual, pontosPorAreaSemana } from "./boletim";
 import { computeStreak } from "./stats";
-import { metaConcluida, cdPace, cdUnit, daysUntil } from "./metas";
+import {
+  metaConcluida,
+  cdPace,
+  cdUnit,
+  daysUntil,
+  metaRecCumprido,
+  metaRecSequencia,
+  virarPeriodoMetaRec,
+} from "./metas";
 
 function escapeHtml(s: string): string {
   return String(s ?? "")
@@ -245,6 +254,38 @@ function relatorioAnualHtml(
   return { title: "Relatório do ano", inner };
 }
 
+/** Seção "Metas recorrentes" do relatório (recomendação 12 de 27/09/2026):
+ * por meta, períodos cumpridos no intervalo [ini, fim] e a sequência atual.
+ * Período semanal pertence ao intervalo pela data em que termina (mesma regra
+ * de "a semana pertence ao mês em que termina"). */
+export function metasRecRelatorioHtml(
+  recs: MetaRecorrente[],
+  ini: string,
+  fim: string,
+  agora: Date = new Date()
+): string {
+  const linhas: string[] = [];
+  for (const rec0 of recs) {
+    const rec = virarPeriodoMetaRec(rec0, agora);
+    const semanal = rec.tipo === "semanal";
+    const periodos = [...(rec.historico || []), rec.progresso!].filter((p) => {
+      const iniP = p.periodo.slice(p.periodo.indexOf(":") + 1);
+      const ref = semanal ? addDaysISO(iniP, 6) : iniP;
+      return ref >= ini && ref <= fim;
+    });
+    if (!periodos.length) continue;
+    const ok = periodos.filter((p) => metaRecCumprido(rec, p.feitas)).length;
+    const un = semanal ? "semana" : "dia";
+    const seq = metaRecSequencia(rec, agora);
+    linhas.push(
+      `<li><b>${escapeHtml(rec.titulo)}</b>${rec.negativa ? " (limite)" : ""}: ${ok} de ${periodos.length} ${un}${
+        periodos.length > 1 ? "s" : ""
+      } cumprido${periodos.length > 1 ? "s" : ""}${seq > 0 ? ` · sequência atual: ${seq} ${un}${seq > 1 ? "s" : ""}` : ""}</li>`
+    );
+  }
+  return linhas.length ? "<h2>Metas recorrentes</h2><ul>" + linhas.join("") + "</ul>" : "";
+}
+
 /** Porta de relatorioFechamentoHtml (index.html:5501-5571) — gera o relatório
  * pronto para exportação via exportPdfView. */
 export function relatorioFechamentoHtml(
@@ -253,11 +294,24 @@ export function relatorioFechamentoHtml(
   history: HistoryEntry[],
   routines: Routine[],
   targets: MetaTarget[] = [],
-  hojeIso = localKey()
+  hojeIso = localKey(),
+  recorrentes: MetaRecorrente[] = []
 ): { title: string; innerHtml: string } {
   let res: { title: string; inner: string };
-  if (statsView === "mensal") res = relatorioMensalHtml(gam, history, targets, hojeIso);
-  else if (statsView === "anual") res = relatorioAnualHtml(gam, history, targets, hojeIso);
-  else res = relatorioSemanalHtml(gam, history, routines, targets, hojeIso);
-  return { title: res.title, innerHtml: res.inner };
+  let ini: string;
+  if (statsView === "mensal") {
+    res = relatorioMensalHtml(gam, history, targets, hojeIso);
+    ini = hojeIso.slice(0, 7) + "-01";
+  } else if (statsView === "anual") {
+    res = relatorioAnualHtml(gam, history, targets, hojeIso);
+    ini = hojeIso.slice(0, 4) + "-01-01";
+  } else {
+    res = relatorioSemanalHtml(gam, history, routines, targets, hojeIso);
+    ini = gam.semanaAtual?.inicioISO || hojeIso;
+  }
+  // entra antes do "gerado em", que fecha o relatório
+  const secao = metasRecRelatorioHtml(recorrentes, ini, hojeIso, isoToDate(hojeIso));
+  const marca = res.inner.lastIndexOf('<p class="meta">gerado em');
+  const inner = secao && marca >= 0 ? res.inner.slice(0, marca) + secao + res.inner.slice(marca) : res.inner + secao;
+  return { title: res.title, innerHtml: inner };
 }

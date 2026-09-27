@@ -18,6 +18,7 @@ import {
   streakInfoFor,
   sequenciaPorQuantidadeFor,
   cacheSequenciaWidget,
+  definirPausasSequencia,
   marcoStreak,
   gerarInsights,
   intensityClass,
@@ -568,5 +569,38 @@ describe("cacheSequenciaWidget", () => {
     const history = ["2026-01-13", "2026-01-14", "2026-01-15"].map((date) => hist({ date }));
     const c = cacheSequenciaWidget([routine()], history, agora);
     expect(c).toEqual({ hoje: "2026-01-15", valor: 3, amanha: "2026-01-16", valorAmanha: 3 });
+  });
+});
+
+describe("pausa da agenda protege as sequências", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-22T12:00:00"));
+  });
+  afterEach(() => {
+    definirPausasSequencia([]);
+    vi.useRealTimers();
+  });
+  const pausa = (de: string, ate: string) => [
+    { from: new Date(de + "T00:00:00").getTime(), to: new Date(ate + "T23:59:59").getTime() },
+  ];
+
+  it("diária: dias pausados não quebram nem somam", () => {
+    const history = ["2026-01-16", "2026-01-17", "2026-01-21", "2026-01-22"].map((date) => hist({ date }));
+    expect(computeStreakFor("r1", [routine()], history)).toBe(2);
+    definirPausasSequencia(pausa("2026-01-18", "2026-01-20"));
+    expect(computeStreakFor("r1", [routine()], history)).toBe(4);
+    expect(computeStreak([routine()], history)).toBe(4);
+  });
+
+  it("por quantidade: dia marcado pausado reduz a exigência da semana", () => {
+    const r = routine({ id: "r1", schedule: { enabled: true, anchor: "start", time: "07:00", days: [1, 3, 5] } });
+    // semana 11–17 só com 2 execuções (seg/qua); sexta 16 pausada
+    const history = ["2026-01-05", "2026-01-07", "2026-01-09", "2026-01-12", "2026-01-14", "2026-01-19"].map((date) =>
+      hist({ date })
+    );
+    expect(sequenciaPorQuantidadeFor("r1", [r], history).dias).toBe(4);
+    definirPausasSequencia(pausa("2026-01-16", "2026-01-16"));
+    expect(sequenciaPorQuantidadeFor("r1", [r], history).dias).toBe(18);
   });
 });

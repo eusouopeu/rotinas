@@ -5,7 +5,9 @@ import {
   EXERCICIO_SET_SEG,
   routineDurationRaw,
   estimadorSerie,
+  estimadorEtapaTempo,
 } from "./routines";
+import { segundosRestantesEstimados, type PlayerState } from "./player";
 import { sugestaoCarga } from "./exercicios";
 import type { HistoryEntry } from "./history";
 import type { Routine } from "./types";
@@ -90,5 +92,34 @@ describe("sugestaoCarga", () => {
     ];
     expect(sugestaoCarga(null, "ex1", { min: 8, max: 12 }, h)?.peso).toBeNull();
     expect(sugestaoCarga(null, "ex1", { min: 8, max: 12 }, [])).toBeNull();
+  });
+});
+
+describe("estimadorEtapaTempo / previsão com etapas de tempo", () => {
+  const entrada = (ts: number, actual: number, skipped = false): HistoryEntry => ({
+    ...exec(ts, 0, 0),
+    steps: [{ id: "t1", name: "Meditar", tag: "medio", isRest: false, planned: 600, actual, skipped }],
+  });
+
+  it("planejado até três execuções; depois a média do real, sem as puladas", () => {
+    const step = { id: "t1", name: "Meditar", type: "timer" as const, seconds: 600 };
+    expect(estimadorEtapaTempo([entrada(1, 700), entrada(2, 800)], "r1")(step)).toBe(600);
+    const h = [entrada(1, 700), entrada(2, 800), entrada(3, 0, true), entrada(4, 900)];
+    expect(estimadorEtapaTempo(h, "r1")(step)).toBe(800);
+    expect(estimadorEtapaTempo(h, "outra")(step)).toBe(600);
+
+    const agora = 1_000_000;
+    const p = {
+      steps: [step, { ...step, id: "t2", seconds: 60 }],
+      idx: 0,
+      paused: false,
+      pausedAt: null,
+      stepStart: agora - 300_000, // 5 min decorridos
+      stepEndTs: agora + 300_000,
+      ex: null,
+    } as unknown as PlayerState;
+    // aprendido 800 - 300 decorridos + 60 da próxima (sem histórico = planejado)
+    expect(segundosRestantesEstimados(p, () => 75, agora, estimadorEtapaTempo(h, "r1"))).toBe(560);
+    expect(segundosRestantesEstimados(p, () => 75, agora)).toBe(360);
   });
 });

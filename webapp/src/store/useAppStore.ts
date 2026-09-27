@@ -74,6 +74,7 @@ import { avancarGamificacaoAteAgora } from "../lib/scoring";
 import type { HistoryEntry } from "../lib/history";
 import { definirHistoricoEstimativa } from "../lib/routines";
 import { publicarSequenciaWidget } from "../lib/widgets";
+import { definirPausasSequencia } from "../lib/stats";
 import type {
   AnyTemplateDoc,
   AppView,
@@ -781,5 +782,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
 // próximo render, e o widget de sequência recebe o valor já calculado.
 useAppStore.subscribe((s, prev) => {
   if (s.history !== prev.history) definirHistoricoEstimativa(s.history);
-  if (s.history !== prev.history || s.routines !== prev.routines) publicarSequenciaWidget(s.routines, s.history);
+  if (s.snoozes !== prev.snoozes) definirPausasSequencia(s.snoozes);
+  if (s.history !== prev.history || s.routines !== prev.routines || s.snoozes !== prev.snoozes)
+    publicarSequenciaWidget(s.routines, s.history);
 });

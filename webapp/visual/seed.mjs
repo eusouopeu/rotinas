@@ -115,9 +115,17 @@ const templates = [
       { id: "m2", title: "Correr 10 km", date: iso(21), createdAt: t0 - 10 * DIA, tagValor: "medio", areas: ["Saúde"] },
     ],
     recorrentes: [
-      { id: "mr1", titulo: "Beber 2 L de água", tipo: "diaria", vezes: 1, area: "Saúde", tagValor: "baixo", criadoEm: t0 - 15 * DIA, pontua: true },
-      { id: "mr2", titulo: "Treinar", tipo: "semanal", vezes: 3, area: "Saúde", tagValor: "medio", criadoEm: t0 - 15 * DIA, pontua: true },
-      { id: "mr3", titulo: "Redes sociais", tipo: "diaria", vezes: 2, area: "Foco", negativa: true, criadoEm: t0 - 15 * DIA },
+      // histórico de períodos (27/09/2026): mini-calendário do cartão, revisão
+      // da semana fechada e relatório. Hoje (23/09) sem registro ainda.
+      { id: "mr1", titulo: "Beber 2 L de água", tipo: "diaria", vezes: 1, area: "Saúde", tagValor: "baixo", criadoEm: t0 - 15 * DIA, pontua: true,
+        sequencia: 2, progresso: { periodo: "dia:" + iso(0), feitas: 0 },
+        historico: [-6, -5, -4, -3, -2, -1].map((d) => ({ periodo: "dia:" + iso(d), feitas: d === -3 ? 0 : 1 })) },
+      { id: "mr2", titulo: "Treinar", tipo: "semanal", vezes: 3, area: "Saúde", tagValor: "medio", criadoEm: t0 - 15 * DIA, pontua: true,
+        sequencia: 1, progresso: { periodo: "semana:2026-09-20", feitas: 1 },
+        historico: [{ periodo: "semana:2026-09-06", feitas: 2 }, { periodo: "semana:2026-09-13", feitas: 3 }] },
+      { id: "mr3", titulo: "Redes sociais", tipo: "diaria", vezes: 2, area: "Foco", negativa: true, criadoEm: t0 - 15 * DIA,
+        sequencia: 1, progresso: { periodo: "dia:" + iso(0), feitas: 0 },
+        historico: [-4, -3, -2, -1].map((d) => ({ periodo: "dia:" + iso(d), feitas: d === -2 ? 3 : 1 })) },
     ],
   },
   {

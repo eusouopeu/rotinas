@@ -6,7 +6,7 @@ import { addDaysISO, isoToDate } from "./gamificacao";
 import { load, save } from "./storage";
 import { K_GAMIFICACAO } from "./constants";
 import { planejadasEm } from "./stats";
-import { daysUntil, metaConcluida } from "./metas";
+import { daysUntil, metaConcluida, metaRecCumprido, metaRecSequencia, virarPeriodoMetaRec } from "./metas";
 import type { HistoryEntry } from "./history";
 import type { CountdownDoc, GamificacaoState, MetaTarget, Routine, Snooze } from "./types";
 
@@ -53,6 +53,55 @@ export function metasProximasSemana(templates: unknown[]): MetaTarget[] {
     .flatMap((d) => (d as CountdownDoc).targets || [])
     .filter((t) => !metaConcluida(t) && daysUntil(t.date) >= 0 && daysUntil(t.date) <= 14)
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export interface MetaRecSemana {
+  id: string;
+  titulo: string;
+  /** "5 de 7 dias", "cumprida", "passou do limite em 2 dias"… */
+  resumo: string;
+  ok: boolean;
+  sequencia: number;
+  unidade: "dia" | "semana";
+}
+
+/** Metas recorrentes na semana `inicioISO` (recomendação 6 de 27/09/2026),
+ * lidas do histórico de períodos da meta. Semanal: o período da semana.
+ * Diária: quantos dias da semana foram cumpridos, entre os que a meta já
+ * existia. Meta sem nenhum período naquela semana fica de fora. */
+export function metasRecSemana(inicioISO: string, templates: unknown[], agora: Date = new Date()): MetaRecSemana[] {
+  const recs = (templates as Array<{ type?: string }>)
+    .filter((t) => t.type === "countdown")
+    .flatMap((d) => (d as CountdownDoc).recorrentes || []);
+  const out: MetaRecSemana[] = [];
+  for (const rec0 of recs) {
+    const rec = virarPeriodoMetaRec(rec0, agora);
+    const periodos = [...(rec.historico || []), rec.progresso!];
+    const base = { id: rec.id, titulo: rec.titulo, sequencia: metaRecSequencia(rec, agora) };
+    if (rec.tipo === "semanal") {
+      const p = periodos.find((x) => x.periodo === "semana:" + inicioISO);
+      if (!p) continue;
+      const ok = metaRecCumprido(rec, p.feitas);
+      const resumo = rec.negativa
+        ? ok
+          ? `dentro do limite (${p.feitas}/${rec.vezes})`
+          : `passou do limite (${p.feitas}/${rec.vezes})`
+        : `${p.feitas} de ${rec.vezes}`;
+      out.push({ ...base, resumo, ok, unidade: "semana" });
+      continue;
+    }
+    const dias = Array.from({ length: 7 }, (_, k) => "dia:" + addDaysISO(inicioISO, k));
+    const daSemana = periodos.filter((x) => dias.includes(x.periodo));
+    if (!daSemana.length) continue;
+    const cumpridos = daSemana.filter((x) => metaRecCumprido(rec, x.feitas)).length;
+    const resumo = rec.negativa
+      ? cumpridos === daSemana.length
+        ? `dentro do limite ${daSemana.length === 1 ? "no único dia" : `nos ${daSemana.length} dias`}`
+        : `passou do limite em ${daSemana.length - cumpridos} dia${daSemana.length - cumpridos > 1 ? "s" : ""}`
+      : `${cumpridos} de ${daSemana.length} dias`;
+    out.push({ ...base, resumo, ok: cumpridos === daSemana.length, unidade: "dia" });
+  }
+  return out;
 }
 
 /** Conteúdo da nota da revisão: seções com título (viram toggles no editor). */

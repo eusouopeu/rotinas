@@ -43,3 +43,15 @@ Rotina restrita a dias da semana (modo "dias", menos de 7): o dia marcado serve 
 Cada série de exercício (execução + descanso) começa estimada em 75s (`EXERCICIO_SET_SEG`). Com três execuções medidas do exercício (em qualquer rotina), a estimativa passa a ser a média de `elapsedSec / séries` das três mais recentes (`duracaoSerieEstimada`, `lib/routines.ts`). `StepActual.elapsedSec` é o tempo real da etapa sem pausas, gravado só para etapa "exercicio"; `actual` continua séries x descanso, que é o que pontua. Usada na duração do card/detalhe da rotina e na previsão de término no topo do player (`segundosRestantesEstimados`). Desde 27/09/2026 a store registra o histórico em `definirHistoricoEstimativa` (subscribe da store), então `routineDurationRaw` sem estimador explícito — agenda/`computeSchedule` e boletim — também usa a estimativa aprendida.
 
 Sugestão de carga (27/09/2026, `lib/exercicios.ts:sugestaoCarga`): na primeira série, o player mostra a última execução do exercício; se todas as séries bateram o topo da faixa de reps com carga, sugere subir 2,5 kg (composto) ou 1 kg (isolado) com um toque que preenche o campo — nunca preenche sozinho.
+
+## Pausa da agenda nas sequências (27/09/2026)
+
+Dia dentro de uma pausa da agenda (`snoozes`) conta como não devido em todas as sequências de rotina: não soma nem quebra (`computeStreakFor`, `computeStreak`, `recordeStreakFor`). Na sequência por quantidade, cada dia marcado da rotina que caiu na pausa reduz a exigência daquela semana. Dia pausado em que a rotina foi feita mesmo assim continua contando. A store registra as pausas em `definirPausasSequencia` (subscribe, mesmo padrão da estimativa), então selo, Dados, aviso, widget e PDF usam a mesma regra.
+
+## Metas recorrentes na revisão e no relatório (27/09/2026)
+
+A revisão da Semana fechada (passo 2) lista as metas recorrentes com período naquela semana (`metasRecSemana`): semanal pelo período da semana, diária por dias cumpridos entre os que a meta já existia, com a sequência atual. O relatório em PDF de Dados ganhou a seção "Metas recorrentes" (`metasRecRelatorioHtml`) — período semanal entra no intervalo pela data em que termina.
+
+## Previsão de término com etapas de tempo (27/09/2026)
+
+`estimadorEtapaTempo(history, routineId)`: etapa de tempo (e descanso) passa a valer a média do tempo real das últimas três conclusões dela na rotina (pulada/"não fazer" fora); com menos de três, o planejado. Na etapa atual, o aprendido menos o já decorrido. Só a previsão do player usa isso; card e agenda seguem o planejado das etapas de tempo.

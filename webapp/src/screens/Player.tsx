@@ -18,7 +18,7 @@ import {
   parseRepsRange,
   segundosRestantesEstimados,
 } from "../lib/player";
-import { estimadorSerie } from "../lib/routines";
+import { estimadorEtapaTempo, estimadorSerie } from "../lib/routines";
 import { sugestaoCarga } from "../lib/exercicios";
 import { timeUpCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
@@ -239,7 +239,15 @@ export function Player() {
   }
 
   const temNota = !!routine?.notaId;
-  const fimTs = Date.now() + segundosRestantesEstimados(playerState, estimadorSerie(history)) * 1000;
+  const fimTs =
+    Date.now() +
+    segundosRestantesEstimados(
+      playerState,
+      estimadorSerie(history),
+      Date.now(),
+      estimadorEtapaTempo(history, playerState.routineId)
+    ) *
+      1000;
   const fimPrevisto = new Date(fimTs).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   // só faz sentido adiar se existe um próximo BLOCO (tarefa + a pausa dela)
   // inteiro pra trocar de lugar (index.html:12441-12443).

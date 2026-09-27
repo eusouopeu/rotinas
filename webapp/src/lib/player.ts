@@ -322,11 +322,14 @@ export function adiarEtapaPlayer(steps: RoutineStep[], idx: number): AdiarEtapaR
 
 /** Segundos que ainda faltam na rotina em andamento, para a previsão de
  * término: o que resta da etapa atual + as etapas seguintes. Exercício usa a
- * estimativa por série (`serieSeg`), que já inclui o descanso entre séries. */
+ * estimativa por série (`serieSeg`), que já inclui o descanso entre séries.
+ * Etapa de tempo usa `tempoSeg` (duração aprendida, estimadorEtapaTempo)
+ * quando dado; na etapa atual, o aprendido menos o já decorrido. */
 export function segundosRestantesEstimados(
   p: PlayerState,
   serieSeg: (step: RoutineStep) => number,
-  agora = Date.now()
+  agora = Date.now(),
+  tempoSeg?: (step: RoutineStep) => number
 ): number {
   const ref = p.paused && p.pausedAt ? p.pausedAt : agora;
   let total = 0;
@@ -336,8 +339,10 @@ export function segundosRestantesEstimados(
       const feitas = i === p.idx ? p.ex?.results.length || 0 : 0;
       total += Math.max(0, (s.sets || 1) - feitas) * serieSeg(s);
     } else if (s.type === "timer") {
-      if (i === p.idx) total += p.stepEndTs != null ? Math.max(0, (p.stepEndTs - ref) / 1000) : 0;
-      else total += s.seconds || 0;
+      const dur = tempoSeg ? tempoSeg(s) : s.seconds || 0;
+      if (i !== p.idx) total += dur;
+      else if (tempoSeg) total += Math.max(0, dur - (ref - p.stepStart) / 1000);
+      else total += p.stepEndTs != null ? Math.max(0, (p.stepEndTs - ref) / 1000) : 0;
     }
   });
   return Math.round(total);

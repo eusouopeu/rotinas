@@ -38,7 +38,15 @@ export function Stats() {
 
   function handleExportPdf() {
     const doc = templates.find((t): t is CountdownDoc => t.type === "countdown");
-    const { title, innerHtml } = relatorioFechamentoHtml(statsView, gam, history, routines, doc?.targets ?? []);
+    const { title, innerHtml } = relatorioFechamentoHtml(
+      statsView,
+      gam,
+      history,
+      routines,
+      doc?.targets ?? [],
+      undefined,
+      doc?.recorrentes ?? []
+    );
     exportPdfView(title, innerHtml, "Relatórios");
   }
 

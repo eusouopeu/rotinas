@@ -343,6 +343,23 @@ export function snoozedOn(snoozes: Snooze[], dateObj: Date): boolean {
   return snoozes.some((s) => t >= s.from && t <= s.to);
 }
 
+/* Pausas da agenda para as sequências (27/09/2026): dia pausado (férias,
+   doença) conta como não devido — não soma nem quebra. A store registra as
+   pausas aqui a cada mudança (mesmo padrão de definirHistoricoEstimativa), para
+   todos os leitores de sequência (selo, Dados, aviso, widget, PDF) valerem igual. */
+let pausasSequencia: Snooze[] = [];
+
+export function definirPausasSequencia(snoozes: Snooze[]): void {
+  pausasSequencia = snoozes || [];
+}
+
+function diaPausado(d: Date): boolean {
+  if (!pausasSequencia.length) return false;
+  const meioDia = new Date(d);
+  meioDia.setHours(12, 0, 0, 0);
+  return snoozedOn(pausasSequencia, meioDia);
+}
+
 /** Porta de solidColor (index.html:2388) — fallback diferente de
  * `fillStyle` (scoring.ts), só para os gráficos de Estatísticas. */
 export function solidColor(c: string | undefined | null): string {
@@ -504,7 +521,7 @@ export function computeStreakFor(routineId: string, routines: Routine[], history
   let guard = 0;
   while (guard++ < 3700) {
     const key = localKey(d);
-    if (restrito && !rotinaAgendadaEm(r, d)) {
+    if ((restrito && !rotinaAgendadaEm(r, d)) || (!days.has(key) && diaPausado(d))) {
       d.setDate(d.getDate() - 1);
       continue;
     }
@@ -540,7 +557,7 @@ export function computeStreak(routines: Routine[], history: HistoryEntry[], agor
       d.setDate(d.getDate() - 1);
     } else if (key === todayKey) {
       d.setDate(d.getDate() - 1);
-    } else if (!algumaRotinaDevidaEm(d, routines)) {
+    } else if (!algumaRotinaDevidaEm(d, routines) || diaPausado(d)) {
       d.setDate(d.getDate() - 1);
     } else {
       break;
@@ -641,7 +658,7 @@ export function recordeStreakFor(routineId: string, routines: Routine[], history
   while (guard++ < 3700) {
     const key = localKey(d);
     if (key > hojeKey) break;
-    const devido = restrito ? rotinaAgendadaEm(r!, d) : true;
+    const devido = (restrito ? rotinaAgendadaEm(r!, d) : true) && (dias.has(key) || !diaPausado(d));
     if (!devido) {
       // não conta nem quebra
     } else if (dias.has(key)) {
@@ -700,6 +717,19 @@ function diasEntre(aISO: string, bISO: string): number {
   return Math.round((isoToDate(bISO).getTime() - isoToDate(aISO).getTime()) / 86400000);
 }
 
+/** Dias marcados da rotina, na semana que começa em `inicioISO`, que caíram
+ * numa pausa da agenda — a exigência da semana cai na mesma quantidade. */
+function diasPausadosAgendados(r: Routine, inicioISO: string): number {
+  if (!pausasSequencia.length) return 0;
+  let n = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = isoToDate(inicioISO);
+    d.setDate(d.getDate() + i);
+    if (rotinaAgendadaEm(r, d) && diaPausado(d)) n++;
+  }
+  return n;
+}
+
 /** Sequência de rotina restrita a dias da semana (pedido de 26/09/2026): o
  * dia marcado só serve para "hoje" e para a agenda; a sequência vale pela
  * QUANTIDADE — só quebra quando uma semana fechada teve menos execuções que
@@ -738,7 +768,7 @@ export function sequenciaPorQuantidadeFor(
       execucoes += naSemana.length;
     }
     if (cursorISO === hojeSemanaISO) break;
-    if (count < requerido) {
+    if (count < requerido - diasPausadosAgendados(r, cursorISO)) {
       if (inicio && ultimo) recordeDias = Math.max(recordeDias, diasEntre(inicio, ultimo) + 1);
       inicio = null;
       ultimo = null;
