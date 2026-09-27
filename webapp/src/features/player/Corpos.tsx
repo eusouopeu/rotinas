@@ -6,6 +6,7 @@ import { Icon } from "../../components/Icon";
 import { CirculoCheck } from "../../ui/CirculoCheck";
 import { Legenda } from "../../ui/Legenda";
 import { cn } from "../../lib/cn";
+import type { SugestaoCarga } from "../../lib/exercicios";
 import { fmtTime } from "../../lib/format";
 
 const TITULO_ETAPA = "font-sans text-lg tracking-[0.04em] text-sub uppercase paisagem:text-sm";
@@ -90,6 +91,8 @@ type ExercicioProps = {
   peso: number;
   onReps: (n: number) => void;
   onPeso: (n: number) => void;
+  /** Sugestão de carga pela última execução (lib/exercicios.ts:sugestaoCarga). */
+  sugestao?: SugestaoCarga | null;
 };
 
 export function CorpoExercicio(p: ExercicioProps) {
@@ -138,6 +141,30 @@ export function CorpoExercicio(p: ExercicioProps) {
           onChange={(e) => p.onPeso(+e.target.value || 0)}
         />
       </div>
+      {p.sugestao && p.serieAtual === 0 && (
+        <Legenda className="mt-2">
+          última: {p.sugestao.ultima}
+          {p.sugestao.peso != null ? (
+            p.peso === p.sugestao.peso ? (
+              ` · subindo para ${String(p.sugestao.peso).replace(".", ",")} kg`
+            ) : (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  className="border-0 bg-transparent p-0 font-semibold text-caneta underline"
+                  onClick={() => p.onPeso(p.sugestao!.peso!)}
+                  title={p.sugestao.motivo}
+                >
+                  tentar {String(p.sugestao.peso).replace(".", ",")} kg
+                </button>
+              </>
+            )
+          ) : (
+            ` · ${p.sugestao.motivo}`
+          )}
+        </Legenda>
+      )}
     </Miolo>
   );
 }

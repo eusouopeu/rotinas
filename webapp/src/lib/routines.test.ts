@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { duracaoSerieEstimada, EXERCICIO_SET_SEG, routineDurationRaw, estimadorSerie } from "./routines";
+import {
+  definirHistoricoEstimativa,
+  duracaoSerieEstimada,
+  EXERCICIO_SET_SEG,
+  routineDurationRaw,
+  estimadorSerie,
+} from "./routines";
+import { sugestaoCarga } from "./exercicios";
 import type { HistoryEntry } from "./history";
 import type { Routine } from "./types";
 
@@ -49,5 +56,39 @@ describe("duracaoSerieEstimada", () => {
       steps: [{ id: "s1", name: "Supino", type: "exercicio", exercicioId: "ex1", sets: 4 }],
     };
     expect(routineDurationRaw(r, estimadorSerie(h))).toBe(400);
+    // sem estimador explícito (agenda/boletim): usa o histórico registrado
+    expect(routineDurationRaw(r)).toBe(4 * EXERCICIO_SET_SEG);
+    definirHistoricoEstimativa(h);
+    expect(routineDurationRaw(r)).toBe(400);
+    definirHistoricoEstimativa([]);
+  });
+});
+
+describe("sugestaoCarga", () => {
+  const comSeries = (ts: number, series: Array<{ reps: number; peso: number }>) => {
+    const e = exec(ts, 300, series.length);
+    e.steps[0].series = series;
+    return e;
+  };
+
+  it("todas as séries no topo da faixa sobem um incremento", () => {
+    const h = [comSeries(1, [{ reps: 8, peso: 20 }]), comSeries(2, Array(3).fill({ reps: 12, peso: 20 }))];
+    const s = sugestaoCarga(null, "ex1", { min: 8, max: 12 }, h);
+    expect(s?.ultima).toBe("3×12 · 20 kg");
+    expect(s?.peso).toBe(22.5);
+    expect(sugestaoCarga({ id: "ex1", nome: "x", composto: false } as never, "ex1", { min: 8, max: 12 }, h)?.peso).toBe(
+      21
+    );
+  });
+
+  it("série abaixo do mínimo mantém a carga; sem histórico não sugere", () => {
+    const h = [
+      comSeries(1, [
+        { reps: 12, peso: 20 },
+        { reps: 6, peso: 20 },
+      ]),
+    ];
+    expect(sugestaoCarga(null, "ex1", { min: 8, max: 12 }, h)?.peso).toBeNull();
+    expect(sugestaoCarga(null, "ex1", { min: 8, max: 12 }, [])).toBeNull();
   });
 });

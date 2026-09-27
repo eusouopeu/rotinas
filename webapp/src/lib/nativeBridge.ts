@@ -190,6 +190,44 @@ export interface TimerOverlayPlugin {
   requestPermission(): Promise<{ granted: boolean }> | { granted: boolean };
   show(args: TimerOverlayShowArgs): Promise<void> | void;
   hide(): Promise<void> | void;
+  /** APK v75+: ausente em builds antigos. */
+  status?(): Promise<CronometroStatus> | CronometroStatus;
+  abrirAjustesNotificacao?(): Promise<void> | void;
+}
+
+/** O que o sistema deixa o cronômetro mostrar (TimerOverlayPlugin.status).
+ * `promovidas` null = Android < 16 ou aparelho sem a API de Live Updates. */
+export interface CronometroStatus {
+  sdk: number;
+  notificacoes: boolean;
+  sobreposicao: boolean;
+  promovidas: boolean | null;
+}
+
+export async function cronometroStatus(): Promise<CronometroStatus | null> {
+  const p = getTimerOverlayBridge();
+  if (!p?.status) return null;
+  try {
+    return await p.status();
+  } catch (e) {
+    console.error("overlay:status", e);
+    return null;
+  }
+}
+
+export function abrirAjustesNotificacao(): void {
+  const p = getTimerOverlayBridge();
+  if (!p?.abrirAjustesNotificacao) return;
+  chamarPonte(() => p.abrirAjustesNotificacao!(), "overlay:");
+}
+
+/** Redesenha os widgets da tela inicial (WidgetsPlugin) — porta de
+ * index.html:2744, que o React não chamava: os widgets só se atualizavam no
+ * ciclo periódico do Android. */
+export function atualizarWidgets(): void {
+  const w = isNative ? window.Capacitor?.Plugins.Widgets : undefined;
+  if (!w) return;
+  chamarPonte(() => w.refresh(), "widgets:");
 }
 
 export function getTimerOverlayBridge(): TimerOverlayPlugin | null {

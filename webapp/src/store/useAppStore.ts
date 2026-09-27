@@ -72,6 +72,8 @@ import { checkStorageWarning } from "../lib/storageWarning";
 import { loadMetasSubviewSel, type MetasSubview } from "../lib/metas";
 import { avancarGamificacaoAteAgora } from "../lib/scoring";
 import type { HistoryEntry } from "../lib/history";
+import { definirHistoricoEstimativa } from "../lib/routines";
+import { publicarSequenciaWidget } from "../lib/widgets";
 import type {
   AnyTemplateDoc,
   AppView,
@@ -269,6 +271,9 @@ export interface AppState {
   addMetaRec: (params: Omit<MetaRecorrente, "id" | "criadoEm" | "progresso">) => void;
   updateMetaRec: (id: string, patch: Partial<MetaRecorrente>) => void;
   ajustarMetaRec: (id: string, delta: number) => void;
+  /** Fecha o período das metas recorrentes cujo dia/semana virou (sequência +
+   * histórico) e grava — boot e volta ao app. */
+  virarMetasRec: () => void;
   duplicarMetaRec: (id: string) => void;
   deleteMetaRec: (id: string) => void;
   reorderMetaRec: (fromIndex: number, toIndex: number) => void;
@@ -455,6 +460,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     // é local-first, estourar a cota é perda silenciosa.
     const avisoStorage = checkStorageWarning();
     if (avisoStorage) setTimeout(() => get().showAlertBanner(avisoStorage), 1200);
+    get().virarMetasRec();
     // Avisos proativos (ritmo/metas/streak) — ver checarNudgesAgora.
     setTimeout(() => get().checarNudgesAgora(), 1500);
     const snoozed = algumSnoozeAtivo(get().snoozes);
@@ -769,3 +775,11 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   dismissBanner: () => set({ banner: null }),
   dismissUndoBanner: () => set({ undoBanner: null }),
 }));
+
+// Efeitos de mudança do histórico/rotinas fora do React (26/09/2026): a
+// estimativa de série aprendida vira o padrão de routineDurationRaw antes do
+// próximo render, e o widget de sequência recebe o valor já calculado.
+useAppStore.subscribe((s, prev) => {
+  if (s.history !== prev.history) definirHistoricoEstimativa(s.history);
+  if (s.history !== prev.history || s.routines !== prev.routines) publicarSequenciaWidget(s.routines, s.history);
+});

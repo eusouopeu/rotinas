@@ -27,6 +27,15 @@ export function duracaoSerieEstimada(step: Pick<RoutineStep, "id" | "exercicioId
   return Math.round(amostras.reduce((x, y) => x + y, 0) / amostras.length);
 }
 
+let estimadorPadrao: (step: RoutineStep) => number = () => EXERCICIO_SET_SEG;
+
+/** A store chama a cada mudança do histórico: a estimativa aprendida passa a
+ * ser o padrão de routineDurationRaw também para quem não tem o histórico à
+ * mão (agenda/computeSchedule, boletim). */
+export function definirHistoricoEstimativa(history: HistoryEntry[]): void {
+  estimadorPadrao = estimadorSerie(history);
+}
+
 /** Estimador por etapa para routineDurationRaw/segundosRestantesEstimados. */
 export function estimadorSerie(history: HistoryEntry[]): (step: RoutineStep) => number {
   const cache = new Map<string, number>();
@@ -44,11 +53,13 @@ export function estimadorSerie(history: HistoryEntry[]): (step: RoutineStep) => 
  * lista mostrar uma duração aproximada; não é a duração exata de execução.
  * `exercicioSetSeg` pode ser fixo ou um estimador por etapa (estimadorSerie).
  */
-export function routineDurationRaw(
-  r: Routine,
-  exercicioSetSeg: number | ((step: RoutineStep) => number) = EXERCICIO_SET_SEG
-): number {
-  const serie = typeof exercicioSetSeg === "function" ? exercicioSetSeg : () => exercicioSetSeg;
+export function routineDurationRaw(r: Routine, exercicioSetSeg?: number | ((step: RoutineStep) => number)): number {
+  const serie =
+    exercicioSetSeg === undefined
+      ? estimadorPadrao
+      : typeof exercicioSetSeg === "function"
+        ? exercicioSetSeg
+        : () => exercicioSetSeg;
   return r.steps.reduce((acc, s) => {
     if (s.type === "timer") return acc + (s.seconds || 0);
     if (s.type === "exercicio") return acc + (s.sets || 1) * serie(s);

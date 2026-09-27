@@ -7,6 +7,7 @@ import { useAppStore } from "./store/useAppStore";
 import { computeRemaining } from "./lib/player";
 import { isDesktop } from "./lib/storage";
 import { onAppStateChange } from "./lib/nativeBridge";
+import { publicarSequenciaWidget } from "./lib/widgets";
 import { criarDispatcherMcp } from "./lib/mcpDispatch";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
@@ -197,13 +198,22 @@ export function App() {
   // (index.html: appStateChange + checarNudge*). Idempotente: cada aviso tem
   // sua própria marca de "já avisei hoje".
   useEffect(() => {
-    const checar = () => useAppStore.getState().checarNudgesAgora();
+    const checar = () => {
+      useAppStore.getState().virarMetasRec();
+      useAppStore.getState().checarNudgesAgora();
+    };
     const onVis = () => {
       if (!document.hidden) checar();
     };
     document.addEventListener("visibilitychange", onVis);
     const unsubscribe = onAppStateChange((isActive) => {
       if (isActive) checar();
+      // saindo da frente: o dia pode ter virado com o app aberto — republica a
+      // sequência do widget (index.html:2744 redesenhava os widgets aqui).
+      else {
+        const s = useAppStore.getState();
+        publicarSequenciaWidget(s.routines, s.history);
+      }
     });
     return () => {
       document.removeEventListener("visibilitychange", onVis);

@@ -21,6 +21,9 @@ export const K_NUDGEMETAS = "rotinas_v2_nudge_metas"; // aviso de meta perto do 
 export const K_NUDGESTREAK = "rotinas_v2_nudge_streak"; // aviso de sequência em risco
 export const K_NUDGEMETASDONE = "rotinas_v2_nudge_metas_done";
 export const K_NUDGESTREAKDONE = "rotinas_v2_nudge_streak_done";
+/** Cache local (fora de backup/sync) da sequência geral já calculada pelo app,
+ * lido pelo widget Android (StreakStore.java) — o widget não reimplementa a regra. */
+export const K_WIDGETSTREAK = "rotinas_v2_widget_streak";
 export const K_SOMMODO = "rotinas_v2_som_modo"; // "mudo" | "suave" | "normal" — aviso sonoro do cronômetro
 export const K_VIBRAR = "rotinas_v2_vibrar"; // vibração nos avisos do cronômetro
 

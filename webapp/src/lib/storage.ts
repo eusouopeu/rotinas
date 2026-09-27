@@ -47,6 +47,7 @@ export interface CapacitorPlugins {
   LocalNotifications?: import("./nativeBridge").LocalNotificationsPlugin;
   Share?: import("./nativeBridge").SharePlugin;
   TimerOverlay?: import("./nativeBridge").TimerOverlayPlugin;
+  Widgets?: { refresh(): Promise<void> | void };
   App?: import("./nativeBridge").AppPlugin;
 }
 

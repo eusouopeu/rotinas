@@ -16,6 +16,8 @@ import {
   metaRecExcesso,
   metaRecFeitas,
   sincronizarPontosMeta,
+  virarMetasRecDoc,
+  virarPeriodoMetaRec,
   toggleMetasSubview,
 } from "../../lib/metas";
 import { estornarPenalidadesMetaRec, sincronizarPenalidadeMetaRec, sincronizarPontosMetaRec } from "../../lib/scoring";
@@ -34,6 +36,7 @@ export type MetasSlice = Pick<
   | "addMetaRec"
   | "updateMetaRec"
   | "ajustarMetaRec"
+  | "virarMetasRec"
   | "duplicarMetaRec"
   | "deleteMetaRec"
   | "reorderMetaRec"
@@ -153,7 +156,7 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
     const excessoAntes = alvo.negativa ? metaRecExcesso(alvo) : 0;
     const feitasAntes = !alvo.negativa && alvo.pontua ? metaRecFeitas(alvo) : 0;
 
-    let atualizado: MetaRecorrente = { ...alvo, ...patch };
+    let atualizado: MetaRecorrente = { ...virarPeriodoMetaRec(alvo), ...patch };
     if (patch.vezes != null) atualizado.vezes = Math.max(1, patch.vezes);
     let gam = get().gam;
     const excessoDepois = atualizado.negativa ? metaRecExcesso(atualizado) : 0;
@@ -171,6 +174,18 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
     save(K_GAMIFICACAO, gam);
     set({ templates, gam });
     syncMetaRecNotifications(docNovo.recorrentes || [], algumSnoozeAtivo(get().snoozes));
+  },
+  virarMetasRec: () => {
+    let mudou = false;
+    const templates = get().templates.map((t) => {
+      if (!isCountdownDoc(t)) return t;
+      const v = virarMetasRecDoc(t);
+      if (v !== t) mudou = true;
+      return v;
+    });
+    if (!mudou) return;
+    save(K_TEMPLATES, templates);
+    set({ templates });
   },
   ajustarMetaRec: (id, delta) => {
     const doc = get().metaDoc();

@@ -526,12 +526,12 @@ export function algumaRotinaDevidaEm(date: Date, routines: Routine[]): boolean {
 }
 
 /** Porta de computeStreak (index.html:2423-2436). */
-export function computeStreak(routines: Routine[], history: HistoryEntry[]): number {
+export function computeStreak(routines: Routine[], history: HistoryEntry[], agora: Date = new Date()): number {
   if (history.length === 0) return 0;
   const days = new Set(history.map((h) => h.date));
-  const todayKey = localKey();
+  const todayKey = localKey(agora);
   let streak = 0;
-  const d = new Date();
+  const d = new Date(agora);
   let guard = 0;
   while (guard++ < 3700) {
     const key = localKey(d);
@@ -1844,5 +1844,30 @@ export function getRoutineDetailStats(
     hasHourCounts,
     routineColor,
     recent,
+  };
+}
+
+export interface CacheSequenciaWidget {
+  hoje: string;
+  valor: number;
+  amanha: string;
+  valorAmanha: number;
+}
+
+/** O que o widget de sequência mostra (K_WIDGETSTREAK): o valor de hoje e o
+ * de amanhã se nada for feito, para o widget continuar certo na virada do dia
+ * mesmo sem o app abrir. Fora desses dois dias ele cai no cálculo próprio. */
+export function cacheSequenciaWidget(
+  routines: Routine[],
+  history: HistoryEntry[],
+  agora: Date = new Date()
+): CacheSequenciaWidget {
+  const amanha = new Date(agora);
+  amanha.setDate(amanha.getDate() + 1);
+  return {
+    hoje: localKey(agora),
+    valor: computeStreak(routines, history, agora),
+    amanha: localKey(amanha),
+    valorAmanha: computeStreak(routines, history, amanha),
   };
 }

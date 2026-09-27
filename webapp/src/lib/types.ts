@@ -186,8 +186,11 @@ export interface MetaRecorrente {
   progresso?: MetaRecProgresso | null;
   /** Sequência contínua de períodos fechados cumpridos (positiva: feitas >=
    * vezes; negativa: feitas <= vezes). Atualizada na virada do período por
-   * metaRecProgresso; nunca zera só porque a semana virou. */
+   * virarPeriodoMetaRec; nunca zera só porque a semana virou. */
   sequencia?: number;
+  /** Períodos já fechados, mais antigo primeiro (no máximo
+   * METAREC_HISTORICO_MAX; períodos sem registro entram com feitas = 0). */
+  historico?: MetaRecProgresso[];
 }
 
 export interface CountdownDoc {

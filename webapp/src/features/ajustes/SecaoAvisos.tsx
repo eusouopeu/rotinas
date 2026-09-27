@@ -12,6 +12,7 @@ import { Toggle } from "../../ui/Segmentado";
 import { Switch } from "../../ui/Switch";
 import { LinhaValor } from "../../ui/LinhaValor";
 import { SecaoAjuste } from "./SecaoAjuste";
+import { DiagnosticoCronometro } from "./DiagnosticoCronometro";
 
 const DIA_LABEL = ["D", "S", "T", "Q", "Q", "S", "S"];
 const SOM_MODOS: SomModo[] = ["mudo", "suave", "normal"];
@@ -100,6 +101,7 @@ export function SecaoAvisos() {
               />
             </LinhaValor>
             <Legenda className="mt-3">{TEXTO_CRONOMETRO[cronometroModo]}</Legenda>
+            {cronometroModo !== "off" && <DiagnosticoCronometro />}
           </div>
         </>
       )}

@@ -3,6 +3,7 @@
 // descanso entre séries deriva dele conforme o exercício — composto usa o
 // valor cheio, isolado usa 0,75x, porque exercício multiarticular pede mais
 // recuperação que monoarticular.
+import type { HistoryEntry } from "./history";
 import type { Exercicio } from "./types";
 
 export const FATOR_DESCANSO_ISOLADO = 0.75;
@@ -16,4 +17,53 @@ export function ehComposto(ex: Exercicio | null | undefined) {
 export function descansoEntreSeries(restSeconds: number, ex: Exercicio | null | undefined) {
   const base = Math.max(0, restSeconds || 0);
   return ehComposto(ex) ? base : Math.round(base * FATOR_DESCANSO_ISOLADO);
+}
+
+/** Incremento de carga sugerido: composto sobe 2,5 kg, isolado 1 kg. */
+export function incrementoCarga(ex: Exercicio | null | undefined): number {
+  return ehComposto(ex) ? 2.5 : 1;
+}
+
+export interface SugestaoCarga {
+  /** "3×12 · 20 kg" — a última execução do exercício. */
+  ultima: string;
+  /** Carga sugerida para hoje; null = manter a de sempre. */
+  peso: number | null;
+  motivo: string;
+}
+
+/** Sugestão de progressão (recomendação 8 de 26/09/2026): olha a última vez
+ * que o exercício foi feito. Todas as séries no topo da faixa de reps (8-12 →
+ * 12) com carga > 0 → sobe um incremento; alguma série abaixo do mínimo →
+ * mantém a carga; no meio da faixa → mantém e busca mais reps. */
+export function sugestaoCarga(
+  ex: Exercicio | null | undefined,
+  exercicioId: string | undefined,
+  faixa: { min: number; max: number },
+  history: HistoryEntry[]
+): SugestaoCarga | null {
+  if (!exercicioId) return null;
+  let series: Array<{ reps: number; peso: number }> | null = null;
+  let ts = -1;
+  for (const h of history) {
+    if ((h.ts || 0) <= ts) continue;
+    const a = (h.steps || []).find((x) => x.exercicioId === exercicioId && (x.series?.length || 0) > 0);
+    if (a) {
+      series = a.series!;
+      ts = h.ts || 0;
+    }
+  }
+  if (!series) return null;
+  const pesoMax = Math.max(...series.map((x) => x.peso || 0));
+  const repsTxt = series.every((x) => x.reps === series![0].reps)
+    ? `${series.length}×${series[0].reps}`
+    : series.map((x) => x.reps).join("/");
+  const ultima = pesoMax > 0 ? `${repsTxt} · ${String(pesoMax).replace(".", ",")} kg` : repsTxt;
+  if (faixa.max > 0 && pesoMax > 0 && series.every((x) => x.reps >= faixa.max)) {
+    return { ultima, peso: pesoMax + incrementoCarga(ex), motivo: "todas as séries no topo da faixa" };
+  }
+  if (faixa.min > 0 && series.some((x) => x.reps < faixa.min)) {
+    return { ultima, peso: null, motivo: "manter a carga até fechar a faixa" };
+  }
+  return { ultima, peso: null, motivo: "manter a carga e buscar mais repetições" };
 }

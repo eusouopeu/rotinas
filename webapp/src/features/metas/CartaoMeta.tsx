@@ -93,12 +93,15 @@ export function ContadorMeta({
   onMenos,
   onMais,
   invertido,
+  aviso,
 }: {
   texto: string;
   cor?: string;
   onMenos: () => void;
   onMais: () => void;
   invertido?: boolean;
+  /** Texto curto ao lado do contador (ex.: pontos do último toque). */
+  aviso?: { texto: string; positivo: boolean } | null;
 }) {
   const menos = (
     <BotaoRedondo rotulo="Menos um" tamanho="sm" onClick={onMenos}>
@@ -117,6 +120,14 @@ export function ContadorMeta({
         {texto}
       </span>
       {invertido ? menos : mais}
+      {aviso && (
+        <span
+          className={cn("font-sans text-sm font-semibold tabular-nums", aviso.positivo ? "text-ok" : "text-erro")}
+          aria-live="polite"
+        >
+          {aviso.texto}
+        </span>
+      )}
     </div>
   );
 }

@@ -113,6 +113,47 @@ public class TimerOverlayPlugin extends Plugin {
         show(call);
     }
 
+    /**
+     * Diagnóstico do cronômetro (Ajustes, 27/09/2026): o que o sistema deixa
+     * o app mostrar. `promovidas` é null abaixo do Android 16 ou quando o
+     * método não existe no aparelho (chamado por reflexão, como o extra de
+     * promoção no serviço, porque o SDK instalado não expõe a API).
+     */
+    @PluginMethod
+    public void status(PluginCall call) {
+        Context ctx = getContext();
+        android.app.NotificationManager nm =
+                (android.app.NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+        JSObject r = new JSObject();
+        r.put("sdk", Build.VERSION.SDK_INT);
+        r.put("notificacoes", nm != null && (Build.VERSION.SDK_INT < 24 || nm.areNotificationsEnabled()));
+        r.put("sobreposicao", canDraw());
+        Object promovidas = null;
+        if (nm != null && Build.VERSION.SDK_INT >= 36) {
+            try {
+                promovidas = nm.getClass().getMethod("canPostPromotedNotifications").invoke(nm);
+            } catch (Exception ignored) {}
+        }
+        r.put("promovidas", promovidas == null ? JSObject.NULL : promovidas);
+        call.resolve(r);
+    }
+
+    /** Abre a tela de notificações do app (onde fica "notificações em tempo real"). */
+    @PluginMethod
+    public void abrirAjustesNotificacao(PluginCall call) {
+        Context ctx = getContext();
+        Intent i;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+            i.putExtra(Settings.EXTRA_APP_PACKAGE, ctx.getPackageName());
+        } else {
+            i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ctx.getPackageName()));
+        }
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { ctx.startActivity(i); } catch (Exception e) { call.reject(e.getMessage()); return; }
+        call.resolve();
+    }
+
     @PluginMethod
     public void hide(PluginCall call) {
         Context ctx = getContext();

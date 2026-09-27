@@ -16,6 +16,7 @@ import {
   metaRecProgresso,
   metaRecSaldo,
   metaRecSequencia,
+  virarPeriodoMetaRec,
   sincronizarPontosMeta,
   toggleMetasSubview,
 } from "./metas";
@@ -161,9 +162,31 @@ describe("metas recorrentes: período e progresso", () => {
     expect(pHoje.periodo).toBe("dia:2026-09-04");
     expect(pHoje.feitas).toBe(0);
 
+    // não altera a meta (a virada é gravada pela store, virarMetasRec)
+    expect(rec.progresso!.feitas).toBe(3);
+
     // Mesmo período -> preserva
-    pHoje.feitas = 2;
-    expect(metaRecProgresso(rec, hoje).feitas).toBe(2);
+    const hojeRec = { ...rec, progresso: { periodo: "dia:2026-09-04", feitas: 2 } };
+    expect(metaRecProgresso(hojeRec, hoje).feitas).toBe(2);
+  });
+
+  it("virarPeriodoMetaRec guarda o período fechado e os vazios no histórico", () => {
+    const rec: MetaRecorrente = {
+      id: "r1",
+      titulo: "Água",
+      tipo: "diaria",
+      vezes: 4,
+      criadoEm: 0,
+      progresso: { periodo: "dia:2026-09-01", feitas: 4 },
+    };
+    const v = virarPeriodoMetaRec(rec, hoje); // 04/09: 02 e 03 ficaram vazios
+    expect(v.historico).toEqual([
+      { periodo: "dia:2026-09-01", feitas: 4 },
+      { periodo: "dia:2026-09-02", feitas: 0 },
+      { periodo: "dia:2026-09-03", feitas: 0 },
+    ]);
+    expect(v.progresso).toEqual({ periodo: "dia:2026-09-04", feitas: 0 });
+    expect(virarPeriodoMetaRec(v, hoje)).toBe(v);
   });
 
   it("metaRecCompleta, metaRecExcesso e metaRecExcedida calculam corretamente", () => {

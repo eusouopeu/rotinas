@@ -17,6 +17,7 @@ import {
   recordeStreakSemanalFor,
   streakInfoFor,
   sequenciaPorQuantidadeFor,
+  cacheSequenciaWidget,
   marcoStreak,
   gerarInsights,
   intensityClass,
@@ -558,5 +559,14 @@ describe("sequenciaPorQuantidadeFor (seg/qua/sex = 3 por semana, dia livre)", ()
     expect(q.dias).toBe(4);
     expect(q.execucoes).toBe(1);
     expect(q.recordeDias).toBe(10); // 05 → 14
+  });
+});
+
+describe("cacheSequenciaWidget", () => {
+  it("guarda o valor de hoje e o de amanhã se nada for feito", () => {
+    const agora = new Date("2026-01-15T12:00:00");
+    const history = ["2026-01-13", "2026-01-14", "2026-01-15"].map((date) => hist({ date }));
+    const c = cacheSequenciaWidget([routine()], history, agora);
+    expect(c).toEqual({ hoje: "2026-01-15", valor: 3, amanha: "2026-01-16", valorAmanha: 3 });
   });
 });

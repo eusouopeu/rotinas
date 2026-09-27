@@ -142,16 +142,63 @@ export function metaRecPeriodoAtual(rec: Pick<MetaRecorrente, "tipo">, data: Dat
   return rec.tipo === "semanal" ? "semana:" + inicioSemanaISO(data) : "dia:" + localKey(data);
 }
 
+export const METAREC_HISTORICO_MAX = 60;
+
 /**
- * Lê o progresso do período corrente, com reset preguiçoso quando o dia ou semana vira.
+ * Meta com o período corrente aberto: se o dia/semana virou desde o último
+ * registro, fecha o período antigo (sequência + histórico) e abre um zerado.
+ * Pura — devolve o mesmo objeto quando nada virou. Até 27/09/2026 isso era
+ * feito mutando a meta dentro de metaRecProgresso, durante o render do cartão,
+ * e só persistia no próximo save qualquer; agora a store vira as metas no boot
+ * e na volta ao app (virarMetasRec) e grava na hora.
  */
-export function metaRecProgresso(rec: MetaRecorrente, data: Date = new Date()): MetaRecProgresso {
+export function virarPeriodoMetaRec(rec: MetaRecorrente, data: Date = new Date()): MetaRecorrente {
   const per = metaRecPeriodoAtual(rec, data);
-  if (!rec.progresso || rec.progresso.periodo !== per) {
-    if (rec.progresso) rec.sequencia = sequenciaAoFechar(rec, rec.progresso, data);
-    rec.progresso = { periodo: per, feitas: 0 };
+  if (rec.progresso && rec.progresso.periodo === per) return rec;
+  if (!rec.progresso) return { ...rec, progresso: { periodo: per, feitas: 0 } };
+  const fechado = rec.progresso;
+  const historico = [...(rec.historico || []), { ...fechado }];
+  const vazios = Math.min(periodosVazios(rec, fechado.periodo, data), METAREC_HISTORICO_MAX);
+  const passo = rec.tipo === "semanal" ? 7 : 1;
+  const ini = fechado.periodo.slice(fechado.periodo.indexOf(":") + 1);
+  for (let i = 1; i <= vazios; i++) {
+    const d = isoParaData(ini);
+    d.setDate(d.getDate() + i * passo);
+    historico.push({ periodo: metaRecPeriodoAtual(rec, d), feitas: 0 });
   }
-  return rec.progresso;
+  return {
+    ...rec,
+    sequencia: sequenciaAoFechar(rec, fechado, data),
+    historico: historico.slice(-METAREC_HISTORICO_MAX),
+    progresso: { periodo: per, feitas: 0 },
+  };
+}
+
+function isoParaData(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Progresso do período corrente (zerado se o período virou). Não altera a meta. */
+export function metaRecProgresso(rec: MetaRecorrente, data: Date = new Date()): MetaRecProgresso {
+  return virarPeriodoMetaRec(rec, data).progresso!;
+}
+
+/** Documento com todas as metas recorrentes viradas para o período de `data`;
+ * devolve o mesmo doc se nenhuma virou (a store só grava quando muda). */
+export function virarMetasRecDoc(doc: CountdownDoc, data: Date = new Date()): CountdownDoc {
+  const recs = doc.recorrentes || [];
+  let mudou = false;
+  const novas = recs.map((r) => {
+    const v = virarPeriodoMetaRec(r, data);
+    if (v !== r) mudou = true;
+    return v;
+  });
+  return mudou ? { ...doc, recorrentes: novas } : doc;
+}
+
+export function metaRecCumprido(rec: Pick<MetaRecorrente, "negativa" | "vezes">, feitas: number): boolean {
+  return periodoCumprido(rec, feitas);
 }
 
 function periodoCumprido(rec: Pick<MetaRecorrente, "negativa" | "vezes">, feitas: number): boolean {
@@ -184,8 +231,9 @@ function sequenciaAoFechar(rec: MetaRecorrente, fechado: MetaRecProgresso, data:
 /** Sequência exibida: períodos fechados em sequência + o atual quando já
  * cumprido (positiva). Meta negativa só soma o período atual ao fechar. */
 export function metaRecSequencia(rec: MetaRecorrente, data: Date = new Date()): number {
-  const feitas = metaRecFeitas(rec, data);
-  const base = rec.sequencia || 0;
+  const v = virarPeriodoMetaRec(rec, data);
+  const feitas = v.progresso!.feitas;
+  const base = v.sequencia || 0;
   return !rec.negativa && feitas >= rec.vezes ? base + 1 : base;
 }
 
@@ -267,16 +315,18 @@ export function ajustarProgressoMetaRec(
   feitasAntes: number;
   feitasDepois: number;
 } {
-  const p = metaRecProgresso(rec, data);
+  rec = virarPeriodoMetaRec(rec, data);
+  const p = { ...rec.progresso! };
   const excessoAntes = metaRecExcesso(rec, data);
   const feitasAntes = !rec.negativa && rec.pontua ? p.feitas : 0;
   // positiva e negativa podem passar do limite (excesso positivo vale meio item;
   // negativo vira saldo abaixo de zero e desconta).
   p.feitas = Math.max(0, p.feitas + delta);
-  const excessoDepois = metaRecExcesso(rec, data);
+  const novo = { ...rec, progresso: p };
+  const excessoDepois = metaRecExcesso(novo, data);
   const feitasDepois = !rec.negativa && rec.pontua ? p.feitas : 0;
   return {
-    rec: { ...rec, progresso: { ...p } },
+    rec: novo,
     excessoAntes,
     excessoDepois,
     feitasAntes,

@@ -26,7 +26,11 @@ public final class StreakStore {
     private StreakStore() {}
 
     private static String readFile(Context ctx) {
-        File f = new File(ctx.getFilesDir(), "brita/rotinas_v2_history.json");
+        return readFile(ctx, "brita/rotinas_v2_history.json");
+    }
+
+    private static String readFile(Context ctx, String path) {
+        File f = new File(ctx.getFilesDir(), path);
         if (!f.exists()) return null;
         FileInputStream in = null;
         try {
@@ -48,7 +52,25 @@ public final class StreakStore {
                 c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH));
     }
 
+    /**
+     * Valor pronto gravado pelo app (lib/widgets.ts, K_WIDGETSTREAK): hoje e
+     * "amanhã se nada for feito". Só cai no cálculo próprio abaixo quando o
+     * cache não cobre o dia (app sem abrir há mais de um dia ou APK antigo).
+     */
+    private static Integer fromCache(Context ctx, String todayKey) {
+        String json = readFile(ctx, "brita/rotinas_v2_widget_streak.json");
+        if (json == null) return null;
+        try {
+            JSONObject o = new JSONObject(json);
+            if (todayKey.equals(o.optString("hoje"))) return o.optInt("valor", 0);
+            if (todayKey.equals(o.optString("amanha"))) return o.optInt("valorAmanha", 0);
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     public static int compute(Context ctx) {
+        Integer cache = fromCache(ctx, fmt(Calendar.getInstance()));
+        if (cache != null) return cache;
         String json = readFile(ctx);
         if (json == null) return 0;
         Set<String> days = new HashSet<>();

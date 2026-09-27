@@ -19,6 +19,7 @@ import {
   segundosRestantesEstimados,
 } from "../lib/player";
 import { estimadorSerie } from "../lib/routines";
+import { sugestaoCarga } from "../lib/exercicios";
 import { timeUpCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
 import { cancelarAlertaFundo, sincronizarAlertaFundo } from "../lib/notifications";
@@ -299,6 +300,12 @@ export function Player() {
             peso={peso}
             onReps={setReps}
             onPeso={setPeso}
+            sugestao={sugestaoCarga(
+              exercicios.find((e) => e.id === step.exercicioId),
+              step.exercicioId,
+              parseRepsRange(step.reps),
+              history
+            )}
           />
         ) : (
           <CorpoSimples posicao={playerState.idx + 1} nome={step.name} />
