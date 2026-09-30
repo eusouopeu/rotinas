@@ -70,6 +70,9 @@ export function rotinaAgendadaEm(r: Routine, date: Date): boolean {
 /** Pausa só desta rotina (lesão, viagem): no dia pausado ela sai da agenda,
  * do "hoje", da pontuação da semana, dos alarmes e das sequências — mesmo
  * papel da pausa geral da agenda, só que por rotina (27/09/2026). */
+/** Fim da pausa sem prazo que representa o arquivamento de uma rotina. */
+export const FIM_ARQUIVO = "9999-12-31";
+
 export function rotinaPausadaEm(r: Routine, date: Date): boolean {
   if (!r.pausas || !r.pausas.length) return false;
   const k = isoOf(date);

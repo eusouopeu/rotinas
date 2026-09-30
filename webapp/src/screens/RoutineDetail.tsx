@@ -81,6 +81,8 @@ export function RoutineDetail() {
             <div className="h-2.5" />
           </>
         )}
+        {/* sem horário não há o que pausar, mas arquivar vale para qualquer rotina */}
+        {!sched && <PausaRotina r={r} soArquivar />}
         <RotuloSecao>Etapas</RotuloSecao>
 
         {r.steps.length === 0 ? (

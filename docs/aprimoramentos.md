@@ -37,6 +37,10 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Biblioteca de rotinas prontas no popup Criar (Manhã produtiva, Treino de força A, Bloco de estudo, Revisão semanal) – implementado em 27/09/2026
 - Semana fechada pergunta separadamente "o que funcionou" e "o que travou" – implementado em 27/09/2026
 - Aviso de backup atrasado na aba Rotinas (7+ dias sem exportação, auto-backup ou sync) – implementado em 27/09/2026
+- Arquivar rotina: sai da lista, da agenda, do boletim e dos alarmes sem apagar histórico nem sequências; "ver arquivadas (n)" na Lista – implementado em 30/09/2026
+- Despesas recorrentes: "repetir todo mês neste dia" lança as cópias ao abrir o app, sem duplicar entre aparelhos – implementado em 30/09/2026
+- Mês fechado: cartão na aba Rotinas e tela com nota/selo do mês, semanas, rotinas mais feitas, gastos e foco do mês seguinte (vira nota) – implementado em 30/09/2026
+- Primeira abertura guiada: num app vazio, escolher áreas da roda e rotinas prontas – implementado em 30/09/2026
 
 ## Recomendações refutadas
 
@@ -50,3 +54,11 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - Progressão automática de carga (+2,5 kg após duas execuções completas) – refutada em 27/09/2026
 - Mapa de calor anual por rotina/meta – refutada em 27/09/2026
 - Registro local de erros exportável em Ajustes › Diagnóstico – refutada em 27/09/2026
+- Eventos que se repetem (compromisso semanal/mensal/a cada N dias) – refutada em 30/09/2026
+- Resumo matinal por notificação (rotinas, eventos e metas do dia) – refutada em 30/09/2026
+- Widget Android "Agenda de hoje" – refutada em 30/09/2026
+- Links entre notas ([[Título]] abre/cria a nota) e lista "citada em" – refutada em 30/09/2026
+- Compartilhar nota como Markdown pelo menu nativo – refutada em 30/09/2026
+- Modelos de nota ao criar (ata, fichamento, plano de projeto) – refutada em 30/09/2026
+- Lixeira de 30 dias para notas e rotinas excluídas – refutada em 30/09/2026
+- Orçamento mensal por categoria nos gastos – refutada em 30/09/2026

@@ -3,9 +3,10 @@ import { useState } from "react";
 import { Botao } from "../../ui/Botao";
 import { Campo, SelecaoLinha } from "../../ui/Campo";
 import { Modal, ModalAcoes, ModalTexto } from "../../ui/Modal";
+import { Switch } from "../../ui/Switch";
 import { EXP_CATS } from "../../lib/expense";
 
-type Campos = { desc: string; value: number; cat: string; date: string; time?: string };
+type Campos = { desc: string; value: number; cat: string; date: string; time?: string; recorrente?: boolean };
 
 export function NovaDespesa({ onCancel, onSalvar }: { onCancel: () => void; onSalvar: (f: Campos) => void }) {
   const [desc, setDesc] = useState("");
@@ -13,11 +14,12 @@ export function NovaDespesa({ onCancel, onSalvar }: { onCancel: () => void; onSa
   const [cat, setCat] = useState(EXP_CATS[0]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("");
+  const [recorrente, setRecorrente] = useState(false);
 
   function salvar() {
     const v = +value;
     if (!desc.trim() || !v) return;
-    onSalvar({ desc: desc.trim(), value: v, cat, date, time: time || undefined });
+    onSalvar({ desc: desc.trim(), value: v, cat, date, time: time || undefined, ...(recorrente ? { recorrente } : {}) });
   }
 
   return (
@@ -66,6 +68,9 @@ export function NovaDespesa({ onCancel, onSalvar }: { onCancel: () => void; onSa
           onChange={(e) => setTime(e.target.value)}
         />
       </div>
+      <Switch className="mt-3 text-base" checked={recorrente} onChange={setRecorrente}>
+        Repetir todo mês neste dia
+      </Switch>
       <ModalAcoes className="mt-[18px]">
         <Botao variante="neutro" tamanho="modal" onClick={onCancel}>
           Cancelar

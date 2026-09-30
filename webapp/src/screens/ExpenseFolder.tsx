@@ -47,6 +47,7 @@ export function ExpenseFolder() {
   const goTo = useAppStore((s) => s.goTo);
   const addExpense = useAppStore((s) => s.addExpense);
   const addExpenses = useAppStore((s) => s.addExpenses);
+  const lancarDespesasRecorrentes = useAppStore((s) => s.lancarDespesasRecorrentes);
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
   const deleteTemplateDoc = useAppStore((s) => s.deleteTemplateDoc);
 
@@ -200,9 +201,10 @@ export function ExpenseFolder() {
               <ListaGastos
                 docs={docs}
                 onDelete={(id) => deleteTemplateDoc(id)}
-                onSave={(id, patch) =>
-                  updateTemplateDoc({ ...(allDocs.find((d) => d.id === id) as ExpenseDoc), ...patch })
-                }
+                onSave={(id, patch) => {
+                  updateTemplateDoc({ ...(allDocs.find((d) => d.id === id) as ExpenseDoc), ...patch });
+                  if (patch.recorrente) lancarDespesasRecorrentes();
+                }}
               />
             ) : (
               <GraficosGastos docs={docs} />

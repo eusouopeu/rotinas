@@ -4,14 +4,17 @@
 import { expect } from "@playwright/test";
 import { HOJE, seedLocalStorage } from "./seed.mjs";
 
-export async function preparar(page, { comDados = true, extra = {} } = {}) {
+// `boasVindas`: no app vazio, a primeira abertura guiada (30/09/2026) só
+// aparece quando pedida — os demais cenários vazios fotografam o estado vazio.
+export async function preparar(page, { comDados = true, extra = {}, boasVindas = false } = {}) {
   await page.addInitScript(
-    ({ seed, comDados }) => {
+    ({ seed, comDados, boasVindas }) => {
       if (comDados && !localStorage.getItem("rotinas_v2_migrated")) {
         for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, JSON.stringify(v));
       }
+      if (!comDados && !boasVindas) localStorage.setItem("rotinas_v2_boasvindas", "1");
     },
-    { seed: { ...seedLocalStorage, ...extra }, comDados }
+    { seed: { ...seedLocalStorage, ...extra }, comDados, boasVindas }
   );
   await page.clock.setFixedTime(new Date(HOJE));
   await page.goto("/", { waitUntil: "domcontentloaded" });

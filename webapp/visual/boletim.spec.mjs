@@ -58,3 +58,10 @@ test("semana fechada: último passo", async ({ page }) => {
   }
   await foto(page, "semana-fechada-ultimo");
 });
+
+test("mês fechado", async ({ page }) => {
+  await preparar(page);
+  await page.getByText("Mês fechado").first().click();
+  await page.getByRole("button", { name: "Começar o mês" }).waitFor();
+  await fotoInteira(page, "mes-fechado", "[data-rolagem], .tab-scroll, .screen > div:nth-child(2), [data-tela] > div:nth-child(2)");
+});

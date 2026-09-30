@@ -25,7 +25,7 @@ export function listaAtalhos(routines: Routine[]): Array<{ id: string; label: st
   return [
     { id: ATALHO_NOTA, label: "Nova nota" },
     { id: ATALHO_DESPESA, label: "Nova despesa" },
-    ...routines.slice(0, 2).map((r) => ({ id: r.id, label: ((r.icon ? r.icon + " " : "") + r.name).slice(0, 25) })),
+    ...routines.filter((r) => !r.arquivada).slice(0, 2).map((r) => ({ id: r.id, label: ((r.icon ? r.icon + " " : "") + r.name).slice(0, 25) })),
   ];
 }
 

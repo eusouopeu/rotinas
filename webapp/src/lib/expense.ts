@@ -390,3 +390,53 @@ export function resumoPorPeriodo(docs: ExpenseDoc[], period: ChartsPeriod): Resu
     lancamentosPeriodoAtual: curDocs.length,
   };
 }
+
+/** Lançamentos que faltam das despesas recorrentes até `hojeISO`: um por mês
+ * depois do último já lançado (`recUltimo`, ou o mês da original), no mesmo
+ * dia (limitado ao fim do mês) e só quando o dia chega. Devolve as cópias
+ * novas e o novo `recUltimo` de cada original — cópia apagada à mão não
+ * volta. Desligar a recorrência não remove o que já foi lançado. */
+export function lancamentosRecorrentes(
+  docs: ExpenseDoc[],
+  hojeISO: string,
+  agora = Date.now()
+): { novos: ExpenseDoc[]; ultimos: Record<string, string> } {
+  const ids = new Set(docs.map((d) => d.id));
+  const novos: ExpenseDoc[] = [];
+  const ultimos: Record<string, string> = {};
+  for (const orig of docs) {
+    if (!orig.recorrente || orig.origemRec || !/^\d{4}-\d{2}-\d{2}$/.test(orig.date)) continue;
+    const dia = +orig.date.slice(8, 10);
+    const base = orig.recUltimo && orig.recUltimo > orig.date.slice(0, 7) ? orig.recUltimo : orig.date.slice(0, 7);
+    let a = +base.slice(0, 4);
+    let m = +base.slice(5, 7);
+    let ultimo = "";
+    for (let guard = 0; guard < 240; guard++) {
+      m++;
+      if (m > 12) {
+        m = 1;
+        a++;
+      }
+      const d = Math.min(dia, new Date(a, m, 0).getDate());
+      const iso = `${a}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      if (iso > hojeISO) break;
+      ultimo = iso.slice(0, 7);
+      const id = `${orig.id}:${ultimo}`;
+      if (ids.has(id)) continue;
+      novos.push({
+        id,
+        type: "expense",
+        desc: orig.desc,
+        value: orig.value,
+        cat: orig.cat,
+        date: iso,
+        ...(orig.time ? { time: orig.time } : {}),
+        createdAt: agora,
+        updatedAt: agora,
+        origemRec: orig.id,
+      });
+    }
+    if (ultimo) ultimos[orig.id] = ultimo;
+  }
+  return { novos, ultimos };
+}

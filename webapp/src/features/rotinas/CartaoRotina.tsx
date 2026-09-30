@@ -91,11 +91,17 @@ export function CartaoRotina({
               <Icon name="calendar" size={13} /> {diasChipLabel(r)}
             </Fato>
           )}
-          {pausa && (
-            <Fato title="Só esta rotina está pausada">
-              <Icon name="pause" size={13} />{" "}
-              {pausa.de > localKey() ? `pausa a partir de ${ddmm(pausa.de)}` : `pausada até ${ddmm(pausa.ate)}`}
+          {r.arquivada ? (
+            <Fato title="Rotina arquivada">
+              <Icon name="pause" size={13} /> arquivada
             </Fato>
+          ) : (
+            pausa && (
+              <Fato title="Só esta rotina está pausada">
+                <Icon name="pause" size={13} />{" "}
+                {pausa.de > localKey() ? `pausa a partir de ${ddmm(pausa.de)}` : `pausada até ${ddmm(pausa.ate)}`}
+              </Fato>
+            )
           )}
           {rotinaEhHabito(r, gam) && (
             <span

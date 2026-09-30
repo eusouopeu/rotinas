@@ -65,7 +65,7 @@ import {
 import { type BackupPayload } from "../lib/backup";
 import { addDaysISO, criarEstadoGamificacaoInicial, localKey } from "../lib/gamificacao";
 import type { MatrixPreset } from "../lib/templates";
-import { novoDraftSchedule } from "../lib/schedule";
+import { FIM_ARQUIVO, novoDraftSchedule } from "../lib/schedule";
 import { podarNaoFeitasDeOutrosDias, type NaoFeitasMap, type PlayerState } from "../lib/player";
 import type { SomModo } from "../lib/sound";
 import { checarNudges } from "../lib/nudge";
@@ -174,6 +174,7 @@ export interface AppState {
   pausarRotina: (id: string, dias: number) => void;
   /** Encerra a pausa em vigor (ou a marcada para depois) desta rotina. */
   retomarRotina: (id: string) => void;
+  arquivarRotina: (id: string, arquivar: boolean) => void;
 
   openEditor: (id?: string | null) => void;
   updateDraft: (patch: Partial<Routine>) => void;
@@ -206,10 +207,11 @@ export interface AppState {
   setHorasBudget: (min: number) => void;
   alternarDispensaSemana: () => void;
   marcarSemanaVista: () => void;
+  marcarMesVisto: (anoMes: string) => void;
   goToSemanaFechada: () => void;
 
   updateGamConfig: (patch: Partial<GamificacaoConfig>) => void;
-  addRodaArea: (label: string) => void;
+  addRodaArea: (label: string, color?: string) => void;
   updateRodaArea: (id: string, patch: Partial<RodaArea>) => void;
   removeRodaArea: (id: string) => void;
 
@@ -330,9 +332,17 @@ export interface AppState {
   deleteTemplateDocWithUndo: (id: string) => void;
   // Porta de abrirFormDespesa (index.html:9041-9078) sem o formulário em si
   // (fica no modal da tela) — só o push no array de templates.
-  addExpense: (fields: { desc: string; value: number; cat: string; date: string; time?: string }) => void;
+  addExpense: (fields: {
+    desc: string;
+    value: number;
+    cat: string;
+    date: string;
+    time?: string;
+    recorrente?: boolean;
+  }) => void;
   // Import de extrato CSV (index.html:9161-9170) — um save só para o lote.
   addExpenses: (lote: Array<{ desc: string; value: number; cat: string; date: string; time?: string }>) => void;
+  lancarDespesasRecorrentes: () => void;
 
   // Busca global (index.html:2978-3151) — só estado de aberto/fechado; a
   // varredura em si mora em components/GlobalSearch.tsx (a mesma "receita" do
@@ -465,6 +475,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     const avisoStorage = checkStorageWarning();
     if (avisoStorage) setTimeout(() => get().showAlertBanner(avisoStorage), 1200);
     get().virarMetasRec();
+    get().lancarDespesasRecorrentes();
     // Avisos proativos (ritmo/metas/streak) — ver checarNudgesAgora.
     setTimeout(() => get().checarNudgesAgora(), 1500);
     const snoozed = algumSnoozeAtivo(get().snoozes);
@@ -573,6 +584,26 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       if (r.id !== id) return r;
       const outras = (r.pausas || []).filter((p) => p.ate < hoje);
       return { ...r, pausas: [...outras, { de: hoje, ate }] };
+    });
+    save(K_ROUTINES, routines);
+    set({ routines });
+    syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
+  },
+  arquivarRotina: (id, arquivar) => {
+    const hoje = localKey();
+    const ontem = addDaysISO(hoje, -1);
+    const routines = get().routines.map((r) => {
+      if (r.id !== id) return r;
+      if (arquivar) {
+        const passadas = (r.pausas || []).filter((p) => p.ate < hoje);
+        return { ...r, arquivada: true, pausas: [...passadas, { de: hoje, ate: FIM_ARQUIVO }] };
+      }
+      // mesmo corte do retomar: o período arquivado fica como pausa até ontem
+      const pausas = (r.pausas || [])
+        .map((p) => (p.ate < hoje ? p : p.de < hoje ? { ...p, ate: ontem } : null))
+        .filter((p): p is NonNullable<typeof p> => !!p);
+      const { arquivada: _a, ...resto } = r;
+      return { ...resto, pausas };
     });
     save(K_ROUTINES, routines);
     set({ routines });
@@ -770,17 +801,23 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     }
   },
 
+  marcarMesVisto: (anoMes) => {
+    const gam: GamificacaoState = { ...get().gam, ultimoMesVisto: anoMes };
+    save(K_GAMIFICACAO, gam);
+    set({ gam });
+  },
+
   updateGamConfig: (patch) => {
     const gam = get().gam;
     const novo: GamificacaoState = { ...gam, config: { ...gam.config, ...patch } };
     save(K_GAMIFICACAO, novo);
     set({ gam: novo });
   },
-  addRodaArea: (label) => {
+  addRodaArea: (label, color = "var(--caneta)") => {
     const gam = get().gam;
     const nome = label.trim();
     if (!nome) return;
-    const area: RodaArea = { id: uid(), label: nome, color: "var(--caneta)", peso: 5 };
+    const area: RodaArea = { id: uid(), label: nome, color, peso: 5 };
     const novo: GamificacaoState = {
       ...gam,
       config: { ...gam.config, roda: { ...gam.config.roda, areas: [...gam.config.roda.areas, area] } },

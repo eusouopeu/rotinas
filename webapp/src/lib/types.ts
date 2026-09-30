@@ -54,6 +54,9 @@ export interface Routine {
   /** Pausas só desta rotina (27/09/2026), datas locais inclusivas. Ficam
    * guardadas depois de acabar: as sequências antigas dependem delas. */
   pausas?: RotinaPausa[];
+  /** Arquivada (30/09/2026): pausa sem fim (`ate` = FIM_ARQUIVO) + some da
+   * Lista; desarquivar fecha a pausa em ontem, como retomar. */
+  arquivada?: boolean;
 }
 
 export interface RotinaPausa {
@@ -127,6 +130,8 @@ export interface GamificacaoState {
   metasPontos: Record<string, number>;
   badges: Array<{ escopo: string; tipo: string; periodo: string; nota: number; emitidaEm: number }>;
   ultimaSemanaVista?: string | null;
+  /** "AAAA-MM" do último Mês fechado visto (30/09/2026). */
+  ultimoMesVisto?: string | null;
 }
 
 export type MetaEscopo = "mensal" | "trimestral" | "anual";
@@ -325,6 +330,13 @@ export interface ExpenseDoc {
   time?: string; // "HH:MM"
   createdAt: number;
   updatedAt: number;
+  /** Despesa fixa (30/09/2026): repete todo mês no mesmo dia. As cópias têm
+   * id `<id da original>:<AAAA-MM>` (determinístico — dois aparelhos não
+   * duplicam) e `origemRec` apontando para a original. */
+  recorrente?: boolean;
+  origemRec?: string;
+  /** último mês ("AAAA-MM") já lançado a partir desta original */
+  recUltimo?: string;
 }
 
 // Compromisso avulso (K_COMPROMISSOS, index.html:2114-2161) — evento único
@@ -401,7 +413,8 @@ export type ScreenName =
   | "boletim"
   | "stats"
   | "routineStats"
-  | "semanaFechada";
+  | "semanaFechada"
+  | "mesFechado";
 
 // Templates é um array de docs de vários tipos (mercado, kanban, matriz...)
 // no app antigo — o React só edita de verdade countdown/scoreboard/

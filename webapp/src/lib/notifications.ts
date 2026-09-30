@@ -88,7 +88,7 @@ export function planoNotificacaoRotinas(routines: Routine[], agora: number): Not
   };
   routines.forEach((r) => {
     const sched = computeSchedule(r);
-    if (!sched || !r.schedule) return;
+    if (!sched || !r.schedule || r.arquivada) return;
     const title = "Hora de começar: " + r.name;
     const body = "Início previsto às " + sched.startStr;
     // intervalo, ou rotina de dias fixos com pausa em vigor/marcada: alarme

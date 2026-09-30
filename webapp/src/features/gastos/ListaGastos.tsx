@@ -1,6 +1,7 @@
 // Lista dos gastos agrupada por mês: barras por categoria e as linhas (tocar
 // para editar, ✕ para apagar).
 import { useState } from "react";
+import { Switch } from "../../ui/Switch";
 import { Icon } from "../../components/Icon";
 import { Botao } from "../../ui/Botao";
 import { BotaoApagar } from "../../ui/BotaoApagar";
@@ -27,6 +28,7 @@ function EdicaoGasto({
   const [cat, setCat] = useState(e.cat);
   const [date, setDate] = useState(e.date);
   const [time, setTime] = useState(e.time || "");
+  const [recorrente, setRecorrente] = useState(!!e.recorrente);
   return (
     <LinhaTabela className="flex-wrap gap-1.5">
       <Campo variante="modelo" type="text" value={desc} onChange={(ev) => setDesc(ev.target.value)} />
@@ -59,12 +61,24 @@ function EdicaoGasto({
         value={time}
         onChange={(ev) => setTime(ev.target.value)}
       />
+      {!e.origemRec && (
+        <Switch className="w-full text-base" checked={recorrente} onChange={setRecorrente}>
+          Repetir todo mês neste dia
+        </Switch>
+      )}
       <Botao
         className="flex-1 px-3.5 py-2"
         onClick={() => {
           const v = +value;
           if (!desc.trim() || !v) return;
-          onSave({ desc: desc.trim(), value: v, cat, date, time: time || undefined });
+          onSave({
+            desc: desc.trim(),
+            value: v,
+            cat,
+            date,
+            time: time || undefined,
+            ...(e.origemRec ? {} : { recorrente: recorrente || undefined }),
+          });
         }}
       >
         <Icon name="check" size={14} />
@@ -126,6 +140,7 @@ export function ListaGastos({ docs, onDelete, onSave }: Props) {
                     <span className="font-sans text-sm text-sub">
                       {e.cat}
                       {e.time ? " · " + e.time : ""}
+                      {e.recorrente || e.origemRec ? " · todo mês" : ""}
                     </span>
                   </span>
                   <CelNegrito status="pontual">{brl(e.value)}</CelNegrito>

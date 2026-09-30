@@ -53,3 +53,10 @@ test("casca: aviso de cima", async ({ page }) => {
   await page.waitForTimeout(500);
   await foto(page, "casca-aviso");
 });
+
+test("casca: primeira abertura guiada", async ({ page }) => {
+  await preparar(page, { comDados: false, boasVindas: true });
+  await page.getByText("Boas-vindas ao Rotinas").waitFor();
+  await page.getByRole("checkbox", { name: "Saúde" }).click();
+  await foto(page, "boas-vindas");
+});

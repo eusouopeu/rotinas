@@ -17,3 +17,7 @@ OAuth desktop usa loopback `127.0.0.1`, navegador externo e PKCE S256. Credencia
 ## Android
 
 Android espelha motor e `SYNCED_KEYS` em Java, usa a pasta `brita-sync`, Filesystem nativo para chaves e `EncryptedSharedPreferences`/Keystore para tokens/estado. `syncBridge` abstrai Electron/Capacitor. Não há sync periódico com app fechado: ocorre no retorno ao app e manualmente. Nunca deixe desktop e Android divergirem.
+
+## Campos novos sem coleção nova (30/09/2026)
+
+Despesa fixa vive em `templates` (tipo `expense`): a original ganha `recorrente`/`recUltimo` e cada cópia mensal tem id determinístico `<id da original>:<AAAA-MM>` com `origemRec` — dois aparelhos que lançam o mesmo mês geram o mesmo id e o merge por `id` não duplica. Rotina arquivada é `arquivada: true` + pausa até `9999-12-31` em `routines`; `gam.ultimoMesVisto` segue a gamificação. `K_BOASVINDAS` (primeira abertura já vista) é preferência local, fora do backup e do sync.

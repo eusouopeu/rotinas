@@ -43,6 +43,8 @@ export const K_METASSOHOJE = "rotinas_v2_metas_so_hoje";
 export const K_METASSUBVIEW = "rotinas_v2_metas_subview"; // legado, só para migração
 export const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
 export const K_HOMEVIEW = "rotinas_v2_homeview";
+// primeira abertura guiada já vista (30/09/2026) — local, fora do backup/sync
+export const K_BOASVINDAS = "rotinas_v2_boasvindas";
 export const K_RODARESUMOABERTO = "rotinas_v2_roda_resumo_aberto";
 // títulos recolhidos das notas simples ({ [noteId]: chaves de título }) —
 // preferência de UI, fora do backup como K_RODARESUMOABERTO.

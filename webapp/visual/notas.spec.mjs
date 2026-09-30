@@ -9,6 +9,8 @@ async function preparar(page, { comDados = true, extra = {} } = {}) {
       if (comDados && !localStorage.getItem("rotinas_v2_migrated")) {
         for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, JSON.stringify(v));
       }
+      // app vazio sem a primeira abertura guiada (ver apoio.mjs)
+      if (!comDados) localStorage.setItem("rotinas_v2_boasvindas", "1");
     },
     { seed: { ...seedLocalStorage, ...extra }, comDados }
   );

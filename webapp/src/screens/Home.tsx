@@ -22,6 +22,7 @@ import { areaDaRotina } from "../lib/scoring";
 import { localKey } from "../lib/gamificacao";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME } from "../lib/constants";
 import { semanaFechadaPendente } from "../lib/semanaFechada";
+import { mesFechadoPendente } from "../lib/mesFechado";
 import { attachSwipeDownSearch } from "../lib/swipe";
 import { execucaoDoDia } from "../lib/history";
 import { montarRotinaPronta, ROTINAS_PRONTAS } from "../lib/rotinasProntas";
@@ -68,8 +69,10 @@ export function Home() {
   // dia tocado na visão Mês: abre a visão Dia já naquela data
   const [diaAlvo, setDiaAlvo] = useState<string | null>(null);
   const [prontasAberto, setProntasAberto] = useState(false);
+  const [verArquivadas, setVerArquivadas] = useState(false);
 
   const semFechada = semanaFechadaPendente(gam);
+  const mesFechado = mesFechadoPendente(gam);
   /* Rotina deixada pela metade (index.html:3616-3637): só vale se a rotina
      ainda existir — apagada, o snapshot é lixo e some do cartão. */
   const rotinaEmAndamento =
@@ -79,8 +82,10 @@ export function Home() {
      e o filtro "hoje" esconde só quem tem dia fixo em outro dia. */
   /* Três filtros independentes da visão Lista: "só hoje" (dia), área da roda
      e "esconder as já feitas hoje". Os dois últimos entraram em 22/09/2026. */
+  const arquivadas = routines.filter((r) => r.arquivada).length;
   const visiveis = rotinasOrdenadas(routines)
-    .filter((r) => !soHoje || rotinaCabeEmHoje(r))
+    .filter((r) => !!r.arquivada === verArquivadas)
+    .filter((r) => verArquivadas || !soHoje || rotinaCabeEmHoje(r))
     .filter((r) => !filtroArea || (filtroArea === "sem" ? !areaDaRotina(r, gam) : areaDaRotina(r, gam) === filtroArea))
     .filter((r) => !ocultarFeitas || !execucaoDoDia(history, r.id, hojeISO));
 
@@ -143,6 +148,15 @@ export function Home() {
               </>
             }
             detalhe={`Nota ${semFechada.nota.toFixed(1)} — toque para ver o fechamento`}
+          />
+        )}
+
+        {mesFechado && (
+          <CartaoFixo
+            className="cursor-pointer"
+            onClick={() => goTo({ tab: "home", screen: "mesFechado" })}
+            titulo="Mês fechado"
+            detalhe={`Nota ${mesFechado.nota.toFixed(1)} — toque para ver o fechamento do mês`}
           />
         )}
 
@@ -232,8 +246,20 @@ export function Home() {
               + Nova rotina
             </Botao>
           </EstadoVazio>
-        ) : visiveis.length === 0 ? (
-          <EstadoVazio titulo="Nada agendado para hoje" texto='Desligue o "hoje" para ver todas as rotinas.' />
+        ) : null}
+        {homeView === "rotinas" && routines.length > 0 && (arquivadas > 0 || verArquivadas) && (
+          <div className="mb-2.5 flex justify-end">
+            <Botao variante="pilula" className="whitespace-nowrap" onClick={() => setVerArquivadas((v) => !v)}>
+              {verArquivadas ? "ver rotinas ativas" : `ver arquivadas (${arquivadas})`}
+            </Botao>
+          </div>
+        )}
+        {homeView !== "rotinas" || routines.length === 0 ? null : visiveis.length === 0 ? (
+          !verArquivadas && arquivadas === routines.length ? (
+            <EstadoVazio titulo="Nenhuma rotina ativa" texto='As rotinas arquivadas ficam em "ver arquivadas".' />
+          ) : (
+            <EstadoVazio titulo="Nada agendado para hoje" texto='Desligue o "hoje" para ver todas as rotinas.' />
+          )
         ) : (
           <ListaCartoes>
             {visiveis.map((r) => (

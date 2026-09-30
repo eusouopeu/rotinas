@@ -11,7 +11,9 @@ import { nomeAutoDoc } from "../../lib/notes";
 import { apagarNotaMd, sincronizarNotaMd } from "../../lib/mdMirror";
 import { newTemplateDoc } from "../../lib/templates";
 import { uid } from "../../lib/uid";
-import type { AnyTemplateDoc, Note } from "../../lib/types";
+import type { AnyTemplateDoc, ExpenseDoc, Note } from "../../lib/types";
+import { lancamentosRecorrentes } from "../../lib/expense";
+import { localKey } from "../../lib/gamificacao";
 import type { AppState } from "../useAppStore";
 
 export type NotesSlice = Pick<
@@ -28,6 +30,7 @@ export type NotesSlice = Pick<
   | "deleteTemplateDoc"
   | "deleteTemplateDocWithUndo"
   | "addExpense"
+  | "lancarDespesasRecorrentes"
   | "addExpenses"
   | "openSearch"
   | "closeSearch"
@@ -169,6 +172,7 @@ export const createNotesSlice: StateCreator<AppState, [], [], NotesSlice> = (set
       const templates = [...get().templates, doc];
       save(K_TEMPLATES, templates);
       set({ templates });
+      if (fields.recorrente) get().lancarDespesasRecorrentes();
     },
     addExpenses: (lote) => {
       const now = Date.now();
@@ -180,6 +184,21 @@ export const createNotesSlice: StateCreator<AppState, [], [], NotesSlice> = (set
         updatedAt: now,
       }));
       const templates = [...get().templates, ...docs];
+      save(K_TEMPLATES, templates);
+      set({ templates });
+    },
+
+    // Despesas fixas (30/09/2026): lança o que faltar no boot e na volta ao
+    // primeiro plano; idempotente (ids determinísticos + recUltimo).
+    lancarDespesasRecorrentes: () => {
+      const despesas = get().templates.filter((t): t is ExpenseDoc => t.type === "expense");
+      const { novos, ultimos } = lancamentosRecorrentes(despesas, localKey());
+      if (!novos.length && !Object.keys(ultimos).some((id) => despesas.find((d) => d.id === id)?.recUltimo !== ultimos[id]))
+        return;
+      const templates = [
+        ...get().templates.map((t) => (ultimos[t.id] ? { ...t, recUltimo: ultimos[t.id] } : t)),
+        ...novos,
+      ];
       save(K_TEMPLATES, templates);
       set({ templates });
     },

@@ -27,7 +27,9 @@ import { Boletim } from "./screens/Boletim";
 import { Stats } from "./screens/Stats";
 import { RoutineStats } from "./screens/RoutineStats";
 import { SemanaFechada } from "./screens/SemanaFechada";
+import { MesFechado } from "./screens/MesFechado";
 import { GlobalSearch } from "./components/GlobalSearch";
+import { BoasVindas } from "./components/BoasVindas";
 import { GlobalBanner } from "./components/GlobalBanner";
 
 // Porta de resolvedTheme/applyTheme (index.html:93-103): "auto" só escurece
@@ -175,6 +177,8 @@ function Screen({ screen }: { screen: string }) {
       return <RoutineStats />;
     case "semanaFechada":
       return <SemanaFechada />;
+    case "mesFechado":
+      return <MesFechado />;
     case "home":
     default:
       return <Home />;
@@ -201,6 +205,7 @@ export function App() {
   useEffect(() => {
     const checar = () => {
       useAppStore.getState().virarMetasRec();
+      useAppStore.getState().lancarDespesasRecorrentes();
       useAppStore.getState().checarNudgesAgora();
     };
     const onVis = () => {
@@ -251,6 +256,7 @@ export function App() {
     <>
       <Screen screen={view.screen} />
       <GlobalSearch />
+      <BoasVindas />
       <GlobalBanner />
     </>
   );
