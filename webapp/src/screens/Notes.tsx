@@ -17,7 +17,7 @@ import { Fab } from "../ui/Fab";
 import { Legenda } from "../ui/Legenda";
 import { ListaCartoes } from "../ui/ListaCartoes";
 import { cn } from "../lib/cn";
-import { allTags, extractTags, relativeTime, stripMdForSnippet } from "../lib/notes";
+import { allTags, extractTags, stripMdForSnippet } from "../lib/notes";
 import { rolavel, tela } from "../ui/Tela";
 
 export function Notes() {
@@ -102,29 +102,34 @@ export function Notes() {
                   showUndoBanner("Nota excluída", () => addNoteAt(idx, n));
                 }}
               >
+                {/* título, data completa e favoritar dividem a primeira linha
+                    (pedido do Pedro, 30/09/2026): o resumo ganha a largura toda */}
                 <CartaoInfo onClick={() => openNote(n.id)}>
-                  <CartaoTitulo>
-                    {n.pinned && <span className="text-base text-caneta">&#9733; </span>}
-                    {n.title || "Sem título"}
-                  </CartaoTitulo>
-                  <div className="mt-1 truncate text-md leading-[1.4] text-sub">{stripMdForSnippet(n.content)}</div>
-                  <Legenda className="mt-1.5">
-                    {relativeTime(n.updatedAt)}
-                    {(n.subjects || []).length > 0 &&
-                      " · " + n.subjects!.slice(0, 3).join(", ") + (n.subjects!.length > 3 ? "…" : "")}
-                  </Legenda>
+                  <div className="flex items-center gap-2">
+                    <CartaoTitulo className="mb-0 min-w-0 flex-1 truncate">{n.title || "Sem título"}</CartaoTitulo>
+                    <Legenda className="flex-none tabular-nums" title="Última alteração">
+                      {new Date(n.updatedAt).toLocaleDateString("pt-BR")}
+                    </Legenda>
+                    <BotaoIcone
+                      rotulo={n.pinned ? "Desafixar nota" : "Fixar nota"}
+                      semBorda
+                      tamanho="sm"
+                      className={cn("-mr-1.5 text-xl", n.pinned ? "text-caneta" : "text-line")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleNotePinned(n.id);
+                      }}
+                    >
+                      &#9733;
+                    </BotaoIcone>
+                  </div>
+                  <div className="mt-1 line-clamp-2 text-md leading-[1.4] text-sub">{stripMdForSnippet(n.content)}</div>
+                  {(n.subjects || []).length > 0 && (
+                    <Legenda className="mt-1.5">
+                      {n.subjects!.slice(0, 3).join(", ") + (n.subjects!.length > 3 ? "…" : "")}
+                    </Legenda>
+                  )}
                 </CartaoInfo>
-                <BotaoIcone
-                  rotulo="Fixar nota"
-                  semBorda
-                  className={cn("text-2xl", n.pinned ? "text-caneta" : "text-line")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleNotePinned(n.id);
-                  }}
-                >
-                  &#9733;
-                </BotaoIcone>
               </SwipeItem>
             ))
           )}

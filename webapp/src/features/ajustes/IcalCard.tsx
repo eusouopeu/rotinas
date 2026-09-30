@@ -5,13 +5,26 @@
 // cache local (lib/ical.ts); a exibição no dia a dia entra quando a agenda
 // inline em Rotinas for portada (ver docs/react-migration.md).
 import { useState } from "react";
-import { atualizarIcal, getIcalCache, getIcalUrl, saveIcalCache, saveIcalUrl, type IcalCache } from "../../lib/ical";
+import {
+  atualizarIcal,
+  getIcalCache,
+  getIcalUrl,
+  IcalErro,
+  normalizarUrlIcal,
+  saveIcalCache,
+  saveIcalUrl,
+  type IcalCache,
+} from "../../lib/ical";
 import { isDesktop, isNative } from "../../lib/storage";
 import { Botao } from "../../ui/Botao";
 import { Campo } from "../../ui/Campo";
 import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { LinhaValor } from "../../ui/LinhaValor";
+
+function motivo(e: unknown): string {
+  return e instanceof IcalErro ? e.message : "Não deu para buscar o calendário — confira a URL ou tente de novo mais tarde";
+}
 
 export function IcalCard() {
   const [url, setUrl] = useState(getIcalUrl());
@@ -21,16 +34,17 @@ export function IcalCard() {
   const [erro, setErro] = useState("");
 
   async function salvarEAtualizar() {
-    const u = inputUrl.trim();
+    const u = normalizarUrlIcal(inputUrl);
     if (!u) return;
+    setInputUrl(u);
     setBusy("save");
     setErro("");
     saveIcalUrl(u);
     setUrl(u);
     try {
       setCache(await atualizarIcal(u));
-    } catch {
-      setErro("Não deu para buscar o calendário — confira a URL ou tente de novo mais tarde");
+    } catch (e) {
+      setErro(motivo(e));
     }
     setBusy(null);
   }
@@ -40,8 +54,8 @@ export function IcalCard() {
     setErro("");
     try {
       setCache(await atualizarIcal(url));
-    } catch {
-      setErro("Não deu para buscar o calendário — confira a URL ou tente de novo mais tarde");
+    } catch (e) {
+      setErro(motivo(e));
     }
     setBusy(null);
   }

@@ -64,7 +64,9 @@ export function CartaoMeta({
 }: Props) {
   const cliqueEditar = useCliqueSemArrasto(onEditar);
   return (
-    <div ref={setRef} className="mb-2.5">
+    // a transparência do arrasto vai na moldura de fora: no cartão (track do
+    // SwipeItem) ela deixava ver os botões Excluir/Duplicar escondidos atrás
+    <div ref={setRef} className={cn("mb-2.5", isDragging && "opacity-[0.45]")}>
       <SwipeItem
         className={cn(
           CARTAO_CAPSULA,
@@ -73,8 +75,7 @@ export function CartaoMeta({
           // com contador, o estado já está na cor do número (e o fundo verde
           // engoliria o botão "+"); sem contador, pinta o cartão
           !contador && estado === "ok" && "bg-ok-soft",
-          !contador && estado === "erro" && "bg-erro-soft",
-          isDragging && "opacity-[0.45]"
+          !contador && estado === "erro" && "bg-erro-soft"
         )}
         wrapClassName={cn(contador && "rounded-r-[30px]")}
         onLeft={onExcluir}

@@ -188,6 +188,51 @@ export function RoutineEditor() {
           </div>
         )}
 
+        {/* Porta de index.html:4551-4565 — mesmo valor vale para o descanso
+            entre séries dentro de uma etapa de exercício. */}
+        <RotuloSecao>Descanso entre etapas</RotuloSecao>
+        <Cartao raio="lg">
+          <div className="flex items-center gap-3">
+            <CampoDuracao
+              unidade="s"
+              min={0}
+              value={draft.restSeconds || 0}
+              onChange={(e) => updateDraft({ restSeconds: Math.max(0, +e.target.value || 0) })}
+            />
+          </div>
+        </Cartao>
+
+        <RotuloSecao>Agendamento</RotuloSecao>
+        <Cartao raio="lg">
+          <Switch
+            checked={schedule.enabled}
+            onChange={(enabled) => updateDraft({ schedule: { ...schedule, enabled } })}
+          >
+            Ativar horário
+          </Switch>
+          {schedule.enabled && (
+            <div>
+              <div className="mt-3.5 flex items-center gap-3">
+                <Toggle
+                  options={[...ANCORAS]}
+                  active={schedule.anchor}
+                  onSelect={(anchor) => updateDraft({ schedule: { ...schedule, anchor } })}
+                />
+                <Campo
+                  type="time"
+                  value={schedule.time}
+                  onChange={(e) => updateDraft({ schedule: { ...schedule, time: e.target.value } })}
+                />
+              </div>
+              <ChipsDia className="mt-2.5" rotulos={DAY_LETTERS} ativos={schedule.days} onToggle={toggleDia} />
+              <div className="mt-3 font-sans text-md text-sub">
+                {sched ? `${sched.startStr} → ${sched.endStr}` : "Defina um horário."}
+              </div>
+            </div>
+          )}
+        </Cartao>
+
+        {/* etapas por último (pedido do Pedro, 30/09/2026): descanso e agendamento vêm antes */}
         <RotuloSecao>Etapas</RotuloSecao>
         <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto">
           {draft.steps.map((s, i) => (
@@ -335,49 +380,6 @@ export function RoutineEditor() {
           </button>
         </div>
 
-        {/* Porta de index.html:4551-4565 — mesmo valor vale para o descanso
-            entre séries dentro de uma etapa de exercício. */}
-        <RotuloSecao>Descanso entre etapas</RotuloSecao>
-        <Cartao raio="lg">
-          <div className="flex items-center gap-3">
-            <CampoDuracao
-              unidade="s"
-              min={0}
-              value={draft.restSeconds || 0}
-              onChange={(e) => updateDraft({ restSeconds: Math.max(0, +e.target.value || 0) })}
-            />
-          </div>
-        </Cartao>
-
-        <RotuloSecao>Agendamento</RotuloSecao>
-        <Cartao raio="lg">
-          <Switch
-            checked={schedule.enabled}
-            onChange={(enabled) => updateDraft({ schedule: { ...schedule, enabled } })}
-          >
-            Ativar horário
-          </Switch>
-          {schedule.enabled && (
-            <div>
-              <div className="mt-3.5 flex items-center gap-3">
-                <Toggle
-                  options={[...ANCORAS]}
-                  active={schedule.anchor}
-                  onSelect={(anchor) => updateDraft({ schedule: { ...schedule, anchor } })}
-                />
-                <Campo
-                  type="time"
-                  value={schedule.time}
-                  onChange={(e) => updateDraft({ schedule: { ...schedule, time: e.target.value } })}
-                />
-              </div>
-              <ChipsDia className="mt-2.5" rotulos={DAY_LETTERS} ativos={schedule.days} onToggle={toggleDia} />
-              <div className="mt-3 font-sans text-md text-sub">
-                {sched ? `${sched.startStr} → ${sched.endStr}` : "Defina um horário."}
-              </div>
-            </div>
-          )}
-        </Cartao>
       </div>
 
       <BarraAcoes>

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { expandirOcorrencias, icalEventosDoDia, icalStale, parseIcs, type IcalCache, type IcalEvent } from "./ical";
+import {
+  expandirOcorrencias,
+  icalEventosDoDia,
+  icalStale,
+  normalizarUrlIcal,
+  parseIcs,
+  type IcalCache,
+  type IcalEvent,
+} from "./ical";
 
 describe("parseIcs", () => {
   it("extrai evento simples com horário", () => {
@@ -83,8 +91,16 @@ describe("expandirOcorrencias", () => {
     expect(ocorrencias[1].startMs).toBe(Date.UTC(2026, 7, 26, 9, 0));
   });
 
-  it("frequência não suportada (ex: MONTHLY) mostra só a ocorrência original", () => {
+  it("MONTHLY repete no mesmo dia do mês seguinte", () => {
     const ev: IcalEvent = { ...base, rrule: "FREQ=MONTHLY" };
+    const ocorrencias = expandirOcorrencias(ev, Date.UTC(2026, 7, 24), Date.UTC(2026, 8, 30));
+    expect(ocorrencias.length).toBe(2);
+    expect(ocorrencias[0]).toEqual({ startMs: base.startMs, endMs: base.endMs });
+    expect(new Date(ocorrencias[1].startMs).getDate()).toBe(new Date(base.startMs).getDate());
+  });
+
+  it("frequência não suportada (ex: HOURLY) mostra só a ocorrência original", () => {
+    const ev: IcalEvent = { ...base, rrule: "FREQ=HOURLY" };
     const ocorrencias = expandirOcorrencias(ev, Date.UTC(2026, 7, 24), Date.UTC(2026, 8, 30));
     expect(ocorrencias).toEqual([{ startMs: base.startMs, endMs: base.endMs }]);
   });
@@ -145,5 +161,49 @@ describe("icalStale", () => {
   });
   it("com cache velho (>30min) é stale", () => {
     expect(icalStale("https://x", { fetchedAt: Date.now() - 31 * 60000, eventos: [] })).toBe(true);
+  });
+});
+
+describe("calendário do Google (30/09/2026)", () => {
+  it("normaliza webcal, embed e cid para o .ics; o secreto passa intacto", () => {
+    const secreto = "https://calendar.google.com/calendar/ical/eu%40gmail.com/private-abc/basic.ics";
+    expect(normalizarUrlIcal("  " + secreto + " ")).toBe(secreto);
+    expect(normalizarUrlIcal("webcal://exemplo.com/a.ics")).toBe("https://exemplo.com/a.ics");
+    const pub = "https://calendar.google.com/calendar/ical/eu%40gmail.com/public/basic.ics";
+    expect(normalizarUrlIcal("https://calendar.google.com/calendar/embed?src=eu%40gmail.com&ctz=America%2FBahia")).toBe(
+      pub
+    );
+    expect(normalizarUrlIcal("https://calendar.google.com/calendar/u/0?cid=" + btoa("eu@gmail.com"))).toBe(pub);
+  });
+
+  it("evento de dia inteiro não vaza para o dia seguinte", () => {
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "BEGIN:VEVENT",
+      "UID:v",
+      "SUMMARY:Véspera",
+      "DTSTART;VALUE=DATE:20261224",
+      "DTEND;VALUE=DATE:20261225",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    const cache = { fetchedAt: 0, eventos: parseIcs(ics) };
+    expect(icalEventosDoDia(cache, "2026-12-24").map((e) => e.title)).toEqual(["Véspera"]);
+    expect(icalEventosDoDia(cache, "2026-12-25")).toEqual([]);
+  });
+
+  it("repete aniversário anual (FREQ=YEARLY)", () => {
+    const ics = [
+      "BEGIN:VEVENT",
+      "UID:a",
+      "SUMMARY:Aniversário",
+      "DTSTART;VALUE=DATE:20200315",
+      "DTEND;VALUE=DATE:20200316",
+      "RRULE:FREQ=YEARLY",
+      "END:VEVENT",
+    ].join("\n");
+    const cache = { fetchedAt: 0, eventos: parseIcs(ics) };
+    expect(icalEventosDoDia(cache, "2027-03-15").map((e) => e.title)).toEqual(["Aniversário"]);
+    expect(icalEventosDoDia(cache, "2027-03-16")).toEqual([]);
   });
 });

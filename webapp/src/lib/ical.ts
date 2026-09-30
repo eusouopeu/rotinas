@@ -3,10 +3,12 @@
 // cópia derivada de um serviço de fora, refazer o fetch já resolve; não faz
 // sentido herdar backupData()/SYNCED_KEYS). Horário com TZID é tratado como
 // hora de parede local (sem conversão de fuso de verdade). RRULE expande só
-// FREQ=DAILY|WEEKLY; outras frequências mostram só a ocorrência do DTSTART
-// original.
+// FREQ=DAILY|WEEKLY|MONTHLY|YEARLY; outras mostram só a ocorrência do DTSTART
+// original. Desde 30/09/2026 também MONTHLY/YEARLY (mesmo dia), busca nativa
+// no Android e erros com o motivo (ver fetchIcalText).
 import { K_ICALCACHE, K_ICALURL } from "./constants";
-import { isDesktop, load, save } from "./storage";
+import { CapacitorHttp } from "@capacitor/core";
+import { isDesktop, isNative, load, save } from "./storage";
 import { isoToDate } from "./gamificacao";
 
 export interface IcalEvent {
@@ -47,21 +49,86 @@ export function saveIcalCache(cache: IcalCache | null): void {
   save(K_ICALCACHE, cache);
 }
 
-/** fetch do renderer bateria em CORS na maioria dos provedores (endpoint ICS
- * é pensado pra cliente de calendário, não pra JS de página) — no desktop o
- * main process busca sem essa restrição; no Android o CapacitorHttp
- * (capacitor.config.json) intercepta o fetch e evita o mesmo problema. */
-export async function fetchIcalText(url: string): Promise<string> {
-  if (isDesktop && window.electronBridge?.ical) return window.electronBridge.ical.fetch(url);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000);
+/** Erro de busca com o motivo já em português, para o card mostrar. */
+export class IcalErro extends Error {}
+
+/** Aceita o que o Pedro tende a colar do Google (30/09/2026): `webcal://`,
+ *  o link de incorporar (`embed?src=`) e o de compartilhar (`?cid=`) viram o
+ *  endereço .ics público daquela agenda. O endereço secreto passa intacto. */
+export function normalizarUrlIcal(bruta: string): string {
+  let u = bruta.trim().replace(/^webcals?:\/\//i, "https://");
   try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    return await res.text();
-  } finally {
-    clearTimeout(timer);
+    const url = new URL(u);
+    if (/(^|\.)calendar\.google\.com$/i.test(url.hostname) && !/\/ical\//.test(url.pathname)) {
+      let id = url.searchParams.get("src");
+      const cid = url.searchParams.get("cid");
+      if (!id && cid) {
+        try {
+          id = cid.includes("@") ? cid : atob(cid.replace(/-/g, "+").replace(/_/g, "/"));
+        } catch {
+          id = cid;
+        }
+      }
+      if (id) u = `https://calendar.google.com/calendar/ical/${encodeURIComponent(id)}/public/basic.ics`;
+    }
+  } catch {
+    // não é URL: a busca abaixo explica o erro
   }
+  return u;
+}
+
+/** fetch do renderer bate em CORS na maioria dos provedores (endpoint ICS é
+ * pensado pra cliente de calendário, não pra JS de página) — no desktop o main
+ * process busca sem essa restrição; no Android vai direto pelo CapacitorHttp
+ * nativo (o fetch "remendado" dele não é confiável com AbortController nem com
+ * resposta text/calendar). */
+export async function fetchIcalText(bruta: string): Promise<string> {
+  const url = normalizarUrlIcal(bruta);
+  if (!/^https?:\/\//i.test(url)) throw new IcalErro("O endereço precisa começar com https://");
+  let status = 0;
+  let texto = "";
+  try {
+    if (isDesktop && window.electronBridge?.ical) {
+      texto = await window.electronBridge.ical.fetch(url);
+      status = 200;
+    } else if (isNative) {
+      const r = await CapacitorHttp.get({ url, responseType: "text", connectTimeout: 15000, readTimeout: 20000 });
+      status = r.status;
+      texto = typeof r.data === "string" ? r.data : JSON.stringify(r.data ?? "");
+    } else {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 15000);
+      try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        status = res.status;
+        texto = await res.text();
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  } catch (e) {
+    // o Electron repassa o status como "HTTP 404" dentro da mensagem do IPC
+    const m = /HTTP (\d{3})/.exec(String(e));
+    if (m) status = +m[1];
+    else
+      throw new IcalErro(
+        isNative || isDesktop
+          ? "Sem conexão com o calendário — confira a internet e tente de novo."
+          : "O navegador bloqueou a busca (CORS). No app instalado funciona."
+      );
+  }
+  if (status === 404)
+    throw new IcalErro(
+      'Endereço não encontrado. No Google, use o "Endereço secreto em formato iCal" (o público só funciona se a agenda for pública).'
+    );
+  if (status === 401 || status === 403)
+    throw new IcalErro('Acesso negado. Use o "Endereço secreto em formato iCal" da agenda.');
+  if (status && (status < 200 || status >= 300)) throw new IcalErro(`O servidor respondeu com erro (${status}).`);
+  if (!/BEGIN:VCALENDAR/.test(texto))
+    throw new IcalErro(
+      'Esse link não é de um calendário .ics. No Google: Configurações da agenda → "Endereço secreto em formato iCal".'
+    );
+  return texto;
 }
 
 function icsUnfold(text: string): string[] {
@@ -154,18 +221,36 @@ export function expandirOcorrencias(
   janelaFim: number
 ): Array<{ startMs: number; endMs: number }> {
   const dur = ev.endMs != null && ev.endMs > ev.startMs ? ev.endMs - ev.startMs : ev.allDay ? 86400000 : 3600000;
-  const naJanela = (ms: number) => ms <= janelaFim && ms + dur >= janelaIni;
+  // fim exclusivo: um evento de dia inteiro termina à 0h do dia seguinte e
+  // não pode aparecer nele também
+  const naJanela = (ms: number) => ms <= janelaFim && ms + dur > janelaIni;
   if (!ev.rrule) {
     return naJanela(ev.startMs) ? [{ startMs: ev.startMs, endMs: ev.startMs + dur }] : [];
   }
   const r = parseRrule(ev.rrule);
-  if (r.FREQ !== "DAILY" && r.FREQ !== "WEEKLY") {
-    return naJanela(ev.startMs) ? [{ startMs: ev.startMs, endMs: ev.startMs + dur }] : [];
-  }
   const interval = Math.max(1, +r.INTERVAL || 1);
   const count = r.COUNT ? +r.COUNT : null;
   const until = r.UNTIL ? ((icsParseDate(r.UNTIL) || {}).ms ?? null) : null;
   const out: Array<{ startMs: number; endMs: number }> = [];
+  if (r.FREQ === "MONTHLY" || r.FREQ === "YEARLY") {
+    // mesmo dia do mês (ou do ano) do DTSTART — aniversários do Google são YEARLY
+    const base = new Date(ev.startMs);
+    const passo = r.FREQ === "YEARLY" ? 12 * interval : interval;
+    for (let n = 0; n < ICAL_EXPAND_MAX; n++) {
+      const occ = new Date(base);
+      occ.setMonth(base.getMonth() + n * passo);
+      if (occ.getDate() !== base.getDate()) continue; // 31 num mês de 30: não existe
+      const ms = occ.getTime();
+      if (until != null && ms > until) break;
+      if (count != null && n >= count) break;
+      if (ms > janelaFim) break;
+      if (naJanela(ms) && !ev.exdatesMs.includes(ms)) out.push({ startMs: ms, endMs: ms + dur });
+    }
+    return out;
+  }
+  if (r.FREQ !== "DAILY" && r.FREQ !== "WEEKLY") {
+    return naJanela(ev.startMs) ? [{ startMs: ev.startMs, endMs: ev.startMs + dur }] : [];
+  }
   if (r.FREQ === "DAILY") {
     for (let n = 0; n < ICAL_EXPAND_MAX; n++) {
       const ms = ev.startMs + n * interval * 86400000;
@@ -238,7 +323,24 @@ export function icalStale(url: string, cache: IcalCache | null): boolean {
 
 export async function atualizarIcal(url: string): Promise<IcalCache> {
   const text = await fetchIcalText(url);
-  const cache: IcalCache = { fetchedAt: Date.now(), eventos: parseIcs(text) };
+  // eventos que já acabaram há mais de 60 dias e não se repetem não aparecem
+  // em lugar nenhum e só incham o armazenamento (agendas antigas do Google têm
+  // milhares)
+  const corte = Date.now() - 60 * 86400000;
+  const eventos = parseIcs(text).filter((e) => e.rrule || (e.endMs ?? e.startMs) >= corte);
+  const cache: IcalCache = { fetchedAt: Date.now(), eventos };
   saveIcalCache(cache);
   return cache;
+}
+
+/** Atualiza em segundo plano se a última busca tem mais de 30 min (abrir o
+ *  app). Falha silenciosa: o card de Ajustes mostra o erro quando pedido. */
+export async function atualizarIcalSeVencido(): Promise<IcalCache | null> {
+  const url = getIcalUrl();
+  if (!icalStale(url, getIcalCache())) return null;
+  try {
+    return await atualizarIcal(url);
+  } catch {
+    return null;
+  }
 }

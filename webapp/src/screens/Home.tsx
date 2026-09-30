@@ -32,6 +32,7 @@ import { BotaoPlay } from "../ui/BotaoPlay";
 import { EstadoVazio } from "../ui/EstadoVazio";
 import { Fab } from "../ui/Fab";
 import { ListaCartoes } from "../ui/ListaCartoes";
+import { cn } from "../lib/cn";
 import { Modal, ModalAcoes, ModalTexto } from "../ui/Modal";
 import { OpcaoCriar } from "../ui/OpcaoCriar";
 import { SegPill } from "../ui/Segmentado";
@@ -164,8 +165,8 @@ export function Home() {
           cheia
           style={{ marginBottom: 14 }}
           options={[
-            { key: "semana", label: "Semana" },
             { key: "dia", label: "Dia" },
+            { key: "semana", label: "Semana" },
             { key: "mes", label: "Mês" },
             { key: "rotinas", label: "Lista" },
           ]}
@@ -261,7 +262,8 @@ export function Home() {
             <EstadoVazio titulo="Nada agendado para hoje" texto='Desligue o "hoje" para ver todas as rotinas.' />
           )
         ) : (
-          <ListaCartoes>
+          // expandido = cartões quadrados, dois por linha (quatro no desktop)
+          <ListaCartoes className={cn(listaExpandida && "grid grid-cols-2 desktop:grid-cols-4")}>
             {visiveis.map((r) => (
               <CartaoRotina
                 key={r.id}

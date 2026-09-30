@@ -42,6 +42,7 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Mês fechado: cartão na aba Rotinas e tela com nota/selo do mês, semanas, rotinas mais feitas, gastos e foco do mês seguinte (vira nota) – implementado em 30/09/2026
 - Primeira abertura guiada: num app vazio, escolher áreas da roda e rotinas prontas – implementado em 30/09/2026
 - Redesenho pelos mockups do Pedro: cartões cápsula de rotina e meta (faixa da área, play em degradê, +/− empilhados), selo verde/vermelho da Roda da Vida, formulários de meta em grupos com áreas como chip, detalhe da rotina com etiquetas e deslizar etapa para editar/excluir – implementado em 30/09/2026
+- Visão Mês com resumo do dia tocado, Lista expandida em quadrados, cartão de nota compacto com data completa, editor de rotina com agendamento antes das etapas e calendário externo do Google corrigido – implementado em 30/09/2026
 
 ## Recomendações refutadas
 

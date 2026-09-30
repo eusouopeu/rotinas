@@ -3,6 +3,7 @@
 // acrescente um bloco aqui e rode `npm run visual:baseline`.
 import { test, expect } from "@playwright/test";
 import { HOJE, seedLocalStorage } from "./seed.mjs";
+import { fotoInteira } from "./apoio.mjs";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((seed) => {
@@ -43,6 +44,13 @@ test("rotinas: popup de criar", async ({ page }) => {
 test("rotinas: mês", async ({ page }) => {
   await page.getByText("Mês", { exact: true }).first().click();
   await foto(page, "rotinas-mes");
+});
+
+test("rotinas: mês com o resumo do dia tocado", async ({ page }) => {
+  await page.getByText("Mês", { exact: true }).first().click();
+  await page.getByRole("button", { name: /^Dia 22:/ }).click();
+  await page.locator('[data-mes="resumo"]').waitFor();
+  await fotoInteira(page, "rotinas-mes-resumo");
 });
 
 test("rotinas: rotinas prontas", async ({ page }) => {

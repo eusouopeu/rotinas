@@ -1,22 +1,28 @@
 // Visão "Mês" da agenda (recomendação 1, 27/09/2026): grade do mês com uma
 // bolinha por item de cada dia — rotina agendada, cartão do kanban do dia,
 // compromisso e calendário externo —, lidos da MESMA fonte da Semana/Dia
-// (itensAgendaDoDia). Feito = bolinha cheia; pendente = vazada. Tocar num dia
-// abre a visão Dia naquela data. Não é a agenda do legado baseada na nota do
-// mês (agendaMesHtml), que dependia da aba Diário removida.
+// (itensAgendaDoDia). Desde 30/09/2026 (pedido do Pedro) cada dia mostra os
+// primeiros itens como faixinhas com o nome (cheia = feito, clara = pendente)
+// e tocar num dia abre, logo abaixo da grade, o resumo daquele dia — rotinas,
+// tarefas e compromissos, com o horário em que foram cumpridos; "abrir no Dia"
+// leva à grade de horário. Não é a agenda do legado baseada na nota do mês
+// (agendaMesHtml), que dependia da aba Diário removida.
 import { useState } from "react";
 import { Icon } from "../../components/Icon";
 import { useAppStore } from "../../store/useAppStore";
 import { isoToDate, localKey, weekStartDow } from "../../lib/gamificacao";
 import { celulasMes, itensAgendaDoDia } from "../../lib/agenda";
 import { getIcalCache } from "../../lib/ical";
-import { DIAS_ABREV } from "../../lib/constants";
+import { DIAS_ABREV, DIAS_NOME } from "../../lib/constants";
+import { formatHM } from "../../lib/schedule";
+import type { AgendaItemDia } from "../../lib/agenda";
 import { cn } from "../../lib/cn";
 import { BotaoIcone } from "../../ui/BotaoIcone";
 import { Cartao } from "../../ui/Cartao";
+import { BotaoLink } from "../../ui/BotaoLink";
 import { ACAO_NAV, DataNav, LinhaNav, PontoHoje, Sobra } from "./NavAgenda";
 
-const MAX_PONTOS = 6;
+const MAX_FAIXAS = 3;
 
 export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void }) {
   const routines = useAppStore((s) => s.routines);
@@ -24,11 +30,16 @@ export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void })
   const history = useAppStore((s) => s.history);
   const diaKanban = useAppStore((s) => s.diaKanban);
   const compromissos = useAppStore((s) => s.compromissos);
+  const goTo = useAppStore((s) => s.goTo);
+  const toggleDiaKanbanCard = useAppStore((s) => s.toggleDiaKanbanCard);
+  const toggleCompromisso = useAppStore((s) => s.toggleCompromisso);
 
   const hojeISO = localKey();
   const hoje = isoToDate(hojeISO);
   const [ref, setRef] = useState({ ano: hoje.getFullYear(), mes: hoje.getMonth() });
   const ehMesAtual = ref.ano === hoje.getFullYear() && ref.mes === hoje.getMonth();
+  // dia aberto no resumo abaixo da grade (começa em hoje)
+  const [aberto, setAberto] = useState<string | null>(hojeISO);
   const weekStart = weekStartDow();
   const icalCache = getIcalCache();
   const celulas = celulasMes(ref.ano, ref.mes, weekStart);
@@ -37,7 +48,11 @@ export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void })
   function mover(delta: number) {
     const d = new Date(ref.ano, ref.mes + delta, 1);
     setRef({ ano: d.getFullYear(), mes: d.getMonth() });
+    setAberto(null);
   }
+
+  const itensDe = (iso: string) =>
+    itensAgendaDoDia(iso, isoToDate(iso), routines, gam, history, diaKanban, compromissos, icalCache);
 
   return (
     <div>
@@ -57,7 +72,10 @@ export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void })
           <BotaoIcone
             rotulo="Ir para o mês atual"
             className={ACAO_NAV}
-            onClick={() => setRef({ ano: hoje.getFullYear(), mes: hoje.getMonth() })}
+            onClick={() => {
+              setRef({ ano: hoje.getFullYear(), mes: hoje.getMonth() });
+              setAberto(hojeISO);
+            }}
           >
             <Icon name="calendar" size={15} />
           </BotaoIcone>
@@ -72,52 +90,144 @@ export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void })
           ))}
           {celulas.map((iso, i) => {
             if (!iso) return <div key={"v" + i} />;
-            const itens = itensAgendaDoDia(
-              iso,
-              isoToDate(iso),
-              routines,
-              gam,
-              history,
-              diaKanban,
-              compromissos,
-              icalCache
-            );
+            const itens = itensDe(iso);
             const ehHoje = iso === hojeISO;
             const passado = iso < hojeISO;
-            const extras = itens.length - MAX_PONTOS;
+            const extras = itens.length - MAX_FAIXAS;
+            const sel = iso === aberto;
             return (
               <button
                 key={iso}
                 type="button"
                 aria-label={`Dia ${+iso.slice(8, 10)}: ${itens.length} ${itens.length === 1 ? "item" : "itens"}`}
-                onClick={() => onAbrirDia(iso)}
+                aria-pressed={sel}
+                onClick={() => setAberto(sel ? null : iso)}
                 className={cn(
-                  "flex min-h-14 flex-col items-center gap-1 rounded-app-sm border-[1.5px] bg-transparent px-0.5 pt-1 pb-1.5",
+                  "flex min-h-[84px] min-w-0 flex-col items-stretch gap-[3px] rounded-app-sm border-[1.5px] px-0.5 pt-1 pb-1",
+                  sel ? "bg-caneta-soft" : "bg-transparent",
                   ehHoje ? "border-caneta" : "border-transparent",
-                  passado && "opacity-70"
+                  passado && !sel && "opacity-75"
                 )}
               >
-                <span className={cn("text-sm", ehHoje ? "font-bold text-caneta" : "text-ink")}>
+                <span className={cn("text-center text-sm", ehHoje ? "font-bold text-caneta" : "text-ink")}>
                   {+iso.slice(8, 10)}
                 </span>
-                <span className="flex flex-wrap justify-center gap-[3px]">
-                  {itens.slice(0, MAX_PONTOS).map((it) => (
-                    <span
-                      key={it.tipo + ":" + it.id}
-                      className="size-[6px] rounded-full border-[1.5px]"
-                      style={{
-                        borderColor: it.cor || "var(--caneta)",
-                        background: it.feito ? it.cor || "var(--caneta)" : "transparent",
-                      }}
-                    />
-                  ))}
-                  {extras > 0 && <span className="text-[10px] leading-[6px] text-sub">+{extras}</span>}
-                </span>
+                {itens.slice(0, MAX_FAIXAS).map((it) => (
+                  <span
+                    key={it.tipo + ":" + it.id}
+                    className="truncate rounded-[3px] px-[3px] text-left text-[9px] leading-[13px] font-medium"
+                    style={
+                      it.feito
+                        ? { background: it.cor || "var(--caneta)", color: "var(--on-caneta)" }
+                        : {
+                            background: `color-mix(in srgb, ${it.cor || "var(--caneta)"} 18%, transparent)`,
+                            color: "var(--ink)",
+                          }
+                    }
+                  >
+                    {it.texto}
+                  </span>
+                ))}
+                {extras > 0 && <span className="text-center text-[9px] leading-[11px] text-sub">+{extras}</span>}
               </button>
             );
           })}
         </div>
       </Cartao>
+      {aberto && (
+        <ResumoDia
+          iso={aberto}
+          itens={itensDe(aberto)}
+          hojeISO={hojeISO}
+          onAbrirDia={() => onAbrirDia(aberto)}
+          onItem={(it) => {
+            if (it.tipo === "rotina") goTo({ tab: "home", screen: "routineDetail", id: it.id });
+            else if (it.tipo === "cartao") toggleDiaKanbanCard(it.id);
+            else if (it.tipo === "compromisso") toggleCompromisso(it.id);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Resumo do dia tocado na grade: cada item com horário, estado e cor. */
+function ResumoDia({
+  iso,
+  itens,
+  hojeISO,
+  onAbrirDia,
+  onItem,
+}: {
+  iso: string;
+  itens: AgendaItemDia[];
+  hojeISO: string;
+  onAbrirDia: () => void;
+  onItem: (it: AgendaItemDia) => void;
+}) {
+  const d = isoToDate(iso);
+  const titulo = `${DIAS_NOME[d.getDay()]}, ${d.toLocaleDateString("pt-BR", { day: "numeric", month: "long" })}`;
+  const ordenados = itens
+    .slice()
+    .sort((a, b) => (a.diaTodo ? -1 : b.diaTodo ? 1 : (a.ini ?? 9999) - (b.ini ?? 9999)));
+  const passou = iso < hojeISO;
+  return (
+    <div className="mt-3 rounded-app bg-card-2 px-4 py-3" data-mes="resumo">
+      <div className="mb-1 flex items-center gap-2">
+        <h3 className="m-0 flex-1 font-titulo text-lg font-bold first-letter:uppercase">{titulo}</h3>
+        <BotaoLink onClick={onAbrirDia}>abrir no Dia</BotaoLink>
+      </div>
+      {ordenados.length === 0 ? (
+        <div className="py-2 font-sans text-md text-sub">Nada agendado neste dia.</div>
+      ) : (
+        ordenados.map((it) => {
+          const hora = it.diaTodo
+            ? "dia todo"
+            : it.ini != null
+              ? formatHM(it.ini) + (it.fim != null ? " → " + formatHM(it.fim) : "")
+              : "sem horário";
+          const estado =
+            it.tipo === "ical"
+              ? "calendário externo"
+              : it.feito
+                ? it.tipo === "rotina"
+                  ? "feita"
+                  : "feito"
+                : passou
+                  ? it.tipo === "rotina"
+                    ? "não feita"
+                    : "não feito"
+                  : "pendente";
+          return (
+            <button
+              key={it.tipo + ":" + it.id}
+              type="button"
+              disabled={it.tipo === "ical"}
+              onClick={() => onItem(it)}
+              className="flex w-full items-center gap-2.5 border-0 bg-transparent py-1.5 text-left font-sans"
+            >
+              <span
+                className="size-2.5 flex-none rounded-full border-[1.5px]"
+                style={{
+                  borderColor: it.cor || "var(--caneta)",
+                  background: it.feito ? it.cor || "var(--caneta)" : "transparent",
+                }}
+              />
+              <span className={cn("min-w-0 flex-1 truncate text-md text-ink", it.feito && "text-sub line-through")}>
+                {it.texto}
+              </span>
+              <span
+                className={cn(
+                  "flex-none text-sm tabular-nums",
+                  it.feito ? "text-ok" : passou && it.tipo !== "ical" ? "text-erro" : "text-sub"
+                )}
+              >
+                {it.feito && <Icon name="check" size={12} />} {hora} · {estado}
+              </span>
+            </button>
+          );
+        })
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // Cartão de rotina da visão Lista (mockup de 30/09/2026): faixa da área à
 // esquerda, horário pequeno em cima, nome + sequência, etapas e etiquetas
 // (dias, pausa, hábito) embaixo; play grande em degradê abraçado pela ponta
-// arredondada. `expandido` empilha as etiquetas. Já feita hoje: título riscado,
+// arredondada. `expandido` vira um quadrado de meia largura (grade de 2). Já feita hoje: título riscado,
 // faixa esmaecida, horário real em verde e selo de streak cheio.
 import { Icon } from "../../components/Icon";
 import { StreakTag } from "../../components/StreakTag";
@@ -78,11 +78,81 @@ export function CartaoRotina({
     </span>
   ) : null;
 
+  const etiquetas = (
+    <>
+      {sched && (
+        <Etiqueta title="Dias">
+          <Icon name="calendar" size={13} /> {diasChipLabel(r)}
+        </Etiqueta>
+      )}
+      {pausaTxt && (
+        <Etiqueta title={r.arquivada ? "Rotina arquivada" : "Só esta rotina está pausada"}>
+          <Icon name="pause" size={13} /> {pausaTxt}
+        </Etiqueta>
+      )}
+      {rotinaEhHabito(r, gam) && (
+        <Etiqueta
+          tom="area"
+          cor="var(--ok)"
+          className="text-ok"
+          title={`Hábito consolidado: vale ${Math.round((gam.config.habito.fator || 0.6) * 100)}% do peso, para abrir espaço ao que ainda não pegou`}
+        >
+          hábito
+        </Etiqueta>
+      )}
+    </>
+  );
+  const etapas = (
+    <Fato title={`${r.steps.length} etapa${r.steps.length !== 1 ? "s" : ""}`}>
+      <Icon name="clipboard" size={15} /> {r.steps.length}
+    </Fato>
+  );
+  const titulo = (
+    <>
+      {r.icon ? r.icon + " " : ""}
+      {r.name}
+      <StreakTag routineId={r.id} routines={routines} history={history} feitaHoje={!!execHoje} />
+    </>
+  );
+
+  // expandido (30/09/2026): quadrado de meia largura, informações empilhadas
+  // e o play no canto de baixo, ao lado das etapas
+  if (expandido)
+    return (
+      <SwipeItem
+        onLeft={onExcluir}
+        onRight={onDuplicar}
+        className="relative flex aspect-square flex-col overflow-hidden rounded-app bg-card-2 py-3 pr-3 pl-[18px] transition-transform duration-[140ms] active:scale-[0.985]"
+      >
+        <FaixaCor cor={fillStyle(corDaRotina(r, gam))} esmaecido={!!execHoje} />
+        <div className="min-h-0 flex-1 cursor-pointer" onClick={onAbrir}>
+          {topo && (
+            <div className="mb-1 flex items-center gap-1 font-sans text-sm font-semibold text-ink [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1">
+              {topo}
+            </div>
+          )}
+          <CartaoTitulo
+            className={cn(
+              "mb-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-lg leading-tight font-bold [&>span]:ml-0",
+              execHoje && "text-sub line-through"
+            )}
+          >
+            {titulo}
+          </CartaoTitulo>
+          <div className="flex flex-col items-start gap-1">{etiquetas}</div>
+        </div>
+        <div className="mt-2 flex items-center justify-between font-sans text-md text-ink">
+          {etapas}
+          <BotaoPlay rotulo="Iniciar rotina" disabled={r.steps.length === 0} onClick={onIniciar} />
+        </div>
+      </SwipeItem>
+    );
+
   return (
     <SwipeItem
       onLeft={onExcluir}
       onRight={onDuplicar}
-      className={cn(CARTAO_CAPSULA, "rounded-r-[44px]", expandido && "py-3.5")}
+      className={cn(CARTAO_CAPSULA, "rounded-r-[44px]")}
       wrapClassName="rounded-r-[44px]"
     >
       <FaixaCor cor={fillStyle(corDaRotina(r, gam))} esmaecido={!!execHoje} />
@@ -94,40 +164,16 @@ export function CartaoRotina({
         )}
         <CartaoTitulo
           className={cn(
-            "mb-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 font-bold",
-            expandido ? "text-[21px]" : "text-[19px]",
+            "mb-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-[19px] font-bold",
             execHoje && "text-sub line-through"
           )}
         >
-          {r.icon ? r.icon + " " : ""}
-          {r.name}
-          <StreakTag routineId={r.id} routines={routines} history={history} feitaHoje={!!execHoje} />
+          {titulo}
         </CartaoTitulo>
         {/* etapas + etiquetas (dias, pausa, hábito). A área é a faixa da esquerda. */}
-        <Fatos className={cn("gap-x-2.5 gap-y-1.5 text-md text-ink", expandido && "flex-col items-start")}>
-          <Fato title={`${r.steps.length} etapa${r.steps.length !== 1 ? "s" : ""}`}>
-            <Icon name="clipboard" size={15} /> {r.steps.length}
-          </Fato>
-          {sched && (
-            <Etiqueta title="Dias">
-              <Icon name="calendar" size={13} /> {diasChipLabel(r)}
-            </Etiqueta>
-          )}
-          {pausaTxt && (
-            <Etiqueta title={r.arquivada ? "Rotina arquivada" : "Só esta rotina está pausada"}>
-              <Icon name="pause" size={13} /> {pausaTxt}
-            </Etiqueta>
-          )}
-          {rotinaEhHabito(r, gam) && (
-            <Etiqueta
-              tom="area"
-              cor="var(--ok)"
-              className="text-ok"
-              title={`Hábito consolidado: vale ${Math.round((gam.config.habito.fator || 0.6) * 100)}% do peso, para abrir espaço ao que ainda não pegou`}
-            >
-              hábito
-            </Etiqueta>
-          )}
+        <Fatos className="gap-x-2.5 gap-y-1.5 text-md text-ink">
+          {etapas}
+          {etiquetas}
         </Fatos>
       </CartaoInfo>
       <BotaoPlay rotulo="Iniciar rotina" grande disabled={r.steps.length === 0} onClick={onIniciar} />

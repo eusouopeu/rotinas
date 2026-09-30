@@ -3,6 +3,7 @@
 // fases seguintes). Sem router: mesmo modelo de view={tab,screen,id} trocado
 // em memória que o app antigo usa, sem depender de URL.
 import { useEffect } from "react";
+import { atualizarIcalSeVencido } from "./lib/ical";
 import { useAppStore } from "./store/useAppStore";
 import { computeRemaining } from "./lib/player";
 import { isDesktop } from "./lib/storage";
@@ -134,6 +135,16 @@ function useMiniPlayerBridge() {
 // repassa cada chamada de tool por IPC e espera a resposta daqui. Registro
 // único por janela — ipcRenderer.on acumularia handlers se o efeito rodasse
 // de novo (StrictMode em dev), e cada um responderia a mesma chamada.
+/** Calendário externo: rebusca ao abrir o app se a cópia tem mais de 30 min
+ *  (antes só atualizava tocando no botão em Ajustes) e redesenha a agenda. */
+function useIcalAtualizacao() {
+  useEffect(() => {
+    atualizarIcalSeVencido().then((c) => {
+      if (c) useAppStore.setState((s) => ({ view: { ...s.view } }));
+    });
+  }, []);
+}
+
 let mcpRegistrado = false;
 function useMcpBridge() {
   useEffect(() => {
@@ -249,6 +260,7 @@ export function App() {
   useGlobalSearchShortcut(openSearch);
   useMiniPlayerBridge();
   useMcpBridge();
+  useIcalAtualizacao();
 
   if (!booted) return null;
 
