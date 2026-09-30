@@ -1,19 +1,20 @@
 // Popup de meta com prazo (criar/editar) — porta de abrirFormMeta
-// (index.html:8175-8265): título, prazo, quantidade + unidade, áreas (texto
-// livre, os eixos da roda entram como sugestão), dias para trabalhar e peso no
-// boletim, com o aviso de escopo/pontos ao vivo.
+// (index.html:8175-8265). Ordem do mockup de 30/09/2026: título; áreas (chips
+// dentro da caixa, texto livre com os eixos da roda como sugestão) + prazo;
+// quantidade + unidade e peso; dias para trabalhar — grupos separados por
+// filetes, com o aviso de escopo/pontos ao vivo.
 import { useState } from "react";
 import { DIAS_ABREV } from "../../lib/constants";
 import { metaAreaInfo, metaAreasPool, metaEscopo, metaPontosTotais } from "../../lib/metas";
 import type { CountdownDoc, GamificacaoState, MetaTarget, Tag } from "../../lib/types";
 import { Campo } from "../../ui/Campo";
 import { AreaInput, DateKbInput } from "../../ui/CamposTexto";
-import { Chip } from "../../ui/Chip";
 import { ChipsDia } from "../../ui/ChipsDia";
+import { Etiqueta } from "../../ui/Etiqueta";
 import { Legenda } from "../../ui/Legenda";
 import { Toggle } from "../../ui/Segmentado";
 import { ESCOPO_LABEL, TAG_OPCOES } from "./constantes";
-import { CelulaForm, FormMeta, IconeForm, LinhaForm } from "./FormMeta";
+import { CaixaChips, CelulaForm, DivisorForm, FormMeta, IconeForm, LinhaForm } from "./FormMeta";
 
 type Props = {
   meta: MetaTarget | null;
@@ -87,6 +88,50 @@ export function FormMetaPrazo({ meta, doc, gam, onClose, onSalvar }: Props) {
       </LinhaForm>
 
       <LinhaForm fixa>
+        <CelulaForm className="min-w-0 flex-[1_1_0]">
+          <IconeForm icone="briefcase" titulo="Áreas" />
+          <CaixaChips className="flex-[1_1_0]">
+            {areas.map((a) => {
+              const info = metaAreaInfo(a, areasRoda);
+              return (
+                <Etiqueta
+                  key={a}
+                  tom="area"
+                  cor={info.color}
+                  role="button"
+                  className="cursor-pointer"
+                  title="Tirar esta área"
+                  onClick={() => toggleArea(a)}
+                >
+                  {info.label}
+                </Etiqueta>
+              );
+            })}
+            <AreaInput
+              className="min-w-4 flex-[1_1_0]"
+              semMoldura
+              limpaAoEscolher
+              label="Adicionar área"
+              placeholder={areas.length ? "" : "+ área"}
+              valor={novaArea}
+              pool={sugestoes}
+              onEscolher={(lbl) => {
+                const v = lbl.trim();
+                if (v && !areas.some((x) => x.toLowerCase() === v.toLowerCase())) setAreas([...areas, v]);
+                setNovaArea("");
+              }}
+            />
+          </CaixaChips>
+        </CelulaForm>
+        <CelulaForm className="flex-none">
+          <IconeForm icone="calendar" titulo="Prazo" />
+          <DateKbInput label="Prazo" className="w-[112px]" value={data} onChange={setData} />
+        </CelulaForm>
+      </LinhaForm>
+
+      <DivisorForm />
+
+      <LinhaForm fixa>
         <CelulaForm className="flex-none">
           <IconeForm icone="hashtag" titulo="Quantidade (opcional)" />
           <Campo
@@ -115,45 +160,11 @@ export function FormMetaPrazo({ meta, doc, gam, onClose, onSalvar }: Props) {
       </LinhaForm>
 
       <LinhaForm>
-        <IconeForm icone="ticket" titulo="Peso no boletim" />
+        <IconeForm icone="scale" titulo="Peso no boletim" />
         <Toggle larga options={TAG_OPCOES} active={tag} onSelect={setTag} />
       </LinhaForm>
 
-      {areas.length > 0 && (
-        <div className="mt-2.5 flex flex-1 flex-wrap gap-1.5">
-          {areas.map((a) => {
-            const info = metaAreaInfo(a, areasRoda);
-            return (
-              <Chip key={a} ativo cor={info.color} onClick={() => toggleArea(a)}>
-                {info.label}
-              </Chip>
-            );
-          })}
-        </div>
-      )}
-
-      <LinhaForm>
-        <CelulaForm className="flex-[0_1_auto]">
-          <IconeForm icone="calendar" titulo="Prazo" />
-          <DateKbInput label="Prazo" value={data} onChange={setData} />
-        </CelulaForm>
-        <CelulaForm>
-          <IconeForm icone="briefcase" titulo="Áreas" />
-          <AreaInput
-            className="min-w-0 flex-[1_1_0]"
-            limpaAoEscolher
-            label="Adicionar área"
-            placeholder="+ área"
-            valor={novaArea}
-            pool={sugestoes}
-            onEscolher={(lbl) => {
-              const v = lbl.trim();
-              if (v && !areas.some((x) => x.toLowerCase() === v.toLowerCase())) setAreas([...areas, v]);
-              setNovaArea("");
-            }}
-          />
-        </CelulaForm>
-      </LinhaForm>
+      <DivisorForm />
 
       <LinhaForm>
         <IconeForm icone="bell" titulo="Dias para trabalhar (nenhum marcado = todo dia)" />

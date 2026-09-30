@@ -1,11 +1,10 @@
 // Peças comuns dos cartões de meta (recorrente e com prazo): a moldura com
-// alça de arrasto, título com bolinha da área e o contador −/+. Cada tipo de
+// faixa da área e alça de arrasto, o título e o contador +/−. Cada tipo de
 // meta monta o miolo (fatos, contador) com estas peças.
 import { useRef, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { AlcaArrasto } from "../../ui/AlcaArrasto";
-import { BotaoRedondo } from "../../ui/BotaoRedondo";
-import { Cartao } from "../../ui/Cartao";
+import { CARTAO_CAPSULA, FaixaCor } from "../../ui/PontoCor";
 import { SwipeItem } from "../../ui/SwipeItem";
 
 /**
@@ -31,23 +30,33 @@ type Props = {
   setRef: (el: HTMLDivElement | null) => void;
   isDragging: boolean;
   dragHandleProps: Record<string, unknown>;
-  /** cor da borda quando a meta está concluída/excedida (senão a padrão) */
-  corBorda?: string;
+  /** fundo de estado: meta concluída (ok) ou estourada (erro); senão o neutro */
+  estado?: "ok" | "erro";
   corPonto: string;
   titulo: string;
+  /** selo ao lado do título (sequência) */
+  selo?: ReactNode;
+  /** contador encaixado na ponta direita (ContadorMeta) */
+  contador?: ReactNode;
   onEditar: () => void;
   onExcluir: () => void;
   onDuplicar?: () => void;
   children: ReactNode;
 };
 
+/** Cartão "cápsula" de meta (mockup de 30/09/2026): faixa da área à esquerda,
+ *  alça, nome + selo, fatos embaixo e o contador +/− empilhado na ponta direita
+ *  arredondada. Sem borda: o estado (concluída/estourada) vai na cor do
+ *  contador ou, sem contador, no fundo. */
 export function CartaoMeta({
   setRef,
   isDragging,
   dragHandleProps,
-  corBorda,
+  estado,
   corPonto,
   titulo,
+  selo,
+  contador,
   onEditar,
   onExcluir,
   onDuplicar,
@@ -57,69 +66,62 @@ export function CartaoMeta({
   return (
     <div ref={setRef} className="mb-2.5">
       <SwipeItem
-        className={cn(isDragging && "opacity-[0.45]")}
+        className={cn(
+          CARTAO_CAPSULA,
+          "gap-2 pl-3",
+          contador && "rounded-r-[30px] py-2.5 pr-0",
+          // com contador, o estado já está na cor do número (e o fundo verde
+          // engoliria o botão "+"); sem contador, pinta o cartão
+          !contador && estado === "ok" && "bg-ok-soft",
+          !contador && estado === "erro" && "bg-erro-soft",
+          isDragging && "opacity-[0.45]"
+        )}
+        wrapClassName={cn(contador && "rounded-r-[30px]")}
         onLeft={onExcluir}
         leftLabel="Excluir"
         onRight={onDuplicar}
         rightLabel="Duplicar"
       >
-        <Cartao className="mb-0 flex items-center gap-2.5" style={{ borderColor: corBorda }}>
-          <AlcaArrasto className="shrink-0 self-center" {...dragHandleProps} />
-          <div className="min-w-0 flex-1">
-            <h3
-              className="m-0 mb-1 flex cursor-pointer items-center gap-1.5 font-titulo text-xl font-semibold tracking-[-0.01em]"
-              title="Editar meta"
-              {...cliqueEditar}
-            >
-              <span
-                className="mr-[7px] inline-block size-[9px] rounded-full align-[1px]"
-                style={{ background: corPonto }}
-              />
-              {titulo}
-            </h3>
-            {children}
-          </div>
-        </Cartao>
+        <FaixaCor cor={corPonto} />
+        <AlcaArrasto className="shrink-0 self-center px-1.5 text-ink" {...dragHandleProps} />
+        <div className="min-w-0 flex-1">
+          <h3
+            className="m-0 mb-1 flex cursor-pointer flex-wrap items-center gap-1 font-titulo text-[19px] font-semibold tracking-[-0.01em]"
+            title="Editar meta"
+            {...cliqueEditar}
+          >
+            {titulo}
+            {selo}
+          </h3>
+          {children}
+        </div>
+        {contador}
       </SwipeItem>
     </div>
   );
 }
 
-/** Contador "− 3 / 5 +" da meta. `invertido` troca a ordem dos botões (meta
- *  negativa: o "+" vem primeiro, pois marcar é o gesto principal). */
+/** Contador da meta: número "3 / 5" em destaque e os botões + (verde claro) e
+ *  − (vermelho claro) empilhados, ocupando a altura da ponta direita do cartão.
+ *  O "+" fica sempre em cima (é o gesto principal, inclusive na meta negativa,
+ *  onde marca uma ocorrência). */
 export function ContadorMeta({
   texto,
   cor,
   onMenos,
   onMais,
-  invertido,
   aviso,
 }: {
   texto: string;
   cor?: string;
   onMenos: () => void;
   onMais: () => void;
-  invertido?: boolean;
   /** Texto curto ao lado do contador (ex.: pontos do último toque). */
   aviso?: { texto: string; positivo: boolean } | null;
 }) {
-  const menos = (
-    <BotaoRedondo rotulo="Menos um" tamanho="sm" onClick={onMenos}>
-      &minus;
-    </BotaoRedondo>
-  );
-  const mais = (
-    <BotaoRedondo rotulo="Mais um" tamanho="sm" onClick={onMais}>
-      +
-    </BotaoRedondo>
-  );
+  const botao = "flex min-h-[38px] w-12 flex-1 cursor-pointer items-center justify-center border-0 text-2xl font-bold";
   return (
-    <div className="mt-1.5 flex items-center gap-3">
-      {invertido ? mais : menos}
-      <span className="font-titulo text-xl font-bold" style={cor ? { color: cor } : undefined}>
-        {texto}
-      </span>
-      {invertido ? menos : mais}
+    <div className="-my-2.5 flex shrink-0 items-center gap-2.5 self-stretch">
       {aviso && (
         <span
           className={cn("font-sans text-sm font-semibold tabular-nums", aviso.positivo ? "text-ok" : "text-erro")}
@@ -128,6 +130,26 @@ export function ContadorMeta({
           {aviso.texto}
         </span>
       )}
+      <span
+        className="font-titulo text-[21px] font-bold whitespace-nowrap tabular-nums"
+        style={cor ? { color: cor } : undefined}
+      >
+        {texto}
+      </span>
+      <div className="flex flex-col self-stretch">
+        <button type="button" title="Mais um" aria-label="Mais um" className={cn(botao, "bg-ok-soft text-ok")} onClick={onMais}>
+          +
+        </button>
+        <button
+          type="button"
+          title="Menos um"
+          aria-label="Menos um"
+          className={cn(botao, "bg-erro-soft text-erro")}
+          onClick={onMenos}
+        >
+          &minus;
+        </button>
+      </div>
     </div>
   );
 }

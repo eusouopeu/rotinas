@@ -1,7 +1,8 @@
-// Cartão de rotina da visão Lista: bolinha da área, nome, streak, e uma linha
-// de fatos (etapas, horário/duração, dias, hábito) com ícone; play à direita.
-// Compacto por padrão; `expandido` empilha os fatos. Já feita hoje: título
-// riscado, bolinha esmaecida, horário real em verde e selo de streak cheio.
+// Cartão de rotina da visão Lista (mockup de 30/09/2026): faixa da área à
+// esquerda, horário pequeno em cima, nome + sequência, etapas e etiquetas
+// (dias, pausa, hábito) embaixo; play grande em degradê abraçado pela ponta
+// arredondada. `expandido` empilha as etiquetas. Já feita hoje: título riscado,
+// faixa esmaecida, horário real em verde e selo de streak cheio.
 import { Icon } from "../../components/Icon";
 import { StreakTag } from "../../components/StreakTag";
 import { fmtTime } from "../../lib/format";
@@ -14,9 +15,10 @@ import { execucaoDoDia, execucaoMinutos, type HistoryEntry } from "../../lib/his
 import type { GamificacaoState, Routine } from "../../lib/types";
 import { cn } from "../../lib/cn";
 import { BotaoPlay } from "../../ui/BotaoPlay";
-import { CARTAO_LISTA, CartaoInfo, CartaoTitulo } from "../../ui/CartaoLista";
+import { CartaoInfo, CartaoTitulo } from "../../ui/CartaoLista";
+import { Etiqueta } from "../../ui/Etiqueta";
 import { Fato, Fatos } from "../../ui/Fatos";
-import { PontoCor } from "../../ui/PontoCor";
+import { CARTAO_CAPSULA, FaixaCor } from "../../ui/PontoCor";
 import { SwipeItem } from "../../ui/SwipeItem";
 
 type Props = {
@@ -51,71 +53,84 @@ export function CartaoRotina({
   const execHoje = execucaoDoDia(history, r.id, hojeISO);
   const execMin = execHoje ? execucaoMinutos(execHoje) : null;
 
+  const pausaTxt = r.arquivada
+    ? "arquivada"
+    : pausa
+      ? pausa.de > localKey()
+        ? `pausa a partir de ${ddmm(pausa.de)}`
+        : `pausada até ${ddmm(pausa.ate)}`
+      : null;
+
+  // linha de cima (mockup de 30/09/2026): o horário, pequeno e em negrito,
+  // acima do nome; feita hoje, o horário real em verde com check; sem horário,
+  // a duração.
+  const topo = execMin ? (
+    <span className="text-ok" title="Executada hoje">
+      <Icon name="check" size={13} /> {formatHM(execMin.ini)} &rarr; {formatHM(execMin.fim)}
+    </span>
+  ) : sched ? (
+    <span title="Horário">
+      {sched.startStr} &rarr; {sched.endStr}
+    </span>
+  ) : dur > 0 ? (
+    <span title="Duração">
+      <Icon name="clock" size={13} /> {fmtTime(dur).replace("+", "")}
+    </span>
+  ) : null;
+
   return (
-    <SwipeItem onLeft={onExcluir} onRight={onDuplicar} className={cn(CARTAO_LISTA, !expandido && "px-3.5 py-3")}>
+    <SwipeItem
+      onLeft={onExcluir}
+      onRight={onDuplicar}
+      className={cn(CARTAO_CAPSULA, "rounded-r-[44px]", expandido && "py-3.5")}
+      wrapClassName="rounded-r-[44px]"
+    >
+      <FaixaCor cor={fillStyle(corDaRotina(r, gam))} esmaecido={!!execHoje} />
       <CartaoInfo className="cursor-pointer" onClick={onAbrir}>
+        {topo && (
+          <div className="mb-1 flex items-center gap-1 font-sans text-sm font-semibold text-ink [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1">
+            {topo}
+          </div>
+        )}
         <CartaoTitulo
           className={cn(
-            "flex flex-wrap items-center gap-1.5",
-            expandido ? "mb-2" : "mb-1 text-xl",
+            "mb-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 font-bold",
+            expandido ? "text-[21px]" : "text-[19px]",
             execHoje && "text-sub line-through"
           )}
         >
-          <PontoCor cor={fillStyle(corDaRotina(r, gam))} esmaecido={!!execHoje} />
           {r.icon ? r.icon + " " : ""}
           {r.name}
           <StreakTag routineId={r.id} routines={routines} history={history} feitaHoje={!!execHoje} />
         </CartaoTitulo>
-        {/* etapas · horário (ou duração, só quando não há horário) · dias, tudo
-            em ícone e numa linha só. A área da roda saiu: já está dita pela cor
-            da bolinha antes do nome. */}
-        <Fatos className={cn(expandido && "flex-col items-start gap-1.5")}>
+        {/* etapas + etiquetas (dias, pausa, hábito). A área é a faixa da esquerda. */}
+        <Fatos className={cn("gap-x-2.5 gap-y-1.5 text-md text-ink", expandido && "flex-col items-start")}>
           <Fato title={`${r.steps.length} etapa${r.steps.length !== 1 ? "s" : ""}`}>
-            <Icon name="clipboard" size={13} /> {r.steps.length}
+            <Icon name="clipboard" size={15} /> {r.steps.length}
           </Fato>
-          {execMin ? (
-            <Fato className="text-ok" title="Executada hoje">
-              <Icon name="check" size={13} /> {formatHM(execMin.ini)} &rarr; {formatHM(execMin.fim)}
-            </Fato>
-          ) : sched ? (
-            <Fato className="text-caneta" title="Horário">
-              <Icon name="clock" size={13} /> {sched.startStr} &rarr; {sched.endStr}
-            </Fato>
-          ) : dur > 0 ? (
-            <Fato className="text-caneta" title="Duração">
-              <Icon name="clock" size={13} /> {fmtTime(dur).replace("+", "")}
-            </Fato>
-          ) : null}
           {sched && (
-            <Fato title="Dias">
+            <Etiqueta title="Dias">
               <Icon name="calendar" size={13} /> {diasChipLabel(r)}
-            </Fato>
+            </Etiqueta>
           )}
-          {r.arquivada ? (
-            <Fato title="Rotina arquivada">
-              <Icon name="pause" size={13} /> arquivada
-            </Fato>
-          ) : (
-            pausa && (
-              <Fato title="Só esta rotina está pausada">
-                <Icon name="pause" size={13} />{" "}
-                {pausa.de > localKey() ? `pausa a partir de ${ddmm(pausa.de)}` : `pausada até ${ddmm(pausa.ate)}`}
-              </Fato>
-            )
+          {pausaTxt && (
+            <Etiqueta title={r.arquivada ? "Rotina arquivada" : "Só esta rotina está pausada"}>
+              <Icon name="pause" size={13} /> {pausaTxt}
+            </Etiqueta>
           )}
           {rotinaEhHabito(r, gam) && (
-            <span
-              className="ml-1.5 rounded-pill border-[1.5px] border-ok px-[7px] py-px align-middle font-sans text-xs text-ok"
+            <Etiqueta
+              tom="area"
+              cor="var(--ok)"
+              className="text-ok"
               title={`Hábito consolidado: vale ${Math.round((gam.config.habito.fator || 0.6) * 100)}% do peso, para abrir espaço ao que ainda não pegou`}
             >
               hábito
-            </span>
+            </Etiqueta>
           )}
         </Fatos>
       </CartaoInfo>
-      <div className="flex shrink-0 items-center gap-2">
-        <BotaoPlay rotulo="Iniciar rotina" compacto={!expandido} disabled={r.steps.length === 0} onClick={onIniciar} />
-      </div>
+      <BotaoPlay rotulo="Iniciar rotina" grande disabled={r.steps.length === 0} onClick={onIniciar} />
     </SwipeItem>
   );
 }

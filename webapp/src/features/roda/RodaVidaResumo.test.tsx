@@ -1,3 +1,4 @@
+import { ritmoInfo } from "../../lib/boletim";
 import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import { RodaVidaResumo } from "./RodaVidaResumo";
@@ -113,22 +114,21 @@ describe("RodaVidaResumo", () => {
     expect(container.textContent).not.toContain("Sem área");
   });
 
-  it("renderiza o rodapé com nota e ritmo quando totalBrutoAgendado > 0", () => {
-    useAppStore.setState({
-      gam: baseGam({
-        concluidos: [{ pontos: 50, area: "saude" }],
-      }),
-    });
+  it("mostra a nota num selo verde no ritmo e vermelho abaixo do esperado do dia", () => {
+    const gam = baseGam({ concluidos: [{ pontos: 50, area: "saude" }] });
+    useAppStore.setState({ gam });
 
     const { container } = render(<RodaVidaResumo />);
-    const footer = container.querySelector('[data-roda="rodape"]');
-    expect(footer).not.toBeNull();
-    expect(footer?.textContent).toContain("Nota 50/100");
-    // Σ = pontos que deveriam estar feitos a esta altura da semana (0-100),
-    // e não mais a contagem de itens concluídos
-    const sigma = Array.from(footer!.querySelectorAll('[data-roda="fato"]')).find((e) => e.textContent?.includes("Σ"));
-    expect(sigma?.textContent).toMatch(/Σ\s*[\d,]+\/100/);
-    expect(footer?.textContent).toMatch(/\d+ dias?/);
+    const selo = container.querySelector('[data-roda="selo"]') as HTMLElement;
+    expect(selo).not.toBeNull();
+    const r = ritmoInfo(gam.semanaAtual!, gam.config, new Date(), useAppStore.getState().weekStart);
+    expect(selo.textContent).toContain("50");
+    expect(selo.textContent).toMatch(/de [\d,]+/);
+    expect(selo.dataset.ritmo).toBe(r.nota >= r.esperado ? "ok" : "abaixo");
+    // o rodapé saiu: os dias restantes viraram etiqueta no cabeçalho
+    expect(container.querySelector('[data-roda="rodape"]')).toBeNull();
+    const cab = container.querySelector('[data-roda="cabecalho"]')!;
+    expect(cab.textContent).toMatch(/\d+ dias?/);
   });
 
   it("navega para o boletim ao clicar no card ou ao pressionar Enter", () => {

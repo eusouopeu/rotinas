@@ -16,6 +16,7 @@ import {
 } from "../../lib/metas";
 import { metaRecPenalidadeUnidade, metaRecPontosBrutos, metaRecPontosUnidade } from "../../lib/scoring";
 import type { GamificacaoState, MetaRecProgresso, MetaRecorrente } from "../../lib/types";
+import { Etiqueta } from "../../ui/Etiqueta";
 import { Fato, Fatos } from "../../ui/Fatos";
 import { CartaoMeta, ContadorMeta } from "./CartaoMeta";
 import { TAG_LABEL } from "./constantes";
@@ -163,14 +164,14 @@ export function CartaoRec({
     onAjustar(delta);
   }
 
-  const corBorda = rec.negativa
+  const estado: "ok" | "erro" | undefined = rec.negativa
     ? saldo < 0
-      ? "var(--erro)"
+      ? "erro"
       : saldo > 0
-        ? "var(--ok)"
+        ? "ok"
         : undefined
     : completa
-      ? "var(--ok)"
+      ? "ok"
       : undefined;
   const corTexto = rec.negativa
     ? saldo > 0
@@ -187,42 +188,48 @@ export function CartaoRec({
       setRef={setRef}
       isDragging={isDragging}
       dragHandleProps={dragHandleProps}
-      corBorda={corBorda}
+      estado={estado}
       corPonto={areaObj?.color || "var(--caneta)"}
       titulo={rec.titulo}
+      selo={
+        sequencia > 0 && (
+          <Etiqueta
+            tom="streak"
+            className="ml-1 font-semibold"
+            title={`${sequencia} ${rec.tipo === "semanal" ? "semana" : "dia"}${sequencia > 1 ? "s" : ""} seguido${sequencia > 1 ? "s" : ""} cumprindo a meta`}
+          >
+            <Icon name="fire" size={13} /> {sequencia}
+          </Etiqueta>
+        )
+      }
+      contador={
+        <ContadorMeta
+          texto={rec.negativa ? `${saldo} / ${rec.vezes}` : `${feitas} / ${rec.vezes}`}
+          cor={corTexto}
+          onMenos={() => tocar(rec.negativa ? 1 : -1)}
+          onMais={() => tocar(rec.negativa ? -1 : 1)}
+          aviso={aviso}
+        />
+      }
       onEditar={onEditar}
       onExcluir={onExcluir}
       onDuplicar={onDuplicar}
     >
-      <Fatos>
+      <Fatos className="gap-x-2.5 gap-y-1.5">
         {(rec.negativa || rec.pontua) && (
-          <Fato destaque title={pesoTitle || undefined}>
-            <Icon name="ticket" size={13} /> {TAG_LABEL[rec.tagValor || "medio"]}
+          <Fato destaque className="font-medium" title={pesoTitle || undefined}>
+            <Icon name="ticket" size={14} /> {TAG_LABEL[rec.tagValor || "medio"]}
           </Fato>
         )}
-        <Fato title={rec.negativa ? "Limite do período" : "Frequência"}>
+        <Etiqueta title={rec.negativa ? "Limite do período" : "Frequência"}>
           <Icon name="calendar" size={13} /> {freqTxt}
-        </Fato>
-        {sequencia > 0 && (
-          <Fato
-            title={`${sequencia} ${rec.tipo === "semanal" ? "semana" : "dia"}${sequencia > 1 ? "s" : ""} seguido${sequencia > 1 ? "s" : ""} cumprindo a meta`}
-          >
-            <Icon name="fire" size={13} /> {sequencia}
-          </Fato>
-        )}
+        </Etiqueta>
         {rec.notif && (
-          <Fato title="Lembretes">
+          <Etiqueta title="Lembretes">
             <Icon name="bell" size={13} /> {rec.notif.inicio}–{rec.notif.fim}
-          </Fato>
+          </Etiqueta>
         )}
       </Fatos>
-      <ContadorMeta
-        texto={rec.negativa ? `${saldo} / ${rec.vezes}` : `${feitas} / ${rec.vezes}`}
-        cor={corTexto}
-        onMenos={() => tocar(rec.negativa ? 1 : -1)}
-        onMais={() => tocar(rec.negativa ? -1 : 1)}
-        aviso={aviso}
-      />
       <MiniCalendario rec={rec} />
     </CartaoMeta>
   );

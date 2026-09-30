@@ -13,6 +13,8 @@ import {
   metaPontosTotais,
 } from "../../lib/metas";
 import type { MetaTarget } from "../../lib/types";
+import { cn } from "../../lib/cn";
+import { Etiqueta } from "../../ui/Etiqueta";
 import { Fato, Fatos } from "../../ui/Fatos";
 import { CartaoMeta, ContadorMeta } from "./CartaoMeta";
 import { ESCOPO_LABEL, TAG_LABEL } from "./constantes";
@@ -38,47 +40,48 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
   const pace = cdPace(t);
   const areas = t.areas || [];
   const corPonto = areas.length ? metaAreaInfo(areas[0], gam.config.roda.areas).color : "var(--caneta)";
-  const urgCor = d < 0 ? "var(--erro)" : d <= 7 ? "var(--caneta)" : undefined;
 
   return (
     <CartaoMeta
       setRef={setRef}
       isDragging={isDragging}
       dragHandleProps={dragHandleProps}
-      corBorda={feita ? "var(--ok)" : undefined}
+      estado={feita ? "ok" : undefined}
       corPonto={corPonto}
       titulo={t.title}
+      contador={
+        t.topics != null && (
+          <ContadorMeta
+            texto={`${(t.done || 0).toLocaleString("pt-BR")} / ${t.topics.toLocaleString("pt-BR")}`}
+            cor={feita ? "var(--ok)" : undefined}
+            onMenos={() => onDone(Math.max(0, (t.done || 0) - 1))}
+            onMais={() => onDone((t.done || 0) + 1)}
+          />
+        )
+      }
       onEditar={onEditar}
       onExcluir={onExcluir}
     >
-      <Fatos>
+      <Fatos className="gap-x-2.5 gap-y-1.5">
         <Fato
           destaque
+          className="font-medium"
           title={`Vale ${totalPts.toFixed(1)} pts no boletim ${ESCOPO_LABEL[esc]} · ${creditadoPts.toFixed(1)} creditados`}
         >
-          <Icon name="ticket" size={13} /> {TAG_LABEL[t.tagValor || "alto"]}
+          <Icon name="ticket" size={14} /> {TAG_LABEL[t.tagValor || "alto"]}
         </Fato>
-        {diasLabel && (
-          <Fato title="Dias para trabalhar">
-            <Icon name="calendar" size={13} /> {diasLabel}
-          </Fato>
-        )}
-      </Fatos>
-      {/* "−" antes de "+": a inversão só vale para meta negativa, que não existe
-          em meta com prazo (ver CartaoRec) */}
-      {t.topics != null && (
-        <ContadorMeta
-          texto={`${(t.done || 0).toLocaleString("pt-BR")} / ${t.topics.toLocaleString("pt-BR")}`}
-          cor={feita ? "var(--ok)" : undefined}
-          onMenos={() => onDone(Math.max(0, (t.done || 0) - 1))}
-          onMais={() => onDone((t.done || 0) + 1)}
-        />
-      )}
-      <Fatos className="mt-1.5">
-        <Fato style={{ color: urgCor }} title={d >= 0 ? `faltam ${d} dia(s)` : `atrasada ${Math.abs(d)} dia(s)`}>
+        <Etiqueta
+          className={cn(d < 0 && "bg-erro-soft text-erro", d >= 0 && d <= 7 && "bg-caneta-soft text-caneta")}
+          title={d >= 0 ? `faltam ${d} dia(s)` : `atrasada ${Math.abs(d)} dia(s)`}
+        >
           <Icon name="countdown" size={13} /> {t.date.split("-").reverse().join("/")} ·{" "}
           {d >= 0 ? `${d}d` : `-${Math.abs(d)}d`}
-        </Fato>
+        </Etiqueta>
+        {diasLabel && (
+          <Etiqueta title="Dias para trabalhar">
+            <Icon name="calendar" size={13} /> {diasLabel}
+          </Etiqueta>
+        )}
         {pace && (
           <Fato title="Ritmo necessário">
             <b className="font-titulo">&Sigma;</b> {pace.txt}

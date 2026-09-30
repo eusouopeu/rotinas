@@ -49,11 +49,12 @@ const ESTILO_EM_LINHA: Record<string, number> = {
   "screens/Metas.tsx": 1,
   "screens/SemanaFechada.tsx": 2,
   "ui/Chip.tsx": 1,
+  "ui/Etiqueta.tsx": 1,
   "ui/ItemChecklist.tsx": 1,
   "ui/LinhaBarra.tsx": 6,
   "ui/LinhaDado.tsx": 1,
   "ui/LinhaValor.tsx": 1,
-  "ui/PontoCor.tsx": 1,
+  "ui/PontoCor.tsx": 2,
   "ui/Segmentado.tsx": 1,
 };
 

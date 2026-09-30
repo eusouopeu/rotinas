@@ -33,7 +33,7 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 - Toda nova coleção deve obedecer ao checklist de backup/import/sync em `docs/sync.md` e ao teste de paridade.
 - Não altere sem entender as invariantes de gamificação, semana, áreas, hábitos, metas e kanban em `docs/gamification.md`.
 - Preserve o editor Markdown live: uma instância, digitação nativa, cursor/foco e `liveAplicar`; leia `docs/architecture.md` antes de mexer nele.
-- Para mudanças visuais: apenas tokens CSS `var(--x)`, ação primária sólida `--caneta`, bordas em vez de sombra decorativa; leia `docs/design-system.md`.
+- Para mudanças visuais: apenas tokens CSS `var(--x)`, ação primária sólida `--caneta`, sem sombra decorativa (borda deixou de ser a forma oficial de elevação, ver `../_shared/minimalismo.md`); leia `docs/design-system.md`.
 - Não recrie funcionalidades removidas ou já concluídas; consulte `docs/feature-status.md`.
 - Ao gerar recomendações de melhoria, não repita as já implementadas nem as da seção "Recomendações refutadas" de `docs/aprimoramentos.md`. Quando o Pedro escolher algumas, registre as não escolhidas nessa seção ("descrição – refutada em data") na mesma rodada.
 - Nunca leia `node_modules/`, `dist/`, `build/`, vendor ou artefatos gerados para contexto.
@@ -85,3 +85,4 @@ Leia somente os documentos pertinentes à tarefa; não carregue documentação o
 - Inventário de recursos existentes/removidos: `docs/feature-status.md`
 - Testes, commit/push, APK e checklist de entrega: `docs/release.md`
 - Registro das melhorias entregues ("descrição – implementado em data"): `docs/aprimoramentos.md`
+- Padrões compartilhados com os outros apps do Pedro (stack, testes, release, estética minimalista e "ajuda recolhida"): `../_shared/tech-standards.md`, `../_shared/design-standards.md`, `../_shared/minimalismo.md`

@@ -41,6 +41,7 @@ import { AreaTexto, Campo } from "./Campo";
 import { CampoDuracao } from "./CampoDuracao";
 import { Cartao } from "./Cartao";
 import { Chip } from "./Chip";
+import { Etiqueta } from "./Etiqueta";
 import { EstadoVazio } from "./EstadoVazio";
 import { Fab } from "./Fab";
 import { Modal, ModalAcoes, ModalTexto } from "./Modal";
@@ -233,6 +234,23 @@ export function Catalogo() {
             <Chip ativo cor="var(--ok)">
               Saúde
             </Chip>
+          }
+        />
+
+        {/* sem par no legado: etiqueta nova dos cartões (30/09/2026) */}
+        <Par
+          nome="etiqueta"
+          legado={<span className="rc-fact">seg/qua/sex</span>}
+          novo={
+            <span className="flex flex-wrap gap-1.5">
+              <Etiqueta>seg/qua/sex</Etiqueta>
+              <Etiqueta tom="forte">4 dias</Etiqueta>
+              <Etiqueta tom="caneta">Médio</Etiqueta>
+              <Etiqueta tom="streak">3</Etiqueta>
+              <Etiqueta tom="area" cor="var(--ok)">
+                Saúde
+              </Etiqueta>
+            </span>
           }
         />
 

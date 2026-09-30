@@ -21,10 +21,16 @@
   --caneta: #6d28d9;
   --caneta-2: #2f6be0;
   --caneta-soft: #f0e9fc;
+  /* ponta clara do degradê do botão de play (única exceção ao "primário
+       sólido", pedido do Pedro em 30/09/2026) */
+  --caneta-grad: #9a6bf0;
+  /* etiqueta neutra dos cartões (dias, frequência): um degrau abaixo de --card-2 */
+  --chip-neutro: #d7dde7;
   --realce: #6d28d9;
   --on-caneta: #ffffff;
   --ok: #157a45;
   --streak: #c2631a;
+  --streak-soft: #fbe3c7;
   --erro: #b23a2f;
   --ok-soft: #e3f2ea;
   --erro-soft: #f8e6e4;
@@ -61,10 +67,13 @@ body.dark {
   --caneta: #6c8eef;
   --caneta-2: #6e9bf2;
   --caneta-soft: #1e2a4a;
+  --caneta-grad: #93acf5;
+  --chip-neutro: #353d45;
   --realce: #333f52;
   --on-caneta: #ffffff;
   --ok: #4fae7c;
   --streak: #e0812f;
+  --streak-soft: #3d2a1a;
   --erro: #e2776a;
   --ok-soft: #1b3226;
   --erro-soft: #3a2320;

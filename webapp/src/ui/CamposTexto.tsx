@@ -142,6 +142,7 @@ export function AreaInput({
   onEscolher,
   className,
   limpaAoEscolher,
+  semMoldura,
 }: {
   valor: string;
   pool: string[];
@@ -153,6 +154,9 @@ export function AreaInput({
      fora do campo, então o próprio campo esvazia — sem isto ele ficaria com
      o texto da última escolha, já que a prop `valor` não muda. */
   limpaAoEscolher?: boolean;
+  /* campo dentro de outra caixa (chips + campo, formulário de meta): sem borda
+     nem fundo próprios — a moldura é a caixa de fora. */
+  semMoldura?: boolean;
 }) {
   const [texto, setTexto] = useState(valor);
   const [aberto, setAberto] = useState(false);
@@ -180,7 +184,11 @@ export function AreaInput({
     <div className={cn("relative", className)}>
       <input
         type="text"
-        className={CAMPO_COMPACTO}
+        className={
+          semMoldura
+            ? "w-full min-w-0 border-0 bg-transparent px-0.5 py-1 font-sans text-md text-ink focus:outline-none"
+            : CAMPO_COMPACTO
+        }
         aria-label={label}
         placeholder={placeholder}
         value={texto}

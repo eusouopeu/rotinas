@@ -41,6 +41,7 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Despesas recorrentes: "repetir todo mês neste dia" lança as cópias ao abrir o app, sem duplicar entre aparelhos – implementado em 30/09/2026
 - Mês fechado: cartão na aba Rotinas e tela com nota/selo do mês, semanas, rotinas mais feitas, gastos e foco do mês seguinte (vira nota) – implementado em 30/09/2026
 - Primeira abertura guiada: num app vazio, escolher áreas da roda e rotinas prontas – implementado em 30/09/2026
+- Redesenho pelos mockups do Pedro: cartões cápsula de rotina e meta (faixa da área, play em degradê, +/− empilhados), selo verde/vermelho da Roda da Vida, formulários de meta em grupos com áreas como chip, detalhe da rotina com etiquetas e deslizar etapa para editar/excluir – implementado em 30/09/2026
 
 ## Recomendações refutadas
 

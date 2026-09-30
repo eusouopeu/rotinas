@@ -16,11 +16,11 @@ async function abrirDetalhe(page, nome) {
   await preparar(page);
   await page.getByText("Lista", { exact: true }).first().click();
   await page.getByRole("heading", { name: nome }).click();
-  await page.getByRole("button", { name: "Editar" }).waitFor();
+  await page.getByRole("button", { name: "Editar rotina" }).waitFor();
 }
 async function abrirEditor(page, nome) {
   await abrirDetalhe(page, nome);
-  await page.getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: "Editar rotina" }).click();
   await page.getByPlaceholder("Nome da rotina").waitFor();
 }
 async function etapaExercicio(page) {

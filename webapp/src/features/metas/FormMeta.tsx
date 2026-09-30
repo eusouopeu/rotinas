@@ -24,7 +24,7 @@ export function FormMeta({
 }) {
   return (
     <Modal onFechar={onFechar} className="max-h-[86vh] overflow-y-auto text-left">
-      <ModalTexto className="mb-3.5 font-titulo text-[19px] leading-normal font-bold">{titulo}</ModalTexto>
+      <ModalTexto className="mb-4 text-center font-titulo text-[19px] leading-normal font-bold">{titulo}</ModalTexto>
       {children}
       <ModalAcoes className={espacoAcoes}>
         <Botao variante="neutro" tamanho="modal" onClick={onFechar}>
@@ -79,6 +79,25 @@ export function BotaoLigaForm({
       className={cn(
         "flex size-[34px] flex-none cursor-pointer items-center justify-center rounded-[9px] border-[1.5px]",
         ligado ? "border-transparent bg-caneta text-on-caneta" : "border-line bg-card-2 text-sub",
+        className
+      )}
+      {...resto}
+    />
+  );
+}
+
+/** Filete curto e centralizado entre grupos de linhas (mockup de 30/09/2026). */
+export function DivisorForm() {
+  return <hr aria-hidden className="mx-auto mt-3.5 mb-1 h-px w-2/5 border-0 bg-line" />;
+}
+
+/** Caixa com a aparência de campo que abriga chips + um campo sem moldura
+ *  (áreas da meta: a área escolhida vira chip dentro da própria caixa). */
+export function CaixaChips({ className, ...resto }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-[38px] min-w-0 flex-wrap items-center gap-1 rounded-[9px] border-[1.5px] border-line bg-card px-1.5 py-0.5 focus-within:border-caneta",
         className
       )}
       {...resto}

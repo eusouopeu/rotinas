@@ -8,7 +8,8 @@ import { AreaInput, TimeKbInput } from "../../ui/CamposTexto";
 import { Legenda } from "../../ui/Legenda";
 import { Toggle } from "../../ui/Segmentado";
 import { TAG_OPCOES } from "./constantes";
-import { BotaoLigaForm, CelulaForm, FormMeta, IconeForm, LinhaForm, SepForm } from "./FormMeta";
+import { BotaoLigaForm, CaixaChips, CelulaForm, DivisorForm, FormMeta, IconeForm, LinhaForm, SepForm } from "./FormMeta";
+import { Etiqueta } from "../../ui/Etiqueta";
 import { Icon } from "../../components/Icon";
 
 type Props = {
@@ -38,6 +39,7 @@ export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
   }
 
   const lembrando = tipo === "diaria" && notifOn;
+  const areaObj = area ? gam.config.roda.areas.find((a) => a.id === area) : null;
 
   return (
     <FormMeta titulo={rec ? "Editar meta" : "Nova meta"} onFechar={onClose} onSalvar={salvar}>
@@ -95,27 +97,49 @@ export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
         </BotaoLigaForm>
       </LinhaForm>
 
+      <DivisorForm />
+
       <LinhaForm>
-        <IconeForm icone="ticket" titulo={negativa ? "Peso da penalidade" : "Peso no boletim"} />
+        <IconeForm icone="scale" titulo={negativa ? "Peso da penalidade" : "Peso no boletim"} />
         <Toggle larga options={TAG_OPCOES} active={tagValor} onSelect={setTagValor} />
       </LinhaForm>
 
       {gam.config.roda.ativa && gam.config.roda.areas.length > 0 && (
         <LinhaForm>
           <IconeForm icone="briefcase" titulo="Área" />
-          <AreaInput
-            className="min-w-0 flex-[1_1_0]"
-            label="Área"
-            placeholder="Sem área"
-            valor={gam.config.roda.areas.find((a) => a.id === area)?.label || ""}
-            pool={gam.config.roda.areas.map((a) => a.label)}
-            onEscolher={(lbl) => {
-              const achada = gam.config.roda.areas.find((a) => a.label.toLowerCase() === lbl.trim().toLowerCase());
-              setArea(achada ? achada.id : null);
-            }}
-          />
+          {/* mesma caixa do formulário de prazo: a área escolhida vira chip
+              dentro dela (tocar tira); aqui só cabe uma */}
+          <CaixaChips className="flex-[1_1_0]">
+            {areaObj && (
+              <Etiqueta
+                tom="area"
+                cor={areaObj.color}
+                role="button"
+                className="cursor-pointer"
+                title="Tirar a área"
+                onClick={() => setArea(null)}
+              >
+                {areaObj.label}
+              </Etiqueta>
+            )}
+            <AreaInput
+              className="min-w-4 flex-[1_1_0]"
+              semMoldura
+              limpaAoEscolher
+              label="Área"
+              placeholder={areaObj ? "" : "Sem área"}
+              valor=""
+              pool={gam.config.roda.areas.map((a) => a.label)}
+              onEscolher={(lbl) => {
+                const achada = gam.config.roda.areas.find((a) => a.label.toLowerCase() === lbl.trim().toLowerCase());
+                if (achada) setArea(achada.id);
+              }}
+            />
+          </CaixaChips>
         </LinhaForm>
       )}
+
+      <DivisorForm />
 
       <LinhaForm>
         <IconeForm icone="bell" titulo="Lembretes (só quando é diária)" />

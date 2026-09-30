@@ -5,8 +5,8 @@ import { load, save } from "../../lib/storage";
 import { K_RODARESUMOABERTO } from "../../lib/constants";
 import { Icon } from "../../components/Icon";
 import { useIsDesktop } from "../../lib/useIsDesktop";
-import { Cartao } from "../../ui/Cartao";
-import { Fato } from "../../ui/Fatos";
+import { cn } from "../../lib/cn";
+import { Etiqueta } from "../../ui/Etiqueta";
 import { LinhaBarra } from "../../ui/LinhaBarra";
 
 /** Quantas áreas cabem por página antes de precisar das setas ‹ ›. */
@@ -20,8 +20,10 @@ function num(v: number): string {
 /**
  * Card resumido e clicável da Roda da Vida semanal.
  * Porta de rodaVidaResumoHtml (index.html:2055-2075), reestruturado em
- * 11/09/2026 (mockup do Pedro): cabeçalho retrátil, áreas paginadas de duas em
- * duas e rodapé de fatos (nota, itens concluídos, dias restantes).
+ * 11/09/2026 (mockup do Pedro): cabeçalho retrátil e áreas paginadas de duas
+ * em duas. Desde 30/09/2026 o rodapé de fatos saiu: a nota vira o selo à
+ * esquerda ("13,9 de 95" = nota / esperado até hoje, verde no ritmo, vermelho
+ * abaixo) e os dias restantes, uma etiqueta no cabeçalho.
  * Reutilizado no topo das telas Home, Metas e Stats.
  */
 export function RodaVidaResumo() {
@@ -75,43 +77,69 @@ export function RodaVidaResumo() {
     setPagina(Math.min(paginas - 1, Math.max(0, pag + delta)));
   }
 
+  const irBoletim = () => goTo({ tab: "home", screen: "boletim" });
+  // selo da nota (mockup de 30/09/2026): verde claro no ritmo ou acima do
+  // esperado para o dia, vermelho claro abaixo
+  const emDia = r ? r.nota >= r.esperado : true;
+
   return (
-    <Cartao
-      className="mb-3.5 cursor-pointer"
+    <div
+      className="mb-3.5 flex cursor-pointer items-start gap-2.5"
       data-roda="cartao"
       data-boletimcard="1"
       role="button"
       tabIndex={0}
       title="Ver o boletim da semana"
-      onClick={() => goTo({ tab: "home", screen: "boletim" })}
+      onClick={irBoletim}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          goTo({ tab: "home", screen: "boletim" });
+          irBoletim();
         }
       }}
     >
-      <div
-        className="flex cursor-pointer items-center justify-between gap-2.5"
-        data-roda="cabecalho"
-        role="button"
-        tabIndex={0}
-        aria-expanded={aberto}
-        title={aberto ? "Recolher" : "Expandir"}
-        onClick={alternar}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            alternar(e);
-          }
-        }}
-      >
-        <span className="font-sans text-md tracking-[0.06em] text-ink uppercase">Roda da vida</span>
-        <Icon name={aberto ? "chevronDown" : "chevronUp"} size={17} />
-      </div>
+      {r && (
+        <div
+          data-roda="selo"
+          data-ritmo={emDia ? "ok" : "abaixo"}
+          className={cn(
+            "flex size-[52px] flex-none flex-col items-center justify-center rounded-app leading-none",
+            emDia ? "bg-ok-soft text-ok" : "bg-erro-soft text-erro"
+          )}
+          title={`Nota da semana ${num(r.nota)} · esperado até hoje ${num(r.esperado)} · ${r.label}`}
+        >
+          <b className="font-titulo text-xl">{num(r.nota)}</b>
+          <span className="mt-0.5 font-sans text-2xs text-ink">de {num(r.esperado)}</span>
+        </div>
+      )}
+      <div className="min-w-0 flex-1 rounded-app bg-card-2 px-4 py-3">
+        <div
+          className="flex min-h-7 cursor-pointer items-center gap-2.5"
+          data-roda="cabecalho"
+          role="button"
+          tabIndex={0}
+          aria-expanded={aberto}
+          title={aberto ? "Recolher" : "Expandir"}
+          onClick={alternar}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              alternar(e);
+            }
+          }}
+        >
+          <span className="font-sans text-md tracking-[0.06em] text-ink uppercase">Roda da vida</span>
+          {r && (
+            <Etiqueta tom="forte" data-roda="fato" title="Dias restantes na semana">
+              <Icon name="clock" size={13} /> {r.diasRestantes} dia{r.diasRestantes > 1 ? "s" : ""}
+            </Etiqueta>
+          )}
+          <span className="ml-auto flex">
+            <Icon name={aberto ? "chevronDown" : "chevronUp"} size={17} />
+          </span>
+        </div>
 
-      {aberto && (
-        <>
+        {aberto && linhas.length > 0 && (
           <div className="mt-2 flex items-center gap-1">
             {temSetas && (
               <SetaPagina
@@ -161,33 +189,9 @@ export function RodaVidaResumo() {
               />
             )}
           </div>
-
-          <div
-            data-roda="rodape"
-            className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3.5 gap-y-2 border-t-[1.5px] border-line pt-2.5 font-sans text-md text-ink"
-          >
-            {r && (
-              <Fato data-roda="fato" title={`Nota da semana · ${r.label}`}>
-                <Icon name="hashtag" size={13} /> Nota <b style={{ color: r.cor }}>{num(r.nota)}</b>
-                <span className="text-sub">/100</span>
-              </Fato>
-            )}
-            {r && (
-              <Fato data-roda="fato" title="Pontos que você deveria ter a esta altura da semana">
-                <b className="font-titulo">&Sigma;</b> <b>{num(r.esperado)}</b>
-                <span className="text-sub">/100</span>
-              </Fato>
-            )}
-            {r && (
-              <Fato data-roda="fato" title="Dias restantes na semana">
-                <Icon name="clock" size={13} /> {r.diasRestantes} dia
-                {r.diasRestantes > 1 ? "s" : ""}
-              </Fato>
-            )}
-          </div>
-        </>
-      )}
-    </Cartao>
+        )}
+      </div>
+    </div>
   );
 }
 

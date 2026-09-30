@@ -44,23 +44,24 @@ export function StreakTag({
   if (info.atual <= 0) return null;
   const marco = marcoStreak(info);
   const cor = marco ? BADGE_COR[marco] : undefined;
-  // sem marco a cor vem do CSS (var(--streak)); com marco, do badge. No estado
-  // preenchido a mesma cor vira fundo e o texto cai para a cor do cartão.
+  // sem marco a cor vem do CSS (laranja sobre --streak-soft, mockup de
+  // 30/09/2026: pílula clara sem borda); com marco, a cor do badge vira o texto
+  // e um tom claro dela o fundo. Feita hoje: a cor vira fundo cheio.
   const estilo = feitaHoje
-    ? { background: cor || "var(--streak)", borderColor: cor || "var(--streak)", color: "var(--card)" }
+    ? { background: cor || "var(--streak)", color: "var(--card)" }
     : cor
-      ? { color: cor, borderColor: cor }
+      ? { color: cor, background: `color-mix(in srgb, ${cor} 20%, transparent)` }
       : undefined;
   return (
     <span
       className={cn(
-        "ml-1.5 inline-flex items-center gap-[3px] rounded-pill border-[1.5px] border-streak py-0.5 pr-[7px] pl-[5px] align-middle font-sans text-xs leading-none font-semibold text-streak [&_.icon-svg]:[stroke-width:2]",
+        "ml-1.5 inline-flex items-center gap-[3px] rounded-pill bg-streak-soft py-[3px] pr-2 pl-1.5 align-middle font-sans text-sm leading-none font-semibold text-streak [&_.icon-svg]:[stroke-width:2]",
         feitaHoje && "bg-streak text-card"
       )}
       title={tituloStreak(info)}
       style={estilo}
     >
-      <Icon name="fire" size={12} />
+      <Icon name="fire" size={13} />
       {info.atual}
       {info.execucoes != null && <span className="opacity-75">· {info.execucoes}×</span>}
     </span>

@@ -168,6 +168,8 @@ export interface AppState {
   duplicateRoutine: (id: string) => void;
   deleteHistoryEntry: (ts: number) => void;
   adjustRoutineStep: (routineId: string, stepName: string, newSec: number) => void;
+  /** Tira uma etapa da rotina (deslizar no detalhe), com desfazer. */
+  removerEtapaComDesfazer: (routineId: string, stepId: string) => void;
   /** Troca só os dias da semana do agendamento (revisão da Semana fechada). */
   setRoutineDays: (id: string, days: number[]) => void;
   /** Pausa só esta rotina por `dias` a partir de hoje (substitui a pausa em vigor). */
@@ -553,6 +555,31 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     const history = get().history.filter((h) => h.ts !== ts);
     save(K_HISTORY, history);
     set({ history });
+  },
+
+  removerEtapaComDesfazer: (routineId, stepId) => {
+    const r = get().routines.find((x) => x.id === routineId);
+    const idx = r ? r.steps.findIndex((st) => st.id === stepId) : -1;
+    if (!r || idx === -1) return;
+    const etapa = r.steps[idx];
+    const gravar = (routines: Routine[]) => {
+      save(K_ROUTINES, routines);
+      set({ routines });
+      syncRoutineNotifications(routines, algumSnoozeAtivo(get().snoozes));
+    };
+    gravar(
+      get().routines.map((x) => (x.id === routineId ? { ...x, steps: x.steps.filter((st) => st.id !== stepId) } : x))
+    );
+    get().showUndoBanner("Etapa excluída", () => {
+      gravar(
+        get().routines.map((x) => {
+          if (x.id !== routineId || x.steps.some((st) => st.id === stepId)) return x;
+          const steps = x.steps.slice();
+          steps.splice(Math.min(idx, steps.length), 0, etapa);
+          return { ...x, steps };
+        })
+      );
+    });
   },
 
   adjustRoutineStep: (routineId, stepName, newSec) => {

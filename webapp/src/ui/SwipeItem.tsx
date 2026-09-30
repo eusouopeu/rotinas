@@ -15,19 +15,28 @@ const IGNORE_SELECTOR = ".drag-handle, .order-btn, input, select, button, textar
 interface SwipeItemProps {
   children: React.ReactNode;
   onLeft?: () => void;
-  leftLabel?: string;
+  /** texto ou ícone do botão revelado; com ícone, passe `leftAria` */
+  leftLabel?: React.ReactNode;
+  leftAria?: string;
   onRight?: () => void;
-  rightLabel?: string;
+  rightLabel?: React.ReactNode;
+  rightAria?: string;
   className?: string;
+  /** classes da faixa de fora (que corta o que fica atrás): o cartão com ponta
+   *  arredondada passa o mesmo raio, senão o botão revelado aparece no canto */
+  wrapClassName?: string;
 }
 
 export function SwipeItem({
   children,
   onLeft,
   leftLabel = "Excluir",
+  leftAria,
   onRight,
   rightLabel = "Duplicar",
+  rightAria,
   className,
+  wrapClassName,
 }: SwipeItemProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const openState = useRef<"0" | "1" | "-1">("0");
@@ -138,10 +147,12 @@ export function SwipeItem({
   // (index.html:2204-2210, cardEl mantém sua classe própria + "swipe-track";
   // o wrap ganha só "swipe-item").
   return (
-    <div data-swipe-item className="relative shrink-0 grow-0 overflow-hidden rounded-app">
+    <div data-swipe-item className={cn("relative shrink-0 grow-0 overflow-hidden rounded-app", wrapClassName)}>
       {onLeft && (
         <button
-          className="absolute inset-y-0 right-0 z-0 w-[76px] border-0 bg-erro font-sans text-md font-semibold text-on-caneta"
+          aria-label={leftAria}
+          title={leftAria}
+          className="absolute inset-y-0 right-0 z-0 flex w-[76px] items-center justify-center border-0 bg-erro font-sans text-md font-semibold text-on-caneta"
           onClick={() => {
             fechar();
             onLeft();
@@ -152,7 +163,9 @@ export function SwipeItem({
       )}
       {onRight && (
         <button
-          className="absolute inset-y-0 left-0 z-0 w-[76px] border-0 bg-caneta-2 font-sans text-md font-semibold text-on-caneta"
+          aria-label={rightAria}
+          title={rightAria}
+          className="absolute inset-y-0 left-0 z-0 flex w-[76px] items-center justify-center border-0 bg-caneta-2 font-sans text-md font-semibold text-on-caneta"
           onClick={() => {
             fechar();
             onRight();
