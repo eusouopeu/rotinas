@@ -90,7 +90,7 @@ async function abrirTudo(page) {
 async function fotoInteira(page, nome) {
   await page.evaluate(() => document.fonts.ready);
   const extra = await page
-    .locator("[data-rolagem]")
+    .locator("[data-rolagem]:visible")
     .evaluate((el) => Math.max(0, el.scrollHeight - el.clientHeight));
   const { width, height } = page.viewportSize();
   await page.setViewportSize({ width, height: height + extra + 24 });
@@ -127,7 +127,7 @@ test("ajustes: confirmar remoção de área", async ({ page }) => {
   await nova.press("Enter");
   await page.getByRole("button", { name: "Remover área" }).first().click();
   // o clique pode ter rolado a lista; volta ao topo para a foto não depender disso
-  await page.locator("[data-rolagem]").evaluate((el) => (el.scrollTop = 0));
+  await page.locator("[data-rolagem]:visible").evaluate((el) => (el.scrollTop = 0));
   await page.waitForTimeout(300);
   await expect(page).toHaveScreenshot("ajustes-remover-area.png");
 });

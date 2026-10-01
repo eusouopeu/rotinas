@@ -76,7 +76,7 @@ test("nota: markdown cru", async ({ page }) => {
 test("nota: nova e vazia", async ({ page }) => {
   await preparar(page, EXTRA);
   await aba(page, "Modelos");
-  await page.locator('button[title="Novo"]').dispatchEvent("click");
+  await page.locator('button[title="Novo"]:visible').dispatchEvent("click");
   await page.getByPlaceholder("Título").waitFor();
   await foto(page, "nota-nova", { desfocar: true });
 });

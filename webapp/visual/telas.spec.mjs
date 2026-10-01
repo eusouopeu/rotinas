@@ -37,7 +37,7 @@ test("rotinas: lista", async ({ page }) => {
 });
 
 test("rotinas: popup de criar", async ({ page }) => {
-  await page.locator('button[title="Novo"]').click();
+  await page.locator('button[title="Novo"]:visible').click();
   await foto(page, "rotinas-criar");
 });
 
@@ -54,13 +54,13 @@ test("rotinas: mês com o resumo do dia tocado", async ({ page }) => {
 });
 
 test("rotinas: rotinas prontas", async ({ page }) => {
-  await page.locator('button[title="Novo"]').click();
+  await page.locator('button[title="Novo"]:visible').click();
   await page.getByText("Rotina pronta", { exact: true }).click();
   await foto(page, "rotinas-prontas");
 });
 
 test("editor de rotina (nova)", async ({ page }) => {
-  await page.locator('button[title="Novo"]').click();
+  await page.locator('button[title="Novo"]:visible').click();
   await page.getByText("sequência de etapas com tempo").click();
   await foto(page, "editor-rotina");
 });
@@ -114,6 +114,6 @@ test("ajustes", async ({ page }) => {
 test("ajustes: seções abertas", async ({ page }) => {
   await aba(page, "Ajustes");
   await page.getByText("Avisos e cronômetro", { exact: true }).click();
-  await page.getByText("Roda da vida", { exact: true }).click();
+  await page.getByRole("button", { name: "Roda da vida", exact: true }).click();
   await foto(page, "ajustes-abertos");
 });

@@ -9,7 +9,7 @@ async function abrirMetas(page, opcoes) {
   await page.getByText("Recorrentes", { exact: true }).first().waitFor();
 }
 const alternar = (page, nome) => page.getByText(nome, { exact: true }).first().click();
-const fab = (page) => page.locator('button[title="Novo"]');
+const fab = (page) => page.locator('button[title="Novo"]:visible');
 
 test("metas: só recorrentes", async ({ page }) => {
   await abrirMetas(page);
@@ -61,7 +61,7 @@ test("metas: roda da vida recolhida", async ({ page }) => {
 test("metas: roda da vida, próxima página (setas do desktop)", async ({ page }, info) => {
   test.skip(!info.project.name.startsWith("desktop"), "as setas só existem no desktop");
   await abrirMetas(page);
-  await page.locator('button[aria-label="Próximas áreas"]').click();
+  await page.locator('button[aria-label="Próximas áreas"]:visible').click();
   await foto(page, "metas-roda-pagina2");
 });
 

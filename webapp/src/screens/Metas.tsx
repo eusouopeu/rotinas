@@ -6,7 +6,6 @@
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
-import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../features/roda/RodaVidaResumo";
 import { CartaoPrazo } from "../features/metas/CartaoPrazo";
 import { CartaoRec } from "../features/metas/CartaoRec";
@@ -285,7 +284,6 @@ export function Metas() {
       )}
 
       <Fab rotulo="Novo" onClick={handleFabClick} />
-      <Tabbar />
     </div>
   );
 }

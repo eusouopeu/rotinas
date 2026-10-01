@@ -29,8 +29,15 @@
   --realce: #6d28d9;
   --on-caneta: #ffffff;
   --ok: #157a45;
-  --streak: #c2631a;
-  --streak-soft: #fbe3c7;
+  /* sequência: só tons do laranja do Tailwind (01/10/2026) — 700 no texto,
+       100 no fundo; os marcos sobem a escala (200/300/400/600) */
+  --streak: #c2410c;
+  --streak-soft: #ffedd5;
+  --streak-ink: #9a3412;
+  --streak-m1: #fed7aa;
+  --streak-m2: #fdba74;
+  --streak-m3: #fb923c;
+  --streak-m4: #ea580c;
   --erro: #b23a2f;
   --ok-soft: #e3f2ea;
   --erro-soft: #f8e6e4;
@@ -72,8 +79,13 @@ body.dark {
   --realce: #333f52;
   --on-caneta: #ffffff;
   --ok: #4fae7c;
-  --streak: #e0812f;
-  --streak-soft: #3d2a1a;
+  --streak: #fb923c;
+  --streak-soft: #431407;
+  --streak-ink: #fed7aa;
+  --streak-m1: #7c2d12;
+  --streak-m2: #9a3412;
+  --streak-m3: #c2410c;
+  --streak-m4: #ea580c;
   --erro: #e2776a;
   --ok-soft: #1b3226;
   --erro-soft: #3a2320;

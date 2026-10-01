@@ -4,7 +4,6 @@
 import { useAppStore } from "../store/useAppStore";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Icon } from "../components/Icon";
-import { Tabbar } from "../components/Tabbar";
 import { SwipeItem } from "../ui/SwipeItem";
 import { CARTAO_LISTA, CartaoInfo, CartaoTitulo } from "../ui/CartaoLista";
 import { EstadoVazio } from "../ui/EstadoVazio";
@@ -86,7 +85,6 @@ export function TmplFolder() {
       </div>
 
       <Fab rotulo="Novo" onClick={() => createTemplateDoc(key, "type", key)} />
-      <Tabbar />
     </div>
   );
 }

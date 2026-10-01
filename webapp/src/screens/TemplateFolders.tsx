@@ -7,7 +7,6 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
-import { Tabbar } from "../components/Tabbar";
 import { ModelosTabPill } from "../components/ModelosTabPill";
 import { Botao } from "../ui/Botao";
 import { CampoBusca } from "../ui/CampoBusca";
@@ -212,7 +211,6 @@ export function TemplateFolders() {
         </Modal>
       )}
 
-      <Tabbar />
     </div>
   );
 }

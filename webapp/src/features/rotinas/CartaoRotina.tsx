@@ -107,10 +107,14 @@ export function CartaoRotina({
       <Icon name="clipboard" size={15} /> {r.steps.length}
     </Fato>
   );
+  // feita hoje: só o NOME vai riscado e esmaecido — o selo de sequência fica
+  // inteiro (o título é flex, e o riscado do pai atravessaria o selo)
   const titulo = (
     <>
-      {r.icon ? r.icon + " " : ""}
-      {r.name}
+      <span className={cn(execHoje && "text-sub line-through")}>
+        {r.icon ? r.icon + " " : ""}
+        {r.name}
+      </span>
       <StreakTag routineId={r.id} routines={routines} history={history} feitaHoje={!!execHoje} />
     </>
   );
@@ -133,8 +137,7 @@ export function CartaoRotina({
           )}
           <CartaoTitulo
             className={cn(
-              "mb-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-lg leading-tight font-bold [&>span]:ml-0",
-              execHoje && "text-sub line-through"
+              "mb-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-lg leading-tight font-bold [&>span]:ml-0"
             )}
           >
             {titulo}
@@ -164,8 +167,7 @@ export function CartaoRotina({
         )}
         <CartaoTitulo
           className={cn(
-            "mb-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-[19px] font-bold",
-            execHoje && "text-sub line-through"
+            "mb-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-[19px] font-bold"
           )}
         >
           {titulo}

@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Icon } from "../components/Icon";
-import { Tabbar } from "../components/Tabbar";
 import { RodaVidaResumo } from "../features/roda/RodaVidaResumo";
 import { AgendaDia } from "../features/rotinas/AgendaDia";
 import { AgendaSemana } from "../features/rotinas/AgendaSemana";
@@ -366,7 +365,6 @@ export function Home() {
         </Modal>
       )}
       {novoEvento && <TarefaPopup iso={hojeISO} card={null} onClose={() => setNovoEvento(false)} />}
-      <Tabbar />
     </div>
   );
 }

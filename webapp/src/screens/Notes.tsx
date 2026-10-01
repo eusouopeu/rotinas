@@ -4,7 +4,6 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
-import { Tabbar } from "../components/Tabbar";
 import { ModelosTabPill } from "../components/ModelosTabPill";
 import { SwipeItem } from "../ui/SwipeItem";
 import { Botao } from "../ui/Botao";
@@ -138,7 +137,6 @@ export function Notes() {
 
       <ModelosTabPill active="notes" />
       <Fab rotulo="Novo" className="desktop:bottom-7" onClick={() => openNote(null)} />
-      <Tabbar />
     </div>
   );
 }

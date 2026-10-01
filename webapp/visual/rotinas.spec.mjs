@@ -130,7 +130,7 @@ test("rotinas: lista vazia", async ({ page }) => {
 
 test("rotinas: popup de evento", async ({ page }) => {
   await preparar(page);
-  await page.locator('button[title="Novo"]').dispatchEvent("click");
+  await page.locator('button[title="Novo"]:visible').dispatchEvent("click");
   await page.getByText("compromisso avulso na agenda").click();
   await foto(page, "rotinas-evento", { desfocar: true });
 });

@@ -6,6 +6,7 @@
 // build do React, então window.electronBridge não existe no runtime do
 // React e este card fica inerte (não some, só não tem o que chamar) — ver
 // docs/react-migration.md.
+import { Ajuda } from "../../ui/Ajuda";
 import { useEffect, useState } from "react";
 import { getSyncBridge, type SyncStatus } from "../../lib/nativeBridge";
 import { isDesktop, isNative } from "../../lib/storage";
@@ -52,10 +53,10 @@ export function SyncCard() {
     return (
       <>
         <LinhaValor rotulo="Google Drive" valor="não configurado" corValor="var(--sub)" />
-        <Legenda className="mt-2">
+        <Ajuda>
           Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a Drive
           API ativada. Fica guardado só neste computador, nunca no repositório.
-        </Legenda>
+        </Ajuda>
         <RotuloSecao className="mt-3.5 mb-1">Client ID</RotuloSecao>
         <Campo
           variante="modelo"
@@ -91,13 +92,13 @@ export function SyncCard() {
     return (
       <>
         <LinhaValor rotulo="Google Drive" valor="desconectado" corValor="var(--sub)" />
-        <Legenda className="mt-2">
+        <Ajuda>
           Cria uma pasta "brita-sync" no seu Drive.{" "}
           {isDesktop
             ? "Sincroniza a cada 10 minutos com o app aberto."
             : 'Sincroniza sozinho ao abrir o app (se fizer um tempo desde o último) e quando você tocar em "sincronizar agora".'}{" "}
           Escopo mínimo (drive.file): o app só enxerga o que ele mesmo criar.
-        </Legenda>
+        </Ajuda>
         <Botao
           className="mt-3 w-full"
           disabled={busy === "connect"}

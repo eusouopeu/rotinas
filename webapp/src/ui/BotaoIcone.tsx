@@ -10,7 +10,10 @@ const botaoIcone = cva(
   "relative flex shrink-0 items-center justify-center rounded-app-sm border-0 text-lg transition-[transform,background-color] duration-120 ease-[ease] after:absolute after:-inset-[5px] after:rounded-lg active:scale-[0.92] active:bg-chip-neutro desktop:hover:bg-chip-neutro desktop:hover:text-ink",
   {
     variants: {
-      tamanho: { md: "size-9", sm: "size-[34px]" },
+      // ícone mínimo de 20px (md) / 18px (sm) qualquer que seja o `size` passado:
+      // ícones de 13–15px em botão de 36px davam cara de tela entulhada e eram
+      // difíceis de acertar (pedido do Pedro, 01/10/2026)
+      tamanho: { md: "size-10 [&_.icon-svg]:size-5", sm: "size-9 [&_.icon-svg]:size-[18px]" },
       aparencia: {
         padrao: "bg-card-2 text-sub",
         ligado: "bg-caneta-soft text-caneta",

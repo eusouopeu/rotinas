@@ -6,7 +6,6 @@ import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Icon } from "../components/Icon";
-import { Tabbar } from "../components/Tabbar";
 import { GraficosGastos } from "../features/gastos/GraficosGastos";
 import { ImportarExtrato } from "../features/gastos/ImportarExtrato";
 import { ListaGastos } from "../features/gastos/ListaGastos";
@@ -224,7 +223,6 @@ export function ExpenseFolder() {
       )}
 
       {!importState && <Fab rotulo="Nova despesa" onClick={() => setNovo(true)} />}
-      <Tabbar />
     </div>
   );
 }

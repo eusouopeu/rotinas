@@ -2,7 +2,7 @@
 // branches "home" e "settings" existem por enquanto; os outros 39 ficam para
 // fases seguintes). Sem router: mesmo modelo de view={tab,screen,id} trocado
 // em memória que o app antigo usa, sem depender de URL.
-import { useEffect } from "react";
+import { Activity, useEffect, useState } from "react";
 import { atualizarIcalSeVencido } from "./lib/ical";
 import { syncLembreteGasto, TAG_LEMBRETE_GASTO } from "./lib/lembreteGasto";
 import { useAppStore } from "./store/useAppStore";
@@ -12,6 +12,7 @@ import { onAppStateChange } from "./lib/nativeBridge";
 import { publicarSequenciaWidget } from "./lib/widgets";
 import { ATALHO_DESPESA, ATALHO_NOTA, ouvirAtalhos, publicarAtalhos } from "./lib/atalhos";
 import { criarDispatcherMcp } from "./lib/mcpDispatch";
+import { Tabbar } from "./components/Tabbar";
 import { Home } from "./screens/Home";
 import { Settings } from "./screens/Settings";
 import { RoutineEditor } from "./screens/RoutineEditor";
@@ -197,6 +198,29 @@ function Screen({ screen }: { screen: string }) {
   }
 }
 
+/** Telas-raiz das abas: ficam montadas depois da primeira visita (escondidas
+ *  com <Activity>, que guarda estado, rolagem e DOM e pausa os efeitos), então
+ *  trocar de aba não recarrega nada — e a barra de abas é uma só, fora delas. */
+const RAIZES_ABA = ["home", "metas", "notes", "templateFolders", "stats", "settings"];
+const TELAS_COM_ABAS = new Set([...RAIZES_ABA, "tmplFolder", "expenseFolder"]);
+
+function Telas({ screen }: { screen: string }) {
+  const [visitadas, setVisitadas] = useState<string[]>([]);
+  const raiz = RAIZES_ABA.includes(screen);
+  if (raiz && !visitadas.includes(screen)) setVisitadas([...visitadas, screen]);
+  return (
+    <>
+      {visitadas.map((s) => (
+        <Activity key={s} mode={s === screen ? "visible" : "hidden"}>
+          <Screen screen={s} />
+        </Activity>
+      ))}
+      {!raiz && <Screen screen={screen} />}
+      {TELAS_COM_ABAS.has(screen) && <Tabbar />}
+    </>
+  );
+}
+
 export function App() {
   const booted = useAppStore((s) => s.booted);
   const boot = useAppStore((s) => s.boot);
@@ -279,7 +303,7 @@ export function App() {
 
   return (
     <>
-      <Screen screen={view.screen} />
+      <Telas screen={view.screen} />
       <GlobalSearch />
       <BoasVindas />
       <GlobalBanner />

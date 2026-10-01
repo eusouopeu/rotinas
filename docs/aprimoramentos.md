@@ -49,6 +49,7 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Check-in diário de energia (1–5) cruzado com o cumprimento em Dados – implementado em 01/10/2026
 - Lembrete de gastos às 21h nos dias sem despesa lançada – implementado em 01/10/2026
 - Estética minimalista concluída no React (superfícies por cor, sem bordas de 1,5px) e widgets redesenhados com as cores do app e toque direto na tela – implementado em 01/10/2026
+- Troca de abas sem recarregar (barra única e telas mantidas com Activity), botões-ícone maiores, selo de sequência só em laranja e ajudas recolhidas atrás do ⓘ – implementado em 01/10/2026
 
 ## Recomendações refutadas
 

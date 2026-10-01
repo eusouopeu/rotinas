@@ -135,7 +135,7 @@ export function RodaVidaResumo() {
             </Etiqueta>
           )}
           <span className="ml-auto flex">
-            <Icon name={aberto ? "chevronDown" : "chevronUp"} size={17} />
+            <Icon name={aberto ? "chevronDown" : "chevronUp"} size={20} />
           </span>
         </div>
 
@@ -215,7 +215,7 @@ function SetaPagina({
       data-roda="seta"
       className="flex h-[38px] w-6 flex-none cursor-pointer items-center justify-center border-0 bg-transparent text-sub disabled:cursor-default disabled:opacity-25"
     >
-      <Icon name={icone} size={15} />
+      <Icon name={icone} size={20} />
     </button>
   );
 }

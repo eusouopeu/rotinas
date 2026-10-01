@@ -7,7 +7,6 @@ import { useAppStore } from "../store/useAppStore";
 import { NO_PAINEL } from "../features/dados/colunas";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
 import { Icon } from "../components/Icon";
-import { Tabbar } from "../components/Tabbar";
 import { Dicas } from "../features/dados/Dicas";
 import { useEstadoDados } from "../features/dados/estado";
 import { VistaAnual } from "../features/dados/VistaAnual";
@@ -117,7 +116,6 @@ export function Stats() {
           )}
         </div>
       </div>
-      <Tabbar />
     </div>
   );
 }

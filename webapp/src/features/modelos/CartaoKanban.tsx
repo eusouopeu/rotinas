@@ -42,7 +42,7 @@ export function CartaoKanban(p: Props) {
       <div className="flex items-center gap-1.5 pl-[23px]">
         <div className="ml-auto flex shrink-0 gap-1">
           <BotaoMover rotulo="Mover para a coluna anterior" disabled={!p.podeVoltar} onClick={p.onVoltar}>
-            &lsaquo;
+            <Icon name="chevronLeft" size={18} />
           </BotaoMover>
           <BotaoMover
             rotulo={p.paraFeito ? "Marcar como feito" : "Mover para a próxima coluna"}
@@ -50,7 +50,7 @@ export function CartaoKanban(p: Props) {
             disabled={!p.podeAvancar}
             onClick={p.onAvancar}
           >
-            {p.paraFeito ? <Icon name="check" size={14} /> : "›"}
+            {p.paraFeito ? <Icon name="check" size={18} /> : <Icon name="chevronRight" size={18} />}
           </BotaoMover>
         </div>
       </div>

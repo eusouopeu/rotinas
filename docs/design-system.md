@@ -14,6 +14,14 @@ Cartão de nota (React, `Notes.tsx`): título, data completa (`toLocaleDateStrin
 
 Detalhe da rotina (React): etiquetas `caneta` no topo (peso, etapas, "dias, início → fim"), área e sequência; etapas em cartões `--card-2` sem borda com número em negrito e duração "02 m 00 s"; deslizar para a esquerda exclui a etapa (lixeira, com desfazer), para a direita abre o editor (lápis); rodapé com lixeira (exclui a rotina, com desfazer), lápis e Começar.
 
+Ajuda recolhida (01/10/2026, `ui/Ajuda.tsx`): texto que explica COMO algo funciona não fica impresso embaixo da função — vai em `<Ajuda>` (ⓘ que abre o texto) ou, ao lado de um título, `BotaoAjuda`. `Legenda` continua para dado/estado ("Último sync: …", contagens, erro), não para instrução.
+
+Botões-ícone (01/10/2026): `BotaoIcone` md = 40px com ícone mínimo de 20px, sm = 36px com 18px — o tamanho vem do botão (`[&_.icon-svg]:size-*`), qualquer que seja o `size` passado ao `Icon`. Seta é sempre ícone (`chevronLeft/Right`), nunca caractere "‹ ›". Alça de arrastar e ✕ de apagar têm alvo mínimo de 32px. Ícones da barra de abas: 22px.
+
+Sequência (`StreakTag`, `Etiqueta tom="streak"`, widget): só tons do laranja do Tailwind — `--streak` (700/400 no escuro) sobre `--streak-soft` (100/950); marcos sobem o fundo (`--streak-m1..m4` = 200/300/400/600) com texto `--streak-ink`; feita hoje = fundo `--streak` cheio. Nunca as cores dos badges (dourado/prata/azul). Rotina feita hoje: só o NOME é riscado (span próprio) — o selo fica inteiro.
+
+Troca de abas (01/10/2026): a barra de abas é UMA, renderizada pelo `App.tsx` (nenhuma tela importa `Tabbar`), e as telas-raiz das abas (Rotinas, Metas, Notas, Outros, Dados, Ajustes) ficam montadas depois da primeira visita dentro de `<Activity mode="hidden">` (React 19.2): estado, rolagem e DOM preservados, efeitos pausados. Por isso `tela({comAbas})` não tem animação de entrada; só as telas "de dentro" (editor, detalhe, player) entram com `animate-entra`. Em testes do Playwright, a tela escondida continua no DOM: use `getByRole` ou `:visible`, nunca `getByText`/`locator` puro que possa casar com ela.
+
 Fechar o dia (`FechamentoDia`, a partir das 19h) e check-in de energia (`CheckinEnergia`) são faixas `--card-2` na aba Rotinas, abaixo do aviso de backup.
 
 Componentes: `.icon-btn` é o padrão 34px; `.icon-btn.borderless` só remove aparência, não alvo; `.btn-primary`, `.btn-cancel`, `.btn-confirm`, `.btn-danger-outline`, `.link-btn` já existem. Reutilize-os. No legado ícones são entidades HTML, não emoji literal/SVG. Priorize ícone quando a semântica estiver clara, mas não sacrifique acessibilidade.
@@ -22,7 +30,7 @@ Layout: cabeçalhos de aba não são fixos no mobile; respeite nós de rolagem i
 
 Rotina/agenda: preserve marcadores, colunas de horário/lápis com largura fixa, card de streak como `.streak-tag`, e ação de toque por `transform:scale`. Não reintroduza layouts/removidos listados em `feature-status.md`.
 
-Cards de Dados (React, `Stats.tsx`): título e explicação ficam dentro do card (`.stat-card.com-titulo` > `.stat-card-title` + `.stat-card-desc` + `.stat-card-body`), nunca `section-label` solto acima. Números de destaque em trio usam `.resumo-grid.kpi3` com `.resumo-v.bom`/`.ruim`/`.destaque` (`--ok`/`--erro`/`--caneta`). Grupos bom/abaixo usam `.faixa-ok`/`.faixa-baixo` sobre `--ok-soft`/`--erro-soft`; meta em barra é `.meta-tracejada` em `.bar-track.com-meta`; linha de percentual é `GraficoLinhaPct` (cores por classe `.lp-*`, só tokens).
+Cards de Dados (React, `Stats.tsx`): título dentro do card (`CartaoSecao`), nunca `section-label` solto acima; a explicação (`desc`) fica recolhida atrás do ⓘ ao lado do título (`BotaoAjuda`). Números de destaque em trio usam `.resumo-grid.kpi3` com `.resumo-v.bom`/`.ruim`/`.destaque` (`--ok`/`--erro`/`--caneta`). Grupos bom/abaixo usam `.faixa-ok`/`.faixa-baixo` sobre `--ok-soft`/`--erro-soft`; meta em barra é `.meta-tracejada` em `.bar-track.com-meta`; linha de percentual é `GraficoLinhaPct` (cores por classe `.lp-*`, só tokens).
 
 ## Folga lateral em aba com rolagem vertical
 

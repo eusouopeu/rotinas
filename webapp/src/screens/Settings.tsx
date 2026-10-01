@@ -5,7 +5,6 @@
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { CabecalhoTela } from "../ui/CabecalhoTela";
-import { Tabbar } from "../components/Tabbar";
 import { isDesktop } from "../lib/storage";
 import { CampoBusca } from "../ui/CampoBusca";
 import { RotuloSecao } from "../ui/RotuloSecao";
@@ -74,7 +73,6 @@ export function Settings() {
           {isDesktop && <SecaoMcp />}
         </div>
 
-        <Tabbar />
       </div>
     </FiltroAjustes.Provider>
   );

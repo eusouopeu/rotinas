@@ -2,6 +2,7 @@
 // semana atual: nota/ritmo, orçamento de tempo, evolução, roda da vida por
 // área (pontos, tendência, correlação), distribuição de pesos e vitrine de
 // badges. Lógica pura em lib/boletim.ts.
+import { Ajuda } from "../ui/Ajuda";
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { estimadorSerie } from "../lib/routines";
@@ -250,9 +251,9 @@ export function Boletim() {
                   {t.valores.join(" · ")}
                 </LinhaSimples>
               ))}
-              <Legenda className="mt-3">
+              <Ajuda>
                 Pontos por semana, da mais antiga à mais recente (esquerda &rarr; direita).
-              </Legenda>
+              </Ajuda>
             </Cartao>
           </>
         )}
@@ -282,10 +283,10 @@ export function Boletim() {
                   </div>
                 );
               })}
-              <Legenda className="mt-3">
+              <Ajuda>
                 Rudimentar: só mostra que duas áreas sobem/descem juntas nas últimas semanas — não prova que uma causa a
                 outra.
-              </Legenda>
+              </Ajuda>
             </Cartao>
           </>
         )}
@@ -352,7 +353,7 @@ export function Boletim() {
               {bonusMes > 0 && <LinhaValor rotulo="Neste mês" valor={`+${bonusMes}`} corValor="var(--ok)" />}
               {bonusTri > 0 && <LinhaValor rotulo="Neste trimestre" valor={`+${bonusTri}`} corValor="var(--ok)" />}
               {bonusAno > 0 && <LinhaValor rotulo="Neste ano" valor={`+${bonusAno}`} corValor="var(--ok)" />}
-              <Legenda className="mt-3">Entram na nota do período ao fechar, não na semanal.</Legenda>
+              <Ajuda>Entram na nota do período ao fechar, não na semanal.</Ajuda>
             </Cartao>
           </>
         )}

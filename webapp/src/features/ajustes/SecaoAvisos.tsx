@@ -1,12 +1,12 @@
 // Notificações, som/vibração e cronômetro num único accordion (pedido do
 // Pedro, 22/09/2026): são três faces do mesmo assunto — como o app te avisa.
+import { Ajuda } from "../../ui/Ajuda";
 import { useAppStore } from "../../store/useAppStore";
 import { isNative } from "../../lib/storage";
 import { alarmCue } from "../../lib/haptics";
 import type { SomModo } from "../../lib/sound";
 import { Botao } from "../../ui/Botao";
 import { ChipsDia } from "../../ui/ChipsDia";
-import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { Toggle } from "../../ui/Segmentado";
 import { Switch } from "../../ui/Switch";
@@ -67,17 +67,17 @@ export function SecaoAvisos() {
           Aviso de ritmo
         </Switch>
         <ChipsDia className="mt-2.5" rotulos={DIA_LABEL} ativos={nudgeDias} onToggle={toggleNudgeDia} />
-        <Legenda className="mt-3">Nos dias marcados, a partir das 9h, quando a semana está atrasada.</Legenda>
+        <Ajuda>Nos dias marcados, a partir das 9h, quando a semana está atrasada.</Ajuda>
         <Switch className="mt-3" checked={nudgeMetas} onChange={setNudgeMetas}>
           Meta perto do prazo
         </Switch>
         <Switch className="mt-3" checked={nudgeStreak} onChange={setNudgeStreak}>
           Sequência em risco
         </Switch>
-        <Legenda className="mt-3">
+        <Ajuda>
           Meta: uma vez por dia quando falta até 2 dias para o prazo. Sequência: a partir das 18h, quando uma rotina de
           hoje com sequência longa ainda não foi feita.
-        </Legenda>
+        </Ajuda>
         <Switch
           className="mt-3"
           checked={lembreteGasto}
@@ -89,7 +89,7 @@ export function SecaoAvisos() {
         >
           Lembrete de gastos às 21h
         </Switch>
-        <Legenda className="mt-3">Só nos dias sem nenhuma despesa lançada; o toque abre a Nova despesa.</Legenda>
+        <Ajuda>Só nos dias sem nenhuma despesa lançada; o toque abre a Nova despesa.</Ajuda>
       </div>
 
       <RotuloSecao>Som e vibração</RotuloSecao>
@@ -118,7 +118,7 @@ export function SecaoAvisos() {
                 onSelect={(m) => void setCronometroModo(m)}
               />
             </LinhaValor>
-            <Legenda className="mt-3">{TEXTO_CRONOMETRO[cronometroModo]}</Legenda>
+            <Ajuda>{TEXTO_CRONOMETRO[cronometroModo]}</Ajuda>
             {cronometroModo !== "off" && <DiagnosticoCronometro />}
           </div>
         </>

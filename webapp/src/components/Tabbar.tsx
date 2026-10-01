@@ -56,7 +56,7 @@ export function Tabbar() {
             ativa && "bg-caneta-soft desktop:bg-transparent"
           )}
         >
-          <Icon name={t.icon} />
+          <Icon name={t.icon} size={22} />
         </span>
         {/* rótulo some no mobile e sobrevive na sidebar do desktop (menos recolhida) */}
         <span className="hidden desktop:inline desktop:recolhido:hidden">{t.label}</span>

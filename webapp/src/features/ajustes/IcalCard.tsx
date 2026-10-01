@@ -4,6 +4,7 @@
 // SyncCard, que só existe em desktop/Android. Os eventos importados ficam em
 // cache local (lib/ical.ts); a exibição no dia a dia entra quando a agenda
 // inline em Rotinas for portada (ver docs/react-migration.md).
+import { Ajuda } from "../../ui/Ajuda";
 import { useState } from "react";
 import {
   atualizarIcal,
@@ -91,13 +92,13 @@ export function IcalCard() {
         value={inputUrl}
         onChange={(e) => setInputUrl(e.target.value)}
       />
-      <Legenda className="mt-1.5">
+      <Ajuda>
         No Google Calendar: Configurações da agenda → "Endereço secreto em formato iCal". Cole aqui — os eventos
         aparecem só leitura na agenda, dia a dia.
         {!isDesktop && !isNative
           ? " No navegador, alguns provedores bloqueiam essa busca (CORS); funciona de forma mais confiável no app instalado (desktop/Android)."
           : ""}
-      </Legenda>
+      </Ajuda>
       <div className="mt-2.5 flex gap-2">
         <Botao className="flex-1" disabled={!inputUrl.trim() || busy !== null} onClick={salvarEAtualizar}>
           {busy === "save" ? "Buscando..." : url ? "Salvar e atualizar" : "Salvar"}

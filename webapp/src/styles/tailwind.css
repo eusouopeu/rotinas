@@ -60,6 +60,11 @@
   --color-caneta-grad: var(--caneta-grad);
   --color-chip-neutro: var(--chip-neutro);
   --color-streak-soft: var(--streak-soft);
+  --color-streak-ink: var(--streak-ink);
+  --color-streak-m1: var(--streak-m1);
+  --color-streak-m2: var(--streak-m2);
+  --color-streak-m3: var(--streak-m3);
+  --color-streak-m4: var(--streak-m4);
   --color-realce: var(--realce);
   --color-on-caneta: var(--on-caneta);
   --color-ok: var(--ok);

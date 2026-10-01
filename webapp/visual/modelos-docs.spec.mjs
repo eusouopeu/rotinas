@@ -10,7 +10,7 @@ async function abrir(page, titulo) {
   await page.getByText("Outros", { exact: true }).first().click();
   await page.getByPlaceholder("Buscar modelos...").fill(titulo);
   await page.getByRole("heading", { name: titulo }).click();
-  await page.locator("input").first().waitFor();
+  await page.locator("input:visible").first().waitFor();
   await page.waitForTimeout(200);
 }
 const rolagem = ".screen > div:last-child, [data-tela] > div:last-child";

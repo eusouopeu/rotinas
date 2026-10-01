@@ -17,7 +17,10 @@ export function tela({ comAbas, comPill, larga }: Opcoes = {}, extra?: string) {
   return {
     "data-tela": true,
     className: cn(
-      "flex min-h-0 flex-1 animate-entra flex-col px-5 motion-reduce:animate-none paisagem:px-4",
+      "flex min-h-0 flex-1 flex-col px-5 paisagem:px-4",
+      // telas de aba ficam montadas (App.tsx, <Activity>) e não reentram com
+      // animação a cada troca; só as telas "de dentro" (editor, detalhe) entram
+      !comAbas && "animate-entra motion-reduce:animate-none",
       "desktop:mt-[var(--topbar-h)] desktop:ml-[calc(var(--sidebar-w)+28px)] desktop:max-w-[1060px] desktop:px-10",
       comAbas && "pb-[calc(var(--tabbar-h)+var(--safe-bottom)+24px)] desktop:pb-7",
       comAbas && comPill && "pb-[calc(var(--tabbar-h)+var(--safe-bottom)+86px)] desktop:pb-7",

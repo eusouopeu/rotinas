@@ -1,5 +1,6 @@
 // Pontuação do boletim: o dia a dia só precisa da nota mínima; hábito
 // consolidado, vagas, multiplicadores, bônus e a simulação ficam em "Avançado".
+import { Ajuda } from "../../ui/Ajuda";
 import { useContext, useMemo, useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { Icon } from "../../components/Icon";
@@ -120,7 +121,7 @@ export function SecaoPontuacao() {
               value={c.divisorDuracao}
               onChange={(e) => updateGamConfig({ divisorDuracao: Math.max(5, +e.target.value || 30) })}
             />
-            <Legenda className="mt-3.5 mb-1.5">Bônus por meta concluída, no escopo definido pelo prazo dela.</Legenda>
+            <Ajuda className="mt-2.5">Bônus por meta concluída, no escopo definido pelo prazo dela.</Ajuda>
             {PERIODOS.map((periodo) => (
               <LinhaNumero
                 key={periodo}
@@ -134,9 +135,7 @@ export function SecaoPontuacao() {
                 }
               />
             ))}
-            <Legenda className="mt-3">
-              Vale para as próximas semanas — a semana atual já está com o fator congelado.
-            </Legenda>
+            <Ajuda>Vale para as próximas semanas — a semana atual já está com o fator congelado.</Ajuda>
 
             <RotuloSecao className="mt-3.5 mb-1">Simulação — próxima semana</RotuloSecao>
             {simulacao.length === 0 ? (
