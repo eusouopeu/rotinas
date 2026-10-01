@@ -25,7 +25,8 @@ import {
 // Re-exportado por compatibilidade com quem importava daqui antes da
 // extração para store/shared.ts.
 export { recorrentesAtuais };
-import { bootStorage, load, save } from "../lib/storage";
+import { bootStorage, isDesktop, isNative, load, save } from "../lib/storage";
+import { aplicarEspelhoRotinas, planoEspelhoRotinas } from "../lib/rotinaMirror";
 import { getTimerOverlayBridge, overlayHide } from "../lib/nativeBridge";
 import { ensureTimerAlertChannels, notifyDigestSemanal } from "../lib/notifications";
 import { marcarSemanaVista as marcarSemanaVistaLib } from "../lib/semanaFechada";
@@ -217,7 +218,8 @@ export interface AppState {
   updateRodaArea: (id: string, patch: Partial<RodaArea>) => void;
   removeRodaArea: (id: string) => void;
 
-  startPlayer: (routineId: string) => void;
+  /** `minima`: só as etapas essenciais (versão mínima, 01/10/2026). */
+  startPlayer: (routineId: string, opts?: { minima?: boolean }) => void;
   togglePause: () => void;
   advanceStep: (skipped?: boolean, naoFeita?: boolean) => void;
   goPrevStep: () => void;
@@ -232,6 +234,14 @@ export interface AppState {
   // marca a etapa como pendente do dia — a rotina reabre só com as
   // pendentes (repescagem, ver startPlayer/novoPlayerState).
   naoFazerEtapaAtual: () => void;
+  /** Pula a etapa (fica no histórico como pulada, sem pontuar e sem
+   * repescagem — diferente de "não fazer"). */
+  pularEtapaAtual: () => void;
+  /** Texto da etapa de anotação em andamento (vira nota "journal" ao fim). */
+  setTextoAnotacao: (stepId: string, texto: string) => void;
+  /** Botão de progressão do exercício atual: grava reps (na etapa da
+   * rotina) e carga (na biblioteca) já progredidas. */
+  progredirExercicioAtual: (reps: number, peso: number) => void;
   // Adia por BLOCO — troca a etapa atual (+ pausa dela, se houver) de lugar
   // com o bloco seguinte inteiro (index.html:11788-11809).
   adiarEtapaAtual: () => void;
@@ -886,9 +896,27 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   dismissUndoBanner: () => set({ undoBanner: null }),
 }));
 
+// Espelho JSON das rotinas em Documentos (lib/rotinaMirror.ts): uma passada
+// completa ao abrir o app e, depois, só o que mudou, agrupado em 1,5s (o
+// editor e o arrasto mexem em `routines` várias vezes seguidas).
+let rotinasEspelhadas: Routine[] | null = null;
+let timerEspelho: ReturnType<typeof setTimeout> | null = null;
+function agendarEspelhoRotinas() {
+  if (timerEspelho) clearTimeout(timerEspelho);
+  timerEspelho = setTimeout(() => {
+    timerEspelho = null;
+    const atual = useAppStore.getState().routines;
+    const plano = planoEspelhoRotinas(atual, rotinasEspelhadas);
+    rotinasEspelhadas = atual;
+    if (plano.gravar.length || plano.apagar.length) void aplicarEspelhoRotinas(plano);
+  }, 1500);
+}
+if (typeof window !== "undefined" && (isNative || isDesktop)) agendarEspelhoRotinas();
+
 // Widget de sequência recebe o valor já calculado a cada mudança do que
 // entra na conta (histórico, rotinas, pausas) — fora do React.
 useAppStore.subscribe((s, prev) => {
+  if (s.routines !== prev.routines && (isNative || isDesktop)) agendarEspelhoRotinas();
   if (s.history !== prev.history || s.routines !== prev.routines || s.snoozes !== prev.snoozes)
     publicarSequenciaWidget(s.routines, s.history, s.snoozes);
   // widget de metas do dia lê as metas direto do arquivo: redesenha ao mudar

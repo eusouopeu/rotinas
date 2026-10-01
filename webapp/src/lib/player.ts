@@ -51,6 +51,11 @@ export function parseRepsRange(reps: string | undefined): { min: number; max: nu
   return { min: n || 0, max: n || 0 };
 }
 
+/** Versão mínima: a rotina tem alguma etapa marcada como essencial. */
+export function temVersaoMinima(routine: Pick<Routine, "steps">): boolean {
+  return routine.steps.some((s) => s.essencial && !s.isRest);
+}
+
 /** Porta de expandSteps+playbackSteps (index.html:11140-11165), sem o tipo
  * "routine" (sub-rotina referenciada) — não existe no editor atual. */
 export function playbackSteps(routine: Routine): RoutineStep[] {
@@ -86,6 +91,10 @@ export interface PlayerState {
   // sem isso o tick de 1s repetiria a vibração a cada segundo negativo
   // (index.html:11433, overtimeCueFired).
   overtimeCueFired: boolean;
+  /** Texto das etapas de anotação (stepId → texto), legado `journalTexts`. */
+  journalTexts?: Record<string, string>;
+  /** Execução da versão mínima (só etapas essenciais). */
+  minima?: boolean;
 }
 
 /** Porta de podarDescansos (index.html:11176-11184) — remove descanso
@@ -111,8 +120,13 @@ export interface NovoPlayerStateResult {
 /** `pendentes`: ids de etapa marcados como "não feita" hoje nesta rotina
  * (naoFeitasDe) — se houver alguma, a rotina reabre só com elas (+ pausas),
  * igual ao startPlayer do legado. Sem pendentes, roda a rotina inteira. */
-export function novoPlayerState(routine: Routine, pendentes: string[] = []): NovoPlayerStateResult | null {
+export function novoPlayerState(
+  routine: Routine,
+  pendentes: string[] = [],
+  minima = false
+): NovoPlayerStateResult | null {
   let steps = playbackSteps(routine);
+  if (minima) steps = podarDescansos(steps.filter((s) => s.isRest || s.essencial));
   if (steps.length === 0) return null;
   let repescagem = false;
   if (pendentes.length) {
@@ -141,6 +155,7 @@ export function novoPlayerState(routine: Routine, pendentes: string[] = []): Nov
       pontosGanhos: 0,
       ex: first.type === "exercicio" ? freshExState() : null,
       overtimeCueFired: false,
+      ...(minima ? { minima: true } : {}),
     },
     repescagem,
   };

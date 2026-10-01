@@ -7,6 +7,7 @@ import { EstadoVazio } from "../ui/EstadoVazio";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import {
   CargaExercicios,
+  EtapasPuladas,
   EtapasRotina,
   HorariosRotina,
   ResumoRotina,
@@ -70,6 +71,7 @@ export function RoutineStats() {
           <>
             <ResumoRotina stats={stats} />
             {stats.stepRows.length > 0 && <EtapasRotina stats={stats} onAjustar={ajustar} />}
+            {stats.skipRows.length > 0 && <EtapasPuladas stats={stats} />}
             {stats.exerciseRows.length > 0 && <CargaExercicios stats={stats} />}
             {stats.hasHourCounts && <HorariosRotina stats={stats} />}
             {stats.recent.length > 0 && <UltimasExecucoes stats={stats} onApagar={apagar} />}

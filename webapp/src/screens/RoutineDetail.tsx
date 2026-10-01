@@ -5,6 +5,7 @@
 // o editor) e rodapé com excluir, editar e Começar. Reordenar etapa continua no
 // editor. Sem a variante split do desktop: a lista é uma coluna flex própria.
 import { useAppStore } from "../store/useAppStore";
+import { temVersaoMinima } from "../lib/player";
 import { Icon } from "../components/Icon";
 import { StreakTag } from "../components/StreakTag";
 import { PausaRotina } from "../features/rotinas/PausaRotina";
@@ -104,6 +105,7 @@ export function RoutineDetail() {
               )}s descanso`;
             } else metaTxt = "checklist";
             if (s.journaling) metaTxt += " · anotações";
+            if (s.essencial) metaTxt += " · essencial";
             return (
               <SwipeItem
                 key={s.id}
@@ -134,6 +136,16 @@ export function RoutineDetail() {
         <BotaoIcone rotulo="Editar rotina" onClick={() => openEditor(r.id)}>
           <Icon name="pencil" size={17} />
         </BotaoIcone>
+        {temVersaoMinima(r) && (
+          <Botao
+            variante="neutro"
+            className="flex-none self-stretch"
+            title="Versão mínima: só as etapas essenciais"
+            onClick={() => startPlayer(r.id, { minima: true })}
+          >
+            Mínima
+          </Botao>
+        )}
         <Botao className="flex-1" disabled={r.steps.length === 0} onClick={() => startPlayer(r.id)}>
           <Icon name="play" size={16} /> Começar
         </Botao>

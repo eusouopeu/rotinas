@@ -50,6 +50,14 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Lembrete de gastos às 21h nos dias sem despesa lançada – implementado em 01/10/2026
 - Estética minimalista concluída no React (superfícies por cor, sem bordas de 1,5px) e widgets redesenhados com as cores do app e toque direto na tela – implementado em 01/10/2026
 - Troca de abas sem recarregar (barra única e telas mantidas com Activity), botões-ícone maiores, selo de sequência só em laranja e ajudas recolhidas atrás do ⓘ – implementado em 01/10/2026
+- Pular etapa no player (fica no histórico como pulada, sem repescagem) e "Etapas mais puladas" nas estatísticas da rotina – implementado em 01/10/2026
+- Versão mínima da rotina (etapas marcadas "essencial"), botão "Mínima" no detalhe e sugestão na aba Rotinas com energia 1–2 – implementado em 01/10/2026
+- Marcos intermediários na meta com prazo (data + itens acumulados), com projeção no ritmo atual no cartão – implementado em 01/10/2026
+- Gastos do mês por categoria contra a média dos 3 meses anteriores, com orçamento mensal por categoria – implementado em 01/10/2026
+- Cópia automática de cada rotina em .json em Documentos/<pasta>/Rotinas ao criar ou modificar (Android e desktop) – implementado em 01/10/2026
+- Semana atual contra a anterior no Boletim (nota e cada área, proporcional aos dias corridos) – implementado em 01/10/2026
+- Etapas de anotação (texto livre no player, viram nota em Modelos › Anotações de Rotinas) de volta ao editor e ao player – implementado em 01/10/2026
+- Botão de progressão no exercício: +2 repetições até 12; em 12, +2,5 kg e volta a 8 (substitui o link "tentar N kg") – implementado em 01/10/2026
 
 ## Recomendações refutadas
 
@@ -70,7 +78,6 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - Compartilhar nota como Markdown pelo menu nativo – refutada em 30/09/2026
 - Modelos de nota ao criar (ata, fichamento, plano de projeto) – refutada em 30/09/2026
 - Lixeira de 30 dias para notas e rotinas excluídas – refutada em 30/09/2026
-- Orçamento mensal por categoria nos gastos – refutada em 30/09/2026
 - Revisão espaçada de itens das metas com prazo (1/7/30 dias) – refutada em 01/10/2026
 - Sessão de foco avulsa creditando área ou meta – refutada em 01/10/2026
 - Aviso de rotina não iniciada 15 min após o horário – refutada em 01/10/2026
@@ -78,3 +85,9 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - Bloco nas configurações rápidas do Android para começar a próxima rotina – refutada em 01/10/2026
 - Três prioridades do dia no topo da aba Rotinas – refutada em 01/10/2026
 - Copiar o planejamento de um dia para outro – refutada em 01/10/2026
+- Registrar execução retroativa de rotina em dia passado – refutada em 01/10/2026
+- Ajuste sugerido na Semana fechada para rotina abaixo de 50% por 3 semanas – refutada em 01/10/2026
+- Melhor horário por rotina em Dados, com sugestão de mover o agendamento – refutada em 01/10/2026
+- Rotina-desafio com data de fim que se arquiva sozinha – refutada em 01/10/2026
+- Observação curta por etapa no player, mostrada na execução seguinte – refutada em 01/10/2026
+- Tamanho do texto (P/M/G) em Ajustes – refutada em 01/10/2026

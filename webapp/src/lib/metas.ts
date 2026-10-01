@@ -5,7 +5,15 @@
 // ficam de fora por ora.
 import { addDaysISO, inicioSemanaISO, isoToDate, localKey, tagMultiplicador, trimestreDe } from "./gamificacao";
 import { K_METASSUBVIEW, K_METASSUBVIEWSEL } from "./constants";
-import type { CountdownDoc, GamificacaoState, MetaEscopo, MetaRecProgresso, MetaRecorrente, MetaTarget } from "./types";
+import type {
+  CountdownDoc,
+  GamificacaoState,
+  MetaEscopo,
+  MetaMarco,
+  MetaRecProgresso,
+  MetaRecorrente,
+  MetaTarget,
+} from "./types";
 
 export function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + "T12:00:00");
@@ -495,4 +503,35 @@ export function projecaoMeta(
   if (ritmo <= 0) return { dataISO: null, atrasa: true, ritmo: 0 };
   const dataISO = addDaysISO(hojeISO, Math.ceil(restante / ritmo));
   return { dataISO, atrasa: dataISO > t.date, ritmo };
+}
+
+export interface MarcoStatus {
+  marco: MetaMarco;
+  /** já alcançado (feitos >= alvo) */
+  batido: boolean;
+  /** prazo do marco já passou sem alcançar */
+  perdido: boolean;
+  /** itens previstos na data do marco no ritmo atual */
+  previsto: number;
+  /** chega no alvo no ritmo atual */
+  noRitmo: boolean;
+}
+
+/** Próximo marco ainda em aberto (01/10/2026): o primeiro, por data, que não
+ *  foi batido. Projeção = feitos + ritmo dos últimos 14 dias × dias até a
+ *  data do marco (mesmo ritmo de projecaoMeta). Null sem marco pendente. */
+export function proximoMarco(
+  t: Pick<MetaTarget, "date" | "topics" | "done" | "createdAt" | "progressoDias" | "marcos">,
+  hojeISO: string = localKey()
+): MarcoStatus | null {
+  if (t.topics == null) return null;
+  const feitos = t.done || 0;
+  const ordem = (t.marcos || []).slice().sort((a, b) => a.data.localeCompare(b.data) || a.alvo - b.alvo);
+  const marco = ordem.find((m) => feitos < m.alvo);
+  if (!marco) return null;
+  const perdido = marco.data < hojeISO;
+  const ritmo = projecaoMeta(t, hojeISO)?.ritmo ?? 0;
+  const dias = Math.max(0, Math.round((isoToDate(marco.data).getTime() - isoToDate(hojeISO).getTime()) / 86400000));
+  const previsto = Math.floor(feitos + ritmo * dias);
+  return { marco, batido: false, perdido, previsto, noRitmo: !perdido && previsto >= marco.alvo };
 }

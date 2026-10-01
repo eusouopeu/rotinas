@@ -6,7 +6,10 @@
 import { useState } from "react";
 import { DIAS_ABREV } from "../../lib/constants";
 import { metaAreaInfo, metaAreasPool, metaEscopo, metaPontosTotais } from "../../lib/metas";
-import type { CountdownDoc, GamificacaoState, MetaTarget, Tag } from "../../lib/types";
+import type { CountdownDoc, GamificacaoState, MetaMarco, MetaTarget, Tag } from "../../lib/types";
+import { uid } from "../../lib/uid";
+import { Icon } from "../../components/Icon";
+import { BotaoIcone } from "../../ui/BotaoIcone";
 import { Campo } from "../../ui/Campo";
 import { AreaInput, DateKbInput } from "../../ui/CamposTexto";
 import { ChipsDia } from "../../ui/ChipsDia";
@@ -36,6 +39,10 @@ export function FormMetaPrazo({ meta, doc, gam, onClose, onSalvar }: Props) {
   const [dias, setDias] = useState<number[]>(meta?.dias ? meta.dias.slice() : []);
   const [tag, setTag] = useState<Tag>(meta?.tagValor || "alto");
   const [novaArea, setNovaArea] = useState("");
+  // marcos intermediários (01/10/2026): data + quantos itens acumulados até lá
+  const [marcos, setMarcos] = useState<Array<{ id: string; data: string; alvo: string }>>(() =>
+    (meta?.marcos || []).map((m) => ({ id: m.id, data: m.data, alvo: String(m.alvo) }))
+  );
 
   const pool = doc ? metaAreasPool(doc, areasRoda) : areasRoda.map((a) => a.label);
   const sugestoes = pool.filter((a) => !areas.some((x) => x.toLowerCase() === a.toLowerCase()));
@@ -62,7 +69,15 @@ export function FormMetaPrazo({ meta, doc, gam, onClose, onSalvar }: Props) {
 
   function salvar() {
     if (!titulo.trim() || !data) return;
+    const marcosOk: MetaMarco[] =
+      nItens > 0
+        ? marcos
+            .map((m) => ({ id: m.id, data: m.data, alvo: Math.min(nItens, parseInt(m.alvo, 10) || 0) }))
+            .filter((m) => m.data && m.alvo > 0)
+            .sort((a, b) => a.data.localeCompare(b.data))
+        : [];
     onSalvar({
+      marcos: marcosOk,
       title: titulo.trim(),
       date: data,
       topics: nItens > 0 ? nItens : null,
@@ -158,6 +173,51 @@ export function FormMetaPrazo({ meta, doc, gam, onClose, onSalvar }: Props) {
           />
         </CelulaForm>
       </LinhaForm>
+
+      {nItens > 0 && (
+        <div className="mt-2.5" data-meta="marcos">
+          {marcos.map((m, i) => (
+            <LinhaForm fixa key={m.id} className="mt-1.5">
+              <CelulaForm className="flex-none">
+                <IconeForm icone="ticket" titulo="Marco: até esta data" />
+                <DateKbInput
+                  label="Data do marco"
+                  className="w-[112px]"
+                  value={m.data}
+                  onChange={(v) => setMarcos(marcos.map((x, j) => (j === i ? { ...x, data: v } : x)))}
+                />
+              </CelulaForm>
+              <CelulaForm>
+                <Campo
+                  variante="compacto"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={nItens}
+                  placeholder={`de ${nItens}`}
+                  aria-label="Itens até o marco"
+                  value={m.alvo}
+                  onChange={(e) => setMarcos(marcos.map((x, j) => (j === i ? { ...x, alvo: e.target.value } : x)))}
+                />
+              </CelulaForm>
+              <BotaoIcone
+                rotulo="Tirar este marco"
+                semBorda
+                onClick={() => setMarcos(marcos.filter((_, j) => j !== i))}
+              >
+                <Icon name="xmark" size={15} />
+              </BotaoIcone>
+            </LinhaForm>
+          ))}
+          <button
+            type="button"
+            className="mt-1.5 border-0 bg-transparent p-0 font-sans text-md text-caneta"
+            onClick={() => setMarcos([...marcos, { id: uid(), data: "", alvo: "" }])}
+          >
+            + marco intermediário
+          </button>
+        </div>
+      )}
 
       <LinhaForm>
         <IconeForm icone="scale" titulo="Peso no boletim" />

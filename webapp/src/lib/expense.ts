@@ -440,3 +440,67 @@ export function lancamentosRecorrentes(
   }
   return { novos, ultimos };
 }
+
+/* ---- Orçamento e média por categoria (01/10/2026) ----
+   O limite mensal de cada categoria mora no mapa do diário sob
+   "orcamento:<categoria>" (valor em reais, texto) — mesmo truque da energia
+   do dia: entra no backup e no merge por chave sem coleção nova. */
+export const chaveOrcamento = (cat: string) => "orcamento:" + cat;
+
+export function orcamentoDe(diario: Record<string, string>, cat: string): number | null {
+  const v = parseFloat(diario[chaveOrcamento(cat)] || "");
+  return v > 0 ? v : null;
+}
+
+export interface LinhaCategoriaMes {
+  cat: string;
+  color: string;
+  /** gasto no mês atual */
+  atual: number;
+  /** média dos meses anteriores (até 3, só desde o primeiro lançamento) */
+  media: number | null;
+  /** limite do mês (null = sem orçamento) */
+  orcamento: number | null;
+}
+
+function mesAnterior(anoMes: string, n: number): string {
+  const [a, m] = anoMes.split("-").map(Number);
+  const d = new Date(a, m - 1 - n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Mês atual × média dos até 3 meses anteriores, por categoria, com o
+ *  orçamento de cada uma. Entram as categorias com gasto no mês, na média ou
+ *  com orçamento definido; ordem: maior gasto atual primeiro. */
+export function categoriasDoMes(
+  docs: ExpenseDoc[],
+  diario: Record<string, string>,
+  hojeISO: string = localKey()
+): LinhaCategoriaMes[] {
+  const mesAtual = hojeISO.slice(0, 7);
+  const primeiro = docs.reduce((min, e) => (e.date && e.date.slice(0, 7) < min ? e.date.slice(0, 7) : min), mesAtual);
+  const anteriores = [1, 2, 3].map((n) => mesAnterior(mesAtual, n)).filter((m) => m >= primeiro);
+  const porCatMes: Record<string, Record<string, number>> = {};
+  docs.forEach((e) => {
+    const m = (e.date || "").slice(0, 7);
+    if (m !== mesAtual && !anteriores.includes(m)) return;
+    const c = (porCatMes[e.cat] = porCatMes[e.cat] || {});
+    c[m] = (c[m] || 0) + e.value;
+  });
+  const cats = new Set<string>(Object.keys(porCatMes));
+  Object.keys(diario).forEach((k) => {
+    if (k.startsWith("orcamento:") && orcamentoDe(diario, k.slice(10)) != null) cats.add(k.slice(10));
+  });
+  return Array.from(cats)
+    .map((cat) => {
+      const c = porCatMes[cat] || {};
+      return {
+        cat,
+        color: catColor(cat),
+        atual: c[mesAtual] || 0,
+        media: anteriores.length ? anteriores.reduce((s, m) => s + (c[m] || 0), 0) / anteriores.length : null,
+        orcamento: orcamentoDe(diario, cat),
+      };
+    })
+    .sort((a, b) => b.atual - a.atual || a.cat.localeCompare(b.cat));
+}

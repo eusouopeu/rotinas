@@ -36,6 +36,12 @@ contextBridge.exposeInMainWorld("electronBridge", {
     ipcRenderer.on("sync:conflict", (_event, { key, remoteValue }) => handler(key, remoteValue));
   },
 
+  // arquivos em Documentos (espelho JSON das rotinas, webapp/src/lib/rotinaMirror.ts)
+  docs: {
+    write: (caminho, texto) => ipcRenderer.invoke("docs:write", caminho, texto),
+    remove: (caminho) => ipcRenderer.invoke("docs:remove", caminho)
+  },
+
   // calendário externo (URL secreta iCal) — busca no main process pra não bater
   // em CORS, sem guardar nada além do que o renderer já persiste em rotinas_v2_icalurl
   ical: {

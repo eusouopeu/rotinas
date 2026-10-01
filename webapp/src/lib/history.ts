@@ -17,6 +17,8 @@ export interface HistoryEntry {
   steps: StepActual[];
   schedDelayMin?: number;
   mood?: number;
+  /** Execução da versão mínima (só as etapas essenciais). */
+  minima?: boolean;
 }
 
 /** Execução de uma rotina num dia (a mais recente, se houver mais de uma) —

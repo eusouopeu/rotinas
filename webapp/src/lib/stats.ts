@@ -310,7 +310,17 @@ export interface RoutineExecutionItem {
   moodStr: string;
 }
 
+export interface RoutineSkipRow {
+  name: string;
+  /** vezes pulada (inclui "não fazer") */
+  puladas: number;
+  /** execuções em que a etapa apareceu */
+  total: number;
+}
+
 export interface RoutineDetailStats {
+  /** etapas puladas ao menos uma vez, mais puladas primeiro (01/10/2026) */
+  skipRows: RoutineSkipRow[];
   allCount: number;
   totalMin: number;
   totalTimeStr: string;
@@ -1772,6 +1782,22 @@ export function getRoutineDetailStats(
     })
     .sort((a, b) => b.medDev - a.medDev);
 
+  // Etapas mais puladas (01/10/2026): "pular" e "não fazer" contam; etapa
+  // que não entrou na execução (versão mínima, repescagem) não conta
+  const skipAgg: Record<string, RoutineSkipRow> = {};
+  entries.forEach((h) =>
+    (h.steps || []).forEach((s) => {
+      if (s.isRest) return;
+      const base = s.name.replace(/ · volta \d+\/\d+$/, "");
+      const a = skipAgg[base] || (skipAgg[base] = { name: base, puladas: 0, total: 0 });
+      a.total++;
+      if (s.skipped) a.puladas++;
+    })
+  );
+  const skipRows = Object.values(skipAgg)
+    .filter((a) => a.puladas > 0)
+    .sort((a, b) => b.puladas / b.total - a.puladas / a.total || b.puladas - a.puladas);
+
   // Planejado - real (média)
   const durRows: RoutineDurRow[] = Object.entries(stepAgg)
     .map(([name, a]) => {
@@ -1869,6 +1895,7 @@ export function getRoutineDetailStats(
   const routineColor = gam ? fillStyle(corDaRotina(routine, gam)) : "var(--caneta)";
 
   return {
+    skipRows,
     allCount: all.length,
     totalMin,
     totalTimeStr,

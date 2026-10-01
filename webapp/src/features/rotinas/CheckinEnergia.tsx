@@ -4,6 +4,10 @@
 // energia com o cumprimento das rotinas (lib/energia.ts).
 import { useAppStore } from "../../store/useAppStore";
 import { chaveEnergia, energiaDoDia } from "../../lib/energia";
+import { execucaoDoDia } from "../../lib/history";
+import { temVersaoMinima } from "../../lib/player";
+import { rotinaCabeEmHoje } from "../../lib/routines";
+import { Icon } from "../../components/Icon";
 import { localKey } from "../../lib/gamificacao";
 import { cn } from "../../lib/cn";
 
@@ -36,6 +40,40 @@ export function CheckinEnergia() {
           {n}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Energia 1–2 hoje (01/10/2026): sugere a versão mínima das rotinas de hoje
+ *  ainda não feitas que têm etapas essenciais — a sequência continua viva
+ *  com menos esforço. */
+export function SugestaoMinima() {
+  const diario = useAppStore((s) => s.diario);
+  const routines = useAppStore((s) => s.routines);
+  const history = useAppStore((s) => s.history);
+  const startPlayer = useAppStore((s) => s.startPlayer);
+  const hoje = localKey();
+  const energia = energiaDoDia(diario, hoje);
+  if (energia == null || energia > 2) return null;
+  const alvo = routines.filter(
+    (r) => !r.arquivada && temVersaoMinima(r) && rotinaCabeEmHoje(r) && !execucaoDoDia(history, r.id, hoje)
+  );
+  if (!alvo.length) return null;
+  return (
+    <div className="mb-3.5 rounded-app bg-card-2 px-4 py-3" data-energia="minima">
+      <div className="font-sans text-md text-ink">Energia baixa hoje: faça a versão mínima</div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {alvo.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            className="inline-flex items-center gap-1 rounded-pill border-0 bg-caneta-soft px-3 py-1.5 font-sans text-md text-caneta active:scale-[0.96]"
+            onClick={() => startPlayer(r.id, { minima: true })}
+          >
+            <Icon name="play" size={12} /> {r.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

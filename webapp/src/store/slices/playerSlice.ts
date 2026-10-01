@@ -11,7 +11,7 @@ import { uid } from "../../lib/uid";
 
 import { load, removeKey, save } from "../../lib/storage";
 import { K_NAOFEITAS, K_PLAYER } from "../../lib/constants";
-import { K_EXERCICIOS, K_GAMIFICACAO, K_HISTORY } from "../../lib/constants";
+import { K_EXERCICIOS, K_GAMIFICACAO, K_HISTORY, K_ROUTINES, K_TEMPLATES } from "../../lib/constants";
 import { localKey } from "../../lib/gamificacao";
 import {
   adiarEtapaPlayer,
@@ -43,6 +43,9 @@ export type PlayerSlice = Pick<
   | "descartarPlayerSnapshot"
   | "salvarPlayerSnapshot"
   | "naoFazerEtapaAtual"
+  | "pularEtapaAtual"
+  | "setTextoAnotacao"
+  | "progredirExercicioAtual"
   | "adiarEtapaAtual"
   | "reiniciarTimerEtapaAtual"
   | "reordenarEtapasPlayer"
@@ -74,13 +77,13 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
   // index.html:11279-11829 (startPlayer/togglePause/advanceStep/goPrevStep/
   // finishRoutine) — etapas "timer" e "exercicio" (ver comentário no topo de
   // lib/player.ts para o que ainda falta).
-  startPlayer: (routineId) => {
+  startPlayer: (routineId, opts) => {
     const routine = get().routines.find((r) => r.id === routineId);
     if (!routine) return;
     // Repescagem (index.html:11284-11296): se alguma etapa ficou "não feita"
     // hoje, a rotina volta só com as pendentes.
     const pendentes = naoFeitasDe(get().naoFeitas, routineId, localKey());
-    const resultado = novoPlayerState(routine, pendentes);
+    const resultado = novoPlayerState(routine, opts?.minima ? [] : pendentes, !!opts?.minima);
     if (!resultado) return;
     const { playerState, repescagem } = resultado;
     const n = playerState.steps.filter((s) => !s.isRest).length;
@@ -92,7 +95,9 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
       view: { tab: "home", screen: "player" },
       playerBanner: repescagem
         ? `Repescagem: só ${n} etapa${n > 1 ? "s" : ""} não feita${n > 1 ? "s" : ""} de hoje`
-        : null,
+        : playerState.minima
+          ? `Versão mínima: ${n} etapa${n > 1 ? "s" : ""} essencia${n > 1 ? "is" : "l"}`
+          : null,
     });
   },
   clearPlayerBanner: () => set({ playerBanner: null }),
@@ -193,8 +198,8 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     save(K_GAMIFICACAO, gam);
 
     if (p.idx >= p.steps.length - 1) {
-      // Fim da rotina (finishRoutine, index.html:11828-11884) — sem journaling
-      // ainda (sem UI de anotações por etapa nesta fase).
+      // Fim da rotina (finishRoutine, index.html:11828-11884), com as
+      // anotações das etapas de journaling virando uma nota "journal".
       finishCue();
       if (routine) {
         const grossSec = Math.round((Date.now() - p.startedAt) / 1000);
@@ -210,10 +215,34 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
           pausedSec: Math.round(p.pausedTotalMs / 1000),
           skippedCount: stepActuals.filter((a) => a?.skipped).length,
           steps: stepActuals.filter((a): a is StepActual => !!a),
+          ...(p.minima ? { minima: true } : {}),
         };
         const history = [...get().history, entry];
         save(K_HISTORY, history);
+        // index.html:11874-11888 — uma nota por execução, uma seção por etapa
+        const textos = p.journalTexts || {};
+        const anotadas = p.steps.filter((s) => s.journaling && !s.isRest && (textos[s.id] || "").trim());
+        let templates = get().templates;
+        if (anotadas.length) {
+          const agora = Date.now();
+          templates = [
+            ...templates,
+            {
+              id: uid(),
+              type: "journal",
+              createdAt: agora,
+              updatedAt: agora,
+              routineId: routine.id,
+              routineName: routine.name,
+              title: routine.name + " — " + entry.date,
+              executedAt: agora,
+              sections: anotadas.map((s) => ({ taskName: s.name, text: textos[s.id] })),
+            },
+          ];
+          save(K_TEMPLATES, templates);
+        }
         set({
+          templates,
           history,
           gam,
           naoFeitas,
@@ -338,6 +367,48 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     save(K_NAOFEITAS, naoFeitas);
     set({ naoFeitas, playerBanner: `"${step.name}" ficou como não feita — refaça hoje pela rotina` });
     get().advanceStep(true, true);
+  },
+
+  pularEtapaAtual: () => {
+    const p = get().playerState;
+    if (!p) return;
+    const step = p.steps[p.idx];
+    if (step.isRest) return;
+    set({ playerBanner: `"${step.name}" pulada` });
+    get().advanceStep(true, false);
+  },
+
+  setTextoAnotacao: (stepId, texto) => {
+    const p = get().playerState;
+    if (!p) return;
+    set({ playerState: { ...p, journalTexts: { ...(p.journalTexts || {}), [stepId]: texto } } });
+  },
+
+  progredirExercicioAtual: (reps, peso) => {
+    const p = get().playerState;
+    if (!p) return;
+    const step = p.steps[p.idx];
+    if (step.type !== "exercicio") return;
+    const repsTxt = String(reps);
+    // a etapa da rotina guarda as reps (a próxima execução já começa nelas);
+    // a carga mora na biblioteca, como no "concluir série"
+    const routines = get().routines.map((r) =>
+      r.id === p.routineId ? { ...r, steps: r.steps.map((s) => (s.id === step.id ? { ...s, reps: repsTxt } : s)) } : r
+    );
+    save(K_ROUTINES, routines);
+    let exercicios = get().exercicios;
+    if (step.exercicioId) {
+      exercicios = exercicios.map((e) => (e.id === step.exercicioId ? { ...e, pesoAtual: peso } : e));
+      save(K_EXERCICIOS, exercicios);
+    }
+    set({
+      routines,
+      exercicios,
+      playerState: {
+        ...p,
+        steps: p.steps.map((s, i) => (i === p.idx ? { ...s, reps: repsTxt } : s)),
+      },
+    });
   },
 
   adiarEtapaAtual: () => {

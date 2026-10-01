@@ -2,11 +2,9 @@
 // "exercicio" (sub-loop de séries com reps/peso, ver
 // concluirSerieExercicio/pularDescansoExercicio/voltarSerieExercicio na
 // store), adiar/não-fazer/reiniciar etapa, lançamento rápido, painel de
-// etapas e nota vinculada (ver features/player/). Sem modo zen
-// nem journaling/nota por etapa ainda (RoutineStep.noteId/journaling não têm
-// UI de criação em nenhum editor do React — não é regressão desta rodada,
-// nunca existiu aqui). O círculo de progresso (SVG dasharray) é o mesmo
-// truque do original.
+// etapas, nota vinculada e etapas de anotação (journaling, de volta em
+// 01/10/2026). Sem modo zen nem nota por etapa (RoutineStep.noteId). O
+// círculo de progresso (SVG dasharray) é o mesmo truque do original.
 import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import {
@@ -20,7 +18,7 @@ import {
 } from "../lib/player";
 import { estimadorEtapaTempo, estimadorSerie } from "../lib/routines";
 import { computeSchedule, rotinaAgendadaEm } from "../lib/schedule";
-import { sugestaoCarga } from "../lib/exercicios";
+import { progressaoCarga, sugestaoCarga } from "../lib/exercicios";
 import { timeUpCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
 import { cancelarAlertaFundo, sincronizarAlertaFundo } from "../lib/notifications";
@@ -28,7 +26,7 @@ import { AvisoCartao } from "../ui/AvisoCartao";
 import { LancarRapido } from "../features/player/LancarRapido";
 import { NotaAnexada } from "../features/player/NotaAnexada";
 import { PainelEtapas } from "../features/player/PainelEtapas";
-import { CorpoExercicio, CorpoSimples, DiscoTempo } from "../features/player/Corpos";
+import { CampoAnotacao, CorpoExercicio, CorpoSimples, DiscoTempo } from "../features/player/Corpos";
 import {
   ControlesExercicio,
   ControlesSimples,
@@ -52,6 +50,9 @@ export function Player() {
   const pularDescansoExercicio = useAppStore((s) => s.pularDescansoExercicio);
   const voltarSerieExercicio = useAppStore((s) => s.voltarSerieExercicio);
   const naoFazerEtapaAtual = useAppStore((s) => s.naoFazerEtapaAtual);
+  const pularEtapaAtual = useAppStore((s) => s.pularEtapaAtual);
+  const setTextoAnotacao = useAppStore((s) => s.setTextoAnotacao);
+  const progredirExercicioAtual = useAppStore((s) => s.progredirExercicioAtual);
   const adiarEtapaAtual = useAppStore((s) => s.adiarEtapaAtual);
   const reiniciarTimerEtapaAtual = useAppStore((s) => s.reiniciarTimerEtapaAtual);
   const playerBanner = useAppStore((s) => s.playerBanner);
@@ -336,9 +337,22 @@ export function Player() {
             onReps={setReps}
             onPeso={setPeso}
             sugestao={sugestao}
+            onProgredir={() => {
+              const prox = progressaoCarga(reps, peso);
+              setReps(prox.reps);
+              setPeso(prox.peso);
+              progredirExercicioAtual(prox.reps, prox.peso);
+            }}
           />
         ) : (
           <CorpoSimples posicao={playerState.idx + 1} nome={step.name} />
+        )}
+
+        {step.journaling && !step.isRest && (
+          <CampoAnotacao
+            valor={playerState.journalTexts?.[step.id] || ""}
+            onChange={(t) => setTextoAnotacao(step.id, t)}
+          />
         )}
 
         <div className="w-full">
@@ -375,6 +389,7 @@ export function Player() {
             podeNaoFazer={!step.isRest}
             onVoltarSerie={voltarSerieExercicio}
             onNaoFazer={naoFazerEtapaAtual}
+            onPular={pularEtapaAtual}
           />
         )}
       </div>

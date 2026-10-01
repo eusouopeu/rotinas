@@ -67,3 +67,21 @@ export function sugestaoCarga(
   }
   return { ultima, peso: null, motivo: "manter a carga e buscar mais repetições" };
 }
+
+/** Teto de repetições da progressão: chegou aqui, o próximo passo é carga. */
+export const PROGRESSAO_REPS_TETO = 12;
+/** Repetições depois de subir a carga. */
+export const PROGRESSAO_REPS_BASE = 8;
+/** Degrau de carga do botão de progressão (pedido do Pedro, 01/10/2026). */
+export const PROGRESSAO_CARGA_KG = 2.5;
+
+/** Botão "subir" do player (01/10/2026, substitui o link "tentar N kg"):
+ *  abaixo de 12 repetições mantém a carga e soma 2; em 12 (ou mais) sobe
+ *  2,5 kg e volta para 8 repetições. */
+export function progressaoCarga(reps: number, peso: number): { reps: number; peso: number } {
+  const r = Math.max(0, Math.round(reps || 0));
+  const p = Math.max(0, peso || 0);
+  if (r >= PROGRESSAO_REPS_TETO)
+    return { reps: PROGRESSAO_REPS_BASE, peso: Math.round((p + PROGRESSAO_CARGA_KG) * 100) / 100 };
+  return { reps: Math.min(PROGRESSAO_REPS_TETO, r + 2), peso: p };
+}

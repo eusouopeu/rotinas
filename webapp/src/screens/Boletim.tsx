@@ -20,6 +20,7 @@ import {
   notaEvolucaoSemanas,
   correlacaoAreas,
   minutosPlanejadosSemana,
+  comparacaoSemanaAnterior,
 } from "../lib/boletim";
 import { LinhaBadges, LinhaSimples, BarrasSemanas } from "../features/boletim/pecas";
 import { Botao } from "../ui/Botao";
@@ -30,6 +31,17 @@ import { LinhaBarra, TrilhoBarra } from "../ui/LinhaBarra";
 import { LinhaValor } from "../ui/LinhaValor";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { rolavel, tela } from "../ui/Tela";
+
+/** "▲ +3,2" verde / "▼ −1,0" vermelho; diferença menor que 0,1 vira "=". */
+function SetaDelta({ delta }: { delta: number }) {
+  if (Math.abs(delta) < 0.1) return <span className="text-sub">=</span>;
+  const txt = Math.abs(delta).toFixed(1).replace(".", ",");
+  return (
+    <span className={delta > 0 ? "text-ok" : "text-erro"}>
+      {delta > 0 ? `▲ +${txt}` : `▼ −${txt}`}
+    </span>
+  );
+}
 
 export function Boletim() {
   const gam = useAppStore((s) => s.gam);
@@ -65,6 +77,7 @@ export function Boletim() {
   const disp = !!gam.semanaAtual.dispensada;
   const tags = distribuicaoTags(routines);
   const roda = pontosPorAreaSemana(gam.semanaAtual, gam.config);
+  const cmp = comparacaoSemanaAnterior(gam.semanaAtual, gam.historico.semanas, localKey());
   const tend = tendenciaAreaSemanas(gam.historico.semanas, gam.config, 8);
   const evolucao = notaEvolucaoSemanas(gam.historico.semanas, gam.semanaAtual, 11);
   const correlacoes = correlacaoAreas(gam.historico.semanas, gam.config, 8)
@@ -134,6 +147,12 @@ export function Boletim() {
                 esperado até hoje: {r.esperado.toFixed(1)} &middot; saldo {r.saldo >= 0 ? "+" : ""}
                 {r.saldo.toFixed(1)}
               </Legenda>
+              {cmp && (
+                <Legenda className="mt-1" data-boletim="vs-anterior">
+                  <SetaDelta delta={cmp.deltaNota} /> vs semana passada no mesmo ponto (
+                  {cmp.notaAnterior.toFixed(1)} na semana inteira)
+                </Legenda>
+              )}
             </>
           )}
           {!gam.semanaAtual.totalBrutoAgendado && (
@@ -235,9 +254,22 @@ export function Boletim() {
                   cor={l.color}
                   pct={roda.max ? Math.max(3, Math.round((l.pontos / roda.max) * 100)) : 0}
                   larguraValor="auto"
-                  valor={`${l.pontos.toFixed(1)}${l.previsto ? " / " + l.previsto.toFixed(0) : ""}`}
+                  valor={
+                    <>
+                      {`${l.pontos.toFixed(1)}${l.previsto ? " / " + l.previsto.toFixed(0) : ""}`}
+                      {cmp?.porArea[l.chave] && (
+                        <span
+                          className="ml-1.5"
+                          title={`semana passada: ${cmp.porArea[l.chave].anterior.toFixed(1)} pts (comparado no mesmo ponto da semana)`}
+                        >
+                          <SetaDelta delta={cmp.porArea[l.chave].delta} />
+                        </span>
+                      )}
+                    </>
+                  }
                 />
               ))}
+              {cmp && <Ajuda>Seta: diferença para a semana passada, no mesmo ponto da semana.</Ajuda>}
             </Cartao>
           </>
         )}

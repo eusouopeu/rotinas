@@ -4,7 +4,8 @@
 // index.html:4109-4162) e "checklist" (sem campos extra — mesmo fallback
 // genérico do Player), descanso entre etapas (index.html:4551-4565), reordenar
 // etapa por arrastar (useDragReorder, ver webapp/src/lib/dnd.ts), agendamento
-// (dias + horário), peso no boletim e área da roda da vida. Fica para depois:
+// (dias + horário), peso no boletim, área da roda da vida e, por etapa,
+// anotações (journaling) e "essencial" (versão mínima). Fica para depois:
 // hábito, nota anexada, meta semanal, modo "a cada N dias".
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
@@ -281,6 +282,30 @@ export function RoutineEditor() {
                     active={s.type as (typeof STEP_TYPES)[number]["key"]}
                     onSelect={(t) => setStepType(i, t)}
                   />
+                </div>
+                {/* anotações (texto livre no player, legado index.html:4462) e
+                    essencial (entra na versão mínima da rotina) */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Chip
+                    role="switch"
+                    aria-checked={!!s.journaling}
+                    ativo={!!s.journaling}
+                    className={cn(!s.journaling && "bg-card")}
+                    title="Campo de texto livre nesta etapa; vira nota em Modelos › Anotações de Rotinas"
+                    onClick={() => patchStep(i, { journaling: !s.journaling })}
+                  >
+                    <Icon name="pencil" size={11} /> anotações
+                  </Chip>
+                  <Chip
+                    role="switch"
+                    aria-checked={!!s.essencial}
+                    ativo={!!s.essencial}
+                    className={cn(!s.essencial && "bg-card")}
+                    title="Entra na versão mínima da rotina (dias de pouca energia)"
+                    onClick={() => patchStep(i, { essencial: !s.essencial })}
+                  >
+                    <Icon name="diamond" size={11} /> essencial
+                  </Chip>
                 </div>
                 {s.type === "timer" && (
                   <div className="flex flex-wrap items-center gap-2">

@@ -15,7 +15,7 @@ import { CartaoRotina } from "../features/rotinas/CartaoRotina";
 import { CartaoFixo } from "../features/rotinas/CartaoFixo";
 import { AvisoBackup } from "../features/rotinas/AvisoBackup";
 import { FechamentoDia } from "../features/rotinas/FechamentoDia";
-import { CheckinEnergia } from "../features/rotinas/CheckinEnergia";
+import { CheckinEnergia, SugestaoMinima } from "../features/rotinas/CheckinEnergia";
 import { SelecaoArea } from "../features/rotinas/SelecaoArea";
 import { TarefaPopup } from "../features/rotinas/TarefaPopup";
 import { rotinaCabeEmHoje, rotinasOrdenadas } from "../lib/routines";
@@ -115,6 +115,7 @@ export function Home() {
         <FechamentoDia />
 
         <CheckinEnergia />
+        <SugestaoMinima />
 
         {rotinaEmAndamento && (
           <CartaoFixo

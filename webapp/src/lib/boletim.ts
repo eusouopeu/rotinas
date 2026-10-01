@@ -38,6 +38,8 @@ export interface DistribuicaoTags {
 }
 
 export interface LinhaRodaSemana {
+  /** id da área ("" = sem área) */
+  chave: string;
   label: string;
   color: string;
   pontos: number;
@@ -200,6 +202,7 @@ export function pontosPorAreaSemana(sem: SemanaAtual, config: GamificacaoConfig)
          nada agendado (semanas antigas não têm o campo e caem na agenda). */
       const fatia = sem.fatiasArea?.[k];
       return {
+        chave: k,
         label: info.label,
         color: info.color,
         pontos: ganhos[k] || 0,
@@ -322,4 +325,42 @@ export function minutosPlanejadosSemana(
     });
   }
   return Math.round(totalSeg / 60);
+}
+
+export interface ComparacaoSemana {
+  /** fração da semana já corrida (1..7 dias / 7) usada na proporção */
+  fracao: number;
+  /** nota da semana passada inteira */
+  notaAnterior: number;
+  /** nota atual − nota anterior proporcional ao mesmo ponto da semana */
+  deltaNota: number;
+  /** por id de área ("" = sem área): pontos anteriores inteiros e o delta */
+  porArea: Record<string, { anterior: number; delta: number }>;
+}
+
+/** Semana atual × anterior (recomendação 12 de 01/10/2026). A semana passada
+ *  está fechada e a atual não: compara com a anterior PROPORCIONAL aos dias
+ *  já corridos (anterior × dias/7), senão toda semana começaria "abaixo".
+ *  Null sem semana anterior fechada (ou dispensada). */
+export function comparacaoSemanaAnterior(
+  sem: Pick<SemanaAtual, "inicioISO" | "concluidos">,
+  historicoSemanas: HistoricoSemana[],
+  hojeISO: string
+): ComparacaoSemana | null {
+  const ant = historicoSemanas[historicoSemanas.length - 1];
+  if (!ant || ant.dispensada) return null;
+  const dias = Math.round((isoToDate(hojeISO).getTime() - isoToDate(sem.inicioISO).getTime()) / 86400000) + 1;
+  const fracao = Math.min(7, Math.max(1, dias)) / 7;
+  const ganhos = pontosGanhosPorArea(sem);
+  const porArea: ComparacaoSemana["porArea"] = {};
+  new Set([...Object.keys(ant.porArea || {}), ...Object.keys(ganhos)]).forEach((k) => {
+    const anterior = ant.porArea?.[k] || 0;
+    porArea[k] = { anterior, delta: (ganhos[k] || 0) - anterior * fracao };
+  });
+  return {
+    fracao,
+    notaAnterior: ant.nota,
+    deltaNota: notaSemanaAtual(sem) - ant.nota * fracao,
+    porArea,
+  };
 }

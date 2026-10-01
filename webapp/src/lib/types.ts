@@ -19,7 +19,11 @@ export interface RoutineStep {
   isRest?: boolean;
   tagValor?: Tag;
   noteId?: string | null;
+  /** Etapa de anotação (texto livre no player, vira nota "journal" ao fim). */
   journaling?: boolean;
+  /** Entra na versão mínima da rotina (01/10/2026): o "começar mínima" roda
+   * só as etapas marcadas, para dias de pouca energia. */
+  essencial?: boolean;
 }
 
 export interface RoutineSchedule {
@@ -155,6 +159,15 @@ export interface MetaTarget {
   /** Itens feitos por dia ("AAAA-MM-DD" -> saldo do dia), últimos 60 dias —
    *  alimenta a projeção "no ritmo atual" (01/10/2026). */
   progressoDias?: Record<string, number>;
+  /** Marcos intermediários (01/10/2026): até `data`, chegar a `alvo` itens
+   *  (contagem acumulada, não o incremento). Só com quantidade. */
+  marcos?: MetaMarco[];
+}
+
+export interface MetaMarco {
+  id: string;
+  data: string; // "AAAA-MM-DD"
+  alvo: number;
 }
 
 export interface MetaRecNotif {

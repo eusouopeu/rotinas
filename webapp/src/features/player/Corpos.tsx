@@ -3,6 +3,7 @@
 // simples (só um "feito").
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { Icon } from "../../components/Icon";
+import { BotaoIcone } from "../../ui/BotaoIcone";
 import { CirculoCheck } from "../../ui/CirculoCheck";
 import { Legenda } from "../../ui/Legenda";
 import { cn } from "../../lib/cn";
@@ -93,6 +94,8 @@ type ExercicioProps = {
   onPeso: (n: number) => void;
   /** Sugestão de carga pela última execução (lib/exercicios.ts:sugestaoCarga). */
   sugestao?: SugestaoCarga | null;
+  /** Botão de progressão (lib/exercicios.ts:progressaoCarga). */
+  onProgredir: () => void;
 };
 
 export function CorpoExercicio(p: ExercicioProps) {
@@ -120,7 +123,7 @@ export function CorpoExercicio(p: ExercicioProps) {
         <Icon name="trophy" size={32} />
       </CirculoCheck>
       <Nome>{p.nome}</Nome>
-      <div className="mt-3 flex justify-center gap-2.5">
+      <div className="mt-3 flex items-end justify-center gap-2.5">
         <CampoSerie
           rotulo="reps"
           largura="w-16"
@@ -140,31 +143,17 @@ export function CorpoExercicio(p: ExercicioProps) {
           value={p.peso}
           onChange={(e) => p.onPeso(+e.target.value || 0)}
         />
+        {/* progressão (01/10/2026): +2 reps até 12; em 12, +2,5 kg e volta a 8 */}
+        <BotaoIcone
+          rotulo={p.reps >= 12 ? "Progredir: +2,5 kg e 8 repetições" : "Progredir: +2 repetições"}
+          className="mb-0.5"
+          data-progredir
+          onClick={p.onProgredir}
+        >
+          <Icon name="arrowUp" size={20} />
+        </BotaoIcone>
       </div>
-      {p.sugestao && p.serieAtual === 0 && (
-        <Legenda className="mt-2">
-          última: {p.sugestao.ultima}
-          {p.sugestao.peso != null ? (
-            p.peso === p.sugestao.peso ? (
-              ` · subindo para ${String(p.sugestao.peso).replace(".", ",")} kg`
-            ) : (
-              <>
-                {" · "}
-                <button
-                  type="button"
-                  className="border-0 bg-transparent p-0 font-semibold text-caneta underline"
-                  onClick={() => p.onPeso(p.sugestao!.peso!)}
-                  title={p.sugestao.motivo}
-                >
-                  tentar {String(p.sugestao.peso).replace(".", ",")} kg
-                </button>
-              </>
-            )
-          ) : (
-            ` · ${p.sugestao.motivo}`
-          )}
-        </Legenda>
-      )}
+      {p.sugestao && p.serieAtual === 0 && <Legenda className="mt-2">última: {p.sugestao.ultima}</Legenda>}
     </Miolo>
   );
 }
@@ -178,5 +167,22 @@ export function CorpoSimples({ posicao, nome }: { posicao: number; nome: string 
       </CirculoCheck>
       <Nome>{nome}</Nome>
     </Miolo>
+  );
+}
+
+/** Etapa de anotação (porta do #journalInput, index.html:12492-12497): texto
+ *  livre em Markdown que vira, ao fim da rotina, uma nota em Modelos ›
+ *  Anotações de Rotinas. Cresce com o conteúdo. */
+export function CampoAnotacao({ valor, onChange }: { valor: string; onChange: (t: string) => void }) {
+  return (
+    <textarea
+      data-anotacao
+      rows={3}
+      className="mb-2 min-h-[84px] w-full max-w-[420px] resize-y rounded-[10px] border border-line bg-card-2 p-2.5 font-sans text-lg leading-normal text-ink focus:border-caneta focus:outline-none"
+      placeholder="Escreva aqui... (markdown: **negrito**, - lista, - [ ] check)"
+      aria-label="Anotação da etapa"
+      value={valor}
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
 }

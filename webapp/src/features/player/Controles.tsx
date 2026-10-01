@@ -138,11 +138,13 @@ export function LinhaPular({
   podeNaoFazer,
   onVoltarSerie,
   onNaoFazer,
+  onPular,
 }: {
   podeVoltarSerie: boolean;
   podeNaoFazer: boolean;
   onVoltarSerie: () => void;
   onNaoFazer: () => void;
+  onPular: () => void;
 }) {
   return (
     <div className="flex w-full flex-wrap justify-center gap-2.5 pt-2.5 pb-1 paisagem:pt-1 paisagem:pb-0.5">
@@ -152,7 +154,16 @@ export function LinhaPular({
         </button>
       )}
       {podeNaoFazer && (
-        <button className={PULAR} title="Encerrar sem concluir e sem pontuar" onClick={onNaoFazer}>
+        <button className={PULAR} title="Pular: fica no histórico como pulada, sem pontuar" onClick={onPular}>
+          pular
+        </button>
+      )}
+      {podeNaoFazer && (
+        <button
+          className={PULAR}
+          title="Encerrar sem concluir e sem pontuar — volta hoje como pendente"
+          onClick={onNaoFazer}
+        >
           não fazer
         </button>
       )}

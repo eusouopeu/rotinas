@@ -150,6 +150,26 @@ export function CargaExercicios({ stats }: { stats: Stats }) {
   );
 }
 
+/** Etapas mais puladas (01/10/2026): quantas vezes, de quantas execuções. */
+export function EtapasPuladas({ stats }: { stats: Stats }) {
+  return (
+    <Secao titulo="Etapas mais puladas">
+      {stats.skipRows.map((s) => (
+        <LinhaTabela key={s.name}>
+          <CelRotulo>{s.name}</CelRotulo>
+          <CelNegrito status={s.puladas / s.total >= 0.5 ? "atraso" : undefined}>
+            {Math.round((s.puladas / s.total) * 100)}%
+          </CelNegrito>
+          <CelNota>
+            {s.puladas} de {s.total}
+          </CelNota>
+        </LinhaTabela>
+      ))}
+      <Legenda className="mt-3">Conta "pular" e "não fazer" no player.</Legenda>
+    </Secao>
+  );
+}
+
 export function HorariosRotina({ stats }: { stats: Stats }) {
   return (
     <Secao titulo="Horário real de início">

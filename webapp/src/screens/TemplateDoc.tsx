@@ -11,6 +11,7 @@ import { MarketDoc } from "./MarketDoc";
 import { MatrixDoc } from "./MatrixDoc";
 import { KanbanDoc } from "./KanbanDoc";
 import { TravelDoc } from "./TravelDoc";
+import { JournalDoc, type JournalDocType } from "./JournalDoc";
 import type {
   KanbanDoc as KanbanDocType,
   MarketDoc as MarketDocType,
@@ -40,6 +41,7 @@ export function TemplateDoc() {
   if (doc.type === "matrix") return <MatrixDoc doc={doc as MatrixDocType} />;
   if (doc.type === "kanban") return <KanbanDoc doc={doc as KanbanDocType} />;
   if (doc.type === "travel") return <TravelDoc doc={doc as TravelDocType} />;
+  if (doc.type === "journal") return <JournalDoc doc={doc as unknown as JournalDocType} />;
 
   return (
     <div {...tela({})}>

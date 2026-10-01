@@ -241,6 +241,28 @@ ipcMain.handle("ical:fetch", async (_e, url) => {
   return await res.text();
 });
 
+/* ---------------- Arquivos em Documentos ----------------
+   Espelho JSON das rotinas (webapp/src/lib/rotinaMirror.ts): o renderer manda
+   um caminho RELATIVO à pasta Documentos do sistema. Só .json/.md e nunca fora
+   de Documentos (caminho com ".." ou absoluto é recusado). */
+function caminhoEmDocumentos(rel) {
+  if (typeof rel !== "string" || !/\.(json|md)$/i.test(rel)) throw new Error("caminho inválido");
+  const raiz = app.getPath("documents");
+  const alvo = path.resolve(raiz, rel);
+  if (!alvo.startsWith(raiz + path.sep)) throw new Error("caminho fora de Documentos");
+  return alvo;
+}
+ipcMain.handle("docs:write", async (_e, rel, texto) => {
+  const alvo = caminhoEmDocumentos(rel);
+  await fs.promises.mkdir(path.dirname(alvo), { recursive: true });
+  await fs.promises.writeFile(alvo, String(texto), "utf8");
+  return true;
+});
+ipcMain.handle("docs:remove", async (_e, rel) => {
+  await fs.promises.rm(caminhoEmDocumentos(rel), { force: true });
+  return true;
+});
+
 /* ---------------- Janela + tray ---------------- */
 
 // Tamanho/posição lembrados entre aberturas — arquivo próprio (não passa pelo

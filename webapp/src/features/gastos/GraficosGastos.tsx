@@ -7,6 +7,7 @@ import { RotuloSecao } from "../../ui/RotuloSecao";
 import { Toggle } from "../../ui/Segmentado";
 import { brl, chartsPeriodUnit, computeDonutArcs, resumoPorPeriodo, type ChartsPeriod } from "../../lib/expense";
 import type { ExpenseDoc } from "../../lib/types";
+import { OrcamentoCategorias } from "./OrcamentoCategorias";
 
 const PERIODOS: ChartsPeriod[] = ["semana", "mes", "trimestre", "ano"];
 
@@ -77,6 +78,7 @@ export function GraficosGastos({ docs }: { docs: ExpenseDoc[] }) {
           {r.lancamentosPeriodoAtual}
         </Numero>
       </div>
+      <OrcamentoCategorias />
       <RotuloSecao>Total por {unidade}</RotuloSecao>
       <Cartao className="mb-1.5">
         <div className="flex min-h-[90px] items-end gap-1.5">
