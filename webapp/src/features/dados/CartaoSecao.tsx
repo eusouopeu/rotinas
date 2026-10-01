@@ -1,8 +1,9 @@
 // Cartão de Dados com título e explicação dentro (padrão do Kuestion). Com
 // `aberto`/`onAlternar` o título vira o botão que abre e fecha o conteúdo
-// (seções secundárias começam fechadas); sem eles fica sempre aberto.
-import { useState, type ReactNode } from "react";
-import { BotaoAjuda } from "../../ui/Ajuda";
+// (seções secundárias começam fechadas); sem eles fica sempre aberto. A
+// explicação (`desc`) fica num ⓘ colado ao título, em popover (Ajuda).
+import type { ReactNode } from "react";
+import { Ajuda } from "../../ui/Ajuda";
 import { Icon } from "../../components/Icon";
 import { Cartao } from "../../ui/Cartao";
 import { NO_PAINEL } from "./colunas";
@@ -21,41 +22,36 @@ type Props = {
 export function CartaoSecao({ titulo, desc, aberto, onAlternar, children }: Props) {
   const retratil = onAlternar !== undefined;
   const visivel = !retratil || aberto;
-  // explicação recolhida atrás do ⓘ ao lado do título (minimalismo, 01/10/2026)
-  const [ajuda, setAjuda] = useState(false);
-  const botaoAjuda = desc && visivel && (
-    <BotaoAjuda
-      aberta={ajuda}
-      rotulo="O que é este cartão"
-      onClick={(e) => {
-        e.stopPropagation();
-        setAjuda(!ajuda);
-      }}
-    />
-  );
+  const ajuda = desc && <Ajuda rotulo="O que é este cartão">{desc}</Ajuda>;
   return (
     <Cartao className={cn("mb-2.5", NO_PAINEL)}>
-      <div className="flex min-h-8 items-center gap-1">
-        {retratil ? (
-          <button
-            className="flex min-h-8 flex-1 cursor-pointer items-center justify-between border-0 bg-transparent p-0 text-caneta"
-            aria-expanded={aberto}
-            onClick={onAlternar}
-          >
-            <span className={TITULO}>{titulo}</span>
+      {retratil ? (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-expanded={aberto}
+          className="flex min-h-8 cursor-pointer items-center gap-1 text-caneta"
+          onClick={onAlternar}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onAlternar!();
+            }
+          }}
+        >
+          <span className={TITULO}>{titulo}</span>
+          {ajuda}
+          <span className="ml-auto flex">
             <Icon name={aberto ? "chevronUp" : "chevronDown"} size={18} />
-          </button>
-        ) : (
-          <div className={cn(TITULO, "flex-1")}>{titulo}</div>
-        )}
-        {botaoAjuda}
-      </div>
-      {visivel && (
-        <>
-          {desc && ajuda && <div className="mt-1 font-sans text-md leading-[1.4] text-sub">{desc}</div>}
-          <div className="mt-3">{children}</div>
-        </>
+          </span>
+        </div>
+      ) : (
+        <div className="flex min-h-8 items-center gap-1">
+          <div className={TITULO}>{titulo}</div>
+          {ajuda}
+        </div>
       )}
+      {visivel && <div className="mt-3 animate-entra-rapido">{children}</div>}
     </Cartao>
   );
 }

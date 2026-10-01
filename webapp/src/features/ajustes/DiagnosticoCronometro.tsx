@@ -23,7 +23,6 @@ function estado(ok: boolean | null | undefined): { txt: string; cor?: string } {
 }
 
 export function DiagnosticoCronometro() {
-  const cronometroModo = useAppStore((s) => s.cronometroModo);
   const emRotina = useAppStore((s) => !!s.playerState);
   const [st, setSt] = useState<CronometroStatus | null>(null);
   const [testando, setTestando] = useState(false);
@@ -55,18 +54,31 @@ export function DiagnosticoCronometro() {
       paused: false,
       auto: false,
       visible: false,
-      modo: cronometroModo === "bolha" ? "bolha" : "barra",
+      // o teste vai sempre para a barra: é o estado em que a Now Bar recebe a
+      // contagem, e assim o diagnóstico já lê se o sistema aceitou a promoção
+      modo: "barra",
       label: "Teste do cronômetro",
       queue: "[]",
     });
     setTestando(true);
+    setTimeout(atualizar, 1500);
   }
 
   if (!st) return <Legenda className="mt-3">Diagnóstico indisponível nesta versão do app.</Legenda>;
-  const linhas = [
+  const linhas: Array<{ rotulo: string; txt: string; cor?: string }> = [
     { rotulo: "Notificações do app", ...estado(st.notificacoes) },
     { rotulo: "Notificações em tempo real (Now Bar)", ...estado(st.promovidas) },
     { rotulo: "Sobrepor a outros apps (bolha)", ...estado(st.sobreposicao) },
+    ...(testando && st.promovidaAgora != null
+      ? [
+          {
+            rotulo: "Now Bar aceitou o teste",
+            ...(st.promovidaAgora
+              ? { txt: "sim", cor: "var(--ok)" }
+              : { txt: st.promovivel === false ? "não (formato recusado)" : "não", cor: "var(--erro)" }),
+          },
+        ]
+      : []),
   ];
   return (
     <div className="mt-3">

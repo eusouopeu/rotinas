@@ -207,6 +207,11 @@ export interface CronometroStatus {
   notificacoes: boolean;
   sobreposicao: boolean;
   promovidas: boolean | null;
+  /** A notificação do cronômetro ativa agora foi promovida (Live Update /
+   *  Now Bar)? null = sem cronômetro na barra ou Android < 16. */
+  promovidaAgora?: boolean | null;
+  /** A última notificação montada tinha as características de promoção. */
+  promovivel?: boolean | null;
 }
 
 export async function cronometroStatus(): Promise<CronometroStatus | null> {

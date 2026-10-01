@@ -15,6 +15,16 @@
 form {
   margin: 0;
 }
+/* micro-interações respeitam "reduzir movimento" do sistema */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 /* overscroll-behavior no body sozinho não segura o rubber-band: com
    <!DOCTYPE html>, quem rola o documento é o html, não o body */
 html {

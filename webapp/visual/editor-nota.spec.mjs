@@ -40,6 +40,7 @@ const rolagem = ".note-ap-scroll, [data-rolagem]";
 async function abrir(page, titulo, opcoes = EXTRA) {
   await preparar(page, opcoes);
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await page.getByRole("heading", { name: titulo }).click();
   await page.getByPlaceholder("Título").waitFor();
   await page.waitForTimeout(200);
@@ -76,6 +77,7 @@ test("nota: markdown cru", async ({ page }) => {
 test("nota: nova e vazia", async ({ page }) => {
   await preparar(page, EXTRA);
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await page.locator('button[title="Novo"]:visible').dispatchEvent("click");
   await page.getByPlaceholder("Título").waitFor();
   await foto(page, "nota-nova", { desfocar: true });

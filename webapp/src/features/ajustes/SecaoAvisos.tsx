@@ -17,6 +17,14 @@ import { save } from "../../lib/storage";
 import { LinhaValor } from "../../ui/LinhaValor";
 import { SecaoAjuste } from "./SecaoAjuste";
 import { DiagnosticoCronometro } from "./DiagnosticoCronometro";
+import { definirNotificacoes, notificacoesDesligadas } from "../../lib/notificacoesGerais";
+import {
+  algumSnoozeAtivo,
+  recorrentesAtuais,
+  syncCompromissoNotifications,
+  syncMetaRecNotifications,
+  syncRoutineNotifications,
+} from "../../store/shared";
 
 const DIA_LABEL = ["D", "S", "T", "Q", "Q", "S", "S"];
 const SOM_MODOS: SomModo[] = ["mudo", "suave", "normal"];
@@ -50,6 +58,20 @@ export function SecaoAvisos() {
   const setVibracao = useAppStore((s) => s.setVibracao);
   const templates = useAppStore((s) => s.templates);
   const [lembreteGasto, setLembreteGasto] = useState(lembreteGastoLigado);
+  const [notifsLigadas, setNotifsLigadas] = useState(() => !notificacoesDesligadas());
+
+  function alternarNotificacoes(v: boolean) {
+    setNotifsLigadas(v);
+    void definirNotificacoes(v, () => {
+      // religar refaz as agendas que o boot faria
+      const st = useAppStore.getState();
+      const snoozed = algumSnoozeAtivo(st.snoozes);
+      void syncCompromissoNotifications(st.compromissos, snoozed);
+      void syncRoutineNotifications(st.routines, snoozed);
+      void syncMetaRecNotifications(recorrentesAtuais(st.templates), snoozed);
+      syncLembreteGasto(st.templates, lembreteGastoLigado());
+    });
+  }
   const cronometroModo = useAppStore((s) => s.cronometroModo);
   const setCronometroModo = useAppStore((s) => s.setCronometroModo);
 
@@ -60,24 +82,32 @@ export function SecaoAvisos() {
     >
       <RotuloSecao className="mt-0">Notificações</RotuloSecao>
       <div className="pt-2.5">
+        <Switch checked={notifsLigadas} onChange={alternarNotificacoes} data-notifs="geral">
+          Notificações do app{" "}
+          <Ajuda rotulo="Sobre as notificações">
+            Desligado, o app não manda nenhum aviso ao sistema: nem o que desce na tela e some, nem o que fica na barra
+            de notificações. O cronômetro tem ajuste próprio, em “Fora do app”.
+          </Ajuda>
+        </Switch>
+      </div>
+      <div
+        className={notifsLigadas ? "pt-2.5" : "pointer-events-none pt-2.5 opacity-45"}
+        aria-disabled={!notifsLigadas}
+      >
         <Switch checked={digestSemanal} onChange={setDigestSemanal}>
           Resumo ao fechar a semana
         </Switch>
         <Switch className="mt-3" checked={nudge} onChange={setNudge}>
-          Aviso de ritmo
+          Aviso de ritmo <Ajuda>Nos dias marcados, a partir das 9h, quando a semana está atrasada.</Ajuda>
         </Switch>
         <ChipsDia className="mt-2.5" rotulos={DIA_LABEL} ativos={nudgeDias} onToggle={toggleNudgeDia} />
-        <Ajuda>Nos dias marcados, a partir das 9h, quando a semana está atrasada.</Ajuda>
         <Switch className="mt-3" checked={nudgeMetas} onChange={setNudgeMetas}>
-          Meta perto do prazo
+          Meta perto do prazo <Ajuda>Uma vez por dia, quando falta até 2 dias para o prazo.</Ajuda>
         </Switch>
         <Switch className="mt-3" checked={nudgeStreak} onChange={setNudgeStreak}>
-          Sequência em risco
+          Sequência em risco{" "}
+          <Ajuda>A partir das 18h, quando uma rotina de hoje com sequência longa ainda não foi feita.</Ajuda>
         </Switch>
-        <Ajuda>
-          Meta: uma vez por dia quando falta até 2 dias para o prazo. Sequência: a partir das 18h, quando uma rotina de
-          hoje com sequência longa ainda não foi feita.
-        </Ajuda>
         <Switch
           className="mt-3"
           checked={lembreteGasto}
@@ -87,9 +117,8 @@ export function SecaoAvisos() {
             syncLembreteGasto(templates, v);
           }}
         >
-          Lembrete de gastos às 21h
+          Lembrete de gastos às 21h <Ajuda>Só nos dias sem nenhuma despesa lançada; o toque abre a Nova despesa.</Ajuda>
         </Switch>
-        <Ajuda>Só nos dias sem nenhuma despesa lançada; o toque abre a Nova despesa.</Ajuda>
       </div>
 
       <RotuloSecao>Som e vibração</RotuloSecao>
@@ -111,14 +140,19 @@ export function SecaoAvisos() {
         <>
           <RotuloSecao>Cronômetro</RotuloSecao>
           <div className="pt-2.5">
-            <LinhaValor rotulo="Fora do app">
+            <LinhaValor
+              rotulo={
+                <>
+                  Fora do app <Ajuda>{TEXTO_CRONOMETRO[cronometroModo]}</Ajuda>
+                </>
+              }
+            >
               <Toggle
                 options={CRONOMETRO_MODOS.map(({ key, label }) => ({ key, label }))}
                 active={cronometroModo}
                 onSelect={(m) => void setCronometroModo(m)}
               />
             </LinhaValor>
-            <Ajuda>{TEXTO_CRONOMETRO[cronometroModo]}</Ajuda>
             {cronometroModo !== "off" && <DiagnosticoCronometro />}
           </div>
         </>

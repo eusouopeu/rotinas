@@ -52,11 +52,19 @@ export function SyncCard() {
   if (!status.hasClientCreds || forceEditCreds) {
     return (
       <>
-        <LinhaValor rotulo="Google Drive" valor="não configurado" corValor="var(--sub)" />
-        <Ajuda>
-          Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a Drive
-          API ativada. Fica guardado só neste computador, nunca no repositório.
-        </Ajuda>
+        <LinhaValor
+          rotulo={
+            <>
+              Google Drive{" "}
+              <Ajuda>
+                Exige um Client ID OAuth (tipo "App para computador") de um projeto seu no Google Cloud Console, com a
+                Drive API ativada. Fica guardado só neste computador, nunca no repositório.
+              </Ajuda>
+            </>
+          }
+          valor="não configurado"
+          corValor="var(--sub)"
+        />
         <RotuloSecao className="mt-3.5 mb-1">Client ID</RotuloSecao>
         <Campo
           variante="modelo"
@@ -91,14 +99,22 @@ export function SyncCard() {
   if (!status.connected) {
     return (
       <>
-        <LinhaValor rotulo="Google Drive" valor="desconectado" corValor="var(--sub)" />
-        <Ajuda>
-          Cria uma pasta "brita-sync" no seu Drive.{" "}
-          {isDesktop
-            ? "Sincroniza a cada 10 minutos com o app aberto."
-            : 'Sincroniza sozinho ao abrir o app (se fizer um tempo desde o último) e quando você tocar em "sincronizar agora".'}{" "}
-          Escopo mínimo (drive.file): o app só enxerga o que ele mesmo criar.
-        </Ajuda>
+        <LinhaValor
+          rotulo={
+            <>
+              Google Drive{" "}
+              <Ajuda>
+                Cria uma pasta "brita-sync" no seu Drive.{" "}
+                {isDesktop
+                  ? "Sincroniza a cada 10 minutos com o app aberto."
+                  : 'Sincroniza sozinho ao abrir o app (se fizer um tempo desde o último) e quando você tocar em "sincronizar agora".'}{" "}
+                Escopo mínimo (drive.file): o app só enxerga o que ele mesmo criar.
+              </Ajuda>
+            </>
+          }
+          valor="desconectado"
+          corValor="var(--sub)"
+        />
         <Botao
           className="mt-3 w-full"
           disabled={busy === "connect"}

@@ -84,7 +84,16 @@ export function IcalCard() {
         </>
       )}
       {erro && <Legenda className="mt-1.5 text-erro">⚠️ {erro}</Legenda>}
-      <RotuloSecao className={url ? "mt-3.5 mb-1" : "mt-0 mb-1"}>URL secreta (iCal / .ics)</RotuloSecao>
+      <RotuloSecao className={url ? "mt-3.5 mb-1" : "mt-0 mb-1"}>
+        URL secreta (iCal / .ics)
+        <Ajuda rotulo="Onde achar a URL">
+          No Google Calendar: Configurações da agenda → "Endereço secreto em formato iCal". Cole aqui — os eventos
+          aparecem só leitura na agenda, dia a dia.
+          {!isDesktop && !isNative
+            ? " No navegador, alguns provedores bloqueiam essa busca (CORS); funciona de forma mais confiável no app instalado (desktop/Android)."
+            : ""}
+        </Ajuda>
+      </RotuloSecao>
       <Campo
         variante="modelo"
         type="text"
@@ -92,13 +101,6 @@ export function IcalCard() {
         value={inputUrl}
         onChange={(e) => setInputUrl(e.target.value)}
       />
-      <Ajuda>
-        No Google Calendar: Configurações da agenda → "Endereço secreto em formato iCal". Cole aqui — os eventos
-        aparecem só leitura na agenda, dia a dia.
-        {!isDesktop && !isNative
-          ? " No navegador, alguns provedores bloqueiam essa busca (CORS); funciona de forma mais confiável no app instalado (desktop/Android)."
-          : ""}
-      </Ajuda>
       <div className="mt-2.5 flex gap-2">
         <Botao className="flex-1" disabled={!inputUrl.trim() || busy !== null} onClick={salvarEAtualizar}>
           {busy === "save" ? "Buscando..." : url ? "Salvar e atualizar" : "Salvar"}

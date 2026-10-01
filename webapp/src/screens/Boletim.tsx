@@ -244,7 +244,10 @@ export function Boletim() {
 
         {roda.linhas.length > 0 && (
           <>
-            <RotuloSecao>Roda da vida — pontos desta semana</RotuloSecao>
+            <RotuloSecao>
+              Roda da vida — pontos desta semana
+              {cmp && <Ajuda>Seta: diferença para a semana passada, no mesmo ponto da semana.</Ajuda>}
+            </RotuloSecao>
             <Cartao className={CARTAO}>
               {roda.linhas.map((l) => (
                 <LinhaBarra
@@ -269,30 +272,35 @@ export function Boletim() {
                   }
                 />
               ))}
-              {cmp && <Ajuda>Seta: diferença para a semana passada, no mesmo ponto da semana.</Ajuda>}
             </Cartao>
           </>
         )}
 
         {tend.length > 0 && (
           <>
-            <RotuloSecao>Roda da vida — últimas {tend[0].valores.length} semanas</RotuloSecao>
+            <RotuloSecao>
+              Roda da vida — últimas {tend[0].valores.length} semanas
+              <Ajuda>Pontos por semana, da mais antiga à mais recente (esquerda &rarr; direita).</Ajuda>
+            </RotuloSecao>
             <Cartao className={CARTAO}>
               {tend.map((t) => (
                 <LinhaSimples key={t.label} rotulo={t.label} corRotulo={t.color} estender>
                   {t.valores.join(" · ")}
                 </LinhaSimples>
               ))}
-              <Ajuda>
-                Pontos por semana, da mais antiga à mais recente (esquerda &rarr; direita).
-              </Ajuda>
             </Cartao>
           </>
         )}
 
         {correlacoes.length > 0 && (
           <>
-            <RotuloSecao>Correlação entre áreas — últimas {tend[0].valores.length} semanas</RotuloSecao>
+            <RotuloSecao>
+              Correlação entre áreas — últimas {tend[0].valores.length} semanas
+              <Ajuda>
+                Rudimentar: só mostra que duas áreas sobem/descem juntas nas últimas semanas — não prova que uma causa a
+                outra.
+              </Ajuda>
+            </RotuloSecao>
             <Cartao className={CARTAO}>
               {correlacoes.map((p) => {
                 const intensidade = Math.abs(p.r) >= 0.8 ? "forte" : "moderada";
@@ -315,10 +323,6 @@ export function Boletim() {
                   </div>
                 );
               })}
-              <Ajuda>
-                Rudimentar: só mostra que duas áreas sobem/descem juntas nas últimas semanas — não prova que uma causa a
-                outra.
-              </Ajuda>
             </Cartao>
           </>
         )}
@@ -380,12 +384,14 @@ export function Boletim() {
 
         {bonusMes + bonusTri + bonusAno > 0 && (
           <>
-            <RotuloSecao>Bônus de metas concluídas</RotuloSecao>
+            <RotuloSecao>
+              Bônus de metas concluídas
+              <Ajuda>Entram na nota do período ao fechar, não na semanal.</Ajuda>
+            </RotuloSecao>
             <Cartao className={CARTAO}>
               {bonusMes > 0 && <LinhaValor rotulo="Neste mês" valor={`+${bonusMes}`} corValor="var(--ok)" />}
               {bonusTri > 0 && <LinhaValor rotulo="Neste trimestre" valor={`+${bonusTri}`} corValor="var(--ok)" />}
               {bonusAno > 0 && <LinhaValor rotulo="Neste ano" valor={`+${bonusAno}`} corValor="var(--ok)" />}
-              <Ajuda>Entram na nota do período ao fechar, não na semanal.</Ajuda>
             </Cartao>
           </>
         )}

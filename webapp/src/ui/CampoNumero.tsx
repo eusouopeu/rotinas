@@ -23,7 +23,7 @@ export function LinhaNumero({
   rotulo,
   className,
   ...resto
-}: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { rotulo: string }) {
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { rotulo: React.ReactNode }) {
   return (
     <div className={cn("mt-3.5 flex items-center gap-3", className)}>
       <span className="flex-1">{rotulo}</span>

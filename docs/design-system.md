@@ -14,7 +14,7 @@ Cartão de nota (React, `Notes.tsx`): título, data completa (`toLocaleDateStrin
 
 Detalhe da rotina (React): etiquetas `caneta` no topo (peso, etapas, "dias, início → fim"), área e sequência; etapas em cartões `--card-2` sem borda com número em negrito e duração "02 m 00 s"; deslizar para a esquerda exclui a etapa (lixeira, com desfazer), para a direita abre o editor (lápis); rodapé com lixeira (exclui a rotina, com desfazer), lápis e Começar.
 
-Ajuda recolhida (01/10/2026, `ui/Ajuda.tsx`): texto que explica COMO algo funciona não fica impresso embaixo da função — vai em `<Ajuda>` (ⓘ que abre o texto) ou, ao lado de um título, `BotaoAjuda`. `Legenda` continua para dado/estado ("Último sync: …", contagens, erro), não para instrução.
+Ajuda recolhida (01/10/2026, `ui/Ajuda.tsx`): texto que explica COMO algo funciona não fica impresso embaixo da função — vai em `<Ajuda>`, um ⓘ posto AO LADO do texto a que se refere (dentro do `RotuloSecao`, do rótulo do `Switch`/`LinhaValor`/`LinhaNumero` ou ao lado do título do `CartaoSecao`), nunca numa linha embaixo; abre em popover flutuante (portal no `<body>`, `bg-ink`/`text-card`, preso às margens de 12px, fecha com toque fora/Esc/rolagem), não em toggle. Regra compartilhada em `../_shared/design-standards.md` › "Ajuda e explicações". `Legenda` continua para dado/estado ("Último sync: …", contagens, erro), não para instrução.
 
 Botões-ícone (01/10/2026): `BotaoIcone` md = 40px com ícone mínimo de 20px, sm = 36px com 18px — o tamanho vem do botão (`[&_.icon-svg]:size-*`), qualquer que seja o `size` passado ao `Icon`. Seta é sempre ícone (`chevronLeft/Right`), nunca caractere "‹ ›". Alça de arrastar e ✕ de apagar têm alvo mínimo de 32px. Ícones da barra de abas: 22px.
 
@@ -30,7 +30,7 @@ Layout: cabeçalhos de aba não são fixos no mobile; respeite nós de rolagem i
 
 Rotina/agenda: preserve marcadores, colunas de horário/lápis com largura fixa, card de streak como `.streak-tag`, e ação de toque por `transform:scale`. Não reintroduza layouts/removidos listados em `feature-status.md`.
 
-Cards de Dados (React, `Stats.tsx`): título dentro do card (`CartaoSecao`), nunca `section-label` solto acima; a explicação (`desc`) fica recolhida atrás do ⓘ ao lado do título (`BotaoAjuda`). Números de destaque em trio usam `.resumo-grid.kpi3` com `.resumo-v.bom`/`.ruim`/`.destaque` (`--ok`/`--erro`/`--caneta`). Grupos bom/abaixo usam `.faixa-ok`/`.faixa-baixo` sobre `--ok-soft`/`--erro-soft`; meta em barra é `.meta-tracejada` em `.bar-track.com-meta`; linha de percentual é `GraficoLinhaPct` (cores por classe `.lp-*`, só tokens).
+Cards de Dados (React, `Stats.tsx`): título dentro do card (`CartaoSecao`), nunca `section-label` solto acima; a explicação (`desc`) fica no popover do ⓘ colado ao título (`Ajuda`). Números de destaque em trio usam `.resumo-grid.kpi3` com `.resumo-v.bom`/`.ruim`/`.destaque` (`--ok`/`--erro`/`--caneta`). Grupos bom/abaixo usam `.faixa-ok`/`.faixa-baixo` sobre `--ok-soft`/`--erro-soft`; meta em barra é `.meta-tracejada` em `.bar-track.com-meta`; linha de percentual é `GraficoLinhaPct` (cores por classe `.lp-*`, só tokens).
 
 ## Folga lateral em aba com rolagem vertical
 
@@ -120,3 +120,6 @@ Feito: campo e botões da edição do cartão do Kanban e da linha de gasto ganh
 
 - **Variantes:** `paisagem:` é declarada antes de `desktop:`/`wide:`/`ultra:` de propósito.
 - **Legado sem efeito:** cores de coluna do Kanban (`kb-s0..2`), `.color-chip`/`.mx-chip` sem seleção, pasta de Prós e contras fora da lista de pastas.
+
+Micro-interações (01/10/2026): animações curtas definidas em `styles/tailwind.css` — `animate-surge` (popover), `animate-marca` (V de concluído: visão Mês, caixinha de checklist, tela de rotina concluída), `animate-bump` (número que muda no contador da meta, ícone da aba ativa), `animate-entra-rapido` (troca de etapa no player, conteúdo de seção aberta). Toque afunda (`active:scale-*`) em botões, chips, pastas e no cartão da Roda; o switch estica a bolinha enquanto pressionado. Tudo obedece a `prefers-reduced-motion` (regra global em `styles/base.css`). Cores pré-definidas de área são os tons 600 do Tailwind (`CORES_AREA_600`/`PALETA_AREAS` em `lib/constants.ts`).
+

@@ -6,7 +6,6 @@ import { aba, foto, fotoInteira, preparar } from "./apoio.mjs";
 async function abrir(page, opcoes) {
   await preparar(page, opcoes);
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await page.getByText("Registros de gastos", { exact: true }).first().click();
   await page.getByRole("heading", { name: /Despesas/ }).waitFor();
 }

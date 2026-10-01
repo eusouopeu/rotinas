@@ -42,7 +42,7 @@ export function SecaoRoda() {
             <CampoCor
               title="Cor da área"
               aria-label="Cor da área — usada também nas rotinas dessa área"
-              value={a.color.startsWith("#") ? a.color : "#6D28D9"}
+              value={a.color.startsWith("#") ? a.color : "#7c3aed"}
               onChange={(e) => updateRodaArea(a.id, { color: e.target.value })}
             />
             <input

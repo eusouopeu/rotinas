@@ -20,7 +20,7 @@ export function DiscoTempo({ restante, total, descanso, titulo, nome }: DiscoPro
   const c = 2 * Math.PI * raio;
   const fracao = Math.max(restante, 0) / (total || 1);
   return (
-    <div className="relative my-2 flex size-[min(72vw,280px)] items-center justify-center paisagem:m-0 paisagem:size-[min(36vh,190px)]">
+    <div className="relative my-2 flex size-[min(72vw,280px)] animate-entra-rapido items-center justify-center paisagem:m-0 paisagem:size-[min(36vh,190px)]">
       <svg viewBox="0 0 260 260" className="size-full -rotate-90 transition-[filter] duration-300">
         <circle className="stroke-line" cx={130} cy={130} r={raio} fill="none" strokeWidth={10} />
         <circle
@@ -55,7 +55,7 @@ export function DiscoTempo({ restante, total, descanso, titulo, nome }: DiscoPro
 
 function Miolo({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-[22px] px-5 py-6 paisagem:flex-none paisagem:gap-3 paisagem:p-2.5">
+    <div className="flex flex-1 animate-entra-rapido flex-col items-center justify-center gap-[22px] px-5 py-6 paisagem:flex-none paisagem:gap-3 paisagem:p-2.5">
       {children}
     </div>
   );

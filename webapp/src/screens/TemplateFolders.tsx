@@ -166,7 +166,7 @@ export function TemplateFolders() {
         </div>
       </div>
 
-      <ModelosTabPill active="outros" />
+      <ModelosTabPill active="modelos" />
       <Fab rotulo="Novo modelo" className="desktop:bottom-7" onClick={() => setCriando(true)} />
 
       {criando && (

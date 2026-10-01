@@ -48,6 +48,7 @@ const ESTILO_EM_LINHA: Record<string, number> = {
   "screens/Home.tsx": 2,
   "screens/Metas.tsx": 1,
   "screens/SemanaFechada.tsx": 2,
+  "ui/Ajuda.tsx": 1, // posição do popover, calculada pela posição do ⓘ na tela
   "ui/Chip.tsx": 1,
   "ui/Etiqueta.tsx": 1,
   "ui/ItemChecklist.tsx": 1,

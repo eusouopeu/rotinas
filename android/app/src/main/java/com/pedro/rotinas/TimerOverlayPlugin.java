@@ -135,6 +135,21 @@ public class TimerOverlayPlugin extends Plugin {
             } catch (Exception ignored) {}
         }
         r.put("promovidas", promovidas == null ? JSObject.NULL : promovidas);
+        // a notificação do cronômetro ativa agora foi de fato promovida a Live
+        // Update (FLAG_PROMOTED_ONGOING)? null = não há cronômetro na barra
+        Object promovida = JSObject.NULL;
+        if (nm != null && Build.VERSION.SDK_INT >= 36) {
+            try {
+                for (android.service.notification.StatusBarNotification sbn : nm.getActiveNotifications()) {
+                    if (sbn.getId() == 4771) {
+                        promovida = (sbn.getNotification().flags & android.app.Notification.FLAG_PROMOTED_ONGOING) != 0;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        r.put("promovidaAgora", promovida);
+        Boolean promovivel = TimerOverlayService.ultimaPromovivel;
+        r.put("promovivel", promovivel == null ? JSObject.NULL : promovivel);
         call.resolve(r);
     }
 

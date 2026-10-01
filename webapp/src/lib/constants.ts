@@ -49,6 +49,8 @@ export const K_BOASVINDAS = "rotinas_v2_boasvindas";
 export const K_FECHAMENTODIA = "rotinas_v2_fechamentodia";
 /** lembrete de gastos às 21h ligado (preferência local, fora do backup) */
 export const K_LEMBRETEGASTO = "rotinas_v2_lembretegasto";
+// chave geral das notificações do app (01/10/2026): preferência do aparelho, fora do backup/sync
+export const K_NOTIFSDESLIGADAS = "rotinas_v2_notifs_desligadas";
 export const K_RODARESUMOABERTO = "rotinas_v2_roda_resumo_aberto";
 // títulos recolhidos das notas simples ({ [noteId]: chaves de título }) —
 // preferência de UI, fora do backup como K_RODARESUMOABERTO.
@@ -117,3 +119,33 @@ export const BADGE_NOME: Record<string, string> = {
   ouro: "Ouro",
   diamante: "Diamante",
 };
+
+/** Cores pré-definidas das áreas da roda (pedido do Pedro, 01/10/2026): os
+ *  tons 600 da paleta padrão do Tailwind, na ordem do arco-íris. Nova área
+ *  pega a primeira ainda não usada; o seletor de cor oferece todas. */
+export const CORES_AREA_600 = {
+  red: "#dc2626",
+  orange: "#ea580c",
+  amber: "#d97706",
+  yellow: "#ca8a04",
+  lime: "#65a30d",
+  green: "#16a34a",
+  emerald: "#059669",
+  teal: "#0d9488",
+  cyan: "#0891b2",
+  sky: "#0284c7",
+  blue: "#2563eb",
+  indigo: "#4f46e5",
+  violet: "#7c3aed",
+  purple: "#9333ea",
+  fuchsia: "#c026d3",
+  pink: "#db2777",
+  rose: "#e11d48",
+} as const;
+export const PALETA_AREAS: string[] = Object.values(CORES_AREA_600);
+
+/** Próxima cor da paleta ainda não usada (repete a partir do começo). */
+export function proximaCorArea(usadas: string[]): string {
+  const em = new Set(usadas.map((c) => c.toLowerCase()));
+  return PALETA_AREAS.find((c) => !em.has(c)) || PALETA_AREAS[usadas.length % PALETA_AREAS.length];
+}

@@ -1,9 +1,9 @@
 // Visão "Mês" da agenda (recomendação 1, 27/09/2026): grade do mês com uma
 // bolinha por item de cada dia — rotina agendada, cartão do kanban do dia,
 // compromisso e calendário externo —, lidos da MESMA fonte da Semana/Dia
-// (itensAgendaDoDia). Desde 30/09/2026 (pedido do Pedro) cada dia mostra os
-// primeiros itens como faixinhas com o nome (cheia = feito, clara = pendente)
-// e tocar num dia abre, logo abaixo da grade, o resumo daquele dia — rotinas,
+// (itensAgendaDoDia). As faixinhas com nome de 30/09 deixaram as células altas
+// demais; desde 01/10/2026 a célula voltou à altura original e cada item é uma
+// marca na cor dele: bolinha = pendente, "V" = concluído. Tocar num dia abre, logo abaixo da grade, o resumo daquele dia — rotinas,
 // tarefas e compromissos, com o horário em que foram cumpridos; "abrir no Dia"
 // leva à grade de horário. Não é a agenda do legado baseada na nota do mês
 // (agendaMesHtml), que dependia da aba Diário removida.
@@ -22,7 +22,7 @@ import { Cartao } from "../../ui/Cartao";
 import { BotaoLink } from "../../ui/BotaoLink";
 import { ACAO_NAV, DataNav, LinhaNav, PontoHoje, Sobra } from "./NavAgenda";
 
-const MAX_FAIXAS = 3;
+const MAX_MARCAS = 6;
 
 export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void }) {
   const routines = useAppStore((s) => s.routines);
@@ -93,7 +93,7 @@ export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void })
             const itens = itensDe(iso);
             const ehHoje = iso === hojeISO;
             const passado = iso < hojeISO;
-            const extras = itens.length - MAX_FAIXAS;
+            const extras = itens.length - MAX_MARCAS;
             const sel = iso === aberto;
             return (
               <button
@@ -103,32 +103,33 @@ export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void })
                 aria-pressed={sel}
                 onClick={() => setAberto(sel ? null : iso)}
                 className={cn(
-                  "flex min-h-[84px] min-w-0 flex-col items-stretch gap-[3px] rounded-app-sm border px-0.5 pt-1 pb-1",
+                  "flex min-h-14 min-w-0 flex-col items-center gap-1 rounded-app-sm border px-0.5 pt-1 pb-1.5 transition-[background-color,transform] duration-150 active:scale-95",
                   sel ? "bg-caneta-soft" : "bg-transparent",
                   ehHoje ? "border-caneta" : "border-transparent",
                   passado && !sel && "opacity-75"
                 )}
               >
-                <span className={cn("text-center text-sm", ehHoje ? "font-bold text-caneta" : "text-ink")}>
+                <span className={cn("text-sm", ehHoje ? "font-bold text-caneta" : "text-ink")}>
                   {+iso.slice(8, 10)}
                 </span>
-                {itens.slice(0, MAX_FAIXAS).map((it) => (
-                  <span
-                    key={it.tipo + ":" + it.id}
-                    className="truncate rounded-[3px] px-[3px] text-left text-[9px] leading-[13px] font-medium"
-                    style={
-                      it.feito
-                        ? { background: it.cor || "var(--caneta)", color: "var(--on-caneta)" }
-                        : {
-                            background: `color-mix(in srgb, ${it.cor || "var(--caneta)"} 18%, transparent)`,
-                            color: "var(--ink)",
-                          }
-                    }
-                  >
-                    {it.texto}
-                  </span>
-                ))}
-                {extras > 0 && <span className="text-center text-[9px] leading-[11px] text-sub">+{extras}</span>}
+                {/* pendente = bolinha; concluído = "V" na cor do item (01/10/2026) */}
+                <span className="flex min-h-[11px] flex-wrap items-center justify-center gap-[3px]">
+                  {itens.slice(0, MAX_MARCAS).map((it) => (
+                    <span
+                      key={it.tipo + ":" + it.id}
+                      data-mes={it.feito ? "feito" : "pendente"}
+                      style={{ "--cor": it.cor || "var(--caneta)" } as React.CSSProperties}
+                      className={
+                        it.feito
+                          ? "flex size-[11px] animate-marca items-center justify-center text-(--cor) [&_.icon-svg]:size-[11px] [&_.icon-svg]:stroke-[3]"
+                          : "size-[6px] rounded-full bg-(--cor)"
+                      }
+                    >
+                      {it.feito && <Icon name="check" size={11} />}
+                    </span>
+                  ))}
+                  {extras > 0 && <span className="text-[9px] leading-[9px] text-sub">+{extras}</span>}
+                </span>
               </button>
             );
           })}

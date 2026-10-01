@@ -12,7 +12,7 @@ export function Done() {
 
   return (
     <div {...tela({}, "items-center justify-center gap-4 text-center")}>
-      <CirculoCheck tamanho="size-24">
+      <CirculoCheck tamanho="size-24" className="animate-marca">
         <Icon name="check" size={40} />
       </CirculoCheck>
       <h2>Rotina concluída</h2>

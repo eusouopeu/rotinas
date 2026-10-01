@@ -27,10 +27,11 @@ import {
 export { recorrentesAtuais };
 import { bootStorage, isDesktop, isNative, load, save } from "../lib/storage";
 import { aplicarEspelhoRotinas, planoEspelhoRotinas } from "../lib/rotinaMirror";
+import { instalarChaveNotificacoes } from "../lib/notificacoesGerais";
 import { getTimerOverlayBridge, overlayHide } from "../lib/nativeBridge";
 import { ensureTimerAlertChannels, notifyDigestSemanal } from "../lib/notifications";
 import { marcarSemanaVista as marcarSemanaVistaLib } from "../lib/semanaFechada";
-import { BADGE_COR, BADGE_NOME, K_HORASBUDGET, K_NAOFEITAS } from "../lib/constants";
+import { BADGE_COR, BADGE_NOME, K_HORASBUDGET, K_NAOFEITAS, proximaCorArea } from "../lib/constants";
 import {
   K_COMPROMISSOS,
   K_DIAKANBAN,
@@ -484,6 +485,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     // Canais Android do alerta de fim de etapa em segundo plano
     // (index.html:2687-2692) — idempotente, criado a cada boot como no legado.
     void ensureTimerAlertChannels();
+    // chave geral das notificações (Ajustes › Avisos) antes de qualquer agenda
+    instalarChaveNotificacoes();
     // Aviso de volume de dados (index.html:3767, checkStorageWarning) — o app
     // é local-first, estourar a cota é perda silenciosa.
     const avisoStorage = checkStorageWarning();
@@ -852,11 +855,13 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     save(K_GAMIFICACAO, novo);
     set({ gam: novo });
   },
-  addRodaArea: (label, color = "var(--caneta)") => {
+  addRodaArea: (label, color) => {
     const gam = get().gam;
     const nome = label.trim();
     if (!nome) return;
-    const area: RodaArea = { id: uid(), label: nome, color, peso: 5 };
+    // sem cor escolhida: a próxima da paleta 600 do Tailwind ainda não usada
+    const cor = color || proximaCorArea(gam.config.roda.areas.map((a) => a.color));
+    const area: RodaArea = { id: uid(), label: nome, color: cor, peso: 5 };
     const novo: GamificacaoState = {
       ...gam,
       config: { ...gam.config, roda: { ...gam.config.roda, areas: [...gam.config.roda.areas, area] } },

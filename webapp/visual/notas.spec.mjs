@@ -30,12 +30,14 @@ async function foto(page, nome) {
 test("notas: vazio (app novo)", async ({ page }) => {
   await preparar(page, { comDados: false });
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await foto(page, "notas-vazio");
 });
 
 test("notas: filtro por tag", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await page.getByText("#estudo", { exact: true }).click();
   await foto(page, "notas-tag");
 });
@@ -43,6 +45,7 @@ test("notas: filtro por tag", async ({ page }) => {
 test("notas: busca sem resultado", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await page.getByPlaceholder("Buscar notas...").fill("zzzz");
   await foto(page, "notas-sem-resultado");
 });
@@ -50,6 +53,7 @@ test("notas: busca sem resultado", async ({ page }) => {
 test("notas: arquivadas", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await page.getByRole("button", { name: /ver arquivadas/ }).click();
   await foto(page, "notas-arquivadas");
 });
@@ -57,6 +61,7 @@ test("notas: arquivadas", async ({ page }) => {
 test("notas: card arrastado (excluir à mostra)", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   // pointer events sintéticos no card (h3 > .note-info > card): o arrasto com o
   // mouse do Playwright termina em clique e abriria a nota
   await page.getByRole("heading", { name: "Ideias de projeto" }).evaluate((h3) => {
@@ -75,7 +80,6 @@ test("notas: card arrastado (excluir à mostra)", async ({ page }) => {
 test("modelos: pasta de kanbans", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await page.getByText("Kanbans", { exact: true }).first().click();
   await foto(page, "modelos-pasta");
 });
@@ -85,7 +89,6 @@ test("modelos: pasta vazia", async ({ page }) => {
   const templates = seedLocalStorage.rotinas_v2_templates.filter((t) => t.type !== "market");
   await preparar(page, { extra: { rotinas_v2_templates: templates } });
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await page.getByText("Listas de mercado", { exact: true }).first().click();
   await foto(page, "modelos-pasta-vazia");
 });
@@ -93,7 +96,6 @@ test("modelos: pasta vazia", async ({ page }) => {
 test("modelos: busca", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await page.getByPlaceholder("Buscar modelos...").fill("proj");
   await foto(page, "modelos-busca");
 });
@@ -101,7 +103,6 @@ test("modelos: busca", async ({ page }) => {
 test("modelos: popup de criar", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await page.locator('button[title="Novo modelo"]').dispatchEvent("click");
   await foto(page, "modelos-criar");
 });
@@ -109,7 +110,6 @@ test("modelos: popup de criar", async ({ page }) => {
 test("modelos: escolha do preset da matriz", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await page.locator('button[title="Novo modelo"]').dispatchEvent("click");
   await page.getByText("Matrizes", { exact: true }).last().click();
   await foto(page, "modelos-matriz");

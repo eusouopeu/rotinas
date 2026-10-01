@@ -59,6 +59,16 @@ public class TimerOverlayService extends Service {
     public static final String EXTRA_MODO = "modo";           // "barra" | "bolha" (preferencia do usuario)
 
     private static final String CHANNEL_ID = "brita_overlay";
+    /* Canal da contagem na barra/Now Bar (01/10/2026). O "brita_overlay" é
+       IMPORTANCE_LOW: no One UI notificação silenciosa fica escondida na tela
+       de bloqueio por padrão — justamente onde a Now Bar aparece. Este é
+       DEFAULT, mas sem som nem vibração (e setOnlyAlertOnce), então não toca
+       nem abre heads-up; importância não muda depois de criada, daí o canal
+       novo em vez de alterar o antigo. */
+    private static final String CHANNEL_BARRA = "brita_cronometro";
+    /** Última notificação montada pediu promoção e tinha as características
+     *  exigidas (hasPromotableCharacteristics) — lido pelo diagnóstico. */
+    static volatile Boolean ultimaPromovivel = null;
     private static final int NOTIF_ID = 4771;
 
     /** Etapa da fila: rótulo, duração e se o app a avançaria sozinha ao zerar. */
@@ -178,6 +188,14 @@ public class TimerOverlayService extends Service {
             ch.setDescription("Mantém o cronômetro visível sobre outros apps");
             ch.setShowBadge(false);
             nm.createNotificationChannel(ch);
+            NotificationChannel barra = new NotificationChannel(
+                    CHANNEL_BARRA, "Cronômetro na barra e na Now Bar", NotificationManager.IMPORTANCE_DEFAULT);
+            barra.setDescription("Contagem da etapa na barra de status, na tela de bloqueio e na Now Bar");
+            barra.setSound(null, null);
+            barra.enableVibration(false);
+            barra.setShowBadge(false);
+            barra.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            nm.createNotificationChannel(barra);
         }
         if (emPrimeiroPlano) {
             /* Já somos foreground service: atualizar em vez de repostar. */
@@ -221,8 +239,14 @@ public class TimerOverlayService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) piFlags |= PendingIntent.FLAG_IMMUTABLE;
         PendingIntent pi = PendingIntent.getActivity(this, 0, open, piFlags);
 
+        /* A notificação de foreground service é obrigatória (sem ela o Android
+           mata o serviço e a bolha some), mas no modo "bolha" ela não deve
+           competir com a bolha: fica muda, sem cronômetro, fora da tela de
+           bloqueio e sem chip na Now Bar. A exceção é fora de uso (tela
+           apagada ou bloqueada) — aí a contagem precisa ir para a Now Bar. */
+        boolean naBarra = "barra".equals(modo) || !emUso;
         Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? new Notification.Builder(this, CHANNEL_ID)
+                ? new Notification.Builder(this, naBarra ? CHANNEL_BARRA : CHANNEL_ID)
                 : new Notification.Builder(this);
         b.setContentTitle(label.isEmpty() ? "Rotina em andamento" : label)
                 .setSmallIcon(android.R.drawable.ic_menu_recent_history)
@@ -237,13 +261,6 @@ public class TimerOverlayService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             b.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE);
         }
-
-        /* A notificação de foreground service é obrigatória (sem ela o Android
-           mata o serviço e a bolha some), mas no modo "bolha" ela não deve
-           competir com a bolha: fica muda, sem cronômetro, fora da tela de
-           bloqueio e sem chip na Now Bar. A exceção é a tela apagada — aí a
-           bolha não é visível e a contagem precisa ir para a Now Bar. */
-        boolean naBarra = "barra".equals(modo) || !emUso;
 
         if (exhausted) {
             b.setContentText("Toque para continuar");
@@ -260,7 +277,7 @@ public class TimerOverlayService extends Service {
         }
         // fora da barra: some da tela de bloqueio (o canal já é IMPORTANCE_LOW,
         // então não há som nem heads-up em nenhum dos dois modos)
-        if (!naBarra) b.setVisibility(Notification.VISIBILITY_SECRET);
+        b.setVisibility(naBarra ? Notification.VISIBILITY_PUBLIC : Notification.VISIBILITY_SECRET);
         // Android 16+: pede promoção a "Live Update" — o sistema mostra um chip
         // com o cronômetro na barra de status/Now Bar, logo depois da hora. Sem
         // isso a contagem só aparecia puxando a gaveta de notificações.
@@ -271,9 +288,18 @@ public class TimerOverlayService extends Service {
             android.os.Bundle promo = new android.os.Bundle();
             promo.putBoolean("android.requestPromotedOngoing", true);
             b.addExtras(promo);
+            // aparelhos com o setter público (36.1+): usa também, por garantia
+            try {
+                b.getClass().getMethod("setRequestPromotedOngoing", boolean.class).invoke(b, true);
+            } catch (Exception ignored) {}
             if (paused) b.setShortCriticalText("Pausado");
+            else if (exhausted) b.setShortCriticalText("Fim");
         }
-        return b.build();
+        Notification n = b.build();
+        if (Build.VERSION.SDK_INT >= 36 && naBarra) {
+            try { ultimaPromovivel = n.hasPromotableCharacteristics(); } catch (Throwable ignored) {}
+        }
+        return n;
     }
 
     /** Identidade do que a notificação mostra — só o que muda o conteúdo dela,

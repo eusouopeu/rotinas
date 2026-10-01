@@ -39,6 +39,7 @@ test("casca: busca sem resultado, filtro de notas", async ({ page }) => {
 test("casca: aviso de desfazer", async ({ page }) => {
   await preparar(page);
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await arrastarCartao(page, "Ideias de projeto", -100);
   await page.getByRole("button", { name: "Excluir" }).first().dispatchEvent("click");
   await page.getByRole("button", { name: "Desfazer" }).waitFor();

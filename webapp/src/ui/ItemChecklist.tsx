@@ -14,14 +14,18 @@ export function CaixaCheck({
   return (
     <span
       className={cn(
-        "mt-px flex size-[19px] shrink-0 items-center justify-center rounded-[5px] border-2 border-caneta text-xs text-caneta",
+        "mt-px flex size-[19px] shrink-0 items-center justify-center rounded-[5px] border-2 border-caneta text-xs text-caneta transition-[background-color,border-color] duration-150",
         marcado && "border-transparent bg-caneta text-on-caneta",
         className
       )}
       style={cor ? { borderColor: cor, background: marcado ? cor : undefined } : undefined}
       {...resto}
     >
-      {marcado ? <Icon name="check" size={14} /> : null}
+      {marcado ? (
+        <span className="flex animate-marca">
+          <Icon name="check" size={14} />
+        </span>
+      ) : null}
     </span>
   );
 }

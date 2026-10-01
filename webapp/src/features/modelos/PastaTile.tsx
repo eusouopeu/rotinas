@@ -1,5 +1,5 @@
 // Ladrilho de pasta/tipo de Modelos (era .tmpl-new + .tmpl-ic): ícone em cima,
-// nome embaixo, contorno tracejado. Usado na tela de pastas e no popup "Criar
+// nome embaixo, fundo cinza dos demais cartões (01/10/2026; era contorno tracejado). Usado na tela de pastas e no popup "Criar
 // novo". `GradePastas` é a grade (3 colunas; 4 no desktop e no celular deitado).
 import type { ButtonHTMLAttributes, HTMLAttributes } from "react";
 import { Icon } from "../../components/Icon";
@@ -17,7 +17,7 @@ export function PastaTile({
     <button
       type="button"
       className={cn(
-        "flex aspect-square min-h-0 flex-col items-center justify-center gap-[7px] rounded-[12px] border border-dashed border-caneta-soft bg-card px-1.5 py-[9px] text-center font-sans text-sm text-ink desktop:aspect-auto desktop:min-h-24 desktop:text-md desktop:hover:border-caneta desktop:hover:bg-card-2 [&_.icon-svg]:align-baseline",
+        "flex aspect-square min-h-0 flex-col items-center justify-center gap-[7px] rounded-[12px] border-0 bg-card-2 px-1.5 py-[9px] text-center font-sans text-sm text-ink transition-[transform,background-color] duration-150 active:scale-95 active:bg-chip-neutro desktop:aspect-auto desktop:min-h-24 desktop:text-md desktop:hover:bg-chip-neutro [&_.icon-svg]:align-baseline",
         className
       )}
       {...resto}

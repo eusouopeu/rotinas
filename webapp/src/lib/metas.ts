@@ -4,7 +4,7 @@
 // pequena deste. Sub-metas (parentId/bloqueio) e áreas da roda da vida também
 // ficam de fora por ora.
 import { addDaysISO, inicioSemanaISO, isoToDate, localKey, tagMultiplicador, trimestreDe } from "./gamificacao";
-import { K_METASSUBVIEW, K_METASSUBVIEWSEL } from "./constants";
+import { CORES_AREA_600, K_METASSUBVIEW, K_METASSUBVIEWSEL } from "./constants";
 import type {
   CountdownDoc,
   GamificacaoState,
@@ -387,7 +387,15 @@ export function ajustarProgressoMetaRec(
    texto livre: os eixos da roda entram como sugestão e emprestam a cor; um
    nome novo ganha cor estável derivada do próprio nome. Metas antigas guardam
    o *id* do eixo, então o resolvedor aceita id e rótulo. */
-const META_AREA_CORES = ["#E0619E", "#5B8DEF", "#6B8F71", "#C9B23E", "#B25B4C", "#8A78C8", "#3FA7A0"];
+const META_AREA_CORES = [
+  CORES_AREA_600.pink,
+  CORES_AREA_600.blue,
+  CORES_AREA_600.green,
+  CORES_AREA_600.amber,
+  CORES_AREA_600.red,
+  CORES_AREA_600.violet,
+  CORES_AREA_600.teal,
+];
 
 export function metaAreaInfo(
   v: string,

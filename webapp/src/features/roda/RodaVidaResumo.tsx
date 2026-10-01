@@ -84,7 +84,7 @@ export function RodaVidaResumo() {
 
   return (
     <div
-      className="mb-3.5 flex cursor-pointer items-start gap-2.5"
+      className="mb-3.5 min-w-0 cursor-pointer rounded-app bg-card-2 px-4 py-3 transition-transform duration-150 active:scale-[0.99]"
       data-roda="cartao"
       data-boletimcard="1"
       role="button"
@@ -98,99 +98,100 @@ export function RodaVidaResumo() {
         }
       }}
     >
-      {r && (
-        <div
-          data-roda="selo"
-          data-ritmo={emDia ? "ok" : "abaixo"}
-          className={cn(
-            "flex size-[52px] flex-none flex-col items-center justify-center rounded-app leading-none",
-            emDia ? "bg-ok-soft text-ok" : "bg-erro-soft text-erro"
+      <div
+        className="flex min-h-7 cursor-pointer items-center gap-2"
+        data-roda="cabecalho"
+        role="button"
+        tabIndex={0}
+        aria-expanded={aberto}
+        title={aberto ? "Recolher" : "Expandir"}
+        onClick={alternar}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            alternar(e);
+          }
+        }}
+      >
+        <span className="font-sans text-md tracking-[0.06em] whitespace-nowrap text-ink uppercase">Roda da vida</span>
+        {/* nota da semana / esperado até hoje (mockup de 01/10/2026): pílula
+            vermelha clara abaixo do ritmo, verde clara no ritmo ou acima */}
+        {r && (
+          <span
+            data-roda="selo"
+            data-ritmo={emDia ? "ok" : "abaixo"}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-pill px-2 py-[3px] font-sans text-sm leading-none whitespace-nowrap",
+              emDia ? "bg-ok-soft" : "bg-erro-soft"
+            )}
+            title={`Nota da semana ${num(r.nota)} · esperado até hoje ${num(r.esperado)} · ${r.label}`}
+          >
+            <span className={emDia ? "text-ok" : "text-erro"}>{num(r.nota)}</span>
+            <b className="font-semibold text-ink">/ {num(r.esperado)}</b>
+            <span className="sr-only">de {num(r.esperado)}</span>
+          </span>
+        )}
+        {r && (
+          <Etiqueta tom="forte" data-roda="fato" title="Dias restantes na semana">
+            <Icon name="clock" size={13} /> {r.diasRestantes} dia{r.diasRestantes > 1 ? "s" : ""}
+          </Etiqueta>
+        )}
+        <span className={cn("ml-auto flex transition-transform duration-200", !aberto && "rotate-180")}>
+          <Icon name="chevronUp" size={20} />
+        </span>
+      </div>
+
+      {aberto && linhas.length > 0 && (
+        <div className="mt-2 flex items-center gap-1">
+          {temSetas && (
+            <SetaPagina
+              rotulo="Áreas anteriores"
+              desabilitada={pag === 0}
+              onClick={(e) => irPara(e, -1)}
+              icone="chevronLeft"
+            />
           )}
-          title={`Nota da semana ${num(r.nota)} · esperado até hoje ${num(r.esperado)} · ${r.label}`}
-        >
-          <b className="font-titulo text-xl">{num(r.nota)}</b>
-          <span className="mt-0.5 font-sans text-2xs text-ink">de {num(r.esperado)}</span>
+          <div
+            className="min-w-0 flex-1"
+            data-roda="linhas"
+            onTouchStart={(e) => {
+              arrasto.current = podeArrastar ? e.touches[0].clientX : null;
+            }}
+            onTouchEnd={(e) => {
+              const ini = arrasto.current;
+              arrasto.current = null;
+              if (ini == null) return;
+              const dx = e.changedTouches[0].clientX - ini;
+              // 40px é o mesmo limiar do swipe dos cards (SwipeItem)
+              if (Math.abs(dx) < 40) return;
+              e.stopPropagation();
+              mover(dx < 0 ? 1 : -1);
+            }}
+          >
+            {visiveis.map((l) => (
+              <LinhaBarra
+                key={l.label}
+                data-roda="linha"
+                className="my-1.5 animate-entra-rapido [&>div:first-child]:font-semibold"
+                rotulo={l.label}
+                cor={l.color}
+                corRotulo={l.color}
+                pct={max ? Math.max(3, Math.round((l.pontos / max) * 100)) : 0}
+                valor={valTxt(l)}
+                larguraValor={valCh + 0.5}
+              />
+            ))}
+          </div>
+          {temSetas && (
+            <SetaPagina
+              rotulo="Próximas áreas"
+              desabilitada={pag >= paginas - 1}
+              onClick={(e) => irPara(e, 1)}
+              icone="chevronRight"
+            />
+          )}
         </div>
       )}
-      <div className="min-w-0 flex-1 rounded-app bg-card-2 px-4 py-3">
-        <div
-          className="flex min-h-7 cursor-pointer items-center gap-2.5"
-          data-roda="cabecalho"
-          role="button"
-          tabIndex={0}
-          aria-expanded={aberto}
-          title={aberto ? "Recolher" : "Expandir"}
-          onClick={alternar}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              alternar(e);
-            }
-          }}
-        >
-          <span className="font-sans text-md tracking-[0.06em] text-ink uppercase">Roda da vida</span>
-          {r && (
-            <Etiqueta tom="forte" data-roda="fato" title="Dias restantes na semana">
-              <Icon name="clock" size={13} /> {r.diasRestantes} dia{r.diasRestantes > 1 ? "s" : ""}
-            </Etiqueta>
-          )}
-          <span className="ml-auto flex">
-            <Icon name={aberto ? "chevronDown" : "chevronUp"} size={20} />
-          </span>
-        </div>
-
-        {aberto && linhas.length > 0 && (
-          <div className="mt-2 flex items-center gap-1">
-            {temSetas && (
-              <SetaPagina
-                rotulo="Áreas anteriores"
-                desabilitada={pag === 0}
-                onClick={(e) => irPara(e, -1)}
-                icone="chevronLeft"
-              />
-            )}
-            <div
-              className="min-w-0 flex-1"
-              data-roda="linhas"
-              onTouchStart={(e) => {
-                arrasto.current = podeArrastar ? e.touches[0].clientX : null;
-              }}
-              onTouchEnd={(e) => {
-                const ini = arrasto.current;
-                arrasto.current = null;
-                if (ini == null) return;
-                const dx = e.changedTouches[0].clientX - ini;
-                // 40px é o mesmo limiar do swipe dos cards (SwipeItem)
-                if (Math.abs(dx) < 40) return;
-                e.stopPropagation();
-                mover(dx < 0 ? 1 : -1);
-              }}
-            >
-              {visiveis.map((l) => (
-                <LinhaBarra
-                  key={l.label}
-                  data-roda="linha"
-                  className="my-1.5"
-                  rotulo={l.label}
-                  cor={l.color}
-                  corRotulo={l.color}
-                  pct={max ? Math.max(3, Math.round((l.pontos / max) * 100)) : 0}
-                  valor={valTxt(l)}
-                  larguraValor={valCh + 0.5}
-                />
-              ))}
-            </div>
-            {temSetas && (
-              <SetaPagina
-                rotulo="Próximas áreas"
-                desabilitada={pag >= paginas - 1}
-                onClick={(e) => irPara(e, 1)}
-                icone="chevronRight"
-              />
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

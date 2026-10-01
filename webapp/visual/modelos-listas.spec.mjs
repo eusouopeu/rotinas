@@ -6,7 +6,6 @@ import { aba, foto, fotoInteira, preparar } from "./apoio.mjs";
 async function abrir(page, titulo) {
   await preparar(page);
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await page.getByPlaceholder("Buscar modelos...").fill(titulo);
   await page.getByRole("heading", { name: titulo }).click();
   await page.locator("input:visible").first().waitFor();

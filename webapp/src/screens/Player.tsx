@@ -318,6 +318,7 @@ export function Player() {
 
         {step.type === "timer" ? (
           <DiscoTempo
+            key={playerState.idx}
             restante={rem}
             total={step.seconds || 1}
             descanso={!!step.isRest}
@@ -326,6 +327,7 @@ export function Player() {
           />
         ) : step.type === "exercicio" ? (
           <CorpoExercicio
+            key={playerState.idx}
             nome={step.name}
             fase={exPhase}
             serieAtual={playerState.ex?.setIdx || 0}
@@ -345,7 +347,7 @@ export function Player() {
             }}
           />
         ) : (
-          <CorpoSimples posicao={playerState.idx + 1} nome={step.name} />
+          <CorpoSimples key={playerState.idx} posicao={playerState.idx + 1} nome={step.name} />
         )}
 
         {step.journaling && !step.isRest && (

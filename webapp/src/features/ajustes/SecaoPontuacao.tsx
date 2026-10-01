@@ -96,7 +96,10 @@ export function SecaoPontuacao() {
             ))}
           </div>
 
-          <RotuloSecao>Valor de cada nível de peso</RotuloSecao>
+          <RotuloSecao>
+            Valor de cada nível de peso
+            <Ajuda>Vale para as próximas semanas — a semana atual já está com o fator congelado.</Ajuda>
+          </RotuloSecao>
           <div className="pt-2.5">
             {NIVEIS.map((nivel) => (
               <LinhaNumero
@@ -121,12 +124,19 @@ export function SecaoPontuacao() {
               value={c.divisorDuracao}
               onChange={(e) => updateGamConfig({ divisorDuracao: Math.max(5, +e.target.value || 30) })}
             />
-            <Ajuda className="mt-2.5">Bônus por meta concluída, no escopo definido pelo prazo dela.</Ajuda>
             {PERIODOS.map((periodo) => (
               <LinhaNumero
                 key={periodo}
                 className={periodo === "mensal" ? "mt-0" : undefined}
-                rotulo={`Meta ${periodo}`}
+                rotulo={
+                  periodo === "mensal" ? (
+                    <>
+                      Meta {periodo} <Ajuda>Bônus por meta concluída, no escopo definido pelo prazo dela.</Ajuda>
+                    </>
+                  ) : (
+                    `Meta ${periodo}`
+                  )
+                }
                 min={0}
                 max={100}
                 value={c.pontosMeta[periodo]}
@@ -135,7 +145,6 @@ export function SecaoPontuacao() {
                 }
               />
             ))}
-            <Ajuda>Vale para as próximas semanas — a semana atual já está com o fator congelado.</Ajuda>
 
             <RotuloSecao className="mt-3.5 mb-1">Simulação — próxima semana</RotuloSecao>
             {simulacao.length === 0 ? (

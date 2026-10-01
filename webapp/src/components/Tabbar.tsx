@@ -19,7 +19,8 @@ type TabDef = { tab: string; screen: ScreenName; label: string; icon: IconName }
 const TABS: TabDef[] = [
   { tab: "home", screen: "home", label: "Início", icon: "listBullet" },
   { tab: "metas", screen: "metas", label: "Metas", icon: "calendar" },
-  { tab: "templates", screen: "notes", label: "Modelos", icon: "templates" },
+  // abre na pasta de modelos (tab "modelos" da pílula, a padrão desde 01/10/2026)
+  { tab: "templates", screen: "templateFolders", label: "Modelos", icon: "templates" },
   { tab: "dados", screen: "stats", label: "Dados", icon: "stats" },
 ];
 
@@ -53,7 +54,8 @@ export function Tabbar() {
           className={cn(
             "relative flex w-full flex-auto items-center justify-center rounded-pill px-[15px] text-[19px] transition-[background-color] duration-[180ms] ease-[ease] paisagem:text-base",
             "desktop:rounded-none desktop:p-0 desktop:text-2xl",
-            ativa && "bg-caneta-soft desktop:bg-transparent"
+            // micro-interação: o ícone dá um pulinho ao virar a aba ativa
+            ativa && "bg-caneta-soft desktop:bg-transparent [&_.icon-svg]:animate-bump"
           )}
         >
           <Icon name={t.icon} size={22} />

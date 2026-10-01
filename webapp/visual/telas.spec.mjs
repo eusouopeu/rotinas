@@ -78,24 +78,24 @@ test("metas", async ({ page }) => {
 
 test("notas", async ({ page }) => {
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await foto(page, "notas");
 });
 
 test("editor de nota", async ({ page }) => {
   await aba(page, "Modelos");
+  await page.getByText("Notas", { exact: true }).last().click(); // aba Modelos abre nas pastas desde 01/10/2026
   await page.getByText("Compras da semana").first().click();
   await foto(page, "editor-nota");
 });
 
 test("modelos: pastas", async ({ page }) => {
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await foto(page, "modelos-pastas");
 });
 
 test("modelos: kanban", async ({ page }) => {
   await aba(page, "Modelos");
-  await page.getByText("Outros", { exact: true }).first().click();
   await page.getByText("Kanbans", { exact: true }).first().click();
   await page.getByText("Projeto Casa").first().click();
   await foto(page, "modelos-kanban");

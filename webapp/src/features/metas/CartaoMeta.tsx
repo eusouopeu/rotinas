@@ -120,7 +120,8 @@ export function ContadorMeta({
   /** Texto curto ao lado do contador (ex.: pontos do último toque). */
   aviso?: { texto: string; positivo: boolean } | null;
 }) {
-  const botao = "flex min-h-[38px] w-12 flex-1 cursor-pointer items-center justify-center border-0 text-2xl font-bold";
+  const botao =
+    "flex min-h-[38px] w-12 flex-1 cursor-pointer items-center justify-center border-0 text-2xl font-bold transition-[filter,transform] duration-100 active:scale-90 active:brightness-95";
   return (
     <div className="-my-2.5 flex shrink-0 items-center gap-2.5 self-stretch">
       {aviso && (
@@ -131,8 +132,10 @@ export function ContadorMeta({
           {aviso.texto}
         </span>
       )}
+      {/* key = texto: cada mudança remonta o número e o pulinho (bump) toca */}
       <span
-        className="font-titulo text-[21px] font-bold whitespace-nowrap tabular-nums"
+        key={texto}
+        className="animate-bump font-titulo text-[21px] font-bold whitespace-nowrap tabular-nums"
         style={cor ? { color: cor } : undefined}
       >
         {texto}
