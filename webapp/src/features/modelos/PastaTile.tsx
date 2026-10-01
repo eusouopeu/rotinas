@@ -17,7 +17,7 @@ export function PastaTile({
     <button
       type="button"
       className={cn(
-        "flex aspect-square min-h-0 flex-col items-center justify-center gap-[7px] rounded-[12px] border-[1.5px] border-dashed border-caneta-soft bg-card px-1.5 py-[9px] text-center font-sans text-sm text-ink desktop:aspect-auto desktop:min-h-24 desktop:text-md desktop:hover:border-caneta desktop:hover:bg-card-2 [&_.icon-svg]:align-baseline",
+        "flex aspect-square min-h-0 flex-col items-center justify-center gap-[7px] rounded-[12px] border border-dashed border-caneta-soft bg-card px-1.5 py-[9px] text-center font-sans text-sm text-ink desktop:aspect-auto desktop:min-h-24 desktop:text-md desktop:hover:border-caneta desktop:hover:bg-card-2 [&_.icon-svg]:align-baseline",
         className
       )}
       {...resto}

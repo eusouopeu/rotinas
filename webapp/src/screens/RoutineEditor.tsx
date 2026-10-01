@@ -238,7 +238,7 @@ export function RoutineEditor() {
           {draft.steps.map((s, i) => (
             <div
               className={cn(
-                "flex items-start gap-3 rounded-lg border-[1.5px] border-line bg-card p-3.5",
+                "flex items-start gap-3 rounded-lg border border-transparent bg-card-2 p-3.5",
                 dragFrom?.index === i && "border-caneta opacity-45",
                 dragOver &&
                   dragFrom &&
@@ -373,7 +373,7 @@ export function RoutineEditor() {
             </div>
           ))}
           <button
-            className="mt-1 rounded-lg border-[1.5px] border-dashed border-line bg-transparent p-4 text-center text-base text-sub"
+            className="mt-1 rounded-lg border border-dashed border-line bg-transparent p-4 text-center text-base text-sub"
             onClick={addStep}
           >
             + adicionar etapa

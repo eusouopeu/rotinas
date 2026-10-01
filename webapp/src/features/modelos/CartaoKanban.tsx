@@ -8,7 +8,7 @@ import { BotaoMover } from "../../ui/BotaoMover";
 import { cn } from "../../lib/cn";
 
 const CARTAO =
-  "mb-[7px] flex flex-col gap-1.5 rounded-app-sm border-[1.5px] border-line bg-card px-2.5 py-[9px] paisagem:px-2 paisagem:py-[7px] desktop:hover:border-caneta-soft";
+  "mb-[7px] flex flex-col gap-1.5 rounded-app-sm border-0 bg-card px-2.5 py-[9px] paisagem:px-2 paisagem:py-[7px]";
 
 type Props = {
   texto: string;

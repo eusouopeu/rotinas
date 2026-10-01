@@ -221,6 +221,10 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
           playerSnapshot: apagarSnapshot(),
           view: { tab: "home", screen: "done" },
         });
+        // metas recorrentes ligadas a esta rotina (01/10/2026): +1 cada
+        (get().metaDoc().recorrentes || [])
+          .filter((m) => m.rotinaId === routine.id && !m.negativa)
+          .forEach((m) => get().ajustarMetaRec(m.id, 1));
       } else {
         set({
           gam,

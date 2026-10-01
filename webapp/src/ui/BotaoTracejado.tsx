@@ -9,7 +9,7 @@ export function BotaoTracejado({ className, type = "button", ...resto }: ButtonH
     <button
       type={type}
       className={cn(
-        "mt-1 rounded-lg border-[1.5px] border-dashed border-line bg-transparent p-4 text-center text-base text-sub",
+        "mt-1 rounded-lg border border-dashed border-line bg-transparent p-4 text-center text-base text-sub",
         className
       )}
       {...resto}

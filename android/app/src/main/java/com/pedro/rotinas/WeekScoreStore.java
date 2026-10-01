@@ -26,13 +26,14 @@ public final class WeekScoreStore {
 
     public static class Resultado {
         public final double nota;
+        public final double esperado;
         public final String label;
         public final int corLabel; // ARGB — mesma paleta das variáveis --good/--muted/--accent/--danger
         public final int diasRestantes;
         public final boolean temSemana;
 
-        Resultado(double nota, String label, int corLabel, int diasRestantes, boolean temSemana) {
-            this.nota = nota; this.label = label; this.corLabel = corLabel;
+        Resultado(double nota, double esperado, String label, int corLabel, int diasRestantes, boolean temSemana) {
+            this.nota = nota; this.esperado = esperado; this.label = label; this.corLabel = corLabel;
             this.diasRestantes = diasRestantes; this.temSemana = temSemana;
         }
     }
@@ -68,11 +69,11 @@ public final class WeekScoreStore {
 
     public static Resultado compute(Context ctx) {
         String json = readFile(ctx, "rotinas_v2_gamificacao.json");
-        if (json == null) return new Resultado(0, "", 0, 7, false);
+        if (json == null) return new Resultado(0, 0, "", 0, 7, false);
         try {
             JSONObject gam = new JSONObject(json);
             JSONObject semana = gam.optJSONObject("semanaAtual");
-            if (semana == null) return new Resultado(0, "", 0, 7, false);
+            if (semana == null) return new Resultado(0, 0, "", 0, 7, false);
 
             double nota = 0;
             JSONArray concluidos = semana.optJSONArray("concluidos");
@@ -99,15 +100,16 @@ public final class WeekScoreStore {
 
             double saldo = nota - esperado;
             String label; int cor;
-            if (saldo >= 5) { label = "adiantado"; cor = 0xFF6B8F71; }
-            else if (saldo >= -5) { label = "no ritmo"; cor = 0xFF8A8478; }
-            else if (saldo >= -15) { label = "levemente atrasado"; cor = 0xFFE0619E; }
-            else { label = "atrasado"; cor = 0xFFB25B4C; }
+            // cores = tokens do app (--ok/--sub/--caneta/--erro), claro ou escuro
+            if (saldo >= 5) { label = "adiantado"; cor = ctx.getColor(R.color.widget_ok); }
+            else if (saldo >= -5) { label = "no ritmo"; cor = ctx.getColor(R.color.widget_sub); }
+            else if (saldo >= -15) { label = "levemente atrasado"; cor = ctx.getColor(R.color.widget_caneta); }
+            else { label = "atrasado"; cor = ctx.getColor(R.color.widget_erro); }
 
             int diasRestantes = 7 - diaIdx;
-            return new Resultado(nota, label, cor, diasRestantes, true);
+            return new Resultado(nota, esperado, label, cor, diasRestantes, true);
         } catch (Exception e) {
-            return new Resultado(0, "", 0, 7, false);
+            return new Resultado(0, 0, "", 0, 7, false);
         }
     }
 }

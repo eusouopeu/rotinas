@@ -11,7 +11,7 @@ import android.widget.RemoteViews;
 
 /**
  * Widget sem configuração: mostra a sequência de dias seguidos com rotina
- * concluída (mesmo número que aparece no chip da home). Um toque abre o app.
+ * concluída (mesmo número que aparece no chip da home). Um toque abre a aba Rotinas.
  */
 public class StreakWidgetProvider extends AppWidgetProvider {
 
@@ -28,13 +28,7 @@ public class StreakWidgetProvider extends AppWidgetProvider {
         v.setTextViewText(R.id.streakNumber, String.valueOf(streak));
         v.setTextViewText(R.id.streakLabel, streak == 1 ? "dia seguido" : "dias seguidos");
 
-        Intent open = new Intent(ctx, MainActivity.class);
-        open.setAction(Intent.ACTION_MAIN);
-        open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        PendingIntent pi = PendingIntent.getActivity(ctx, widgetId, open, flags);
+        PendingIntent pi = WidgetAbrir.em(ctx, widgetId, WidgetAbrir.ROTINAS);
         v.setOnClickPendingIntent(R.id.widgetRoot, pi);
 
         mgr.updateAppWidget(widgetId, v);

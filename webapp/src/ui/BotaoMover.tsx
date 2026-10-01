@@ -16,7 +16,7 @@ export function BotaoMover({
       title={rotulo}
       aria-label={rotulo}
       className={cn(
-        "relative flex size-[30px] items-center justify-center rounded-[9px] border-[1.5px] border-line bg-card text-[17px] leading-none text-sub transition-[transform,background-color] duration-120 ease-[ease] after:absolute after:-inset-1.5 after:rounded-[14px] enabled:active:scale-90 enabled:active:bg-card-2 disabled:opacity-[0.28] desktop:enabled:hover:border-caneta-soft desktop:enabled:hover:bg-card-2 desktop:enabled:hover:text-ink",
+        "relative flex size-[30px] items-center justify-center rounded-[9px] border-0 bg-card-2 text-[17px] leading-none text-sub transition-[transform,background-color] duration-120 ease-[ease] after:absolute after:-inset-1.5 after:rounded-[14px] enabled:active:scale-90 enabled:active:bg-card-2 disabled:opacity-[0.28] desktop:enabled:hover:border-caneta-soft desktop:enabled:hover:bg-card-2 desktop:enabled:hover:text-ink",
         className
       )}
       {...resto}

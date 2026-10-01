@@ -11,7 +11,7 @@ export function CampoBusca({ forma = "pilula", className, ...resto }: Props) {
     <input
       type="text"
       className={cn(
-        "w-full border-[1.5px] border-line bg-card font-sans text-ink focus:border-caneta focus:outline-none",
+        "w-full border border-line bg-card font-sans text-ink focus:border-caneta focus:outline-none",
         forma === "pilula" ? "rounded-pill px-3.5 py-3 text-base" : "rounded-[12px] px-3.5 py-[11px] text-lg",
         className
       )}

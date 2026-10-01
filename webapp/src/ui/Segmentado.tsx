@@ -65,7 +65,7 @@ export function SegPill<K extends string>({ cheia, ...props }: Base<K> & { cheia
   return (
     <Segmentado
       {...props}
-      caixa={cn("border-[1.5px] border-line bg-card-blur", cheia && "w-full")}
+      caixa={cn("bg-card-2", cheia && "w-full")}
       item={cheia ? "flex-1 px-3 py-[9px] text-center" : "px-[26px] py-[9px] desktop:px-3 desktop:py-[5px]"}
     />
   );
@@ -83,7 +83,7 @@ export function Toggle<K extends string>({
   return (
     <Segmentado
       {...props}
-      caixa={cn("bg-card-2", larga && "min-w-0 flex-[1_1_0]", quebra && "flex-wrap", grande && "p-[3px] text-md")}
+      caixa={cn("bg-chip-neutro", larga && "min-w-0 flex-[1_1_0]", quebra && "flex-wrap", grande && "p-[3px] text-md")}
       item={cn(
         "px-2 py-1 desktop:px-3 desktop:py-[5px]",
         larga && "flex-[1_1_0] text-center",

@@ -8,14 +8,14 @@
     android:background="@drawable/widget_bg"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="10dp">
+    android:padding="12dp">
 
     <TextView
         android:id="@+id/streakNumber"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#E0619E"
-        android:textSize="30sp"
+        android:textColor="@color/widget_streak"
+        android:textSize="34sp"
         android:textStyle="bold"
         android:text="0" />
 
@@ -24,7 +24,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:textColor="#8A8478"
+        android:textColor="@color/widget_sub"
         android:textSize="11sp"
         android:maxLines="1"
         android:text="dias seguidos" />

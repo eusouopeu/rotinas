@@ -19,6 +19,7 @@ import {
   virarMetasRecDoc,
   virarPeriodoMetaRec,
   toggleMetasSubview,
+  registrarProgressoDia,
 } from "../../lib/metas";
 import { estornarPenalidadesMetaRec, sincronizarPenalidadeMetaRec, sincronizarPontosMetaRec } from "../../lib/scoring";
 import type { CountdownDoc, MetaRecorrente, MetaTarget } from "../../lib/types";
@@ -108,7 +109,8 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
     const alvo = doc.targets.find((t) => t.id === id);
     if (!alvo) return;
     const clamped = Math.max(0, Math.min(alvo.topics ?? done, done));
-    get().updateMeta(id, { done: clamped });
+    const progressoDias = registrarProgressoDia(alvo, clamped - (alvo.done || 0));
+    get().updateMeta(id, { done: clamped, progressoDias });
   },
   deleteMeta: (id) => {
     const doc = get().metaDoc();
@@ -136,6 +138,7 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
       negativa: !!params.negativa,
       pontua: !!params.pontua,
       tagValor: params.tagValor || "medio",
+      rotinaId: params.negativa ? null : params.rotinaId || null,
       criadoEm: Date.now(),
       progresso: null,
     };

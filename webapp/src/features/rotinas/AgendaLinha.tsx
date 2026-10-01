@@ -48,7 +48,7 @@ export function AgendaLinha({ it, onClick, onDelete, onEdit }: Props) {
           <span
             className={cn(
               "mr-[7px] inline-block size-2 flex-none rounded-[2px]",
-              ical ? "border-[1.5px] border-sub bg-transparent" : "bg-sub"
+              ical ? "border border-sub bg-transparent" : "bg-sub"
             )}
           />
         )}

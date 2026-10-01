@@ -101,7 +101,7 @@ export function AgendaDia({ inicialISO }: { inicialISO?: string } = {}) {
           {allDay.map((e, i) => (
             <span
               key={i}
-              className="rounded-xl border-[1.5px] border-line bg-card-2 px-[9px] py-[3px] text-sm text-sub"
+              className="rounded-xl border border-line bg-card-2 px-[9px] py-[3px] text-sm text-sub"
             >
               {e.title}
             </span>

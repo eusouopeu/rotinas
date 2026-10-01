@@ -64,8 +64,9 @@ public final class DailyGoalStore {
 
         /** Mesmas cores do cartão da meta: negativa verde com saldo, neutra
          *  em zero, vermelha abaixo; positiva verde quando cumprida. */
-        public int cor() {
-            final int verde = 0xFF6B8F71, neutra = 0xFF8A8478, vermelha = 0xFFB0503F;
+        public int cor(Context ctx) {
+            final int verde = ctx.getColor(R.color.widget_ok), neutra = ctx.getColor(R.color.widget_sub),
+                    vermelha = ctx.getColor(R.color.widget_erro);
             if (countdown) return neutra;
             if (negativa) {
                 int saldo = vezes - feitas;

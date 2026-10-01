@@ -8,7 +8,7 @@ export function Selecao({ className, ...resto }: SelectHTMLAttributes<HTMLSelect
   return (
     <select
       className={cn(
-        "w-full rounded-md border-[1.5px] border-line bg-card-2 px-2.5 py-2 font-sans text-base text-ink",
+        "w-full rounded-md border border-line bg-card px-2.5 py-2 font-sans text-base text-ink",
         className
       )}
       {...resto}

@@ -36,7 +36,7 @@ export function PilulaNota({ forma = "vidro", rodape, rolavel, className, ...res
   return (
     <div
       className={cn(
-        "pointer-events-auto flex items-center gap-0.5 rounded-pill border-[1.5px] border-line bg-card-blur p-[5px] backdrop-blur-[16px] backdrop-saturate-[1.15]",
+        "pointer-events-auto flex items-center gap-0.5 rounded-pill border border-line bg-card-blur p-[5px] backdrop-blur-[16px] backdrop-saturate-[1.15]",
         forma === "solta" && "border-0 bg-transparent p-0 backdrop-blur-none backdrop-saturate-100",
         rodape && "p-1.5 max-[420px]:p-[5px]",
         rodape &&

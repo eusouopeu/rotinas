@@ -43,7 +43,7 @@ export function QuadranteMatriz({
 }: QuadProps) {
   return (
     <div
-      className={cn("flex min-h-0 flex-col overflow-hidden rounded-lg border-[1.5px] p-2.5", grande && "flex-1")}
+      className={cn("flex min-h-0 flex-col overflow-hidden rounded-lg border p-2.5", grande && "flex-1")}
       style={{ borderColor: q.color, background: q.color + "14" }}
     >
       <input
@@ -224,7 +224,7 @@ export function EdicaoItemMatriz({ doc, qi, ii, it, onSave, onDone }: EdicaoProp
       />
       <div className="mb-1.5 flex flex-wrap items-center gap-0.5">
         <select
-          className="min-w-0 flex-1 rounded-[8px] border-[1.5px] border-line bg-card-2 p-1.5 text-sm text-ink"
+          className="min-w-0 flex-1 rounded-[8px] border border-line bg-card-2 p-1.5 text-sm text-ink"
           value={targetQ}
           onChange={(e) => setTargetQ(+e.target.value)}
         >

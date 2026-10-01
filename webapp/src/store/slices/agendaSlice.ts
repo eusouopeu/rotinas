@@ -2,6 +2,7 @@
 // pausas de agenda (snoozes) e cartões do kanban do dia. Extraído de
 // useAppStore.ts em 11/09/2026 (recomendação 5 de docs/react-migration.md).
 // São as coleções que a visão Semana/Dia da aba Rotinas lê.
+import { addDaysISO } from "../../lib/gamificacao";
 import type { StateCreator } from "zustand";
 import { uid } from "../../lib/uid";
 import {
@@ -30,6 +31,7 @@ export type AgendaSlice = Pick<
   | "upsertDiaKanbanCard"
   | "toggleDiaKanbanCard"
   | "deleteDiaKanbanCard"
+  | "passarParaAmanha"
 >;
 
 export const createAgendaSlice: StateCreator<AppState, [], [], AgendaSlice> = (set, get) => ({
@@ -155,6 +157,24 @@ export const createAgendaSlice: StateCreator<AppState, [], [], AgendaSlice> = (s
     save(K_DIAKANBAN, diaKanban);
     save(K_GAMIFICACAO, gam);
     set({ diaKanban, gam });
+  },
+  passarParaAmanha: (tipo, id) => {
+    if (tipo === "compromisso") {
+      const compromissos = get().compromissos.map((c) =>
+        c.id === id ? { ...c, date: addDaysISO(c.date, 1), feito: false } : c
+      );
+      save(K_COMPROMISSOS, compromissos);
+      set({ compromissos });
+      syncCompromissoNotifications(compromissos, algumSnoozeAtivo(get().snoozes));
+      return;
+    }
+    const card = get().diaKanban.find((c) => c.id === id);
+    if (!card) return;
+    const per = "dia:" + addDaysISO(card.per.slice(4), 1);
+    const ord = get().diaKanban.filter((c) => c.per === per).length;
+    const diaKanban = get().diaKanban.map((c) => (c.id === id ? { ...c, per, ord } : c));
+    save(K_DIAKANBAN, diaKanban);
+    set({ diaKanban });
   },
   deleteDiaKanbanCard: (id) => {
     const card = get().diaKanban.find((c) => c.id === id);

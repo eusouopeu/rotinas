@@ -46,7 +46,11 @@ export function SwipeItem({
     if (!track) return;
 
     function applyTransform(x: number) {
-      if (track) track.style.transform = `translateX(${x}px)`;
+      if (!track) return;
+      track.style.transform = `translateX(${x}px)`;
+      // os botões de trás só aparecem com o cartão deslocado: parados, a borda
+      // curva do cartão deixava ver um fio vermelho/azul pelo antisserrilhado
+      if (track.parentElement) track.parentElement.dataset.mov = x !== 0 ? "1" : "";
     }
     function setOpen(v: "0" | "1" | "-1") {
       openState.current = v;
@@ -147,12 +151,12 @@ export function SwipeItem({
   // (index.html:2204-2210, cardEl mantém sua classe própria + "swipe-track";
   // o wrap ganha só "swipe-item").
   return (
-    <div data-swipe-item className={cn("relative shrink-0 grow-0 overflow-hidden rounded-app", wrapClassName)}>
+    <div data-swipe-item className={cn("group relative shrink-0 grow-0 overflow-hidden rounded-app", wrapClassName)}>
       {onLeft && (
         <button
           aria-label={leftAria}
           title={leftAria}
-          className="absolute inset-y-0 right-0 z-0 flex w-[76px] items-center justify-center border-0 bg-erro font-sans text-md font-semibold text-on-caneta"
+          className="absolute inset-y-0 right-0 z-0 flex opacity-0 group-data-[mov=1]:opacity-100 w-[76px] items-center justify-center border-0 bg-erro font-sans text-md font-semibold text-on-caneta"
           onClick={() => {
             fechar();
             onLeft();
@@ -165,7 +169,7 @@ export function SwipeItem({
         <button
           aria-label={rightAria}
           title={rightAria}
-          className="absolute inset-y-0 left-0 z-0 flex w-[76px] items-center justify-center border-0 bg-caneta-2 font-sans text-md font-semibold text-on-caneta"
+          className="absolute inset-y-0 left-0 z-0 flex opacity-0 group-data-[mov=1]:opacity-100 w-[76px] items-center justify-center border-0 bg-caneta-2 font-sans text-md font-semibold text-on-caneta"
           onClick={() => {
             fechar();
             onRight();

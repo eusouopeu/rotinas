@@ -116,7 +116,7 @@ export function LancarRapido({ onClose }: { onClose: () => void }) {
               {lista.map((n) => (
                 <button
                   key={n.id}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-app-sm border-[1.5px] border-line bg-card-2 px-[11px] py-[9px] text-left text-ink active:scale-[0.985] active:bg-card"
+                  className="flex w-full flex-col items-start gap-0.5 rounded-app-sm border-0 bg-card-2 px-[11px] py-[9px] text-left text-ink active:scale-[0.985] active:bg-card"
                   onClick={() => {
                     setNotaEscolhida(n);
                     setTitulo(n.title || "");
@@ -206,7 +206,7 @@ export function LancarRapido({ onClose }: { onClose: () => void }) {
             onChange={(e) => setValor(e.target.value)}
           />
           <select
-            className={`${CAMPO_LINHA} rounded-md border-[1.5px] border-line bg-card px-2 py-[9px] text-base text-ink`}
+            className={`${CAMPO_LINHA} rounded-md border border-line bg-card px-2 py-[9px] text-base text-ink`}
             value={cat}
             onChange={(e) => setCat(e.target.value)}
           >

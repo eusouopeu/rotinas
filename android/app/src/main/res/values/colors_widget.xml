@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cores dos widgets = tokens do app (tokens.css, tema claro). O tema
+     escuro do sistema troca por values-night/colors_widget.xml. -->
+<resources>
+    <color name="widget_surface">#EDF1F6</color>
+    <color name="widget_chip">#D7DDE7</color>
+    <color name="widget_ink">#1E1B26</color>
+    <color name="widget_sub">#5B6472</color>
+    <color name="widget_caneta">#6D28D9</color>
+    <color name="widget_caneta_grad">#9A6BF0</color>
+    <color name="widget_ok">#157A45</color>
+    <color name="widget_ok_soft">#E3F2EA</color>
+    <color name="widget_erro">#B23A2F</color>
+    <color name="widget_erro_soft">#F8E6E4</color>
+    <color name="widget_streak">#C2631A</color>
+</resources>

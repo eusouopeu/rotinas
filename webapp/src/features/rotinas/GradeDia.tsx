@@ -113,7 +113,7 @@ export function GradeDia({
           <div
             key={i}
             className={cn(
-              "absolute flex flex-row flex-wrap content-start items-baseline gap-x-1.5 gap-y-0 overflow-hidden rounded-app-sm border-[1.5px] border-l-[3px] border-line border-l-caneta bg-card-2 px-[7px] py-1",
+              "absolute flex flex-row flex-wrap content-start items-baseline gap-x-1.5 gap-y-0 overflow-hidden rounded-app-sm border border-l-[3px] border-line border-l-caneta bg-card-2 px-[7px] py-1",
               b.cardId ? "touch-none border-l-caneta-2 bg-card" : "touch-pan-y",
               b.compromissoId && "border-l-ok bg-card",
               b.rotinaId && "border-l-caneta bg-card-2",

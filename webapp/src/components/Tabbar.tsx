@@ -70,7 +70,7 @@ export function Tabbar() {
         className={cn(
           "pointer-events-none fixed inset-x-0 bottom-0 z-30 flex touch-pan-y items-center gap-2.5 px-3.5 pb-[calc(var(--safe-bottom)+12px)]",
           // desktop: sidebar flutuante à esquerda, abaixo da barra de busca
-          "desktop:pointer-events-auto desktop:top-[calc(var(--topbar-h)+14px)] desktop:right-auto desktop:bottom-3.5 desktop:left-3.5 desktop:w-[var(--sidebar-w)] desktop:flex-col desktop:items-stretch desktop:justify-start desktop:gap-0.5 desktop:rounded-app desktop:border-[1.5px] desktop:border-line desktop:bg-card desktop:px-2.5 desktop:py-4 desktop:transition-[width] desktop:duration-[160ms] desktop:ease-[ease]",
+          "desktop:pointer-events-auto desktop:top-[calc(var(--topbar-h)+14px)] desktop:right-auto desktop:bottom-3.5 desktop:left-3.5 desktop:w-[var(--sidebar-w)] desktop:flex-col desktop:items-stretch desktop:justify-start desktop:gap-0.5 desktop:rounded-app desktop:border desktop:border-line desktop:bg-card desktop:px-2.5 desktop:py-4 desktop:transition-[width] desktop:duration-[160ms] desktop:ease-[ease]",
           "desktop:before:block desktop:before:px-2.5 desktop:before:pb-4 desktop:before:font-titulo desktop:before:text-2xl desktop:before:font-semibold desktop:before:tracking-[-0.01em] desktop:before:text-ink desktop:before:content-['Rotinas']",
           "desktop:recolhido:before:px-0 desktop:recolhido:before:pb-3 desktop:recolhido:before:text-center desktop:recolhido:before:text-xl desktop:recolhido:before:content-['R']",
           "electron:[-webkit-app-region:drag]"
@@ -89,4 +89,4 @@ export function Tabbar() {
 }
 
 const PILULA =
-  "pointer-events-auto flex h-[var(--tabbar-h)] flex-[1_1_auto] items-stretch rounded-pill border-[1.5px] border-line bg-card-blur p-[5px] backdrop-blur-[16px] backdrop-saturate-[1.15] desktop:contents";
+  "pointer-events-auto flex h-[var(--tabbar-h)] flex-[1_1_auto] items-stretch rounded-pill border border-line bg-card-blur p-[5px] backdrop-blur-[16px] backdrop-saturate-[1.15] desktop:contents";

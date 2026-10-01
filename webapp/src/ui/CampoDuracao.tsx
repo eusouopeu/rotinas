@@ -14,7 +14,7 @@ export function CampoDuracao({ unidade, className, ...resto }: Props) {
   return (
     <label
       className={cn(
-        "inline-flex cursor-text items-baseline gap-1 rounded-app-sm border-[1.5px] border-line bg-card-2 px-2.5 py-1.5 focus-within:border-caneta",
+        "inline-flex cursor-text items-baseline gap-1 rounded-app-sm border border-line bg-card px-2.5 py-1.5 focus-within:border-caneta",
         className
       )}
     >

@@ -9,7 +9,7 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../lib/cn";
 
 const redondo = cva(
-  "flex items-center justify-center rounded-full border-[1.5px] text-ink desktop:hover:border-caneta-soft desktop:hover:bg-card-2 desktop:hover:text-ink",
+  "flex items-center justify-center rounded-full border-0 text-ink desktop:hover:bg-chip-neutro desktop:hover:text-ink",
   {
     variants: {
       tamanho: {
@@ -18,9 +18,9 @@ const redondo = cva(
         grande: "size-[76px] border-0 text-[24px] paisagem:size-[58px] paisagem:text-3xl",
       },
       cor: {
-        neutro: "border-line bg-card",
+        neutro: "bg-card-2",
         destaque: "bg-caneta text-on-caneta",
-        ok: "border-ok bg-ok text-on-caneta",
+        ok: "bg-ok text-on-caneta",
       },
       pulso: { true: "animate-pulso", false: "" },
     },

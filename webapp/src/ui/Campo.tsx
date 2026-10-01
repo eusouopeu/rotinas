@@ -13,9 +13,9 @@ import { cn } from "../lib/cn";
 /** Campo pequeno de formulário em popup (era `.meta-form input`): fundo --card,
  *  13px, raio 9, ocupa a largura da célula. Reusado pelos campos digitados. */
 export const CAMPO_COMPACTO =
-  "w-full min-w-0 rounded-[9px] border-[1.5px] border-line bg-card px-2.5 py-2 font-sans text-md text-ink focus:border-caneta focus:outline-none disabled:opacity-[0.45]";
+  "w-full min-w-0 rounded-[9px] border border-line bg-card px-2.5 py-2 font-sans text-md text-ink focus:border-caneta focus:outline-none disabled:opacity-[0.45]";
 
-const campo = cva("border-[1.5px] border-line text-ink", {
+const campo = cva("border border-line text-ink", {
   variants: {
     variante: {
       formulario: "rounded-md bg-card-2 px-2.5 py-2 font-sans text-xl",
@@ -54,7 +54,7 @@ export function SelecaoLinha({ className, ...resto }: SelectHTMLAttributes<HTMLS
   return (
     <select
       className={cn(
-        "min-w-0 flex-1 rounded-md border-[1.5px] border-line bg-card px-2 py-[9px] text-base text-ink",
+        "min-w-0 flex-1 rounded-md border border-line bg-card px-2 py-[9px] text-base text-ink",
         className
       )}
       {...resto}

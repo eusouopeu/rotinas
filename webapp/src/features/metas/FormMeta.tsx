@@ -77,8 +77,8 @@ export function BotaoLigaForm({
       type="button"
       aria-pressed={ligado}
       className={cn(
-        "flex size-[34px] flex-none cursor-pointer items-center justify-center rounded-[9px] border-[1.5px]",
-        ligado ? "border-transparent bg-caneta text-on-caneta" : "border-line bg-card-2 text-sub",
+        "flex size-[34px] flex-none cursor-pointer items-center justify-center rounded-[9px] border-0",
+        ligado ? "bg-caneta text-on-caneta" : "bg-chip-neutro text-sub",
         className
       )}
       {...resto}
@@ -97,7 +97,7 @@ export function CaixaChips({ className, ...resto }: HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        "flex min-h-[38px] min-w-0 flex-wrap items-center gap-1 rounded-[9px] border-[1.5px] border-line bg-card px-1.5 py-0.5 focus-within:border-caneta",
+        "flex min-h-[38px] min-w-0 flex-wrap items-center gap-1 rounded-[9px] border border-line bg-card px-1.5 py-0.5 focus-within:border-caneta",
         className
       )}
       {...resto}

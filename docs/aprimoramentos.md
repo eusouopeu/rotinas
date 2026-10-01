@@ -43,6 +43,12 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Primeira abertura guiada: num app vazio, escolher áreas da roda e rotinas prontas – implementado em 30/09/2026
 - Redesenho pelos mockups do Pedro: cartões cápsula de rotina e meta (faixa da área, play em degradê, +/− empilhados), selo verde/vermelho da Roda da Vida, formulários de meta em grupos com áreas como chip, detalhe da rotina com etiquetas e deslizar etapa para editar/excluir – implementado em 30/09/2026
 - Visão Mês com resumo do dia tocado, Lista expandida em quadrados, cartão de nota compacto com data completa, editor de rotina com agendamento antes das etapas e calendário externo do Google corrigido – implementado em 30/09/2026
+- Projeção de conclusão da meta com prazo no ritmo dos últimos 14 dias – implementado em 01/10/2026
+- Meta recorrente ligada a uma rotina (concluir a rotina conta +1) – implementado em 01/10/2026
+- Fechar o dia: pendentes de hoje passam para amanhã ou são descartados – implementado em 01/10/2026
+- Check-in diário de energia (1–5) cruzado com o cumprimento em Dados – implementado em 01/10/2026
+- Lembrete de gastos às 21h nos dias sem despesa lançada – implementado em 01/10/2026
+- Estética minimalista concluída no React (superfícies por cor, sem bordas de 1,5px) e widgets redesenhados com as cores do app e toque direto na tela – implementado em 01/10/2026
 
 ## Recomendações refutadas
 
@@ -64,3 +70,10 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - Modelos de nota ao criar (ata, fichamento, plano de projeto) – refutada em 30/09/2026
 - Lixeira de 30 dias para notas e rotinas excluídas – refutada em 30/09/2026
 - Orçamento mensal por categoria nos gastos – refutada em 30/09/2026
+- Revisão espaçada de itens das metas com prazo (1/7/30 dias) – refutada em 01/10/2026
+- Sessão de foco avulsa creditando área ou meta – refutada em 01/10/2026
+- Aviso de rotina não iniciada 15 min após o horário – refutada em 01/10/2026
+- Não perturbe automático durante o player – refutada em 01/10/2026
+- Bloco nas configurações rápidas do Android para começar a próxima rotina – refutada em 01/10/2026
+- Três prioridades do dia no topo da aba Rotinas – refutada em 01/10/2026
+- Copiar o planejamento de um dia para outro – refutada em 01/10/2026

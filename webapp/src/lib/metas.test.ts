@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { criarEstadoGamificacaoInicial, inicioSemanaISO, localKey } from "./gamificacao";
 import {
+  projecaoMeta,
+  registrarProgressoDia,
   ajustarProgressoMetaRec,
   daysUntil,
   duplicarMetaRec,
@@ -575,5 +577,34 @@ describe("reancorarMetasRecSemana (troca do início da semana)", () => {
     expect(t.progresso).toEqual({ periodo: "semana:2026-09-21", feitas: 2 });
     expect(t.historico!.map((p) => p.periodo)).toEqual(["semana:2026-09-07", "semana:2026-09-14"]);
     expect(novo.recorrentes![1]).toBe(doc.recorrentes![1]);
+  });
+});
+
+describe("projeção da meta com prazo (01/10/2026)", () => {
+  it("usa o ritmo dos últimos 14 dias do registro diário", () => {
+    const t = {
+      date: "2026-10-31",
+      topics: 40,
+      done: 12,
+      createdAt: new Date(2026, 8, 1).getTime(),
+      progressoDias: { "2026-09-28": 7, "2026-09-25": 7 },
+    };
+    const p = projecaoMeta(t, "2026-10-01")!;
+    expect(p.ritmo).toBeCloseTo(1); // 14 itens em 14 dias
+    expect(p.dataISO).toBe("2026-10-29"); // faltam 28
+    expect(p.atrasa).toBe(false);
+  });
+
+  it("sem nada nos últimos dias fica parada e atrasa", () => {
+    const p = projecaoMeta(
+      { date: "2026-10-31", topics: 10, done: 2, createdAt: 0, progressoDias: { "2026-08-01": 2 } },
+      "2026-10-01"
+    )!;
+    expect(p).toEqual({ dataISO: null, atrasa: true, ritmo: 0 });
+  });
+
+  it("registrarProgressoDia soma no dia e descarta o que passou de 60 dias", () => {
+    const r = registrarProgressoDia({ progressoDias: { "2026-07-01": 3, "2026-10-01": 1 } }, 2, "2026-10-01");
+    expect(r).toEqual({ "2026-10-01": 3 });
   });
 });

@@ -103,7 +103,7 @@ export function EtapasRotina({
               <div className="flex items-center justify-between gap-2 pt-0.5 pb-2 pl-3">
                 <Legenda>A média real é {semSinal(s.medAct)}.</Legenda>
                 <button
-                  className="rounded-lg border-[1.5px] border-dashed border-caneta-soft bg-card-2 px-3 py-[5px] font-sans text-md text-caneta"
+                  className="rounded-lg border border-dashed border-caneta-soft bg-card-2 px-3 py-[5px] font-sans text-md text-caneta"
                   onClick={() => onAjustar(s)}
                 >
                   ajustar para {s.newSecLabel}

@@ -63,7 +63,7 @@ function MiniCalendario({ rec }: { rec: MetaRecorrente }) {
     {
       p: atual,
       rotulo: `${txt(atual)}, em curso`,
-      classe: cn("border-[1.5px] border-line", !rec.negativa && metaRecCumprido(rec, atual) && "border-ok bg-ok"),
+      classe: cn("border border-line", !rec.negativa && metaRecCumprido(rec, atual) && "border-ok bg-ok"),
     },
   ];
   const detalhe = itens.find((x) => x.p.periodo === aberto);

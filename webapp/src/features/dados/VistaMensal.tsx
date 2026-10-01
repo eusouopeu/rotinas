@@ -6,6 +6,7 @@ import { ritmoInfo } from "../../lib/boletim";
 import type { GamificacaoState, Routine, Snooze } from "../../lib/types";
 import { CalendarioMes } from "./Calendarios";
 import { DetalheDia } from "./DetalheDia";
+import { CartaoEnergia } from "./Energia";
 import { ExtrasPeriodo } from "./ExtrasPeriodo";
 import { NavPeriodo } from "./NavPeriodo";
 import { NO_PAINEL } from "./colunas";
@@ -106,6 +107,7 @@ export function VistaMensal({ history, routines, snoozes, gam, weekStart, estado
       />
 
       {selectedDay && <DetalheDia dia={selectedDay} history={history} routines={routines} snoozes={snoozes} />}
+      <CartaoEnergia dias={gridData.days} />
       <ExtrasPeriodo
         periodo="30d"
         history={history}

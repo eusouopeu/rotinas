@@ -17,7 +17,7 @@ export function BotaoEscolha({
     <button
       type="button"
       className={cn(
-        "mt-2 inline-flex max-w-full items-center gap-1.5 rounded-app-sm border-[1.5px] border-dashed border-line bg-transparent px-2.5 py-1.5 font-sans text-md text-caneta [&>span]:truncate [&>svg:last-child]:shrink-0 [&>svg:last-child]:text-sub",
+        "mt-2 inline-flex max-w-full items-center gap-1.5 rounded-app-sm border border-dashed border-line bg-transparent px-2.5 py-1.5 font-sans text-md text-caneta [&>span]:truncate [&>svg:last-child]:shrink-0 [&>svg:last-child]:text-sub",
         escolhido && "border-solid text-ink [&>svg:first-child]:text-caneta",
         className
       )}
@@ -43,7 +43,7 @@ export function CampoExercicio({
     <label
       title={titulo}
       className={cn(
-        "grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-1 gap-y-0.5 rounded-app-sm border-[1.5px] border-line bg-card-2 px-2 py-1.5 text-sub focus-within:border-caneta focus-within:text-caneta [&_svg]:shrink-0",
+        "grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-1 gap-y-0.5 rounded-app-sm border border-line bg-card-2 px-2 py-1.5 text-sub focus-within:border-caneta focus-within:text-caneta [&_svg]:shrink-0",
         desligado && "opacity-50"
       )}
     >

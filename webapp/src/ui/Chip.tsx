@@ -11,7 +11,7 @@ export function Chip({ ativo, cor = "var(--caneta)", variante = "area", classNam
     <span
       style={{ "--chip": cor, ...style } as React.CSSProperties}
       className={cn(
-        "cursor-pointer border-[1.5px] font-sans",
+        "cursor-pointer border font-sans",
         variante === "tag"
           ? cn(
               "rounded-xl px-[11px] py-[5px] text-md",
@@ -19,7 +19,7 @@ export function Chip({ ativo, cor = "var(--caneta)", variante = "area", classNam
             )
           : cn(
               "rounded-pill px-[9px] py-[5px] text-xs",
-              ativo ? "border-(--chip) bg-transparent text-(color:--chip)" : "border-line bg-card-2 text-sub"
+              ativo ? "border-(--chip) bg-transparent text-(color:--chip)" : "border-transparent bg-card-2 text-sub"
             ),
         className
       )}

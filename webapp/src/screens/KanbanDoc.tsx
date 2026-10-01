@@ -59,7 +59,7 @@ export function KanbanDoc({ doc }: { doc: KanbanDocType }) {
         {doc.cols.map((c, ci) => (
           <div
             className={cn(
-              "flex max-h-[min(46vh,360px)] min-h-0 w-full flex-none flex-col rounded-[14px] border-[1.5px] border-line bg-card p-2.5 paisagem:max-h-none paisagem:w-auto paisagem:min-w-0 paisagem:flex-[1_1_0]",
+              "flex max-h-[min(46vh,360px)] min-h-0 w-full flex-none flex-col rounded-[14px] bg-card-2 p-2.5 paisagem:max-h-none paisagem:w-auto paisagem:min-w-0 paisagem:flex-[1_1_0]",
               dragOver?.container === ci && "border-caneta-2"
             )}
             key={ci}

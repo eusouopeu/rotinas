@@ -11,6 +11,8 @@ import { TAG_OPCOES } from "./constantes";
 import { BotaoLigaForm, CaixaChips, CelulaForm, DivisorForm, FormMeta, IconeForm, LinhaForm, SepForm } from "./FormMeta";
 import { Etiqueta } from "../../ui/Etiqueta";
 import { Icon } from "../../components/Icon";
+import { useAppStore } from "../../store/useAppStore";
+import { Selecao } from "../../ui/Selecao";
 
 type Props = {
   rec: MetaRecorrente | null;
@@ -27,6 +29,8 @@ export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
   const [pontua, setPontua] = useState(rec?.pontua ?? false);
   const [tagValor, setTagValor] = useState<Tag>(rec?.tagValor ?? "medio");
   const [area, setArea] = useState<string | null>(rec?.area ?? null);
+  const [rotinaId, setRotinaId] = useState<string | null>(rec?.rotinaId ?? null);
+  const rotinas = useAppStore((s) => s.routines).filter((r) => !r.arquivada || r.id === rotinaId);
   const [notifOn, setNotifOn] = useState(!!rec?.notif);
   const [notifIni, setNotifIni] = useState(rec?.notif?.inicio ?? "08:00");
   const [notifFim, setNotifFim] = useState(rec?.notif?.fim ?? "18:00");
@@ -35,7 +39,17 @@ export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
     const t = titulo.trim();
     if (!t) return;
     const notif = tipo === "diaria" && notifOn && notifIni && notifFim ? { inicio: notifIni, fim: notifFim } : null;
-    onSave({ titulo: t, tipo, vezes: Math.max(1, vezes || 1), area, notif, negativa, pontua, tagValor });
+    onSave({
+      titulo: t,
+      tipo,
+      vezes: Math.max(1, vezes || 1),
+      area,
+      notif,
+      negativa,
+      pontua,
+      tagValor,
+      rotinaId: negativa ? null : rotinaId,
+    });
   }
 
   const lembrando = tipo === "diaria" && notifOn;
@@ -136,6 +150,25 @@ export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
               }}
             />
           </CaixaChips>
+        </LinhaForm>
+      )}
+
+      {!negativa && rotinas.length > 0 && (
+        <LinhaForm>
+          <IconeForm icone="play" titulo="Concluir esta rotina conta +1 na meta" />
+          <Selecao
+            aria-label="Rotina ligada"
+            className="min-w-0 flex-[1_1_0]"
+            value={rotinaId || ""}
+            onChange={(e) => setRotinaId(e.target.value || null)}
+          >
+            <option value="">Sem rotina ligada</option>
+            {rotinas.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Selecao>
         </LinhaForm>
       )}
 

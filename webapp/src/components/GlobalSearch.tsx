@@ -125,7 +125,7 @@ export function GlobalSearch() {
       <select
         value={peso}
         onChange={(e) => setPeso(e.target.value)}
-        className="mb-2.5 w-full rounded-md border-[1.5px] border-line bg-card-2 px-1.5 py-2 text-md text-ink"
+        className="mb-2.5 w-full rounded-md border border-line bg-card-2 px-1.5 py-2 text-md text-ink"
       >
         <option value="">peso: todos</option>
         {(Object.entries(TAG_LABEL) as Array<[Tag, string]>).map(([k, v]) => (

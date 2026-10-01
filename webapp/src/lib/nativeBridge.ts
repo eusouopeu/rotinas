@@ -151,6 +151,11 @@ export interface LocalNotificationsPlugin {
       schedule?: { at: Date; allowWhileIdle?: boolean } | { on: { weekday?: number; hour: number; minute: number } };
     }>;
   }): Promise<void>;
+  /** Toque na notificação (app aberto ou aberto por ela). */
+  addListener?(
+    evento: "localNotificationActionPerformed",
+    cb: (a: { notification: { extra?: Record<string, unknown> } }) => void
+  ): unknown;
 }
 
 export interface TimerOverlayQueueItem {

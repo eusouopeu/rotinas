@@ -190,7 +190,7 @@ export function AgendaSemana() {
                     {iso.slice(8, 10)}/{iso.slice(5, 7)}
                   </span>
                 </div>
-                <div className="max-h-[min(60vh,620px)] overflow-y-auto rounded-app-sm border-[1.5px] border-line bg-card pt-3 pr-2.5 pb-0 pl-1">
+                <div className="max-h-[min(60vh,620px)] overflow-y-auto rounded-app-sm border border-line bg-card pt-3 pr-2.5 pb-0 pl-1">
                   <GradeDia
                     layout={layout}
                     ocultarRotulos={d > 0}

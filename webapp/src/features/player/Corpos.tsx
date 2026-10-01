@@ -73,7 +73,7 @@ function CampoSerie({
     <label className="flex flex-col items-center gap-1 text-sm text-sub">
       {rotulo}
       <input
-        className={cn("rounded-[10px] border-[1.5px] border-line bg-card-2 p-2 text-center text-2xl text-ink", largura)}
+        className={cn("rounded-[10px] border border-line bg-card-2 p-2 text-center text-2xl text-ink", largura)}
         {...input}
       />
     </label>

@@ -12,7 +12,7 @@ import android.widget.RemoteViews;
 /**
  * Widget sem configuração: mostra a nota do boletim da semana (mesmo número do
  * card "Boletim da semana" na home) e se está adiantado/no ritmo/atrasado.
- * Um toque abre o app.
+ * Um toque abre o Boletim.
  */
 public class WeekScoreWidgetProvider extends AppWidgetProvider {
 
@@ -30,20 +30,20 @@ public class WeekScoreWidgetProvider extends AppWidgetProvider {
         v.setViewVisibility(R.id.weekScoreEmpty, r.temSemana ? android.view.View.GONE : android.view.View.VISIBLE);
         v.setViewVisibility(R.id.weekScoreNumero, r.temSemana ? android.view.View.VISIBLE : android.view.View.GONE);
         v.setViewVisibility(R.id.weekScoreLabel, r.temSemana ? android.view.View.VISIBLE : android.view.View.GONE);
+        v.setViewVisibility(R.id.weekScoreEsperado, r.temSemana ? android.view.View.VISIBLE : android.view.View.GONE);
         if (r.temSemana) {
             v.setTextViewText(R.id.weekScoreNumero, String.valueOf(Math.round(r.nota)));
+            // mesmo selo da Roda da Vida no app: verde no ritmo ou acima do
+            // esperado para hoje, vermelho abaixo
+            v.setTextColor(R.id.weekScoreNumero,
+                    ctx.getColor(r.nota >= r.esperado ? R.color.widget_ok : R.color.widget_erro));
+            v.setTextViewText(R.id.weekScoreEsperado, "de " + Math.round(r.esperado) + " esperados");
             v.setTextColor(R.id.weekScoreLabel, r.corLabel);
             String diasTxt = r.diasRestantes == 1 ? "1 dia restante" : (r.diasRestantes + " dias restantes");
             v.setTextViewText(R.id.weekScoreLabel, r.label + " · " + diasTxt);
         }
 
-        Intent open = new Intent(ctx, MainActivity.class);
-        open.setAction(Intent.ACTION_MAIN);
-        open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        PendingIntent pi = PendingIntent.getActivity(ctx, widgetId, open, flags);
+        PendingIntent pi = WidgetAbrir.em(ctx, widgetId, WidgetAbrir.BOLETIM);
         v.setOnClickPendingIntent(R.id.widgetRoot, pi);
 
         mgr.updateAppWidget(widgetId, v);

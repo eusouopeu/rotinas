@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Botão redondo de iniciar, no gradiente do app -->
+<!-- Botão redondo de iniciar: o mesmo degradê roxo do play do app -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
     <gradient
-        android:startColor="#EC6AA8"
-        android:endColor="#5B8DEF"
-        android:angle="315" />
+        android:startColor="@color/widget_caneta_grad"
+        android:endColor="@color/widget_caneta"
+        android:angle="290" />
 </shape>

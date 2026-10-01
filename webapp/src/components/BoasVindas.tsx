@@ -87,7 +87,7 @@ export function BoasVindas() {
                   aria-checked={on}
                   onClick={() => setRotinas(alternar(rotinas, t.name))}
                   className={cn(
-                    "flex w-full items-center gap-2.5 rounded-app-sm border-[1.5px] bg-card px-3.5 py-2.5 text-left text-ink",
+                    "flex w-full items-center gap-2.5 rounded-app-sm border bg-card px-3.5 py-2.5 text-left text-ink",
                     on ? "border-caneta" : "border-line"
                   )}
                 >

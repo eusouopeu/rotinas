@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Widget sem configuração: lista as metas recorrentes diárias (aba Metas →
  * Recorrentes → "ao dia") com o progresso de hoje. Até 4 linhas — o mesmo
- * espaço de um widget 4x2 já cabe folgado. Um toque abre o app.
+ * espaço de um widget 4x2 já cabe folgado. Um toque abre a aba Metas.
  */
 public class DailyGoalWidgetProvider extends AppWidgetProvider {
 
@@ -42,19 +42,13 @@ public class DailyGoalWidgetProvider extends AppWidgetProvider {
                 v.setViewVisibility(ROW_WRAP_IDS[i], android.view.View.VISIBLE);
                 v.setTextViewText(ROW_TITLE_IDS[i], g.titulo);
                 v.setTextViewText(ROW_PROG_IDS[i], g.progresso());
-                v.setTextColor(ROW_PROG_IDS[i], g.cor());
+                v.setTextColor(ROW_PROG_IDS[i], g.cor(ctx));
             } else {
                 v.setViewVisibility(ROW_WRAP_IDS[i], android.view.View.GONE);
             }
         }
 
-        Intent open = new Intent(ctx, MainActivity.class);
-        open.setAction(Intent.ACTION_MAIN);
-        open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        PendingIntent pi = PendingIntent.getActivity(ctx, widgetId, open, flags);
+        PendingIntent pi = WidgetAbrir.em(ctx, widgetId, WidgetAbrir.METAS);
         v.setOnClickPendingIntent(R.id.widgetRoot, pi);
 
         mgr.updateAppWidget(widgetId, v);

@@ -11,6 +11,7 @@ import {
   metaDiasLabel,
   metaEscopo,
   metaPontosTotais,
+  projecaoMeta,
 } from "../../lib/metas";
 import type { MetaTarget } from "../../lib/types";
 import { cn } from "../../lib/cn";
@@ -38,6 +39,7 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
   const creditadoPts = metaCreditado(t);
   const diasLabel = metaDiasLabel(t, DIAS_ABREV);
   const pace = cdPace(t);
+  const proj = feita ? null : projecaoMeta(t);
   const areas = t.areas || [];
   const corPonto = areas.length ? metaAreaInfo(areas[0], gam.config.roda.areas).color : "var(--caneta)";
 
@@ -87,7 +89,28 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
             <b className="font-titulo">&Sigma;</b> {pace.txt}
           </Fato>
         )}
+        {proj && (
+          <Fato
+            data-meta="projecao"
+            className={proj.atrasa ? "text-erro" : "text-ok"}
+            title={
+              proj.dataISO
+                ? `No ritmo dos últimos dias (${proj.ritmo.toFixed(1).replace(".", ",")}/dia)`
+                : "Nada feito nos últimos 14 dias"
+            }
+          >
+            <Icon name="arrowRight" size={13} />{" "}
+            {proj.dataISO
+              ? `no ritmo atual: ${proj.dataISO.split("-").reverse().slice(0, 2).join("/")}` +
+                (proj.atrasa ? ` (${diasEntre(t.date, proj.dataISO)}d depois)` : "")
+              : "parada"}
+          </Fato>
+        )}
       </Fatos>
     </CartaoMeta>
   );
+}
+
+function diasEntre(a: string, b: string): number {
+  return Math.round((new Date(b + "T12:00:00").getTime() - new Date(a + "T12:00:00").getTime()) / 86400000);
 }

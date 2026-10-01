@@ -59,7 +59,7 @@ export function LinhaBarra({
       <div
         className={cn(
           "h-2 flex-1 rounded-[4px]",
-          trilho === "faixa" ? "bg-card" : "bg-card-2",
+          "bg-card",
           marcador === "meta" ? "relative overflow-visible" : "overflow-hidden",
           marcador === "esperado" && "relative"
         )}
@@ -111,7 +111,7 @@ export function GradeBarras({ className, ...resto }: HTMLAttributes<HTMLDivEleme
 /** Trilho de barra avulso (fora de uma linha): nota da semana, progresso. */
 export function TrilhoBarra({ pct, cor, className }: { pct: number; cor?: string; className?: string }) {
   return (
-    <div className={cn("h-2 overflow-hidden rounded-[4px] bg-card-2", className)}>
+    <div className={cn("h-2 overflow-hidden rounded-[4px] bg-card", className)}>
       <div
         className="h-full rounded-[4px] bg-caneta"
         style={{ width: `${pct}%`, ...(cor ? { background: cor } : {}) }}

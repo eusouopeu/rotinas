@@ -305,6 +305,8 @@ export interface AppState {
     iso: string,
     card: { id?: string; text: string; hIni?: string; hFim?: string; tagValor?: Tag; eixo?: string | null }
   ) => void;
+  /** Fechar o dia: leva o compromisso/cartão pendente para amanhã. */
+  passarParaAmanha: (tipo: "compromisso" | "cartao", id: string) => void;
   toggleDiaKanbanCard: (id: string) => void;
   deleteDiaKanbanCard: (id: string) => void;
 

@@ -3,7 +3,7 @@
 // para outra fase: são um sub-sistema de pontuação à parte, não uma variação
 // pequena deste. Sub-metas (parentId/bloqueio) e áreas da roda da vida também
 // ficam de fora por ora.
-import { inicioSemanaISO, localKey, tagMultiplicador, trimestreDe } from "./gamificacao";
+import { addDaysISO, inicioSemanaISO, isoToDate, localKey, tagMultiplicador, trimestreDe } from "./gamificacao";
 import { K_METASSUBVIEW, K_METASSUBVIEWSEL } from "./constants";
 import type { CountdownDoc, GamificacaoState, MetaEscopo, MetaRecProgresso, MetaRecorrente, MetaTarget } from "./types";
 
@@ -442,4 +442,57 @@ export function toggleMetasSubview(current: MetasSubview[], view: MetasSubview):
     return current.filter((v) => v !== view);
   }
   return [...current, view];
+}
+
+/** Guarda o saldo do dia em `progressoDias` (mantém só os últimos 60 dias). */
+export function registrarProgressoDia(
+  t: Pick<MetaTarget, "progressoDias">,
+  delta: number,
+  hojeISO: string = localKey()
+): Record<string, number> {
+  const corte = addDaysISO(hojeISO, -60);
+  const out: Record<string, number> = {};
+  Object.entries(t.progressoDias || {}).forEach(([k, v]) => {
+    if (k >= corte) out[k] = v;
+  });
+  if (delta) out[hojeISO] = (out[hojeISO] || 0) + delta;
+  if (out[hojeISO] === 0) delete out[hojeISO];
+  return out;
+}
+
+export interface ProjecaoMeta {
+  /** data prevista de conclusão no ritmo atual (null = parada) */
+  dataISO: string | null;
+  /** termina depois do prazo (ou está parada) */
+  atrasa: boolean;
+  /** itens por dia usados na conta */
+  ritmo: number;
+}
+
+/** Projeção "no ritmo atual" (recomendação 2 de 30/09/2026): ritmo dos
+ *  últimos 14 dias pelo registro diário; sem registro ainda (meta antiga),
+ *  a média desde a criação. Null quando não há quantidade ou já acabou. */
+export function projecaoMeta(
+  t: Pick<MetaTarget, "date" | "topics" | "done" | "createdAt" | "progressoDias">,
+  hojeISO: string = localKey()
+): ProjecaoMeta | null {
+  if (t.topics == null) return null;
+  const restante = Math.max(0, t.topics - (t.done || 0));
+  if (restante === 0) return null;
+  const criada = localKey(new Date(t.createdAt || Date.now()));
+  const diasDeVida = Math.max(
+    1,
+    Math.round((isoToDate(hojeISO).getTime() - isoToDate(criada).getTime()) / 86400000) + 1
+  );
+  let ritmo: number;
+  const log = t.progressoDias || {};
+  if (Object.keys(log).length) {
+    const janela = Math.min(14, diasDeVida);
+    const ini = addDaysISO(hojeISO, -(janela - 1));
+    const feito = Object.entries(log).reduce((s, [k, v]) => (k >= ini && k <= hojeISO ? s + v : s), 0);
+    ritmo = Math.max(0, feito) / janela;
+  } else ritmo = (t.done || 0) / diasDeVida;
+  if (ritmo <= 0) return { dataISO: null, atrasa: true, ritmo: 0 };
+  const dataISO = addDaysISO(hojeISO, Math.ceil(restante / ritmo));
+  return { dataISO, atrasa: dataISO > t.date, ritmo };
 }

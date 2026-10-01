@@ -178,7 +178,7 @@ export function Boletim() {
               onChange={(e) => setHorasDraft(e.target.value)}
               onBlur={commitHoras}
               onKeyDown={(e) => e.key === "Enter" && commitHoras()}
-              className="w-[50px] px-1 py-0.5"
+              className="w-[50px] rounded-md border border-line bg-card px-1.5 py-0.5 text-ink"
             />{" "}
             horas/semana disponíveis para rotinas
             {estourouOrcamento && (

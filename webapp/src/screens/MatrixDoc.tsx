@@ -15,7 +15,7 @@ import { tela } from "../ui/Tela";
 
 type Quadrant = MatrixDocType["quadrants"][number];
 
-const CAMPO_EIXO = "flex-1 rounded-[9px] border-[1.5px] border-line bg-card px-2.5 py-2 text-md text-ink";
+const CAMPO_EIXO = "flex-1 rounded-[9px] border border-line bg-card px-2.5 py-2 text-md text-ink";
 
 export function MatrixDoc({ doc }: { doc: MatrixDocType }) {
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);

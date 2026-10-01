@@ -4,6 +4,7 @@
 // em memória que o app antigo usa, sem depender de URL.
 import { useEffect } from "react";
 import { atualizarIcalSeVencido } from "./lib/ical";
+import { syncLembreteGasto, TAG_LEMBRETE_GASTO } from "./lib/lembreteGasto";
 import { useAppStore } from "./store/useAppStore";
 import { computeRemaining } from "./lib/player";
 import { isDesktop } from "./lib/storage";
@@ -246,11 +247,23 @@ export function App() {
       const s = useAppStore.getState();
       if (id === ATALHO_NOTA) s.openNote(null);
       else if (id === ATALHO_DESPESA) s.goTo({ tab: "templates", screen: "expenseFolder", id: "nova" });
+      // toque nos widgets (01/10/2026): cada um abre a sua tela
+      else if (id === "acao:rotinas") s.goTo({ tab: "home", screen: "home" });
+      else if (id === "acao:boletim") s.goTo({ tab: "home", screen: "boletim" });
+      else if (id === "acao:metas") s.goTo({ tab: "metas", screen: "metas" });
       else if (s.routines.some((r) => r.id === id)) s.startPlayer(id);
     });
     publicarAtalhos(useAppStore.getState().routines);
+    // lembrete de gastos das 21h: replaneja ao abrir e a cada mudança nas
+    // despesas; o toque na notificação abre a Nova despesa
+    syncLembreteGasto(useAppStore.getState().templates);
+    window.Capacitor?.Plugins.LocalNotifications?.addListener?.("localNotificationActionPerformed", (a) => {
+      if (a?.notification?.extra?.brita === TAG_LEMBRETE_GASTO)
+        useAppStore.getState().goTo({ tab: "templates", screen: "expenseFolder", id: "nova" });
+    });
     return useAppStore.subscribe((s, antes) => {
       if (s.routines !== antes.routines) publicarAtalhos(s.routines);
+      if (s.templates !== antes.templates) syncLembreteGasto(s.templates);
     });
   }, [booted]);
 

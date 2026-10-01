@@ -21,3 +21,5 @@ Android espelha motor e `SYNCED_KEYS` em Java, usa a pasta `brita-sync`, Filesys
 ## Campos novos sem coleção nova (30/09/2026)
 
 Despesa fixa vive em `templates` (tipo `expense`): a original ganha `recorrente`/`recUltimo` e cada cópia mensal tem id determinístico `<id da original>:<AAAA-MM>` com `origemRec` — dois aparelhos que lançam o mesmo mês geram o mesmo id e o merge por `id` não duplica. Rotina arquivada é `arquivada: true` + pausa até `9999-12-31` em `routines`; `gam.ultimoMesVisto` segue a gamificação. `K_BOASVINDAS` (primeira abertura já vista) é preferência local, fora do backup e do sync.
+
+Campos novos de 01/10/2026, também sem coleção nova: energia do dia vive no mapa `diario` sob `energia:AAAA-MM-DD` ("1".."5", `lib/energia.ts`) — entra no backup e no merge por chave do diário; meta com prazo ganhou `progressoDias` (saldo por dia, últimos 60) e meta recorrente `rotinaId`, ambos dentro do doc de metas em `templates`. `K_FECHAMENTODIA` (dia em que o "Fechar o dia" foi dispensado) e `K_LEMBRETEGASTO` (lembrete de gastos ligado) são preferências locais, fora do backup e do sync.

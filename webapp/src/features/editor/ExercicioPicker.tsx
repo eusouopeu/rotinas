@@ -54,7 +54,7 @@ export function ExercicioPickerModal({ onClose, onPick }: { onClose: () => void;
           {lista.map((ex) => (
             <div
               key={ex.id}
-              className="flex w-full flex-row items-center justify-between gap-1.5 rounded-app-sm border-[1.5px] border-line bg-card-2 px-[11px] py-[9px] text-left text-ink active:scale-[0.985] active:bg-card"
+              className="flex w-full flex-row items-center justify-between gap-1.5 rounded-app-sm border-0 bg-card-2 px-[11px] py-[9px] text-left text-ink active:scale-[0.985] active:bg-card"
             >
               <button
                 className="flex-1 overflow-hidden border-0 bg-transparent p-0 text-left text-ellipsis whitespace-nowrap [color:inherit] [font:inherit]"

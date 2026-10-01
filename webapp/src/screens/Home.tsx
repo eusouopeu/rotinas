@@ -15,6 +15,8 @@ import { AgendaMes } from "../features/rotinas/AgendaMes";
 import { CartaoRotina } from "../features/rotinas/CartaoRotina";
 import { CartaoFixo } from "../features/rotinas/CartaoFixo";
 import { AvisoBackup } from "../features/rotinas/AvisoBackup";
+import { FechamentoDia } from "../features/rotinas/FechamentoDia";
+import { CheckinEnergia } from "../features/rotinas/CheckinEnergia";
 import { SelecaoArea } from "../features/rotinas/SelecaoArea";
 import { TarefaPopup } from "../features/rotinas/TarefaPopup";
 import { rotinaCabeEmHoje, rotinasOrdenadas } from "../lib/routines";
@@ -110,6 +112,10 @@ export function Home() {
         <RodaVidaResumo />
 
         <AvisoBackup />
+
+        <FechamentoDia />
+
+        <CheckinEnergia />
 
         {rotinaEmAndamento && (
           <CartaoFixo
@@ -332,7 +338,7 @@ export function Home() {
               <button
                 key={tpl.name}
                 type="button"
-                className="flex w-full items-center gap-2.5 rounded-app-sm border-[1.5px] border-line bg-card px-3.5 py-3 text-left text-ink active:bg-card-2"
+                className="flex w-full items-center gap-2.5 rounded-app-sm border-0 bg-card-2 px-3.5 py-3 text-left text-ink active:bg-chip-neutro"
                 onClick={() => {
                   const r = montarRotinaPronta(tpl, exercicios, (nome, grupo) =>
                     upsertExercicio({ nome, grupos: [grupo], pesoAtual: 0 })

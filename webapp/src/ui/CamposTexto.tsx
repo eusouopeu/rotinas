@@ -8,7 +8,7 @@ import { CAMPO_COMPACTO } from "./Campo";
 
 /** Caixa do campo de hora avulso (era .time-kb-input): 66px, centralizado. */
 const CAMPO_HORA_SOLTO =
-  "w-[66px] rounded-lg border-[1.5px] border-line bg-card-2 px-[9px] py-[7px] text-center font-sans text-base text-ink focus:border-caneta focus:outline-none";
+  "w-[66px] rounded-lg border border-line bg-card px-[9px] py-[7px] text-center font-sans text-base text-ink focus:border-caneta focus:outline-none";
 
 export type VarianteCampoDigitado = "solto" | "formulario";
 const caixa = (v: VarianteCampoDigitado) => (v === "solto" ? CAMPO_HORA_SOLTO : CAMPO_COMPACTO);
@@ -208,7 +208,7 @@ export function AreaInput({
         }}
       />
       {aberto && sugestoes.length > 0 && (
-        <div className="absolute inset-x-0 top-[calc(100%+4px)] z-[5] flex max-h-[180px] flex-col overflow-y-auto rounded-[9px] border-[1.5px] border-line bg-card p-1">
+        <div className="absolute inset-x-0 top-[calc(100%+4px)] z-[5] flex max-h-[180px] flex-col overflow-y-auto rounded-[9px] border border-line bg-card p-1">
           {sugestoes.map((a) => (
             <span
               key={a}

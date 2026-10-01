@@ -336,7 +336,7 @@ function LinhaMd({
           <Negrito text={l.text} />
         </span>
         {toggle && !toggle.aberto && toggle.ocultas > 0 && (
-          <span className="ml-1.5 rounded-pill border-[1.5px] border-line px-[7px] font-sans text-sm font-medium text-sub tabular-nums">
+          <span className="ml-1.5 rounded-pill border border-line px-[7px] font-sans text-sm font-medium text-sub tabular-nums">
             {toggle.ocultas}
           </span>
         )}

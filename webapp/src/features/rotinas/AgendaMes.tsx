@@ -103,7 +103,7 @@ export function AgendaMes({ onAbrirDia }: { onAbrirDia: (iso: string) => void })
                 aria-pressed={sel}
                 onClick={() => setAberto(sel ? null : iso)}
                 className={cn(
-                  "flex min-h-[84px] min-w-0 flex-col items-stretch gap-[3px] rounded-app-sm border-[1.5px] px-0.5 pt-1 pb-1",
+                  "flex min-h-[84px] min-w-0 flex-col items-stretch gap-[3px] rounded-app-sm border px-0.5 pt-1 pb-1",
                   sel ? "bg-caneta-soft" : "bg-transparent",
                   ehHoje ? "border-caneta" : "border-transparent",
                   passado && !sel && "opacity-75"
@@ -207,7 +207,7 @@ function ResumoDia({
               className="flex w-full items-center gap-2.5 border-0 bg-transparent py-1.5 text-left font-sans"
             >
               <span
-                className="size-2.5 flex-none rounded-full border-[1.5px]"
+                className="size-2.5 flex-none rounded-full border"
                 style={{
                   borderColor: it.cor || "var(--caneta)",
                   background: it.feito ? it.cor || "var(--caneta)" : "transparent",

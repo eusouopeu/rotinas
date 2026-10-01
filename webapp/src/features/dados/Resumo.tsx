@@ -13,7 +13,7 @@ export function ResumoGrade({ tiles, rodape }: { tiles: TileResumo[]; rodape: Re
   return (
     <div className={cn("mb-3 grid grid-cols-4 gap-1.5", NO_PAINEL)}>
       {tiles.map((t) => (
-        <div key={t.l} className="min-w-0 rounded-app-sm border-[1.5px] border-line bg-card px-1 py-2 text-center">
+        <div key={t.l} className="min-w-0 rounded-app-sm bg-card px-1 py-2 text-center">
           <div className="font-titulo text-2xl font-bold whitespace-nowrap text-ink">{t.v}</div>
           <div className={PEQUENO}>{t.l}</div>
           <div
@@ -40,7 +40,7 @@ export function KpiGrade({ tiles }: { tiles: Array<{ v: string; l: string; tom?:
   return (
     <div className="mb-3 grid grid-cols-3 gap-2">
       {tiles.map((t) => (
-        <div key={t.l} className="min-w-0 rounded-app-sm border-[1.5px] border-line bg-card px-1 py-2.5 text-center">
+        <div key={t.l} className="min-w-0 rounded-app-sm bg-card px-1 py-2.5 text-center">
           <div className={cn("font-titulo text-4xl font-bold whitespace-nowrap text-ink", t.tom && COR_KPI[t.tom])}>
             {t.v}
           </div>

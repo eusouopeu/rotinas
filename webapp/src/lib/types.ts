@@ -152,6 +152,9 @@ export interface MetaTarget {
   // dias para trabalhar a meta; vazio/ausente = todo dia (index.html:7947-7951)
   dias?: number[];
   creditos?: Record<string, number>; // período (ver periodoDeEscopo) -> pontos já creditados
+  /** Itens feitos por dia ("AAAA-MM-DD" -> saldo do dia), últimos 60 dias —
+   *  alimenta a projeção "no ritmo atual" (01/10/2026). */
+  progressoDias?: Record<string, number>;
 }
 
 export interface MetaRecNotif {
@@ -207,6 +210,8 @@ export interface MetaRecorrente {
   /** Períodos já fechados, mais antigo primeiro (no máximo
    * METAREC_HISTORICO_MAX; períodos sem registro entram com feitas = 0). */
   historico?: MetaRecProgresso[];
+  /** Rotina ligada (01/10/2026): concluí-la conta +1 nesta meta. */
+  rotinaId?: string | null;
 }
 
 export interface CountdownDoc {

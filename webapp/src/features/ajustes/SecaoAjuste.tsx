@@ -35,7 +35,7 @@ export function SecaoAjuste({
   const [aberta, setAberta] = useState(false);
   if (filtro.trim() && !normaliza(titulo + " " + (busca || "")).includes(normaliza(filtro.trim()))) return null;
   return (
-    <div className="mb-2.5 overflow-hidden rounded-app border-[1.5px] border-line bg-card">
+    <div className="mb-2.5 overflow-hidden rounded-app bg-card-2">
       <button
         aria-expanded={aberta}
         onClick={() => setAberta((v) => !v)}

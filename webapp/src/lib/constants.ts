@@ -45,6 +45,10 @@ export const K_METASSUBVIEWSEL = "rotinas_v2_metas_subview_sel";
 export const K_HOMEVIEW = "rotinas_v2_homeview";
 // primeira abertura guiada já vista (30/09/2026) — local, fora do backup/sync
 export const K_BOASVINDAS = "rotinas_v2_boasvindas";
+/** dia (ISO) em que o "Fechar o dia" foi dispensado — preferência local, fora do backup */
+export const K_FECHAMENTODIA = "rotinas_v2_fechamentodia";
+/** lembrete de gastos às 21h ligado (preferência local, fora do backup) */
+export const K_LEMBRETEGASTO = "rotinas_v2_lembretegasto";
 export const K_RODARESUMOABERTO = "rotinas_v2_roda_resumo_aberto";
 // títulos recolhidos das notas simples ({ [noteId]: chaves de título }) —
 // preferência de UI, fora do backup como K_RODARESUMOABERTO.

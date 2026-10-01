@@ -8,22 +8,24 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="14dp">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="6dp"
-        android:textColor="#8A8478"
-        android:textSize="10sp"
+        android:textColor="@color/widget_caneta"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.06"
         android:textAllCaps="true"
-        android:text="Metas" />
+        android:text="Metas de hoje" />
 
     <TextView
         android:id="@+id/goalEmpty"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#8A8478"
+        android:textColor="@color/widget_sub"
         android:textSize="12sp"
         android:visibility="gone"
         android:text="Nenhuma meta cadastrada" />
@@ -36,10 +38,10 @@
         android:paddingTop="3dp"
         android:paddingBottom="3dp">
         <TextView android:id="@+id/goalTitle1" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:textColor="#EDE7DD" android:textSize="13sp"
+            android:layout_weight="1" android:textColor="@color/widget_ink" android:textSize="14sp"
             android:maxLines="1" android:ellipsize="end" android:text="" />
         <TextView android:id="@+id/goalProg1" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="8dp" android:textColor="#8A8478" android:textSize="13sp"
+            android:layout_marginStart="8dp" android:textColor="@color/widget_sub" android:textSize="13sp"
             android:textStyle="bold" android:text="" />
     </LinearLayout>
 
@@ -51,10 +53,10 @@
         android:paddingTop="3dp"
         android:paddingBottom="3dp">
         <TextView android:id="@+id/goalTitle2" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:textColor="#EDE7DD" android:textSize="13sp"
+            android:layout_weight="1" android:textColor="@color/widget_ink" android:textSize="14sp"
             android:maxLines="1" android:ellipsize="end" android:text="" />
         <TextView android:id="@+id/goalProg2" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="8dp" android:textColor="#8A8478" android:textSize="13sp"
+            android:layout_marginStart="8dp" android:textColor="@color/widget_sub" android:textSize="13sp"
             android:textStyle="bold" android:text="" />
     </LinearLayout>
 
@@ -66,10 +68,10 @@
         android:paddingTop="3dp"
         android:paddingBottom="3dp">
         <TextView android:id="@+id/goalTitle3" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:textColor="#EDE7DD" android:textSize="13sp"
+            android:layout_weight="1" android:textColor="@color/widget_ink" android:textSize="14sp"
             android:maxLines="1" android:ellipsize="end" android:text="" />
         <TextView android:id="@+id/goalProg3" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="8dp" android:textColor="#8A8478" android:textSize="13sp"
+            android:layout_marginStart="8dp" android:textColor="@color/widget_sub" android:textSize="13sp"
             android:textStyle="bold" android:text="" />
     </LinearLayout>
 
@@ -81,10 +83,10 @@
         android:paddingTop="3dp"
         android:paddingBottom="3dp">
         <TextView android:id="@+id/goalTitle4" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:textColor="#EDE7DD" android:textSize="13sp"
+            android:layout_weight="1" android:textColor="@color/widget_ink" android:textSize="14sp"
             android:maxLines="1" android:ellipsize="end" android:text="" />
         <TextView android:id="@+id/goalProg4" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="8dp" android:textColor="#8A8478" android:textSize="13sp"
+            android:layout_marginStart="8dp" android:textColor="@color/widget_sub" android:textSize="13sp"
             android:textStyle="bold" android:text="" />
     </LinearLayout>
 </LinearLayout>

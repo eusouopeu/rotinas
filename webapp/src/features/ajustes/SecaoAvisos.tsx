@@ -10,6 +10,10 @@ import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { Toggle } from "../../ui/Segmentado";
 import { Switch } from "../../ui/Switch";
+import { useState } from "react";
+import { K_LEMBRETEGASTO } from "../../lib/constants";
+import { lembreteGastoLigado, syncLembreteGasto } from "../../lib/lembreteGasto";
+import { save } from "../../lib/storage";
 import { LinhaValor } from "../../ui/LinhaValor";
 import { SecaoAjuste } from "./SecaoAjuste";
 import { DiagnosticoCronometro } from "./DiagnosticoCronometro";
@@ -44,13 +48,15 @@ export function SecaoAvisos() {
   const setSomModo = useAppStore((s) => s.setSomModo);
   const vibracao = useAppStore((s) => s.vibracao);
   const setVibracao = useAppStore((s) => s.setVibracao);
+  const templates = useAppStore((s) => s.templates);
+  const [lembreteGasto, setLembreteGasto] = useState(lembreteGastoLigado);
   const cronometroModo = useAppStore((s) => s.cronometroModo);
   const setCronometroModo = useAppStore((s) => s.setCronometroModo);
 
   return (
     <SecaoAjuste
       titulo="Avisos e cronômetro"
-      busca="notificações resumo semanal aviso de ritmo meta perto do prazo sequência em risco som vibração aviso sonoro mudo suave cronômetro barra bolha fora do app"
+      busca="notificações lembrete de gastos despesa resumo semanal aviso de ritmo meta perto do prazo sequência em risco som vibração aviso sonoro mudo suave cronômetro barra bolha fora do app"
     >
       <RotuloSecao className="mt-0">Notificações</RotuloSecao>
       <div className="pt-2.5">
@@ -72,6 +78,18 @@ export function SecaoAvisos() {
           Meta: uma vez por dia quando falta até 2 dias para o prazo. Sequência: a partir das 18h, quando uma rotina de
           hoje com sequência longa ainda não foi feita.
         </Legenda>
+        <Switch
+          className="mt-3"
+          checked={lembreteGasto}
+          onChange={(v) => {
+            save(K_LEMBRETEGASTO, v);
+            setLembreteGasto(v);
+            syncLembreteGasto(templates, v);
+          }}
+        >
+          Lembrete de gastos às 21h
+        </Switch>
+        <Legenda className="mt-3">Só nos dias sem nenhuma despesa lançada; o toque abre a Nova despesa.</Legenda>
       </div>
 
       <RotuloSecao>Som e vibração</RotuloSecao>

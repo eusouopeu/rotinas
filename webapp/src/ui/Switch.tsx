@@ -18,7 +18,7 @@ export function Switch({ children, className, onChange, ...resto }: Props) {
       <input
         type="checkbox"
         onChange={(e) => onChange(e.target.checked)}
-        className="relative m-0 h-[26px] w-11 shrink-0 cursor-pointer appearance-none rounded-pill border-[1.5px] border-line bg-card-2 transition-[background-color,border-color] duration-150 before:absolute before:top-0.5 before:left-0.5 before:size-[19px] before:rounded-full before:bg-sub before:transition-[transform,background-color] before:duration-150 checked:border-caneta checked:bg-caneta checked:before:translate-x-[18px] checked:before:bg-on-caneta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-caneta"
+        className="relative m-0 h-[26px] w-11 shrink-0 cursor-pointer appearance-none rounded-pill border-0 bg-chip-neutro transition-[background-color,border-color] duration-150 before:absolute before:top-[3.5px] before:left-[3.5px] before:size-[19px] before:rounded-full before:bg-sub before:transition-[transform,background-color] before:duration-150 checked:bg-caneta checked:before:translate-x-[18px] checked:before:bg-on-caneta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-caneta"
         {...resto}
       />
     </label>
