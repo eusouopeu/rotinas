@@ -2,6 +2,7 @@ package com.pedro.rotinas;
 
 import android.content.Context;
 
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -26,5 +27,13 @@ public class WidgetsPlugin extends Plugin {
         DailyGoalWidgetProvider.refreshAll(ctx);
         WeekScoreWidgetProvider.refreshAll(ctx);
         call.resolve();
+    }
+
+    /** Fila de "+1" do widget de metas (WidgetToques): devolve e esvazia. */
+    @PluginMethod
+    public void consumirToques(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("toques", WidgetToques.consumir(getContext()));
+        call.resolve(ret);
     }
 }

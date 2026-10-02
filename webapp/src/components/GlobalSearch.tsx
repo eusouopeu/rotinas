@@ -2,7 +2,9 @@
 // com filtro por tipo (rotinas/metas/notas) e peso. Sem filtro de área, sem
 // "modelos"/"kanban"/"histórico" (telas de destino ainda não existem no
 // React: renderTemplateDoc, kanban do Diário e Dados/renderStats) e sem
-// debounce (dataset pequeno nesta fase não pesa a cada tecla).
+// debounce (dataset pequeno nesta fase não pesa a cada tecla). Desde
+// 02/10/2026 também acha cartões do Kanban, modelos pelo título e metas
+// recorrentes, e abre com Ctrl/Cmd+K além de "/" (App.tsx).
 import { useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "./Icon";
@@ -13,15 +15,20 @@ import { Chip } from "../ui/Chip";
 import { Legenda } from "../ui/Legenda";
 import { Modal } from "../ui/Modal";
 import type { IconName } from "../lib/icons";
-import type { CountdownDoc, Tag } from "../lib/types";
+import type { CountdownDoc, KanbanDoc, Tag } from "../lib/types";
 
-type Tipo = "tudo" | "rotinas" | "metas" | "notas";
+type Tipo = "tudo" | "rotinas" | "metas" | "notas" | "cartoes" | "modelos";
 const GS_TIPOS: Array<{ key: Tipo; label: string }> = [
   { key: "tudo", label: "tudo" },
   { key: "rotinas", label: "rotinas" },
   { key: "metas", label: "metas" },
   { key: "notas", label: "notas" },
+  { key: "cartoes", label: "cartões" },
+  { key: "modelos", label: "modelos" },
 ];
+/** Tipos de modelo que a busca não lista pelo título: despesas e metas têm
+ *  telas próprias (e as metas já entram como "metas"). */
+const MODELO_FORA = new Set(["expense", "countdown"]);
 const TAG_LABEL: Record<Tag, string> = { nenhum: "nenhum", baixo: "baixo", medio: "médio", alto: "alto" };
 
 interface Hit {
@@ -84,6 +91,49 @@ export function GlobalSearch() {
           onSelect: () => ir(() => goTo({ tab: "metas", screen: "metas" })),
         });
       });
+      (doc?.recorrentes ?? []).forEach((m) => {
+        if (!m.titulo.toLowerCase().includes(q)) return;
+        hits.push({
+          icon: "arrowPath",
+          title: m.titulo,
+          sub: `Meta recorrente · ${m.vezes}x ${m.tipo === "semanal" ? "por semana" : "ao dia"}`,
+          onSelect: () => ir(() => goTo({ tab: "metas", screen: "metas" })),
+        });
+      });
+    }
+
+    const abrirDoc = (id: string, type: string) =>
+      ir(() => goTo({ tab: "templates", screen: "templateDoc", id, folderKind: "type", folderKey: type }));
+
+    if (quer("cartoes") && !peso) {
+      templates
+        .filter((t): t is KanbanDoc => t.type === "kanban")
+        .forEach((k) =>
+          (k.cols || []).forEach((c) =>
+            (c.items || []).forEach((it) => {
+              if (!(it.text || "").toLowerCase().includes(q)) return;
+              hits.push({
+                icon: "kanban",
+                title: it.text,
+                sub: `Cartão · ${k.title || "Kanban"} › ${c.title}`,
+                onSelect: () => abrirDoc(k.id, k.type),
+              });
+            })
+          )
+        );
+    }
+
+    if (quer("modelos") && !peso) {
+      templates.forEach((t) => {
+        const titulo = (t as { title?: string }).title;
+        if (MODELO_FORA.has(t.type) || !titulo || !titulo.toLowerCase().includes(q)) return;
+        hits.push({
+          icon: "templates",
+          title: titulo,
+          sub: "Modelo",
+          onSelect: () => abrirDoc(t.id, t.type),
+        });
+      });
     }
 
     if (quer("notas") && !peso) {
@@ -109,7 +159,7 @@ export function GlobalSearch() {
         forma="caixa"
         type="search"
         className="mb-2.5"
-        placeholder="Buscar rotinas, metas, notas..."
+        placeholder="Buscar rotinas, metas, notas, cartões..."
         autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}

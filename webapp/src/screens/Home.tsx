@@ -24,6 +24,8 @@ import { localKey } from "../lib/gamificacao";
 import { BADGE_CHAR, BADGE_COR, BADGE_NOME } from "../lib/constants";
 import { semanaFechadaPendente } from "../lib/semanaFechada";
 import { mesFechadoPendente } from "../lib/mesFechado";
+import { ehRotinaShare } from "../lib/backup";
+import { anoFechadoPendente } from "../lib/anoFechado";
 import { attachSwipeDownSearch } from "../lib/swipe";
 import { execucaoDoDia } from "../lib/history";
 import { montarRotinaPronta, ROTINAS_PRONTAS } from "../lib/rotinasProntas";
@@ -67,6 +69,30 @@ export function Home() {
   const importRotinaShare = useAppStore((s) => s.importRotinaShare);
   const headerRef = useRef<HTMLDivElement>(null);
   const [novoAberto, setNovoAberto] = useState(false);
+  const arquivoRotinaRef = useRef<HTMLInputElement>(null);
+  const showAlertBanner = useAppStore((s) => s.showAlertBanner);
+
+  // Importar rotina de arquivo (02/10/2026): o .json do "Exportar" do editor
+  // ou do espelho em Documentos/<pasta>/Rotinas — entra como rotina nova
+  // (ids novos, agenda desligada) e abre o detalhe dela.
+  function importarRotinaArquivo(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result));
+        if (!ehRotinaShare(data)) {
+          showAlertBanner("Esse arquivo não é uma rotina exportada pelo app");
+          return;
+        }
+        importRotinaShare(data.routine);
+        const nova = useAppStore.getState().routines.at(-1);
+        if (nova) goTo({ tab: "home", screen: "routineDetail", id: nova.id });
+      } catch {
+        showAlertBanner("Arquivo inválido");
+      }
+    };
+    reader.readAsText(file);
+  }
   const [novoEvento, setNovoEvento] = useState(false);
   // dia tocado na visão Mês: abre a visão Dia já naquela data
   const [diaAlvo, setDiaAlvo] = useState<string | null>(null);
@@ -75,6 +101,7 @@ export function Home() {
 
   const semFechada = semanaFechadaPendente(gam);
   const mesFechado = mesFechadoPendente(gam);
+  const anoFechado = anoFechadoPendente(gam);
   /* Rotina deixada pela metade (index.html:3616-3637): só vale se a rotina
      ainda existir — apagada, o snapshot é lixo e some do cartão. */
   const rotinaEmAndamento =
@@ -164,6 +191,15 @@ export function Home() {
             onClick={() => goTo({ tab: "home", screen: "mesFechado" })}
             titulo="Mês fechado"
             detalhe={`Nota ${mesFechado.nota.toFixed(1)} — toque para ver o fechamento do mês`}
+          />
+        )}
+
+        {anoFechado && (
+          <CartaoFixo
+            className="cursor-pointer"
+            onClick={() => goTo({ tab: "home", screen: "anoFechado" })}
+            titulo={`Ano fechado · ${anoFechado.ano}`}
+            detalhe={`Nota ${anoFechado.nota.toFixed(1)} — toque para ver o resumo do ano`}
           />
         )}
 
@@ -291,6 +327,17 @@ export function Home() {
 
       {/* um único FAB nas três visões: abre a escolha entre rotina e evento */}
       <Fab rotulo="Novo" onClick={() => setNovoAberto(true)} />
+      <input
+        ref={arquivoRotinaRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) importarRotinaArquivo(f);
+        }}
+      />
       {novoAberto && (
         <Modal onFechar={() => setNovoAberto(false)} className="text-left">
           <ModalTexto className="mb-3">Criar</ModalTexto>
@@ -311,6 +358,15 @@ export function Home() {
               onClick={() => {
                 setNovoAberto(false);
                 setProntasAberto(true);
+              }}
+            />
+            <OpcaoCriar
+              icone="arrowUpTray"
+              titulo="Importar rotina"
+              descricao="de um arquivo .json exportado ou da pasta Rotinas"
+              onClick={() => {
+                setNovoAberto(false);
+                arquivoRotinaRef.current?.click();
               }}
             />
             <OpcaoCriar

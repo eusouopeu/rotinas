@@ -3,6 +3,8 @@
 // (recomendação 5 de docs/react-migration.md). Acopla com pontuação
 // (sincronizarPontosMeta/MetaRec) e com o agendamento de notificação
 // (syncMetaRecNotifications, hoje em store/shared.ts).
+import { consumirToquesWidget } from "../../lib/widgets";
+import { isoToDate, localKey } from "../../lib/gamificacao";
 import type { StateCreator } from "zustand";
 import { uid } from "../../lib/uid";
 import { algumSnoozeAtivo, criarMetaDoc, isCountdownDoc, syncMetaRecNotifications } from "../shared";
@@ -37,6 +39,7 @@ export type MetasSlice = Pick<
   | "addMetaRec"
   | "updateMetaRec"
   | "ajustarMetaRec"
+  | "aplicarToquesWidget"
   | "virarMetasRec"
   | "duplicarMetaRec"
   | "deleteMetaRec"
@@ -194,7 +197,25 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
     save(K_TEMPLATES, templates);
     set({ templates });
   },
-  ajustarMetaRec: (id, delta) => {
+  // "+1" do widget (02/10/2026): aplica a fila ANTES da virada do período,
+  // para o toque da noite que o app só viu no dia seguinte cair no dia certo
+  // (o período da meta ainda é o do toque). Toque de um dia que já virou por
+  // outro caminho é descartado — não há como reabrir o período fechado.
+  aplicarToquesWidget: async () => {
+    const toques = await consumirToquesWidget();
+    const hoje = localKey();
+    toques.forEach((t) => {
+      if (t.dia === hoje) {
+        get().ajustarMetaRec(t.id, t.delta);
+        return;
+      }
+      const rec = (get().metaDoc().recorrentes || []).find((r) => r.id === t.id);
+      if (rec?.tipo === "diaria" && rec.progresso?.periodo === "dia:" + t.dia)
+        get().ajustarMetaRec(t.id, t.delta, isoToDate(t.dia));
+    });
+    get().virarMetasRec();
+  },
+  ajustarMetaRec: (id, delta, data = new Date()) => {
     const doc = get().metaDoc();
     const alvo = (doc.recorrentes || []).find((r) => r.id === id);
     if (!alvo) return;
@@ -204,13 +225,13 @@ export const createMetasSlice: StateCreator<AppState, [], [], MetasSlice> = (set
       excessoDepois,
       feitasAntes,
       feitasDepois,
-    } = ajustarProgressoMetaRec(alvo, delta);
+    } = ajustarProgressoMetaRec(alvo, delta, data);
     let gam = get().gam;
     if (atualizado.negativa) {
-      gam = sincronizarPenalidadeMetaRec(gam, atualizado, excessoAntes, excessoDepois, new Date(), get().routines);
+      gam = sincronizarPenalidadeMetaRec(gam, atualizado, excessoAntes, excessoDepois, data, get().routines);
     }
     if (!atualizado.negativa && atualizado.pontua) {
-      gam = sincronizarPontosMetaRec(gam, atualizado, feitasAntes, feitasDepois, new Date(), get().routines);
+      gam = sincronizarPontosMetaRec(gam, atualizado, feitasAntes, feitasDepois, data, get().routines);
     }
     const docNovo: CountdownDoc = {
       ...doc,

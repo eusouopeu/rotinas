@@ -19,6 +19,8 @@ export interface HistoryEntry {
   mood?: number;
   /** Execução da versão mínima (só as etapas essenciais). */
   minima?: boolean;
+  /** Variante executada, em rotina que alterna A/B (02/10/2026). */
+  variante?: "A" | "B";
 }
 
 /** Execução de uma rotina num dia (a mais recente, se houver mais de uma) —

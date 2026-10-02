@@ -8,6 +8,32 @@ import type { ExpenseDoc } from "./types";
 export const EXP_CATS = ["Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Educação", "Outros"];
 const CAT_COLORS = ["#EC6AA8", "#5B8DEF", "#6B8F71", "#C9B23E", "#B25B4C", "#9C7BB8", "#8A8478"];
 
+/** Categorias das receitas (02/10/2026). */
+export const RECEITA_CATS = ["Salário", "Extra", "Reembolso", "Rendimentos", "Outros"];
+
+/** Receitas moram na mesma coleção dos gastos; todo total de despesa passa
+ *  por aqui para não somar entrada como saída. */
+export function soDespesas<T extends { receita?: boolean }>(docs: T[]): T[] {
+  return docs.filter((d) => !d.receita);
+}
+
+/** "3/12" para uma parcela; vazio para lançamento à vista. */
+export function parcelaLabel(e: Pick<ExpenseDoc, "parcelas" | "parcela">): string {
+  return e.parcelas && e.parcelas > 1 ? `${e.parcela || 1}/${e.parcelas}` : "";
+}
+
+/** Entradas, saídas e saldo de um mês ("AAAA-MM"). */
+export function saldoDoMes(docs: ExpenseDoc[], anoMes: string): { entradas: number; saidas: number; saldo: number } {
+  let entradas = 0;
+  let saidas = 0;
+  docs.forEach((d) => {
+    if (!d.date || d.date.slice(0, 7) !== anoMes) return;
+    if (d.receita) entradas += d.value || 0;
+    else saidas += d.value || 0;
+  });
+  return { entradas, saidas, saldo: entradas - saidas };
+}
+
 export function catColor(cat: string): string {
   const i = EXP_CATS.indexOf(cat);
   return CAT_COLORS[i >= 0 ? i % CAT_COLORS.length : CAT_COLORS.length - 1];
@@ -223,7 +249,9 @@ export function guessExpenseColumns(rows: string[][]): GuessColunas {
   return { header, dataRows, ncol, dateCol, valCol, descCol };
 }
 
-export type ImportSign = "neg" | "pos" | "abs";
+/** "ambos" (02/10/2026): extrato do mês inteiro — saídas viram despesas e
+ *  entradas viram receitas. */
+export type ImportSign = "neg" | "pos" | "abs" | "ambos";
 
 export interface ImportState {
   dataRows: string[][];
@@ -233,13 +261,23 @@ export interface ImportState {
 }
 
 /** Porta de computeImportPreview (index.html:9107-9124). */
-export function computeImportPreview(st: ImportState): {
-  parsed: Array<{ date: string; desc: string; value: number }>;
+export function computeImportPreview(
+  st: ImportState,
+  existentes: ExpenseDoc[] = []
+): {
+  parsed: Array<{ date: string; desc: string; value: number; receita?: boolean }>;
   skipped: number;
+  /** já lançados (mesma data, valor e descrição): reimportar o extrato do mês
+   *  não duplica */
+  duplicados: number;
 } {
   const { dataRows, map, sign } = st;
-  const parsed: Array<{ date: string; desc: string; value: number }> = [];
+  const parsed: Array<{ date: string; desc: string; value: number; receita?: boolean }> = [];
   let skipped = 0;
+  let duplicados = 0;
+  const chave = (date: string, value: number, desc: string, receita?: boolean) =>
+    `${date}|${value.toFixed(2)}|${normalizeStr(desc)}|${receita ? 1 : 0}`;
+  const vistos = new Set(existentes.map((e) => chave(e.date, e.value, e.desc, e.receita)));
   dataRows.forEach((r) => {
     const date = parseFlexDate(r[map.date]);
     const rawVal = parseBRNumber(r[map.val]);
@@ -249,7 +287,11 @@ export function computeImportPreview(st: ImportState): {
       return;
     }
     let value;
-    if (sign === "neg") {
+    let receita = false;
+    if (sign === "ambos") {
+      value = Math.abs(rawVal);
+      receita = rawVal > 0;
+    } else if (sign === "neg") {
       if (rawVal >= 0) return;
       value = -rawVal;
     } else if (sign === "pos") {
@@ -259,18 +301,31 @@ export function computeImportPreview(st: ImportState): {
       value = Math.abs(rawVal);
     }
     if (value === 0) return;
-    parsed.push({ date, desc: desc || "(sem descrição)", value });
+    if (sign === "pos") receita = true;
+    const d = desc || "(sem descrição)";
+    if (vistos.has(chave(date, value, d, receita))) {
+      duplicados++;
+      return;
+    }
+    parsed.push({ date, desc: d, value, ...(receita ? { receita } : {}) });
   });
-  return { parsed, skipped };
+  return { parsed, skipped, duplicados };
 }
 
 /** Conteúdo do CSV de export (index.html:9194-9199), com BOM e `;`. */
 export function despesasCsv(docs: ExpenseDoc[]): string {
-  const rows: string[][] = [["data", "hora", "descricao", "valor", "categoria"]];
+  const rows: string[][] = [["data", "hora", "descricao", "valor", "categoria", "tipo"]];
   [...docs]
     .sort((a, b) => a.date.localeCompare(b.date))
     .forEach((e) => {
-      rows.push([e.date, e.time || "", e.desc.replace(/;/g, ","), e.value.toFixed(2).replace(".", ","), e.cat]);
+      rows.push([
+        e.date,
+        e.time || "",
+        e.desc.replace(/;/g, ","),
+        e.value.toFixed(2).replace(".", ","),
+        e.cat,
+        e.receita ? "receita" : "despesa",
+      ]);
     });
   return "\uFEFF" + rows.map((r) => r.join(";")).join("\n");
 }
@@ -294,7 +349,10 @@ export function filtrarDespesas(docs: ExpenseDoc[], f: FiltroDespesas): ExpenseD
 
 export interface GrupoMes {
   chave: string; // AAAA-MM
+  /** só despesas */
   total: number;
+  /** receitas do mês (02/10/2026) */
+  entradas: number;
   porCategoria: Array<{ cat: string; valor: number; pct: number }>;
   itens: ExpenseDoc[];
 }
@@ -311,13 +369,15 @@ export function agruparPorMes(docs: ExpenseDoc[]): GrupoMes[] {
     .reverse()
     .map((mk) => {
       const itens = [...byMonth[mk]].sort((a, b) => (b.date + (b.time || "")).localeCompare(a.date + (a.time || "")));
-      const total = itens.reduce((a, e) => a + e.value, 0);
+      const saidas = soDespesas(itens);
+      const total = saidas.reduce((a, e) => a + e.value, 0);
+      const entradas = itens.reduce((a, e) => a + (e.receita ? e.value : 0), 0);
       const byCat: Record<string, number> = {};
-      itens.forEach((e) => (byCat[e.cat] = (byCat[e.cat] || 0) + e.value));
+      saidas.forEach((e) => (byCat[e.cat] = (byCat[e.cat] || 0) + e.value));
       const porCategoria = Object.entries(byCat)
         .sort((a, b) => b[1] - a[1])
         .map(([cat, valor]) => ({ cat, valor, pct: total > 0 ? Math.round((valor / total) * 100) : 0 }));
-      return { chave: mk, total, porCategoria, itens };
+      return { chave: mk, total, entradas, porCategoria, itens };
     });
 }
 
@@ -405,7 +465,9 @@ export function lancamentosRecorrentes(
   const novos: ExpenseDoc[] = [];
   const ultimos: Record<string, string> = {};
   for (const orig of docs) {
-    if (!orig.recorrente || orig.origemRec || !/^\d{4}-\d{2}-\d{2}$/.test(orig.date)) continue;
+    const parcelas = orig.parcelas && orig.parcelas > 1 ? orig.parcelas : 0;
+    if ((!orig.recorrente && !parcelas) || orig.origemRec || !/^\d{4}-\d{2}-\d{2}$/.test(orig.date)) continue;
+    const mes0 = +orig.date.slice(0, 4) * 12 + +orig.date.slice(5, 7);
     const dia = +orig.date.slice(8, 10);
     const base = orig.recUltimo && orig.recUltimo > orig.date.slice(0, 7) ? orig.recUltimo : orig.date.slice(0, 7);
     let a = +base.slice(0, 4);
@@ -417,6 +479,9 @@ export function lancamentosRecorrentes(
         m = 1;
         a++;
       }
+      // parcelada: a original é a parcela 1; para depois da última
+      const parcela = a * 12 + m - mes0 + 1;
+      if (parcelas && parcela > parcelas) break;
       const d = Math.min(dia, new Date(a, m, 0).getDate());
       const iso = `${a}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       if (iso > hojeISO) break;
@@ -434,6 +499,8 @@ export function lancamentosRecorrentes(
         createdAt: agora,
         updatedAt: agora,
         origemRec: orig.id,
+        ...(orig.receita ? { receita: true } : {}),
+        ...(parcelas ? { parcelas, parcela } : {}),
       });
     }
     if (ultimo) ultimos[orig.id] = ultimo;

@@ -58,6 +58,8 @@ export function SecaoAvisos() {
   const setVibracao = useAppStore((s) => s.setVibracao);
   const templates = useAppStore((s) => s.templates);
   const [lembreteGasto, setLembreteGasto] = useState(lembreteGastoLigado);
+  const naoFalharDois = useAppStore((s) => s.naoFalharDois);
+  const setNaoFalharDois = useAppStore((s) => s.setNaoFalharDois);
   const [notifsLigadas, setNotifsLigadas] = useState(() => !notificacoesDesligadas());
 
   function alternarNotificacoes(v: boolean) {
@@ -118,6 +120,13 @@ export function SecaoAvisos() {
           }}
         >
           Lembrete de gastos às 21h <Ajuda>Só nos dias sem nenhuma despesa lançada; o toque abre a Nova despesa.</Ajuda>
+        </Switch>
+        <Switch className="mt-3" checked={naoFalharDois} onChange={setNaoFalharDois}>
+          Nunca falhar dois dias{" "}
+          <Ajuda>
+            Marca "não falhar hoje" no cartão da rotina ou da meta diária que ficou sem fazer na última vez. Só visual,
+            sem notificação.
+          </Ajuda>
         </Switch>
       </div>
 

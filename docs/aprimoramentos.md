@@ -60,6 +60,17 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Botão de progressão no exercício: +2 repetições até 12; em 12, +2,5 kg e volta a 8 (substitui o link "tentar N kg") – implementado em 01/10/2026
 - Cartões, detalhe e editor da rotina pelo mockup de 02/10/2026 (xp por execução, "3 – 2x" na sequência, faixa no topo do quadrado, reordenar e tempo real no detalhe, agendamento por frequência) e roxo único da escala purple do Tailwind – implementado em 02/10/2026
 - Editor de nota pelo mockup de 02/10/2026 (fixar/favoritar, áreas múltiplas, copiar) e metas em grade com bolinhas da semana, "N – Mx" e xp por unidade – implementado em 02/10/2026
+- Evolução de carga por exercício: gráfico de volume (séries × repetições × kg) por sessão em Dados › rotina – implementado em 02/10/2026
+- Rotina com variantes alternadas (Treino A/B): segunda lista de etapas, alterna sozinha a cada execução – implementado em 02/10/2026
+- Encadear rotinas: a tela de conclusão oferece começar a próxima rotina de hoje – implementado em 02/10/2026
+- "Nunca falhar dois dias" (opção em Ajustes › Avisos): marca "não falhar hoje" na rotina ou meta diária que falhou na última vez – implementado em 02/10/2026
+- "+1" direto no widget de metas, sem abrir o app – implementado em 02/10/2026
+- Compra parcelada (N parcelas, uma por mês no esquema da despesa fixa) – implementado em 02/10/2026
+- Receitas e saldo do mês em Gastos e no Mês fechado; import de extrato CSV com entradas e saídas, sem duplicar o que já foi lançado – implementado em 02/10/2026
+- Ano fechado: cartão e tela com o resumo do ano anterior (nota, meses, rotinas, metas, dinheiro) – implementado em 02/10/2026
+- Importar rotina de arquivo .json pelo popup Criar da aba Rotinas – implementado em 02/10/2026
+- Busca global com cartões do Kanban, modelos e metas recorrentes, e atalho Ctrl/Cmd+K – implementado em 02/10/2026
+- Barra superior fixa em todas as abas, com botão de tema claro/escuro – implementado em 02/10/2026
 
 ## Recomendações refutadas
 
@@ -93,3 +104,5 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - Rotina-desafio com data de fim que se arquiva sozinha – refutada em 01/10/2026
 - Observação curta por etapa no player, mostrada na execução seguinte – refutada em 01/10/2026
 - Tamanho do texto (P/M/G) em Ajustes – refutada em 01/10/2026
+- Recorde pessoal por exercício (aviso no player e lista em Dados) – refutada em 02/10/2026
+- Atalhos de teclado no desktop (N nova nota, espaço pausa o player, setas trocam a visão) – refutada em 02/10/2026

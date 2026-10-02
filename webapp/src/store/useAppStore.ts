@@ -39,6 +39,7 @@ import {
   K_DIGESTSEMANAL,
   K_EXERCICIOS,
   K_FONTSCALE,
+  K_NAOFALHAR,
   K_GAMIFICACAO,
   K_HISTORY,
   K_HOMEVIEW,
@@ -106,6 +107,8 @@ export interface AppState {
   routines: Routine[];
   theme: Theme;
   fontScale: number;
+  /** Marca "não falhar hoje" nos cartões (Ajustes, 02/10/2026). */
+  naoFalharDois: boolean;
   weekStart: number;
   homeView: "rotinas" | "semana" | "dia" | "mes";
   soHoje: boolean;
@@ -191,6 +194,7 @@ export interface AppState {
 
   setTheme: (t: Theme) => void;
   setFontScale: (n: number) => void;
+  setNaoFalharDois: (v: boolean) => void;
   setWeekStart: (d: number) => void;
   setHomeView: (v: "rotinas" | "semana" | "dia" | "mes") => void;
   setListaExpandida: (v: boolean) => void;
@@ -214,6 +218,7 @@ export interface AppState {
   alternarDispensaSemana: () => void;
   marcarSemanaVista: () => void;
   marcarMesVisto: (anoMes: string) => void;
+  marcarAnoVisto: (ano: number) => void;
   goToSemanaFechada: () => void;
 
   updateGamConfig: (patch: Partial<GamificacaoConfig>) => void;
@@ -291,7 +296,9 @@ export interface AppState {
 
   addMetaRec: (params: Omit<MetaRecorrente, "id" | "criadoEm" | "progresso">) => void;
   updateMetaRec: (id: string, patch: Partial<MetaRecorrente>) => void;
-  ajustarMetaRec: (id: string, delta: number) => void;
+  ajustarMetaRec: (id: string, delta: number, data?: Date) => void;
+  /** aplica os "+1" do widget e depois vira os períodos das metas */
+  aplicarToquesWidget: () => Promise<void>;
   /** Fecha o período das metas recorrentes cujo dia/semana virou (sequência +
    * histórico) e grava — boot e volta ao app. */
   virarMetasRec: () => void;
@@ -356,9 +363,13 @@ export interface AppState {
     date: string;
     time?: string;
     recorrente?: boolean;
+    receita?: boolean;
+    parcelas?: number;
   }) => void;
   // Import de extrato CSV (index.html:9161-9170) — um save só para o lote.
-  addExpenses: (lote: Array<{ desc: string; value: number; cat: string; date: string; time?: string }>) => void;
+  addExpenses: (
+    lote: Array<{ desc: string; value: number; cat: string; date: string; time?: string; receita?: boolean }>
+  ) => void;
   lancarDespesasRecorrentes: () => void;
 
   // Busca global (index.html:2978-3151) — só estado de aberto/fechado; a
@@ -392,6 +403,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   routines: [],
   theme: "auto",
   fontScale: 1,
+  naoFalharDois: false,
   weekStart: 0,
   homeView: "semana",
   soHoje: false,
@@ -453,6 +465,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       routines,
       theme: load<Theme>(K_THEME, "auto"),
       fontScale: load<number>(K_FONTSCALE, 1),
+      naoFalharDois: load<boolean>(K_NAOFALHAR, false),
       weekStart: load<number>(K_WEEKSTART, 0),
       homeView: load<"rotinas" | "semana" | "dia" | "mes">(K_HOMEVIEW, "semana"),
       soHoje: load<boolean>(K_SOHOJE, false),
@@ -493,7 +506,8 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     // é local-first, estourar a cota é perda silenciosa.
     const avisoStorage = checkStorageWarning();
     if (avisoStorage) setTimeout(() => get().showAlertBanner(avisoStorage), 1200);
-    get().virarMetasRec();
+    // "+1" do widget primeiro; a virada dos períodos vem no fim dela
+    void get().aplicarToquesWidget();
     get().lancarDespesasRecorrentes();
     // Avisos proativos (ritmo/metas/streak) — ver checarNudgesAgora.
     setTimeout(() => get().checarNudgesAgora(), 1500);
@@ -719,7 +733,10 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     if (!nome) return false;
     const steps = draft.steps.filter((s) => s.name.trim().length > 0);
     if (steps.length === 0) return false;
-    const limpo: Routine = { ...draft, name: nome, steps };
+    // variante B sem nenhuma etapa com nome = rotina deixa de alternar
+    const stepsB = draft.stepsB ? draft.stepsB.filter((s) => s.name.trim().length > 0) : null;
+    const { stepsB: _b, ...resto } = draft;
+    const limpo: Routine = { ...resto, name: nome, steps, ...(stepsB && stepsB.length ? { stepsB } : {}) };
     const routines = get().routines;
     const idx = routines.findIndex((r) => r.id === limpo.id);
     const novasRoutines = idx >= 0 ? routines.map((r, i) => (i === idx ? limpo : r)) : [...routines, limpo];
@@ -740,6 +757,10 @@ export const useAppStore = create<AppState>((set, get, api) => ({
   setFontScale: (fontScale) => {
     save(K_FONTSCALE, fontScale);
     set({ fontScale });
+  },
+  setNaoFalharDois: (naoFalharDois) => {
+    save(K_NAOFALHAR, naoFalharDois);
+    set({ naoFalharDois });
   },
   setWeekStart: (weekStart) => {
     // reancora as metas semanais ANTES de gravar o início novo: a chave do
@@ -873,6 +894,11 @@ export const useAppStore = create<AppState>((set, get, api) => ({
 
   marcarMesVisto: (anoMes) => {
     const gam: GamificacaoState = { ...get().gam, ultimoMesVisto: anoMes };
+    save(K_GAMIFICACAO, gam);
+    set({ gam });
+  },
+  marcarAnoVisto: (ano) => {
+    const gam: GamificacaoState = { ...get().gam, ultimoAnoVisto: ano };
     save(K_GAMIFICACAO, gam);
     set({ gam });
   },

@@ -4,6 +4,7 @@
 // e se controla o "já vi" (gam.ultimoMesVisto).
 import { anoMesDoFimDaSemana, localKey } from "./gamificacao";
 import type { HistoryEntry } from "./history";
+import { soDespesas } from "./expense";
 import type { AnyTemplateDoc, ExpenseDoc, GamificacaoState } from "./types";
 
 export type MesHistorico = GamificacaoState["historico"]["meses"][number];
@@ -51,6 +52,7 @@ export interface ResumoMes {
   execucoes: number;
   topRotinas: Array<{ nome: string; vezes: number }>;
   gastos: number;
+  entradas: number;
   delta: number | null;
 }
 
@@ -70,16 +72,19 @@ export function resumoMes(
     contagem.set(h.routineId, c);
   });
   const topRotinas = [...contagem.values()].sort((a, b) => b.vezes - a.vezes).slice(0, 3);
-  const gastos = templates
+  const lanc = templates
     .filter((t): t is ExpenseDoc => t.type === "expense")
-    .filter((e) => typeof e.date === "string" && e.date.startsWith(am))
-    .reduce((acc, e) => acc + (+e.value || 0), 0);
+    .filter((e) => typeof e.date === "string" && e.date.startsWith(am));
+  const gastos = soDespesas(lanc).reduce((acc, e) => acc + (+e.value || 0), 0);
+  // receitas (02/10/2026): saldo do mês ao lado dos gastos
+  const entradas = lanc.filter((e) => e.receita).reduce((acc, e) => acc + (+e.value || 0), 0);
   const anterior = gam.historico.meses.find((m) => m.anoMes === mesAnterior(am));
   return {
     semanas,
     execucoes: doMes.length,
     topRotinas,
     gastos,
+    entradas,
     delta: anterior ? mes.nota - anterior.nota : null,
   };
 }

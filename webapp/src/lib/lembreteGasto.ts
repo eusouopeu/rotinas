@@ -46,7 +46,9 @@ export async function syncLembreteGasto(templates: AnyTemplateDoc[], ligado = le
     const perm = await LN.checkPermissions();
     if (perm.display !== "granted") return;
     const datas = new Set(
-      templates.filter((t) => t.type === "expense").map((t) => (t as { date: string }).date)
+      templates
+        .filter((t) => t.type === "expense" && !(t as { receita?: boolean }).receita)
+        .map((t) => (t as { date: string }).date)
     );
     const plano = planoLembreteGasto(datas, new Date());
     if (!plano.length) return;

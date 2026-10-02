@@ -90,6 +90,15 @@ export function MesFechado() {
             <LinhaValor key={t.nome} rotulo={t.nome} valor={`${t.vezes}×`} />
           ))}
           {r.gastos > 0 && <LinhaValor rotulo="Gastos lançados" valor={brl(r.gastos)} />}
+          {r.entradas > 0 && (
+            <>
+              <LinhaValor rotulo="Receitas" valor={brl(r.entradas)} />
+              <LinhaValor
+                rotulo="Saldo do mês"
+                valor={(r.entradas - r.gastos < 0 ? "−" : "") + brl(Math.abs(r.entradas - r.gastos))}
+              />
+            </>
+          )}
           {mes.bonusMetas > 0 && <LinhaValor rotulo="Bônus de metas" valor={`+${mes.bonusMetas.toFixed(1)}`} />}
         </Cartao>
 

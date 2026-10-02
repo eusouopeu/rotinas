@@ -1,6 +1,8 @@
 // Gráfico de linha em SVG para percentuais (0–100%) ao longo do tempo, com
 // grade horizontal a cada 25% e linha tracejada opcional de meta. Pontos
 // nulos (sem nada agendado) quebram a linha em vez de cair para zero.
+// `max`/`formato` (02/10/2026) reaproveitam o gráfico para valores absolutos
+// (volume de carga em Dados › rotina): a grade fica em 0/25/50/75/100% do max.
 
 interface Ponto {
   label: string;
@@ -12,6 +14,8 @@ interface Props {
   /** % da linha tracejada de referência */
   meta?: number;
   ariaLabel: string;
+  max?: number;
+  formato?: (v: number) => string;
 }
 
 const W = 320;
@@ -21,11 +25,11 @@ const DIR = 8;
 const TOPO = 8;
 const BASE = 22;
 
-export function GraficoLinhaPct({ pontos, meta, ariaLabel }: Props) {
+export function GraficoLinhaPct({ pontos, meta, ariaLabel, max = 100, formato = (v) => `${v}%` }: Props) {
   const pw = W - ESQ - DIR;
   const ph = H - TOPO - BASE;
   const x = (i: number) => ESQ + (pontos.length > 1 ? (i / (pontos.length - 1)) * pw : pw / 2);
-  const y = (v: number) => TOPO + ph - (Math.max(0, Math.min(100, v)) / 100) * ph;
+  const y = (v: number) => TOPO + ph - (Math.max(0, Math.min(max, v)) / (max || 1)) * ph;
 
   const trechos: string[] = [];
   let atual: string[] = [];
@@ -49,11 +53,11 @@ export function GraficoLinhaPct({ pontos, meta, ariaLabel }: Props) {
       role="img"
       aria-label={ariaLabel}
     >
-      {[0, 25, 50, 75, 100].map((v) => (
+      {[0, 0.25, 0.5, 0.75, 1].map((f) => f * max).map((v) => (
         <g key={v}>
           <line className="stroke-line stroke-1" x1={ESQ} x2={W - DIR} y1={y(v)} y2={y(v)} />
           <text className="fill-sub font-sans text-2xs" x={ESQ - 6} y={y(v) + 3.5} textAnchor="end">
-            {v}%
+            {formato(v)}
           </text>
         </g>
       ))}
@@ -76,7 +80,7 @@ export function GraficoLinhaPct({ pontos, meta, ariaLabel }: Props) {
       {pontos.map((p, i) =>
         p.pct == null ? null : (
           <circle key={i} className="fill-caneta" cx={x(i)} cy={y(p.pct)} r={3.5}>
-            <title>{`${p.label}: ${p.pct}%`}</title>
+            <title>{`${p.label}: ${formato(p.pct)}`}</title>
           </circle>
         )
       )}

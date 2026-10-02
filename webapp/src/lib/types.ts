@@ -66,6 +66,9 @@ export interface Routine {
   /** Arquivada (30/09/2026): pausa sem fim (`ate` = FIM_ARQUIVO) + some da
    * Lista; desarquivar fecha a pausa em ontem, como retomar. */
   arquivada?: boolean;
+  /** Variante B (02/10/2026): segunda lista de etapas; com ela a rotina
+   * alterna A/B a cada execução (lib/routines.ts:proximaVariante). */
+  stepsB?: RoutineStep[] | null;
 }
 
 export interface RotinaPausa {
@@ -141,6 +144,8 @@ export interface GamificacaoState {
   ultimaSemanaVista?: string | null;
   /** "AAAA-MM" do último Mês fechado visto (30/09/2026). */
   ultimoMesVisto?: string | null;
+  /** Ano do último Ano fechado visto (02/10/2026). */
+  ultimoAnoVisto?: number | null;
 }
 
 export type MetaEscopo = "mensal" | "trimestral" | "anual";
@@ -366,6 +371,14 @@ export interface ExpenseDoc {
   origemRec?: string;
   /** último mês ("AAAA-MM") já lançado a partir desta original */
   recUltimo?: string;
+  /** Receita (02/10/2026): entrada de dinheiro na mesma coleção dos gastos —
+   * fica fora de todo total de despesa e entra no saldo do mês. */
+  receita?: boolean;
+  /** Compra parcelada (02/10/2026): `value` é o de UMA parcela; a original é
+   * a parcela 1 e as seguintes saem uma por mês no esquema da despesa fixa
+   * (id `<original>:<AAAA-MM>`), com `parcela` = número dela. */
+  parcelas?: number;
+  parcela?: number;
 }
 
 // Compromisso avulso (K_COMPROMISSOS, index.html:2114-2161) — evento único
@@ -443,7 +456,8 @@ export type ScreenName =
   | "stats"
   | "routineStats"
   | "semanaFechada"
-  | "mesFechado";
+  | "mesFechado"
+  | "anoFechado";
 
 // Templates é um array de docs de vários tipos (mercado, kanban, matriz...)
 // no app antigo — o React só edita de verdade countdown/scoreboard/

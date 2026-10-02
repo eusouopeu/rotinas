@@ -50,7 +50,11 @@ export interface CapacitorPlugins {
   LocalNotifications?: import("./nativeBridge").LocalNotificationsPlugin;
   Share?: import("./nativeBridge").SharePlugin;
   TimerOverlay?: import("./nativeBridge").TimerOverlayPlugin;
-  Widgets?: { refresh(): Promise<void> | void };
+  Widgets?: {
+    refresh(): Promise<void> | void;
+    /** fila de "+1" do widget de metas (02/10/2026) */
+    consumirToques?(): Promise<{ toques: Array<{ id: string; dia: string; delta?: number }> }>;
+  };
   Shortcuts?: import("./atalhos").ShortcutsPlugin;
   App?: import("./nativeBridge").AppPlugin;
 }

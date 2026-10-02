@@ -8,8 +8,15 @@ import { Legenda } from "../../ui/Legenda";
 import { CelNegrito, CelNota, LinhaTabela } from "../../ui/LinhaTabela";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { brl, computeImportPreview, type ImportSign, type ImportState } from "../../lib/expense";
+import type { ExpenseDoc } from "../../lib/types";
 
-type Props = { initial: ImportState; onCancel: () => void; onConfirm: (st: ImportState) => void };
+type Props = {
+  initial: ImportState;
+  /** lançamentos já gravados: a prévia ignora o que o extrato repete */
+  existentes?: ExpenseDoc[];
+  onCancel: () => void;
+  onConfirm: (st: ImportState) => void;
+};
 
 function Linha({ rotulo, className, children }: { rotulo: string; className?: string; children: React.ReactNode }) {
   return (
@@ -20,11 +27,12 @@ function Linha({ rotulo, className, children }: { rotulo: string; className?: st
   );
 }
 
-export function ImportarExtrato({ initial, onCancel, onConfirm }: Props) {
+export function ImportarExtrato({ initial, existentes = [], onCancel, onConfirm }: Props) {
   const [st, setSt] = useState(initial);
   const g = st.guess;
-  const { parsed, skipped } = computeImportPreview(st);
-  const totalPrev = parsed.reduce((a, e) => a + e.value, 0);
+  const { parsed, skipped, duplicados } = computeImportPreview(st, existentes);
+  const totalPrev = parsed.reduce((a, e) => a + (e.receita ? 0 : e.value), 0);
+  const entradasPrev = parsed.reduce((a, e) => a + (e.receita ? e.value : 0), 0);
   const coluna = (value: number, onChange: (i: number) => void) => (
     <SelecaoLinha value={value} onChange={(ev) => onChange(+ev.target.value)}>
       {Array.from({ length: g.ncol }, (_, i) => (
@@ -50,15 +58,18 @@ export function ImportarExtrato({ initial, onCancel, onConfirm }: Props) {
         </Linha>
         <Linha rotulo="Importar">
           <SelecaoLinha value={st.sign} onChange={(ev) => setSt({ ...st, sign: ev.target.value as ImportSign })}>
+            <option value="ambos">Saídas e entradas (despesas e receitas)</option>
             <option value="neg">Só saídas (valores negativos)</option>
-            <option value="pos">Só entradas (valores positivos)</option>
+            <option value="pos">Só entradas, como receitas (valores positivos)</option>
             <option value="abs">Tudo (valor absoluto)</option>
           </SelecaoLinha>
         </Linha>
       </Cartao>
       <RotuloSecao>
-        Prévia — {parsed.length} lançamento(s) · total {brl(totalPrev)}
+        Prévia — {parsed.length} lançamento(s) · gastos {brl(totalPrev)}
+        {entradasPrev > 0 ? ` · receitas ${brl(entradasPrev)}` : ""}
         {skipped ? ` · ${skipped} linha(s) ignorada(s)` : ""}
+        {duplicados ? ` · ${duplicados} já lançado(s)` : ""}
       </RotuloSecao>
       <Cartao className="mb-1.5">
         {parsed.length === 0 ? (
@@ -70,7 +81,10 @@ export function ImportarExtrato({ initial, onCancel, onConfirm }: Props) {
                 {e.date.slice(8, 10)}/{e.date.slice(5, 7)}
               </CelNota>
               <span className="flex-1">{e.desc.slice(0, 40)}</span>
-              <CelNegrito status="pontual">{brl(e.value)}</CelNegrito>
+              <CelNegrito status={e.receita ? "adiantado" : "pontual"}>
+                {e.receita ? "+" : ""}
+                {brl(e.value)}
+              </CelNegrito>
             </LinhaTabela>
           ))
         )}

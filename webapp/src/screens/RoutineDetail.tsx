@@ -16,7 +16,7 @@ import { exportarRotina } from "../features/rotinas/exportarRotina";
 import { fmtTime } from "../lib/format";
 import { localKey } from "../lib/gamificacao";
 import { execucaoDoDia } from "../lib/history";
-import { estimadorSerie, routineDurationRaw } from "../lib/routines";
+import { estimadorSerie, proximaVariante, routineDurationRaw } from "../lib/routines";
 import { computeSchedule, diasChipLabel, frequenciaLabel } from "../lib/schedule";
 import { areaDaRotina } from "../lib/scoring";
 import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
@@ -133,6 +133,14 @@ export function RoutineDetail() {
                 <Icon name="calendar" size={18} /> {freq}
               </span>
             )
+          )}
+          {proximaVariante(r, history) && (
+            <span
+              className={ETIQUETA_TOPO}
+              title={`Alterna A/B: a versão B tem ${r.stepsB!.length} etapa${r.stepsB!.length !== 1 ? "s" : ""}`}
+            >
+              <Icon name="arrowPath" size={18} /> próxima: versão {proximaVariante(r, history)}
+            </span>
           )}
         </div>
         {/* sem horário não há o que pausar, mas arquivar vale para qualquer rotina */}

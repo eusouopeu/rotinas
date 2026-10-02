@@ -12,6 +12,7 @@ import { uid } from "../../lib/uid";
 import { load, removeKey, save } from "../../lib/storage";
 import { K_NAOFEITAS, K_PLAYER } from "../../lib/constants";
 import { K_EXERCICIOS, K_GAMIFICACAO, K_HISTORY, K_ROUTINES, K_TEMPLATES } from "../../lib/constants";
+import { proximaVariante, rotinaDaVariante } from "../../lib/routines";
 import { localKey } from "../../lib/gamificacao";
 import {
   adiarEtapaPlayer,
@@ -83,9 +84,16 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
     // Repescagem (index.html:11284-11296): se alguma etapa ficou "não feita"
     // hoje, a rotina volta só com as pendentes.
     const pendentes = naoFeitasDe(get().naoFeitas, routineId, localKey());
-    const resultado = novoPlayerState(routine, opts?.minima ? [] : pendentes, !!opts?.minima);
+    // alterna A/B: a mínima sai das etapas essenciais da versão A
+    const variante = opts?.minima ? null : proximaVariante(routine, get().history);
+    const resultado = novoPlayerState(
+      rotinaDaVariante(routine, variante),
+      opts?.minima ? [] : pendentes,
+      !!opts?.minima
+    );
     if (!resultado) return;
-    const { playerState, repescagem } = resultado;
+    const { repescagem } = resultado;
+    const playerState = variante ? { ...resultado.playerState, variante } : resultado.playerState;
     const n = playerState.steps.filter((s) => !s.isRest).length;
     set({
       playerState,
@@ -97,7 +105,9 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
         ? `Repescagem: só ${n} etapa${n > 1 ? "s" : ""} não feita${n > 1 ? "s" : ""} de hoje`
         : playerState.minima
           ? `Versão mínima: ${n} etapa${n > 1 ? "s" : ""} essencia${n > 1 ? "is" : "l"}`
-          : null,
+          : variante
+            ? `Versão ${variante} desta vez`
+            : null,
     });
   },
   clearPlayerBanner: () => set({ playerBanner: null }),
@@ -209,13 +219,14 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
           startedTs: p.startedAt,
           routineId: routine.id,
           routineName: routine.name,
-          plannedSec: totalPlanejadoSegundos(routine, get().exercicios),
+          plannedSec: totalPlanejadoSegundos(rotinaDaVariante(routine, p.variante), get().exercicios),
           actualSec: Math.max(0, grossSec - Math.round(p.pausedTotalMs / 1000)),
           pauses: p.pauseCount,
           pausedSec: Math.round(p.pausedTotalMs / 1000),
           skippedCount: stepActuals.filter((a) => a?.skipped).length,
           steps: stepActuals.filter((a): a is StepActual => !!a),
           ...(p.minima ? { minima: true } : {}),
+          ...(p.variante ? { variante: p.variante } : {}),
         };
         const history = [...get().history, entry];
         save(K_HISTORY, history);

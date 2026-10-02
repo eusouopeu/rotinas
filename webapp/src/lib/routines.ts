@@ -130,3 +130,79 @@ export function rotinasOrdenadas(routines: Routine[]): Routine[] {
     })
     .map((x) => x.r);
 }
+
+/** Próxima rotina de hoje (02/10/2026): a primeira, pela ordem de horário,
+ *  agendada para hoje, não pausada/arquivada e ainda sem execução no dia —
+ *  a tela de conclusão oferece começá-la direto, sem voltar à lista. */
+export function proximaRotinaDeHoje(
+  routines: Routine[],
+  history: HistoryEntry[],
+  excetoId: string | null,
+  hoje = new Date()
+): Routine | null {
+  const iso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+  const feitas = new Set(history.filter((h) => h.date === iso).map((h) => h.routineId));
+  return (
+    rotinasOrdenadas(routines).find(
+      (r) =>
+        r.id !== excetoId &&
+        !r.arquivada &&
+        rotinaAgendadaEm(r, hoje) &&
+        !rotinaPausadaEm(r, hoje) &&
+        !feitas.has(r.id)
+    ) ?? null
+  );
+}
+
+/** "Nunca falhar dois dias" (02/10/2026, opção em Ajustes): a rotina é devida
+ *  hoje, ainda não foi feita, e a ocorrência anterior (até 14 dias atrás,
+ *  pulando dias pausados — da rotina ou da agenda inteira) ficou sem
+ *  execução. Rotina sem horário/dias marcados não tem "ocorrência anterior". */
+export function falhouUltimaVez(
+  r: Routine,
+  history: HistoryEntry[],
+  pausasGerais: Array<{ from: number; to: number }> = [],
+  hoje = new Date()
+): boolean {
+  const iso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const pausado = (d: Date) => {
+    if (rotinaPausadaEm(r, d)) return true;
+    const meio = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTime();
+    return pausasGerais.some((p) => meio >= p.from && meio <= p.to);
+  };
+  if (r.arquivada || !rotinaAgendadaEm(r, hoje) || pausado(hoje)) return false;
+  const feitos = new Set(history.filter((h) => h.routineId === r.id).map((h) => h.date));
+  if (feitos.has(iso(hoje))) return false;
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - i);
+    if (r.createdAt && d.getTime() + 86400000 <= r.createdAt) return false;
+    if (!rotinaAgendadaEm(r, d) || pausado(d)) continue;
+    return !feitos.has(iso(d));
+  }
+  return false;
+}
+
+/* Variantes A/B (02/10/2026): a rotina guarda uma segunda lista de etapas
+   (`stepsB`) e alterna sozinha a cada execução — Treino A, Treino B, Treino
+   A... A variante feita fica no histórico (`HistoryEntry.variante`); a
+   próxima é a oposta da última execução. Agenda, duração e xp continuam
+   calculados pela versão A. */
+export function temVarianteB(r: Pick<Routine, "stepsB">): boolean {
+  return !!r.stepsB && r.stepsB.length > 0;
+}
+
+export function proximaVariante(r: Routine, history: HistoryEntry[]): "A" | "B" | null {
+  if (!temVarianteB(r)) return null;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i];
+    if (h.routineId !== r.id || h.minima) continue;
+    return h.variante === "A" ? "B" : "A";
+  }
+  return "A";
+}
+
+/** A rotina com as etapas da variante pedida (B sem etapas cai na A). */
+export function rotinaDaVariante(r: Routine, v: "A" | "B" | null | undefined): Routine {
+  return v === "B" && temVarianteB(r) ? { ...r, steps: r.stepsB! } : r;
+}

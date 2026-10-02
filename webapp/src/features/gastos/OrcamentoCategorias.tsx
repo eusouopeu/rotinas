@@ -3,7 +3,7 @@
 // no mapa do diário ("orcamento:<categoria>", lib/expense.ts).
 import { useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
-import { brl, categoriasDoMes, chaveOrcamento, EXP_CATS } from "../../lib/expense";
+import { brl, categoriasDoMes, chaveOrcamento, EXP_CATS, soDespesas } from "../../lib/expense";
 import type { ExpenseDoc } from "../../lib/types";
 import { cn } from "../../lib/cn";
 import { Cartao } from "../../ui/Cartao";
@@ -32,7 +32,7 @@ function VsMedia({ atual, media }: { atual: number; media: number | null }) {
  *  não mudam com a busca. */
 export function OrcamentoCategorias() {
   const templates = useAppStore((s) => s.templates);
-  const docs = templates.filter((t): t is ExpenseDoc => t.type === "expense");
+  const docs = soDespesas(templates.filter((t): t is ExpenseDoc => t.type === "expense"));
   const diario = useAppStore((s) => s.diario);
   const setDiarioTexto = useAppStore((s) => s.setDiarioTexto);
   const [editando, setEditando] = useState<string | null>(null);

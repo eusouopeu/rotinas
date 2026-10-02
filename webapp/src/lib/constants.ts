@@ -65,6 +65,8 @@ export const K_HORASBUDGET = "rotinas_v2_horasbudget";
 export const K_ICALURL = "rotinas_v2_icalurl";
 export const K_ICALCACHE = "rotinas_v2_icalcache";
 export const K_FONTSCALE = "rotinas_v2_fontscale";
+/** "Nunca falhar dois dias" (02/10/2026): preferência local, fora do backup. */
+export const K_NAOFALHAR = "rotinas_v2_naofalhar";
 export const K_DIGESTSEMANAL = "rotinas_v2_digest_semanal";
 export const K_PIN = "rotinas_v2_pin";
 export const K_EXERCICIOS = "rotinas_v2_exercicios";

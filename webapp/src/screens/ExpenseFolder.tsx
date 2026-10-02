@@ -17,17 +17,23 @@ import { Legenda } from "../ui/Legenda";
 import { Toggle } from "../ui/Segmentado";
 import {
   EXP_CATS,
+  brl,
   computeImportPreview,
   despesasCsv,
   filtrarDespesas,
   guessExpenseColumns,
   parseBRNumber,
   parseCsvText,
+  saldoDoMes,
+  soDespesas,
   sugerirCategoriaDespesa,
   type ImportState,
 } from "../lib/expense";
 import type { ExpenseDoc } from "../lib/types";
 import { rolavel, tela } from "../ui/Tela";
+import { localKey } from "../lib/gamificacao";
+import { LinhaValor } from "../ui/LinhaValor";
+import { Cartao } from "../ui/Cartao";
 
 function downloadText(filename: string, text: string, mime: string) {
   const blob = new Blob([text], { type: mime });
@@ -63,6 +69,7 @@ export function ExpenseFolder() {
 
   const allDocs = templates.filter((t): t is ExpenseDoc => t.type === "expense");
   const docs = filtrarDespesas(allDocs, { query, from, to, cat });
+  const saldo = saldoDoMes(allDocs, localKey().slice(0, 7));
 
   function onCsvFile(file: File) {
     setAviso("");
@@ -79,28 +86,36 @@ export function ExpenseFolder() {
         return;
       }
       const anyNeg = g.dataRows.some((r) => parseBRNumber(r[g.valCol]) < 0);
+      const anyPos = g.dataRows.some((r) => parseBRNumber(r[g.valCol]) > 0);
       setImportState({
         dataRows: g.dataRows,
         guess: g,
         map: { date: g.dateCol, val: g.valCol, desc: g.descCol >= 0 ? g.descCol : 0 },
-        sign: anyNeg ? "neg" : "abs",
+        // extrato com entradas e saídas (02/10/2026): importa as duas, saída
+        // vira despesa e entrada vira receita
+        sign: anyNeg && anyPos ? "ambos" : anyNeg ? "neg" : "abs",
       });
     };
     reader.readAsText(file, "utf-8");
   }
 
   function confirmarImport(st: ImportState) {
-    const res = computeImportPreview(st);
+    const res = computeImportPreview(st, allDocs);
     addExpenses(
       res.parsed.map((e) => ({
         desc: e.desc,
         value: +e.value.toFixed(2),
-        cat: sugerirCategoriaDespesa(e.desc, allDocs) || "Outros",
+        cat: e.receita ? "Outros" : sugerirCategoriaDespesa(e.desc, soDespesas(allDocs)) || "Outros",
         date: e.date,
+        ...(e.receita ? { receita: true } : {}),
       }))
     );
     setImportState(null);
-    setAviso(res.parsed.length + " lançamento(s) importado(s) ✓");
+    setAviso(
+      res.parsed.length +
+        " lançamento(s) importado(s) ✓" +
+        (res.duplicados ? ` · ${res.duplicados} já lançado(s), ignorado(s)` : "")
+    );
   }
 
   function exportarCsv() {
@@ -149,9 +164,24 @@ export function ExpenseFolder() {
         {aviso && <Legenda className="mb-2">{aviso}</Legenda>}
 
         {importState ? (
-          <ImportarExtrato initial={importState} onCancel={() => setImportState(null)} onConfirm={confirmarImport} />
+          <ImportarExtrato
+            initial={importState}
+            existentes={allDocs}
+            onCancel={() => setImportState(null)}
+            onConfirm={confirmarImport}
+          />
         ) : (
           <>
+            {saldo.entradas > 0 && (
+              <Cartao className="mb-3">
+                <LinhaValor rotulo="Receitas do mês" valor={brl(saldo.entradas)} />
+                <LinhaValor rotulo="Gastos do mês" valor={brl(saldo.saidas)} />
+                <LinhaValor
+                  rotulo="Saldo"
+                  valor={(saldo.saldo < 0 ? "−" : "") + brl(Math.abs(saldo.saldo))}
+                />
+              </Cartao>
+            )}
             <div className="mb-3">
               <Campo
                 variante="item"
@@ -206,7 +236,7 @@ export function ExpenseFolder() {
                 }}
               />
             ) : (
-              <GraficosGastos docs={docs} />
+              <GraficosGastos docs={soDespesas(docs)} />
             )}
           </>
         )}
@@ -222,7 +252,7 @@ export function ExpenseFolder() {
         />
       )}
 
-      {!importState && <Fab rotulo="Nova despesa" onClick={() => setNovo(true)} />}
+      {!importState && <Fab rotulo="Nova despesa ou receita" onClick={() => setNovo(true)} />}
     </div>
   );
 }

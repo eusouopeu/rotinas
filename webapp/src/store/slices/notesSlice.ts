@@ -172,7 +172,7 @@ export const createNotesSlice: StateCreator<AppState, [], [], NotesSlice> = (set
       const templates = [...get().templates, doc];
       save(K_TEMPLATES, templates);
       set({ templates });
-      if (fields.recorrente) get().lancarDespesasRecorrentes();
+      if (fields.recorrente || fields.parcelas) get().lancarDespesasRecorrentes();
     },
     addExpenses: (lote) => {
       const now = Date.now();

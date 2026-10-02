@@ -22,11 +22,11 @@ export function DesktopTopbar() {
       </BotaoIcone>
       <button
         className="flex h-[38px] min-w-0 flex-[0_1_420px] cursor-pointer items-center gap-2 rounded-[20px] border-0 bg-card-2 px-3.5 font-sans text-base text-sub hover:border-caneta-soft hover:text-ink electron:[-webkit-app-region:no-drag]"
-        title="Busca global (/)"
+        title="Busca global (/ ou Ctrl+K)"
         onClick={openSearch}
       >
         <Icon name="magnifyingGlass" size={14} />
-        <span className="truncate">Buscar rotinas, metas, notas...</span>
+        <span className="truncate">Buscar rotinas, metas, notas, cartões...</span>
       </button>
       <span className="flex-1" />
     </div>

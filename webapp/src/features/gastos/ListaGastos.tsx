@@ -11,7 +11,7 @@ import { EstadoVazio } from "../../ui/EstadoVazio";
 import { CelNegrito, CelNota, LinhaTabela } from "../../ui/LinhaTabela";
 import { LinhaBarra } from "../../ui/LinhaBarra";
 import { RotuloSecao } from "../../ui/RotuloSecao";
-import { EXP_CATS, agruparPorMes, brl, catColor } from "../../lib/expense";
+import { EXP_CATS, RECEITA_CATS, agruparPorMes, brl, catColor, parcelaLabel } from "../../lib/expense";
 import type { ExpenseDoc } from "../../lib/types";
 
 function EdicaoGasto({
@@ -43,7 +43,7 @@ function EdicaoGasto({
         onChange={(ev) => setValue(ev.target.value)}
       />
       <SelecaoLinha value={cat} onChange={(ev) => setCat(ev.target.value)}>
-        {EXP_CATS.map((c) => (
+        {(e.receita ? RECEITA_CATS : EXP_CATS).map((c) => (
           <option key={c}>{c}</option>
         ))}
       </SelecaoLinha>
@@ -61,7 +61,7 @@ function EdicaoGasto({
         value={time}
         onChange={(ev) => setTime(ev.target.value)}
       />
-      {!e.origemRec && (
+      {!e.origemRec && !e.parcelas && (
         <Switch className="w-full text-base" checked={recorrente} onChange={setRecorrente}>
           Repetir todo mês neste dia
         </Switch>
@@ -77,7 +77,7 @@ function EdicaoGasto({
             cat,
             date,
             time: time || undefined,
-            ...(e.origemRec ? {} : { recorrente: recorrente || undefined }),
+            ...(e.origemRec || e.parcelas ? {} : { recorrente: recorrente || undefined }),
           });
         }}
       >
@@ -104,9 +104,11 @@ export function ListaGastos({ docs, onDelete, onSave }: Props) {
       {grupos.map((g) => (
         <div key={g.chave}>
           <RotuloSecao>
-            {g.chave.slice(5, 7)}/{g.chave.slice(0, 4)} — total {brl(g.total)}
+            {g.chave.slice(5, 7)}/{g.chave.slice(0, 4)} — gastos {brl(g.total)}
+            {g.entradas > 0 &&
+              ` · receitas ${brl(g.entradas)} · saldo ${g.entradas - g.total < 0 ? "−" : ""}${brl(Math.abs(g.entradas - g.total))}`}
           </RotuloSecao>
-          <Cartao className="mb-1.5">
+          <Cartao className={g.porCategoria.length ? "mb-1.5" : "hidden"}>
             {g.porCategoria.map((c) => (
               <LinhaBarra
                 key={c.cat}
@@ -140,10 +142,13 @@ export function ListaGastos({ docs, onDelete, onSave }: Props) {
                     <span className="font-sans text-sm text-sub">
                       {e.cat}
                       {e.time ? " · " + e.time : ""}
-                      {e.recorrente || e.origemRec ? " · todo mês" : ""}
+                      {e.parcelas ? " · parcela " + parcelaLabel(e) : e.recorrente || e.origemRec ? " · todo mês" : ""}
                     </span>
                   </span>
-                  <CelNegrito status="pontual">{brl(e.value)}</CelNegrito>
+                  <CelNegrito status={e.receita ? "adiantado" : "pontual"}>
+                    {e.receita ? "+" : ""}
+                    {brl(e.value)}
+                  </CelNegrito>
                   <BotaoApagar onClick={() => onDelete(e.id)} />
                 </LinhaTabela>
               )

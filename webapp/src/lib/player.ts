@@ -95,6 +95,8 @@ export interface PlayerState {
   journalTexts?: Record<string, string>;
   /** Execução da versão mínima (só etapas essenciais). */
   minima?: boolean;
+  /** Variante em execução (rotina que alterna A/B). */
+  variante?: "A" | "B";
 }
 
 /** Porta de podarDescansos (index.html:11176-11184) — remove descanso

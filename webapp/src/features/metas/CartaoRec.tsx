@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { fatorParaArea } from "../../lib/gamificacao";
 import {
+  metaRecFalhouOntem,
   metaDias,
   metaRecCompleta,
   metaRecExcesso,
@@ -19,6 +20,7 @@ import { fmtXp } from "../../lib/format";
 import { metaRecPenalidadeUnidade, metaRecPontosBrutos, metaRecPontosUnidade } from "../../lib/scoring";
 import type { GamificacaoState, MetaRecorrente } from "../../lib/types";
 import { Etiqueta } from "../../ui/Etiqueta";
+import { useAppStore } from "../../store/useAppStore";
 import { Fato, Fatos } from "../../ui/Fatos";
 import { CartaoMeta, NumeroMeta, RodapeContador, SemanaMeta, SeloSequencia } from "./CartaoMeta";
 
@@ -52,6 +54,7 @@ export function CartaoRec({
   // positivo, cor do texto em zero (não pontua) e vermelho abaixo (desconta).
   const saldo = metaRecSaldo(rec);
   const seq = sequenciaMetaRec(rec);
+  const naoFalharDois = useAppStore((s) => s.naoFalharDois);
   // pontos do último toque no contador (recomendação 5): some sozinho
   const [aviso, setAviso] = useState<{ texto: string; positivo: boolean; n: number } | null>(null);
   useEffect(() => {
@@ -172,6 +175,16 @@ export function CartaoRec({
           execucoes={seq.execucoes}
           title={`${seq.n} ${unidadeSeq}${seq.n !== 1 ? "s" : ""} seguido${seq.n !== 1 ? "s" : ""} cumprindo a meta · ${seq.execucoes} vez${seq.execucoes !== 1 ? "es" : ""} nesse tempo`}
         />
+        {naoFalharDois && metaRecFalhouOntem(rec) && (
+          <Etiqueta
+            tom="area"
+            cor="var(--erro)"
+            className="text-erro"
+            title="Ontem ficou abaixo da meta: não deixe falhar dois dias seguidos"
+          >
+            <Icon name="exclamationCircle" size={13} /> não falhar hoje
+          </Etiqueta>
+        )}
         {rec.notif && (
           <Etiqueta title="Lembretes">
             <Icon name="bell" size={13} /> {rec.notif.inicio}–{rec.notif.fim}

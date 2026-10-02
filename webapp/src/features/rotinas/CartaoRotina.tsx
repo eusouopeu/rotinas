@@ -9,7 +9,8 @@ import { Icon } from "../../components/Icon";
 import { StreakTag } from "../../components/StreakTag";
 import { fmtTime, fmtXp } from "../../lib/format";
 import { localKey } from "../../lib/gamificacao";
-import { estimadorSerie, routineDurationRaw } from "../../lib/routines";
+import { estimadorSerie, falhouUltimaVez, routineDurationRaw } from "../../lib/routines";
+import { useAppStore } from "../../store/useAppStore";
 import { computeSchedule, diasChipLabel, formatHM, frequenciaLabel, pausaAtualOuFutura } from "../../lib/schedule";
 import { ddmm } from "./PausaRotina";
 import { corDaRotina, fillStyle, pontosPorExecucao, rotinaEhHabito } from "../../lib/scoring";
@@ -54,6 +55,9 @@ export function CartaoRotina({
   const pausa = pausaAtualOuFutura(r);
   const execHoje = execucaoDoDia(history, r.id, hojeISO);
   const execMin = execHoje ? execucaoMinutos(execHoje) : null;
+  const naoFalharDois = useAppStore((s) => s.naoFalharDois);
+  const snoozes = useAppStore((s) => s.snoozes);
+  const naoFalhar = naoFalharDois && !execHoje && falhouUltimaVez(r, history, snoozes);
 
   const pausaTxt = r.arquivada
     ? "arquivada"
@@ -105,6 +109,16 @@ export function CartaoRotina({
             <Icon name="calendar" size={13} /> {freq}
           </Etiqueta>
         )
+      )}
+      {naoFalhar && (
+        <Etiqueta
+          tom="area"
+          cor="var(--erro)"
+          className="text-erro"
+          title="Ficou sem fazer na última vez: não deixe falhar dois dias seguidos"
+        >
+          <Icon name="exclamationCircle" size={13} /> não falhar hoje
+        </Etiqueta>
       )}
       {pausaTxt && (
         <Etiqueta title={r.arquivada ? "Rotina arquivada" : "Só esta rotina está pausada"}>

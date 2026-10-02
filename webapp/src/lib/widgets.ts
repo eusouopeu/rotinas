@@ -36,3 +36,25 @@ export function agendarAtualizacaoWidgets(atrasoMs = 1200): void {
     atualizarWidgets();
   }, atrasoMs);
 }
+
+/** "+1" tocado no widget de metas (02/10/2026): `dia` é o dia do toque. */
+export interface ToqueWidget {
+  id: string;
+  dia: string;
+  delta: number;
+}
+
+/** Lê e esvazia a fila de toques do widget (WidgetToques.java). Fora do
+ *  Android, ou com a ponte ausente, devolve vazio. */
+export async function consumirToquesWidget(): Promise<ToqueWidget[]> {
+  const w = isNative ? window.Capacitor?.Plugins.Widgets : undefined;
+  if (!w?.consumirToques) return [];
+  try {
+    const r = await w.consumirToques();
+    return (r?.toques || [])
+      .filter((t) => t && typeof t.id === "string" && /^\d{4}-\d{2}-\d{2}$/.test(t.dia))
+      .map((t) => ({ id: t.id, dia: t.dia, delta: t.delta || 1 }));
+  } catch {
+    return [];
+  }
+}

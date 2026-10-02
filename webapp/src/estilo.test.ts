@@ -43,6 +43,7 @@ const ESTILO_EM_LINHA: Record<string, number> = {
   "features/roda/RodaVidaResumo.tsx": 1,
   "features/rotinas/AgendaMes.tsx": 2,
   "screens/MesFechado.tsx": 2,
+  "screens/AnoFechado.tsx": 1, // cor do selo do ano (BADGE_COR, valor do mapa)
   "features/rotinas/GradeDia.tsx": 4,
   "screens/Boletim.tsx": 4,
   "screens/Home.tsx": 2,

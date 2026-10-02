@@ -291,6 +291,9 @@ export interface ExerciseAggRow {
   primeiraTs: number;
   serieText: string;
   evoText: string;
+  /** Volume (séries × reps × kg) das últimas 12 sessões, da mais antiga para
+   * a mais recente — gráfico de evolução em Dados › rotina (02/10/2026). */
+  volumes: Array<{ label: string; valor: number }>;
 }
 
 export interface RoutineHourCol {
@@ -1815,13 +1818,14 @@ export function getRoutineDetailStats(
     .sort((x, y) => x.difMedia - y.difMedia);
 
   // Carga por exercício
-  const exAgg: Record<string, { nome: string; sessions: Array<{ ts: number; maxPeso: number }> }> = {};
+  const exAgg: Record<string, { nome: string; sessions: Array<{ ts: number; maxPeso: number; volume: number }> }> = {};
   entries.forEach((h) =>
     (h.steps || []).forEach((s) => {
       if (!s.exercicioId || !s.series || !s.series.length) return;
       const a = exAgg[s.exercicioId] || (exAgg[s.exercicioId] = { nome: s.name, sessions: [] });
       const maxPeso = Math.max(0, ...s.series.map((x) => x.peso || 0));
-      a.sessions.push({ ts: h.ts, maxPeso });
+      const volume = s.series.reduce((t, x) => t + (x.reps || 0) * (x.peso || 0), 0);
+      a.sessions.push({ ts: h.ts, maxPeso, volume: Math.round(volume * 10) / 10 });
     })
   );
 
@@ -1852,6 +1856,7 @@ export function getRoutineDetailStats(
         primeiraTs: primeira.ts,
         serieText,
         evoText,
+        volumes: ord.slice(-12).map((x) => ({ label: dmy(x.ts), valor: x.volume })),
       };
     });
 

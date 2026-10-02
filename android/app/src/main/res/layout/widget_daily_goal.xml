@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Widget de metas: até 4 linhas título + progresso, recorrentes "ao dia"
      primeiro e prazos mais próximos preenchendo o que sobrar.
-     Sem configuração. -->
+     Sem configuração. O "+" de cada recorrente soma 1 sem abrir o app
+     (02/10/2026); o resto do widget abre a aba Metas. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widgetRoot"
     android:layout_width="match_parent"
@@ -34,6 +35,7 @@
         android:id="@+id/goalRow1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingTop="3dp"
         android:paddingBottom="3dp">
@@ -43,12 +45,17 @@
         <TextView android:id="@+id/goalProg1" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginStart="8dp" android:textColor="@color/widget_sub" android:textSize="13sp"
             android:textStyle="bold" android:text="" />
+        <TextView android:id="@+id/goalPlus1" android:layout_width="28dp" android:layout_height="28dp"
+            android:layout_marginStart="8dp" android:background="@drawable/widget_mais_bg" android:gravity="center"
+            android:textColor="@color/widget_caneta" android:textSize="16sp" android:textStyle="bold"
+            android:contentDescription="Somar 1" android:visibility="gone" android:text="+" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/goalRow2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingTop="3dp"
         android:paddingBottom="3dp">
@@ -58,12 +65,17 @@
         <TextView android:id="@+id/goalProg2" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginStart="8dp" android:textColor="@color/widget_sub" android:textSize="13sp"
             android:textStyle="bold" android:text="" />
+        <TextView android:id="@+id/goalPlus2" android:layout_width="28dp" android:layout_height="28dp"
+            android:layout_marginStart="8dp" android:background="@drawable/widget_mais_bg" android:gravity="center"
+            android:textColor="@color/widget_caneta" android:textSize="16sp" android:textStyle="bold"
+            android:contentDescription="Somar 1" android:visibility="gone" android:text="+" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/goalRow3"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingTop="3dp"
         android:paddingBottom="3dp">
@@ -73,12 +85,17 @@
         <TextView android:id="@+id/goalProg3" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginStart="8dp" android:textColor="@color/widget_sub" android:textSize="13sp"
             android:textStyle="bold" android:text="" />
+        <TextView android:id="@+id/goalPlus3" android:layout_width="28dp" android:layout_height="28dp"
+            android:layout_marginStart="8dp" android:background="@drawable/widget_mais_bg" android:gravity="center"
+            android:textColor="@color/widget_caneta" android:textSize="16sp" android:textStyle="bold"
+            android:contentDescription="Somar 1" android:visibility="gone" android:text="+" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/goalRow4"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingTop="3dp"
         android:paddingBottom="3dp">
@@ -88,5 +105,9 @@
         <TextView android:id="@+id/goalProg4" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginStart="8dp" android:textColor="@color/widget_sub" android:textSize="13sp"
             android:textStyle="bold" android:text="" />
+        <TextView android:id="@+id/goalPlus4" android:layout_width="28dp" android:layout_height="28dp"
+            android:layout_marginStart="8dp" android:background="@drawable/widget_mais_bg" android:gravity="center"
+            android:textColor="@color/widget_caneta" android:textSize="16sp" android:textStyle="bold"
+            android:contentDescription="Somar 1" android:visibility="gone" android:text="+" />
     </LinearLayout>
 </LinearLayout>

@@ -300,6 +300,15 @@ export function metaRecCompleta(rec: MetaRecorrente, data: Date = new Date()): b
   return metaRecFeitas(rec, data) >= rec.vezes;
 }
 
+/** "Nunca falhar dois dias" (02/10/2026): meta diária positiva que ficou
+ *  abaixo do alvo ontem (último período fechado) e ainda não fechou hoje. */
+export function metaRecFalhouOntem(rec: MetaRecorrente, data: Date = new Date()): boolean {
+  if (rec.tipo !== "diaria" || rec.negativa || metaRecCompleta(rec, data)) return false;
+  const ultimo = rec.historico?.[rec.historico.length - 1];
+  const ontem = localKey(new Date(data.getFullYear(), data.getMonth(), data.getDate() - 1));
+  return !!ultimo && ultimo.periodo === "dia:" + ontem && ultimo.feitas < (ultimo.vezes ?? rec.vezes);
+}
+
 /**
  * Meta negativa (ex: "delivery no máx 2x/semana"): vezes vira limite. Excedeu quando feitas > vezes.
  */

@@ -53,7 +53,7 @@ export function Stats() {
   return (
     <div {...tela({ comAbas: true, larga: true })}>
       <div {...rolavel()}>
-        <CabecalhoTela titulo="Dados" fixo tituloClassName="flex items-center">
+        <CabecalhoTela titulo="Dados" tituloClassName="flex items-center">
           <div className="flex items-center gap-2.5">
             <BotaoIcone
               rotulo="Relatório de fechamento (PDF)"

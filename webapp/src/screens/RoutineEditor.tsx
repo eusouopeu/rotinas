@@ -25,6 +25,7 @@ import { exportarRotina } from "../features/rotinas/exportarRotina";
 import type { Routine, RoutineStep, Tag } from "../lib/types";
 import { cn } from "../lib/cn";
 import { AlcaArrasto } from "../ui/AlcaArrasto";
+import { Ajuda } from "../ui/Ajuda";
 import { BarraAcoes } from "../ui/BarraAcoes";
 import { Botao } from "../ui/Botao";
 import { BotaoIcone } from "../ui/BotaoIcone";
@@ -34,6 +35,7 @@ import { RotuloSecao } from "../ui/RotuloSecao";
 import { PilulaArea } from "../ui/PilulaArea";
 import { Toggle } from "../ui/Segmentado";
 import { SwipeItem } from "../ui/SwipeItem";
+import { Switch } from "../ui/Switch";
 import { tela } from "../ui/Tela";
 
 function uid(): string {
@@ -104,6 +106,9 @@ export function RoutineEditor() {
   const saveDraft = useAppStore((s) => s.saveDraft);
   const deleteRoutine = useAppStore((s) => s.deleteRoutine);
   const [pickerFor, setPickerFor] = useState<number | null>(null);
+  // Variantes A/B (02/10/2026): a lista em edição é sempre draft.steps; ver a
+  // B troca steps <-> stepsB no rascunho e salvar destroca antes.
+  const [lado, setLado] = useState<"A" | "B">("A");
 
   if (!draft) {
     cancelEdit();
@@ -147,9 +152,26 @@ export function RoutineEditor() {
       updateDraft({ schedule: { ...schedule, days: [...dias, d].sort((a, b) => a - b) } });
     }
   }
+  function trocarLado(novo: "A" | "B") {
+    if (novo === lado) return;
+    updateDraft({ steps: draft!.stepsB || [], stepsB: draft!.steps });
+    setLado(novo);
+  }
+  function setAlternar(on: boolean) {
+    if (on) {
+      // começa como cópia da A (ids novos): é só trocar o que muda no treino B
+      updateDraft({ stepsB: draft!.steps.map((s) => ({ ...s, id: uid() })) });
+    } else {
+      if (lado === "B") updateDraft({ steps: draft!.stepsB || [] });
+      updateDraft({ stepsB: null });
+      setLado("A");
+    }
+  }
   function handleSave() {
     if (!draft!.name.trim()) return;
-    saveDraft();
+    if (lado === "B") updateDraft({ steps: draft!.stepsB || [], stepsB: draft!.steps });
+    // não salvou (sem etapas com nome): volta a mostrar a B como estava
+    if (!saveDraft() && lado === "B") updateDraft({ steps: draft!.steps, stepsB: draft!.stepsB });
   }
   function handleDelete() {
     if (!window.confirm(`Excluir a rotina "${draft!.name || "sem nome"}"?`)) return;
@@ -309,7 +331,27 @@ export function RoutineEditor() {
         </div>
 
         {/* etapas por último (pedido do Pedro, 30/09/2026): ajustes vêm antes */}
-        <RotuloSecao className="mt-6">Etapas</RotuloSecao>
+        <div className="mt-6 flex items-center justify-between gap-2">
+          <RotuloSecao className="m-0">Etapas</RotuloSecao>
+          {draft.stepsB != null && (
+            <Toggle
+              grande
+              options={[
+                { key: "A", label: "versão A" },
+                { key: "B", label: "versão B" },
+              ]}
+              active={lado}
+              onSelect={trocarLado}
+            />
+          )}
+        </div>
+        <Switch className="mt-2 mb-3 text-base" checked={draft.stepsB != null} onChange={setAlternar}>
+          Alternar A/B{" "}
+          <Ajuda>
+            Duas listas de etapas (Treino A e Treino B). Cada execução usa a versão oposta à anterior; agenda e xp
+            seguem a versão A.
+          </Ajuda>
+        </Switch>
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
           {draft.steps.map((s, i) => (
             <div

@@ -31,6 +31,7 @@ import { Stats } from "./screens/Stats";
 import { RoutineStats } from "./screens/RoutineStats";
 import { SemanaFechada } from "./screens/SemanaFechada";
 import { MesFechado } from "./screens/MesFechado";
+import { AnoFechado } from "./screens/AnoFechado";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { BoasVindas } from "./components/BoasVindas";
 import { GlobalBanner } from "./components/GlobalBanner";
@@ -86,6 +87,12 @@ function useSidebarCollapsedEffect(collapsed: boolean) {
 function useGlobalSearchShortcut(openSearch: () => void) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // Ctrl/Cmd+K (02/10/2026): com modificador, vale até digitando
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openSearch();
+        return;
+      }
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
       const el = document.activeElement as HTMLElement | null;
       const digitando = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
@@ -192,6 +199,8 @@ function Screen({ screen }: { screen: string }) {
       return <SemanaFechada />;
     case "mesFechado":
       return <MesFechado />;
+    case "anoFechado":
+      return <AnoFechado />;
     case "home":
     default:
       return <Home />;
@@ -240,7 +249,7 @@ export function App() {
   // sua própria marca de "já avisei hoje".
   useEffect(() => {
     const checar = () => {
-      useAppStore.getState().virarMetasRec();
+      void useAppStore.getState().aplicarToquesWidget();
       useAppStore.getState().lancarDespesasRecorrentes();
       useAppStore.getState().checarNudgesAgora();
     };

@@ -28,6 +28,8 @@ import java.util.List;
 public final class DailyGoalStore {
 
     public static class Goal {
+        /** id da meta recorrente (vazio nas de prazo) — alvo do "+1" do widget */
+        public String id = "";
         public final String titulo;
         public final int feitas;
         public final int vezes;
@@ -135,7 +137,12 @@ public final class DailyGoalStore {
                 if (prog != null && hoje.equals(prog.optString("periodo", ""))) {
                     feitas = prog.optInt("feitas", 0);
                 }
-                out.add(new Goal(titulo, feitas, vezes, negativa));
+                String id = r.optString("id", "");
+                // "+1" tocados no widget que o app ainda não aplicou
+                if (!id.isEmpty()) feitas += WidgetToques.pendentes(ctx, id, WidgetToques.hoje());
+                Goal g = new Goal(titulo, feitas, vezes, negativa);
+                g.id = id;
+                out.add(g);
             }
             // metas de prazo mais próximas, preenchendo as linhas que sobrarem
             // (o provider já corta em MAX_ROWS — inútil ordenar/limitar de mais aqui)

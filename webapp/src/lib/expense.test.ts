@@ -176,7 +176,7 @@ describe("despesasCsv", () => {
     ]);
     const linhas = out.split("\n");
     expect(linhas[0].charCodeAt(0)).toBe(0xfeff);
-    expect(linhas[1]).toBe("2026-01-01;;a;2,00;Outros");
-    expect(linhas[2]).toBe("2026-02-01;;b,c;1,50;Lazer");
+    expect(linhas[1]).toBe("2026-01-01;;a;2,00;Outros;despesa");
+    expect(linhas[2]).toBe("2026-02-01;;b,c;1,50;Lazer;despesa");
   });
 });

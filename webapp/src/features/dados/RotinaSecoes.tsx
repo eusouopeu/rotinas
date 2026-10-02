@@ -7,6 +7,7 @@ import { Cartao } from "../../ui/Cartao";
 import { CelNegrito, CelNota, CelRotulo, LinhaTabela, statusDaClasse } from "../../ui/LinhaTabela";
 import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
+import { GraficoLinhaPct } from "../../components/GraficoLinhaPct";
 import { fmtTime } from "../../lib/format";
 import type { getRoutineDetailStats } from "../../lib/stats";
 import { BarrasHora } from "./Graficos";
@@ -132,7 +133,7 @@ export function EtapasRotina({
 
 export function CargaExercicios({ stats }: { stats: Stats }) {
   return (
-    <Secao titulo="Carga por exercício">
+    <Secao titulo="Carga e volume por exercício">
       {stats.exerciseRows.map((ex, i) => (
         <div key={i} className="mb-2">
           <LinhaTabela>
@@ -144,6 +145,14 @@ export function CargaExercicios({ stats }: { stats: Stats }) {
             <Legenda>{ex.serieText}</Legenda>
             {ex.evoText && <Legenda>{ex.evoText}</Legenda>}
           </div>
+          {ex.volumes.length > 1 && (
+            <GraficoLinhaPct
+              pontos={ex.volumes.map((v) => ({ label: v.label, pct: v.valor }))}
+              max={Math.max(...ex.volumes.map((v) => v.valor), 1)}
+              formato={(v) => (v >= 1000 ? (v / 1000).toFixed(1).replace(".", ",") + "t" : Math.round(v) + "kg")}
+              ariaLabel={`Volume de ${ex.nome} por sessão (séries × repetições × kg)`}
+            />
+          )}
         </div>
       ))}
     </Secao>
