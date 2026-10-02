@@ -344,6 +344,7 @@ export function duplicarMetaRec(
     id: newId(),
     titulo: src.titulo + " (cópia)",
     progresso: null,
+    progressoDias: {},
     criadoEm: Date.now(),
   };
   return {
@@ -370,8 +371,9 @@ export function ajustarProgressoMetaRec(
   const feitasAntes = !rec.negativa && rec.pontua ? p.feitas : 0;
   // positiva e negativa podem passar do limite (excesso positivo vale meio item;
   // negativo vira saldo abaixo de zero e desconta).
+  const antes = p.feitas;
   p.feitas = Math.max(0, p.feitas + delta);
-  const novo = { ...rec, progresso: p };
+  const novo = { ...rec, progresso: p, progressoDias: registrarProgressoDia(rec, p.feitas - antes, localKey(data)) };
   const excessoDepois = metaRecExcesso(novo, data);
   const feitasDepois = !rec.negativa && rec.pontua ? p.feitas : 0;
   return {
@@ -542,4 +544,84 @@ export function proximoMarco(
   const dias = Math.max(0, Math.round((isoToDate(marco.data).getTime() - isoToDate(hojeISO).getTime()) / 86400000));
   const previsto = Math.floor(feitos + ritmo * dias);
   return { marco, batido: false, perdido, previsto, noRitmo: !perdido && previsto >= marco.alvo };
+}
+
+/* Semana no cartão de meta (mockup de 02/10/2026): sete bolinhas na ordem do
+   início da semana dos Ajustes. previsto = dia de trabalhar a meta; feito =
+   houve registro no dia; perdido = dia previsto que já passou sem registro. */
+export type EstadoDiaMeta = "feitoPrevisto" | "feito" | "perdido" | "previsto" | "livre";
+export interface DiaSemanaMeta {
+  iso: string;
+  dow: number;
+  estado: EstadoDiaMeta;
+}
+
+export function semanaDaMeta(
+  diasPrevistos: number[],
+  qtdNoDia: (iso: string) => number,
+  hoje: Date = new Date()
+): DiaSemanaMeta[] {
+  const hojeISO = localKey(hoje);
+  const ini = inicioSemanaISO(hoje);
+  return Array.from({ length: 7 }, (_, i) => {
+    const iso = addDaysISO(ini, i);
+    const dow = isoToDate(iso).getDay();
+    const previsto = diasPrevistos.includes(dow);
+    const feito = qtdNoDia(iso) > 0;
+    const estado: EstadoDiaMeta = feito
+      ? previsto
+        ? "feitoPrevisto"
+        : "feito"
+      : previsto
+        ? iso < hojeISO
+          ? "perdido"
+          : "previsto"
+        : "livre";
+    return { iso, dow, estado };
+  });
+}
+
+/** Quantidade feita num dia da meta recorrente: o registro diário; sem ele
+ *  (feito antes de existir), a meta diária ainda tem o período do dia. */
+export function metaRecQtdNoDia(rec: MetaRecorrente, iso: string): number {
+  const dia = rec.progressoDias?.[iso];
+  if (dia != null) return dia;
+  if (rec.tipo !== "diaria") return 0;
+  const per = "dia:" + iso;
+  if (rec.progresso?.periodo === per) return rec.progresso.feitas;
+  return (rec.historico || []).find((h) => h.periodo === per)?.feitas || 0;
+}
+
+/** Sequência "N – Mx" (mesmo formato do selo das rotinas). Meta com prazo:
+ *  N = dias corridos desde o primeiro registro da sequência, M = dias com
+ *  registro nela; só quebra num dia previsto que passou em branco (hoje
+ *  nunca quebra). */
+export function sequenciaMetaPrazo(
+  t: Pick<MetaTarget, "dias" | "progressoDias">,
+  hojeISO: string = localKey()
+): { dias: number; execucoes: number } {
+  const prog = t.progressoDias || {};
+  const previstos = metaDias(t);
+  let inicio: string | null = (prog[hojeISO] || 0) > 0 ? hojeISO : null;
+  let execucoes = inicio ? 1 : 0;
+  for (let k = 1; k <= 60; k++) {
+    const d = addDaysISO(hojeISO, -k);
+    if ((prog[d] || 0) > 0) {
+      execucoes++;
+      inicio = d;
+    } else if (previstos.includes(isoToDate(d).getDay())) break;
+  }
+  if (!inicio) return { dias: 0, execucoes: 0 };
+  const dias = Math.round((isoToDate(hojeISO).getTime() - isoToDate(inicio).getTime()) / 86400000) + 1;
+  return { dias, execucoes };
+}
+
+/** Meta recorrente: N = períodos seguidos (metaRecSequencia), M = feitas
+ *  nesses períodos fechados mais as do período atual. */
+export function sequenciaMetaRec(rec: MetaRecorrente, data: Date = new Date()): { n: number; execucoes: number } {
+  const v = virarPeriodoMetaRec(rec, data);
+  const base = v.sequencia || 0;
+  const fechados = base > 0 ? (v.historico || []).slice(-base) : [];
+  const execucoes = fechados.reduce((t, p) => t + p.feitas, 0) + (v.progresso?.feitas || 0);
+  return { n: metaRecSequencia(rec, data), execucoes };
 }

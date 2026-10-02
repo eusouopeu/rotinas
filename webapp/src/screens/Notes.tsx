@@ -23,6 +23,7 @@ export function Notes() {
   const notes = useAppStore((s) => s.notes);
   const openNote = useAppStore((s) => s.openNote);
   const toggleNotePinned = useAppStore((s) => s.toggleNotePinned);
+  const updateNote = useAppStore((s) => s.updateNote);
   const deleteNote = useAppStore((s) => s.deleteNote);
   const showUndoBanner = useAppStore((s) => s.showUndoBanner);
   const addNoteAt = useAppStore((s) => s.addNoteAt);
@@ -100,6 +101,9 @@ export function Notes() {
                   deleteNote(n.id);
                   showUndoBanner("Nota excluída", () => addNoteAt(idx, n));
                 }}
+                /* arquivar saiu do editor (mockup de 02/10/2026) e veio para cá */
+                onRight={() => updateNote(n.id, { arquivada: !n.arquivada })}
+                rightLabel={n.arquivada ? "Desarquivar" : "Arquivar"}
               >
                 {/* título, data completa e favoritar dividem a primeira linha
                     (pedido do Pedro, 30/09/2026): o resumo ganha a largura toda */}

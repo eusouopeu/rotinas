@@ -4,11 +4,22 @@
 import { useState } from "react";
 import type { GamificacaoState, MetaRecorrente, Tag } from "../../lib/types";
 import { Campo } from "../../ui/Campo";
+import { ChipsDia } from "../../ui/ChipsDia";
+import { DIAS_ABREV } from "../../lib/constants";
 import { AreaInput, TimeKbInput } from "../../ui/CamposTexto";
 import { Legenda } from "../../ui/Legenda";
 import { Toggle } from "../../ui/Segmentado";
 import { TAG_OPCOES } from "./constantes";
-import { BotaoLigaForm, CaixaChips, CelulaForm, DivisorForm, FormMeta, IconeForm, LinhaForm, SepForm } from "./FormMeta";
+import {
+  BotaoLigaForm,
+  CaixaChips,
+  CelulaForm,
+  DivisorForm,
+  FormMeta,
+  IconeForm,
+  LinhaForm,
+  SepForm,
+} from "./FormMeta";
 import { Etiqueta } from "../../ui/Etiqueta";
 import { Icon } from "../../components/Icon";
 import { useAppStore } from "../../store/useAppStore";
@@ -24,6 +35,7 @@ type Props = {
 export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
   const [titulo, setTitulo] = useState(rec?.titulo ?? "");
   const [tipo, setTipo] = useState<"diaria" | "semanal">(rec?.tipo ?? "diaria");
+  const [dias, setDias] = useState<number[]>(rec?.dias ? rec.dias.slice() : []);
   const [negativa, setNegativa] = useState(rec?.negativa ?? false);
   const [vezes, setVezes] = useState(rec?.vezes ?? 4);
   const [pontua, setPontua] = useState(rec?.pontua ?? false);
@@ -49,6 +61,7 @@ export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
       pontua,
       tagValor,
       rotinaId: negativa ? null : rotinaId,
+      dias,
     });
   }
 
@@ -173,6 +186,18 @@ export function FormMetaRec({ rec, gam, onClose, onSave }: Props) {
       )}
 
       <DivisorForm />
+
+      {/* dias previstos (02/10/2026): só marcam as bolinhas da semana no cartão */}
+      <LinhaForm>
+        <IconeForm icone="calendar" titulo="Dias previstos (nenhum marcado = todo dia)" />
+        <ChipsDia
+          className="min-w-0 flex-[1_1_0]"
+          rotulos={DIAS_ABREV.map((l) => l.charAt(0).toUpperCase())}
+          titulos={DIAS_ABREV}
+          ativos={dias}
+          onToggle={(d) => setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))}
+        />
+      </LinhaForm>
 
       <LinhaForm>
         <IconeForm icone="bell" titulo="Lembretes (só quando é diária)" />

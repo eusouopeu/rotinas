@@ -7,7 +7,7 @@
 // verde e selo de streak cheio.
 import { Icon } from "../../components/Icon";
 import { StreakTag } from "../../components/StreakTag";
-import { fmtTime } from "../../lib/format";
+import { fmtTime, fmtXp } from "../../lib/format";
 import { localKey } from "../../lib/gamificacao";
 import { estimadorSerie, routineDurationRaw } from "../../lib/routines";
 import { computeSchedule, diasChipLabel, formatHM, frequenciaLabel, pausaAtualOuFutura } from "../../lib/schedule";
@@ -131,7 +131,7 @@ export function CartaoRotina({
       </Fato>
       {xp > 0 && (
         <Fato destaque title="Pontos que uma execução completa rende nesta semana">
-          <Icon name="ticket" size={15} /> {xp.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} xp
+          <Icon name="ticket" size={15} /> {fmtXp(xp)} xp
         </Fato>
       )}
     </>

@@ -4,9 +4,16 @@
 // Pedro, revertendo a decisão de 30/08) o corpo é o editor live
 // (components/LiveMdEditor.tsx): linha ativa crua, demais renderizadas. A
 // toolbar de checkbox/lista/negrito age sobre a seleção da linha ativa.
+//
+// Layout do mockup de 02/10/2026: topo com voltar, título grande e três
+// botões redondos (fixar/favoritar, Markdown cru, excluir); embaixo dele as
+// áreas da nota (texto livre que funciona como seleção múltipla, mesmas cores
+// das áreas de meta — campo `subjects`) e a data; rodapé com a pílula de
+// formatação e o botão de copiar a nota. Arquivar foi para o deslizar à
+// direita na lista de Notas.
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
-import { criadoEmLabel } from "../lib/notes";
+import { metaAreaInfo } from "../lib/metas";
 import {
   indentLines,
   inserirTabela,
@@ -17,8 +24,12 @@ import {
   wrapSelection,
 } from "../lib/mdPreview";
 import { Icon } from "../components/Icon";
+import { cn } from "../lib/cn";
 import { LiveMdEditor, type LiveMdEditorHandle } from "../components/LiveMdEditor";
-import { BarraNota, BotaoNota, CabecaNota, PilulaNota } from "../features/notas/BarrasNota";
+import { BarraNota, BotaoNota, PilulaNota } from "../features/notas/BarrasNota";
+import { AreaInput } from "../ui/CamposTexto";
+import { BotaoIcone } from "../ui/BotaoIcone";
+import { PilulaArea } from "../ui/PilulaArea";
 import { tela } from "../ui/Tela";
 
 export function Inline({ text }: { text: string }) {
@@ -80,30 +91,40 @@ export function NoteEditor() {
   const closeNoteEditor = useAppStore((s) => s.closeNoteEditor);
 
   const note = notes.find((n) => n.id === view.id);
-  const [subjectsInput, setSubjectsInput] = useState((note?.subjects || []).join(", "));
+  const areasRoda = useAppStore((s) => s.gam.config.roda.areas);
+  const toggleNotePinned = useAppStore((s) => s.toggleNotePinned);
   /* Estilizado x cru: preferência de sessão, não de nota — o Pedro alterna
      para conferir sintaxe e volta, não é atributo do documento. */
   const [cru, setCru] = useState(false);
   const [content, setContent] = useState(note?.content || "");
+  const [copiada, setCopiada] = useState(false);
   const editorRef = useRef<LiveMdEditorHandle>(null);
 
   useEffect(() => {
     setContent(note?.content || "");
-    setSubjectsInput((note?.subjects || []).join(", "));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id]);
+  useEffect(() => {
+    if (!copiada) return;
+    const id = setTimeout(() => setCopiada(false), 1400);
+    return () => clearTimeout(id);
+  }, [copiada]);
 
   if (!note) {
     closeNoteEditor();
     return null;
   }
 
-  function commitSubjects() {
-    const vals = subjectsInput
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    updateNote(note!.id, { subjects: vals });
+  const areas = note.subjects || [];
+  // sugestões: áreas da roda + as já usadas em outras notas, menos as escolhidas
+  const pool = [...new Set([...areasRoda.map((a) => a.label), ...notes.flatMap((n) => n.subjects || [])])].filter(
+    (a) => !areas.some((x) => x.toLowerCase() === a.toLowerCase())
+  );
+
+  function adicionarArea(v: string) {
+    const lbl = v.trim();
+    if (lbl && !areas.some((x) => x.toLowerCase() === lbl.toLowerCase()))
+      updateNote(note!.id, { subjects: [...areas, lbl] });
   }
 
   function commitContent(v: string) {
@@ -117,64 +138,95 @@ export function NoteEditor() {
     editorRef.current?.aplicar(fn);
   }
 
-  return (
-    /* Layout no formato do Apple Notes (mockup do Pedro, 12/09/2026): barras
-       flutuantes em pílula no topo e no rodapé, título grande e corpo sem
-       moldura — a mesma linguagem vítrea da tabbar. */
-    <div {...tela({}, "h-full p-0 desktop:px-10 paisagem:px-4")}>
-      <BarraNota posicao="topo">
-        {/* Voltar é navegação, não ação: fica como ícone solto, sem a moldura
-            de pílula das ações (pedido do Pedro, 22/09/2026). */}
-        <PilulaNota forma="solta">
-          <BotaoNota title="Voltar para Notas" aria-label="Voltar para Notas" onClick={closeNoteEditor}>
-            <Icon name="chevronLeft" size={17} />
-          </BotaoNota>
-        </PilulaNota>
-        {/* Título e data ficam na barra do topo (mockup do Pedro, 22/09/2026):
-            continuam editáveis, mas param de rolar junto com o texto. */}
-        <CabecaNota>
-          <input
-            className="m-0 w-full border-0 bg-transparent p-0 font-titulo text-[17px] leading-[1.2] font-bold tracking-[-0.02em] text-ellipsis text-ink focus:outline-none"
-            type="text"
-            placeholder="Título"
-            defaultValue={note.title}
-            onBlur={(e) => {
-              if (e.target.value !== note.title) updateNote(note.id, { title: e.target.value });
-            }}
-          />
-          <div className="truncate font-sans text-xs tracking-[0.01em] text-sub">
-            {criadoEmLabel(note.createdAt)}
-          </div>
-        </CabecaNota>
-        <PilulaNota>
-          <BotaoNota
-            tom="perigo"
-            title="Excluir nota"
-            aria-label="Excluir nota"
-            onClick={() => {
-              if (window.confirm(`Excluir a nota "${note.title || "sem título"}"?`)) {
-                deleteNote(note.id);
-                closeNoteEditor();
-              }
-            }}
-          >
-            <Icon name="trash" size={17} />
-          </BotaoNota>
-        </PilulaNota>
-      </BarraNota>
+  function copiar() {
+    const txt = (note!.title ? note!.title + "\n\n" : "") + content;
+    navigator.clipboard
+      ?.writeText(txt)
+      .then(() => setCopiada(true))
+      .catch(() => {});
+  }
 
-      <div
-        className="min-h-0 flex-auto overflow-y-auto px-[18px] pt-[calc(var(--safe-top)+66px)] pb-[calc(var(--safe-bottom)+90px)]"
-        data-rolagem
-      >
+  const botaoTopo = "size-11 rounded-full";
+  return (
+    <div {...tela({}, "h-full p-0 desktop:px-10 paisagem:px-4")}>
+      {/* topo fixo (não rola com o texto): voltar solto, título grande, ações redondas */}
+      <div className="flex flex-none items-center gap-2 px-3.5 pt-[calc(var(--safe-top)+12px)]">
+        <BotaoIcone rotulo="Voltar para Notas" semBorda onClick={closeNoteEditor}>
+          <Icon name="chevronLeft" size={18} />
+        </BotaoIcone>
         <input
-          className="mt-2.5 mb-3.5 w-full border-0 bg-transparent p-0 font-sans text-md text-sub focus:outline-none"
+          className="m-0 min-w-0 flex-1 border-0 bg-transparent p-0 font-titulo text-[26px] leading-[1.2] font-bold tracking-[-0.02em] text-ellipsis text-ink focus:outline-none"
           type="text"
-          placeholder="Assuntos (separados por vírgula)"
-          value={subjectsInput}
-          onChange={(e) => setSubjectsInput(e.target.value)}
-          onBlur={commitSubjects}
+          placeholder="Título"
+          defaultValue={note.title}
+          onBlur={(e) => {
+            if (e.target.value !== note.title) updateNote(note.id, { title: e.target.value });
+          }}
         />
+        {/* fixar = favoritar: a nota marcada sobe para o topo da lista */}
+        <BotaoIcone
+          rotulo={note.pinned ? "Desafixar nota" : "Fixar e favoritar nota"}
+          ligado={!!note.pinned}
+          aria-pressed={!!note.pinned}
+          className={botaoTopo}
+          onClick={() => toggleNotePinned(note.id)}
+        >
+          <Icon name="bookmark" size={20} />
+        </BotaoIcone>
+        <BotaoIcone
+          rotulo={cru ? "Ver o texto formatado" : "Ver o Markdown cru"}
+          ligado={cru}
+          aria-pressed={cru}
+          className={botaoTopo}
+          onClick={() => setCru((v) => !v)}
+        >
+          <Icon name="code" size={20} />
+        </BotaoIcone>
+        <BotaoIcone
+          rotulo="Excluir nota"
+          className={cn(botaoTopo, "text-erro")}
+          onClick={() => {
+            if (window.confirm(`Excluir a nota "${note.title || "sem título"}"?`)) {
+              deleteNote(note.id);
+              closeNoteEditor();
+            }
+          }}
+        >
+          <Icon name="trash" size={20} />
+        </BotaoIcone>
+      </div>
+
+      <div className="min-h-0 flex-auto overflow-y-auto px-[18px] pt-2 pb-[calc(var(--safe-bottom)+90px)]" data-rolagem>
+        {/* áreas (seleção múltipla por digitação livre; tocar tira) e a data */}
+        <div className="mb-3.5 flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+            {areas.map((a) => (
+              <PilulaArea
+                key={a}
+                cor={metaAreaInfo(a, areasRoda).color}
+                role="button"
+                className="cursor-pointer"
+                title="Tirar esta área"
+                onClick={() => updateNote(note.id, { subjects: areas.filter((x) => x !== a) })}
+              >
+                {metaAreaInfo(a, areasRoda).label}
+              </PilulaArea>
+            ))}
+            <AreaInput
+              className="min-w-16 flex-[1_1_0]"
+              semMoldura
+              limpaAoEscolher
+              label="Adicionar área"
+              placeholder={areas.length ? "+" : "+ área"}
+              valor=""
+              pool={pool}
+              onEscolher={adicionarArea}
+            />
+          </div>
+          <span className="flex-none font-sans text-md text-ink tabular-nums" title="Criada em">
+            {dataHora(note.createdAt || note.updatedAt)}
+          </span>
+        </div>
 
         <LiveMdEditor
           key={note.id}
@@ -188,7 +240,7 @@ export function NoteEditor() {
       </div>
 
       <BarraNota posicao="rodape">
-        <PilulaNota rodape rolavel>
+        <PilulaNota rodape rolavel className="border-0 bg-card-2">
           {FERRAMENTAS.map((f) => (
             <BotaoNota
               key={f.titulo}
@@ -204,33 +256,27 @@ export function NoteEditor() {
             </BotaoNota>
           ))}
         </PilulaNota>
-        <PilulaNota rodape>
+        <PilulaNota rodape className="ml-auto border-0 bg-card-2">
           <BotaoNota
             rodape
-            tom={cru ? "ligado" : "normal"}
-            title={cru ? "Ver o texto formatado" : "Ver o Markdown cru"}
-            aria-label={cru ? "Ver o texto formatado" : "Ver o Markdown cru"}
-            aria-pressed={cru}
-            onClick={() => setCru((v) => !v)}
+            tom={copiada ? "ligado" : "normal"}
+            title={copiada ? "Copiada" : "Copiar a nota"}
+            aria-label={copiada ? "Copiada" : "Copiar a nota"}
+            onClick={copiar}
           >
-            <Icon name="code" size={17} />
-          </BotaoNota>
-          <BotaoNota
-            rodape
-            title={note.arquivada ? "Desarquivar nota" : "Arquivar nota"}
-            aria-label={note.arquivada ? "Desarquivar nota" : "Arquivar nota"}
-            aria-pressed={!!note.arquivada}
-            onClick={() => {
-              updateNote(note.id, { arquivada: !note.arquivada });
-              if (!note.arquivada) closeNoteEditor();
-            }}
-          >
-            <Icon name="arrowDownTray" size={17} />
+            <Icon name={copiada ? "check" : "copy"} size={18} />
           </BotaoNota>
         </PilulaNota>
       </BarraNota>
     </div>
   );
+}
+
+/** "22/09/2026, 18:44" */
+function dataHora(ts: number): string {
+  const d = new Date(ts);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 type Aplica = (value: string, start: number, end: number) => { value: string; start: number; end: number };
@@ -239,34 +285,29 @@ type Aplica = (value: string, start: number, end: number) => { value: string; st
 const FERRAMENTAS: Array<{ titulo: string; icone: React.ReactNode; aplica: Aplica }> = [
   {
     titulo: "Negrito",
-    icone: <strong className="text-xl">B</strong>,
+    icone: <strong className="text-2xl">B</strong>,
     aplica: (v, st, en) => wrapSelection(v, st, en, "**", "**"),
   },
-  { titulo: "Lista", icone: <Icon name="listBullet" size={17} />, aplica: (v, st, en) => prefixLines(v, st, en, "- ") },
+  { titulo: "Lista", icone: <Icon name="listBullet" size={21} />, aplica: (v, st, en) => prefixLines(v, st, en, "- ") },
   {
-    titulo: "Lista numerada",
-    icone: <Icon name="numberedList" size={17} />,
-    aplica: (v, st, en) => prefixOrdered(v, st, en, "num"),
-  },
-  {
-    titulo: "Lista por letra",
-    icone: <Icon name="letterList" size={17} />,
-    aplica: (v, st, en) => prefixOrdered(v, st, en, "letra"),
-  },
-  {
-    titulo: "Checkbox",
-    icone: <Icon name="clipboard" size={17} />,
+    titulo: "Lista de tarefas",
+    icone: <Icon name="checklist" size={21} />,
     aplica: (v, st, en) => prefixLines(v, st, en, "- [ ] "),
   },
   {
+    titulo: "Lista numerada",
+    icone: <Icon name="numberedList" size={21} />,
+    aplica: (v, st, en) => prefixOrdered(v, st, en, "num"),
+  },
+  {
     titulo: "Diminuir recuo",
-    icone: <Icon name="chevronDoubleLeft" size={17} />,
+    icone: <Icon name="chevronDoubleLeft" size={21} />,
     aplica: (v, st, en) => indentLines(v, st, en, -1),
   },
   {
     titulo: "Aumentar recuo",
-    icone: <Icon name="chevronDoubleRight" size={17} />,
+    icone: <Icon name="chevronDoubleRight" size={21} />,
     aplica: (v, st, en) => indentLines(v, st, en, 1),
   },
-  { titulo: "Inserir tabela", icone: <Icon name="table" size={17} />, aplica: inserirTabela },
+  { titulo: "Inserir tabela", icone: <Icon name="table" size={21} />, aplica: inserirTabela },
 ];

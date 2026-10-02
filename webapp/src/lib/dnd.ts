@@ -20,6 +20,21 @@ export function computeStepDragTarget(rects: DOMRect[], from: number, pointerY: 
   return target;
 }
 
+/* Reordenar em grade (cartões de meta em 2 colunas, 02/10/2026): o alvo é o
+   item cujo centro está mais perto do ponteiro. */
+export function computeGridDragTarget(rects: DOMRect[], from: number, x: number, y: number): number {
+  let alvo = from;
+  let melhor = Infinity;
+  rects.forEach((r, j) => {
+    const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
+    if (d < melhor) {
+      melhor = d;
+      alvo = j;
+    }
+  });
+  return alvo;
+}
+
 /* Reordenar entre colunas (kanban): porta index.html:7745-7762. Primeiro
    acha a coluna (com 40px de margem vertical, igual ao legado), depois o
    índice na coluna alvo pelo ponto médio dos OUTROS itens (excluindo o

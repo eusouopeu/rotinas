@@ -1,25 +1,28 @@
-// Cartão de meta com prazo: peso, dias de trabalho, contador de itens (se há
-// quantidade) e prazo com ritmo necessário.
+// Cartão de meta com prazo (mockup de 02/10/2026): prazo em vermelho e
+// sequência em cima, nome, xp de cada item e ritmo necessário por dia, a
+// semana em bolinhas, o progresso grande com a unidade embaixo e − / + de
+// meia largura no rodapé. Projeção e marco seguem como linhas pequenas.
 import { Icon } from "../../components/Icon";
-import { DIAS_ABREV } from "../../lib/constants";
+import { fmtXp } from "../../lib/format";
 import {
   cdPace,
+  cdUnit,
   daysUntil,
   metaAreaInfo,
   metaConcluida,
   metaCreditado,
-  metaDiasLabel,
+  metaDias,
   metaEscopo,
   metaPontosTotais,
   projecaoMeta,
   proximoMarco,
+  semanaDaMeta,
+  sequenciaMetaPrazo,
 } from "../../lib/metas";
 import type { MetaTarget } from "../../lib/types";
-import { cn } from "../../lib/cn";
-import { Etiqueta } from "../../ui/Etiqueta";
 import { Fato, Fatos } from "../../ui/Fatos";
-import { CartaoMeta, ContadorMeta } from "./CartaoMeta";
-import { ESCOPO_LABEL, TAG_LABEL } from "./constantes";
+import { CartaoMeta, NumeroMeta, RodapeContador, SemanaMeta, SeloSequencia } from "./CartaoMeta";
+import { ESCOPO_LABEL } from "./constantes";
 
 type Props = {
   t: MetaTarget;
@@ -38,7 +41,10 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
   const feita = metaConcluida(t);
   const totalPts = metaPontosTotais(t, gam);
   const creditadoPts = metaCreditado(t);
-  const diasLabel = metaDiasLabel(t, DIAS_ABREV);
+  const seq = sequenciaMetaPrazo(t);
+  const semana = semanaDaMeta(metaDias(t), (iso) => t.progressoDias?.[iso] || 0);
+  // xp de cada item (Pedro, 02/10/2026); sem quantidade, a meta inteira
+  const xp = t.topics ? totalPts / t.topics : totalPts;
   const pace = cdPace(t);
   const proj = feita ? null : projecaoMeta(t);
   const marco = feita ? null : proximoMarco(t);
@@ -53,11 +59,24 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
       estado={feita ? "ok" : undefined}
       corPonto={corPonto}
       titulo={t.title}
-      contador={
+      topo={
+        <>
+          <span
+            className="font-sans text-md font-bold text-erro tabular-nums"
+            title={d >= 0 ? `Prazo: faltam ${d} dia(s)` : `Prazo: atrasada ${Math.abs(d)} dia(s)`}
+          >
+            {t.date.split("-").reverse().join(" / ")}
+          </span>
+          <SeloSequencia
+            n={seq.dias}
+            execucoes={seq.execucoes}
+            title={`${seq.dias} dia${seq.dias !== 1 ? "s" : ""} seguido${seq.dias !== 1 ? "s" : ""} · ${seq.execucoes} com progresso`}
+          />
+        </>
+      }
+      rodape={
         t.topics != null && (
-          <ContadorMeta
-            texto={`${(t.done || 0).toLocaleString("pt-BR")} / ${t.topics.toLocaleString("pt-BR")}`}
-            cor={feita ? "var(--ok)" : undefined}
+          <RodapeContador
             onMenos={() => onDone(Math.max(0, (t.done || 0) - 1))}
             onMais={() => onDone((t.done || 0) + 1)}
           />
@@ -66,29 +85,21 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
       onEditar={onEditar}
       onExcluir={onExcluir}
     >
-      <Fatos className="gap-x-2.5 gap-y-1.5">
-        <Fato
-          destaque
-          className="font-medium"
-          title={`Vale ${totalPts.toFixed(1)} pts no boletim ${ESCOPO_LABEL[esc]} · ${creditadoPts.toFixed(1)} creditados`}
-        >
-          <Icon name="ticket" size={14} /> {TAG_LABEL[t.tagValor || "alto"]}
-        </Fato>
-        <Etiqueta
-          className={cn(d < 0 && "bg-erro-soft text-erro", d >= 0 && d <= 7 && "bg-caneta-soft text-caneta")}
-          title={d >= 0 ? `faltam ${d} dia(s)` : `atrasada ${Math.abs(d)} dia(s)`}
-        >
-          <Icon name="countdown" size={13} /> {t.date.split("-").reverse().join("/")} ·{" "}
-          {d >= 0 ? `${d}d` : `-${Math.abs(d)}d`}
-        </Etiqueta>
-        {diasLabel && (
-          <Etiqueta title="Dias para trabalhar">
-            <Icon name="calendar" size={13} /> {diasLabel}
-          </Etiqueta>
+      <Fatos className="gap-x-2.5 gap-y-1">
+        {xp > 0 && (
+          <Fato
+            destaque
+            title={`Cada item vale ${fmtXp(xp)} · a meta vale ${totalPts.toFixed(1)} pts no boletim ${ESCOPO_LABEL[esc]} · ${creditadoPts.toFixed(1)} creditados`}
+          >
+            <Icon name="ticket" size={14} /> {fmtXp(xp)} xp
+          </Fato>
         )}
         {pace && (
-          <Fato title="Ritmo necessário">
-            <b className="font-titulo">&Sigma;</b> {pace.txt}
+          <Fato className="text-ink" title={`Ritmo necessário: ${pace.txt}`}>
+            <b className="font-titulo text-lg">&Sigma;</b>{" "}
+            {pace.days > 0 && pace.remaining > 0
+              ? `${(pace.remaining / pace.days).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} por dia`
+              : pace.txt}
           </Fato>
         )}
         {proj && (
@@ -103,8 +114,7 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
           >
             <Icon name="arrowRight" size={13} />{" "}
             {proj.dataISO
-              ? `no ritmo atual: ${proj.dataISO.split("-").reverse().slice(0, 2).join("/")}` +
-                (proj.atrasa ? ` (${diasEntre(t.date, proj.dataISO)}d depois)` : "")
+              ? `no ritmo: ${dm(proj.dataISO)}` + (proj.atrasa ? ` (${diasEntre(t.date, proj.dataISO)}d depois)` : "")
               : "parada"}
           </Fato>
         )}
@@ -123,6 +133,17 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
           </Fato>
         )}
       </Fatos>
+      <SemanaMeta dias={semana} />
+      {t.topics != null && (
+        <div className="mt-2.5">
+          <NumeroMeta
+            grande
+            texto={`${(t.done || 0).toLocaleString("pt-BR")} / ${t.topics.toLocaleString("pt-BR")}`}
+            legenda={cdUnit(t)}
+            ok={feita}
+          />
+        </div>
+      )}
     </CartaoMeta>
   );
 }

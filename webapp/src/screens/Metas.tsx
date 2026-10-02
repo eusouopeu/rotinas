@@ -13,7 +13,7 @@ import { FormMetaPrazo } from "../features/metas/FormMetaPrazo";
 import { FormMetaRec } from "../features/metas/FormMetaRec";
 import { exportPdfView } from "../lib/exportFile";
 import { metasPdfHtml } from "../lib/pdfExport";
-import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
+import { computeGridDragTarget, useDragReorder } from "../lib/dnd";
 import { daysUntil } from "../lib/metas";
 import type { CountdownDoc, MetaRecorrente, MetaTarget } from "../lib/types";
 import { Botao } from "../ui/Botao";
@@ -26,6 +26,9 @@ import { OpcaoCriar } from "../ui/OpcaoCriar";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { SegPill } from "../ui/Segmentado";
 import { rolavel, tela } from "../ui/Tela";
+
+/** Cartões de meta em grade de 2 colunas (mockup de 02/10/2026); 4 no desktop. */
+const GRADE = "grid grid-cols-2 gap-2.5 desktop:grid-cols-4";
 
 export function Metas() {
   const templates = useAppStore((s) => s.templates);
@@ -139,33 +142,36 @@ export function Metas() {
                 </Botao>
               </EstadoVazio>
             ) : (
-              recorrentes.map((rec, i) => (
-                <CartaoRec
-                  key={rec.id}
-                  rec={rec}
-                  gam={gam}
-                  isDragging={dragFrom?.container === 0 && dragFrom.index === i}
-                  setRef={(el) => {
-                    recRefs.current[i] = el;
-                  }}
-                  dragHandleProps={dragHandleProps({ container: 0, index: i }, (_x, y) => ({
-                    container: 0,
-                    index: computeStepDragTarget(
-                      recRefs.current.filter(Boolean).map((el) => el!.getBoundingClientRect()),
-                      i,
-                      y
-                    ),
-                  }))}
-                  onAjustar={(delta) => ajustarMetaRec(rec.id, delta)}
-                  onEditar={() => setEditandoRec(rec)}
-                  onDuplicar={() => duplicarMetaRec(rec.id)}
-                  onExcluir={() => {
-                    if (window.confirm(`Remover a meta recorrente "${rec.titulo}"?`)) {
-                      deleteMetaRec(rec.id);
-                    }
-                  }}
-                />
-              ))
+              <div className={GRADE}>
+                {recorrentes.map((rec, i) => (
+                  <CartaoRec
+                    key={rec.id}
+                    rec={rec}
+                    gam={gam}
+                    isDragging={dragFrom?.container === 0 && dragFrom.index === i}
+                    setRef={(el) => {
+                      recRefs.current[i] = el;
+                    }}
+                    dragHandleProps={dragHandleProps({ container: 0, index: i }, (x, y) => ({
+                      container: 0,
+                      index: computeGridDragTarget(
+                        recRefs.current.filter(Boolean).map((el) => el!.getBoundingClientRect()),
+                        i,
+                        x,
+                        y
+                      ),
+                    }))}
+                    onAjustar={(delta) => ajustarMetaRec(rec.id, delta)}
+                    onEditar={() => setEditandoRec(rec)}
+                    onDuplicar={() => duplicarMetaRec(rec.id)}
+                    onExcluir={() => {
+                      if (window.confirm(`Remover a meta recorrente "${rec.titulo}"?`)) {
+                        deleteMetaRec(rec.id);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -184,30 +190,33 @@ export function Metas() {
                 </Botao>
               </EstadoVazio>
             ) : (
-              metas.map((t, i) => (
-                <CartaoPrazo
-                  key={t.id}
-                  t={t}
-                  gam={gam}
-                  isDragging={dragFrom?.container === 1 && dragFrom.index === i}
-                  setRef={(el) => {
-                    metaRefs.current[i] = el;
-                  }}
-                  dragHandleProps={dragHandleProps({ container: 1, index: i }, (_x, y) => ({
-                    container: 1,
-                    index: computeStepDragTarget(
-                      metaRefs.current.filter(Boolean).map((el) => el!.getBoundingClientRect()),
-                      i,
-                      y
-                    ),
-                  }))}
-                  onEditar={() => setEditandoPrazo(t)}
-                  onDone={(d) => setMetaDone(t.id, d)}
-                  onExcluir={() => {
-                    if (window.confirm(`Remover a meta "${t.title}"?`)) deleteMeta(t.id);
-                  }}
-                />
-              ))
+              <div className={GRADE}>
+                {metas.map((t, i) => (
+                  <CartaoPrazo
+                    key={t.id}
+                    t={t}
+                    gam={gam}
+                    isDragging={dragFrom?.container === 1 && dragFrom.index === i}
+                    setRef={(el) => {
+                      metaRefs.current[i] = el;
+                    }}
+                    dragHandleProps={dragHandleProps({ container: 1, index: i }, (x, y) => ({
+                      container: 1,
+                      index: computeGridDragTarget(
+                        metaRefs.current.filter(Boolean).map((el) => el!.getBoundingClientRect()),
+                        i,
+                        x,
+                        y
+                      ),
+                    }))}
+                    onEditar={() => setEditandoPrazo(t)}
+                    onDone={(d) => setMetaDone(t.id, d)}
+                    onExcluir={() => {
+                      if (window.confirm(`Remover a meta "${t.title}"?`)) deleteMeta(t.id);
+                    }}
+                  />
+                ))}
+              </div>
             )}
           </div>
         )}

@@ -1,7 +1,7 @@
 // Barras flutuantes do editor de nota (formato Apple Notes): faixa fixa no
 // topo e no rodapé, com pílulas de vidro (a mesma linguagem da tabbar). Os
 // botões só têm ícone, sem texto, e usam a fonte do sistema como no legado.
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes } from "react";
 import { cn } from "../../lib/cn";
 
 /** Faixa fixa: `topo` ou `rodape`. Deixa o toque passar; só as pílulas o recebem. */
@@ -65,12 +65,5 @@ export function BotaoNota({ tom = "normal", rodape, className, type = "button", 
       )}
       {...resto}
     />
-  );
-}
-
-/** Título (editável) e data na barra do topo: encolhe em vez de empurrar as pílulas. */
-export function CabecaNota({ children }: { children: ReactNode }) {
-  return (
-    <div className="pointer-events-auto flex min-w-0 flex-auto flex-col justify-center gap-px px-0.5">{children}</div>
   );
 }

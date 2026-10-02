@@ -134,10 +134,3 @@ test("metas: editar meta com prazo", async ({ page }) => {
   await page.getByRole("heading", { name: "Terminar o curso de inglês" }).click();
   await foto(page, "metas-form-prazo-editar", { desfocar: true });
 });
-
-test("metas: detalhe de um período do mini-calendário", async ({ page }) => {
-  await preparar(page);
-  await aba(page, "Metas");
-  await page.getByRole("button", { name: /não cumprido/ }).first().click();
-  await foto(page, "metas-minicalendario-detalhe");
-});

@@ -230,6 +230,12 @@ export interface MetaRecorrente {
   historico?: MetaRecProgresso[];
   /** Rotina ligada (01/10/2026): concluí-la conta +1 nesta meta. */
   rotinaId?: string | null;
+  /** Dias previstos (02/10/2026): só marcam as bolinhas da semana no cartão;
+   * vazio/ausente = todo dia. Não mexe no cumprimento do período. */
+  dias?: number[];
+  /** Feitas por dia ("AAAA-MM-DD" -> quantidade), últimos 60 dias — mesmo
+   * formato do MetaTarget; alimenta as bolinhas da semana (02/10/2026). */
+  progressoDias?: Record<string, number>;
 }
 
 export interface CountdownDoc {

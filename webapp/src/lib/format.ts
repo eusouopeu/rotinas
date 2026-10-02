@@ -20,3 +20,8 @@ export function fmtMinLabel(min: number): string {
   if (abs < 60) return sinal + (abs || 0) + "min";
   return sinal + Math.floor(abs / 60) + "h" + String(abs % 60).padStart(2, "0");
 }
+
+/** xp dos cartões: "2,5" / "0,125" (até 3 casas abaixo de 1, uma acima). */
+export function fmtXp(n: number): string {
+  return n.toLocaleString("pt-BR", { maximumFractionDigits: Math.abs(n) < 1 ? 3 : 1 });
+}

@@ -1,25 +1,26 @@
 // Cartão de meta recorrente (hábito N vezes ao dia/na semana; negativa =
-// limite, com penalidade ao passar). O saldo de pontos vive no Boletim: aqui só
-// nome, peso, frequência, lembretes e o contador (o saldo é a dica do peso).
+// limite, com penalidade ao passar). O saldo de pontos vive no Boletim: aqui,
+// pelo mockup de 02/10/2026, nome, xp de cada unidade, sequência "N – Mx",
+// a semana em bolinhas e o contador − N / M + no rodapé.
 import { useEffect, useState } from "react";
 import { Icon } from "../../components/Icon";
-import { cn } from "../../lib/cn";
 import { fatorParaArea } from "../../lib/gamificacao";
 import {
+  metaDias,
   metaRecCompleta,
-  metaRecCumprido,
   metaRecExcesso,
   metaRecFeitas,
+  metaRecQtdNoDia,
   metaRecSaldo,
-  metaRecSequencia,
-  virarPeriodoMetaRec,
+  semanaDaMeta,
+  sequenciaMetaRec,
 } from "../../lib/metas";
+import { fmtXp } from "../../lib/format";
 import { metaRecPenalidadeUnidade, metaRecPontosBrutos, metaRecPontosUnidade } from "../../lib/scoring";
-import type { GamificacaoState, MetaRecProgresso, MetaRecorrente } from "../../lib/types";
+import type { GamificacaoState, MetaRecorrente } from "../../lib/types";
 import { Etiqueta } from "../../ui/Etiqueta";
 import { Fato, Fatos } from "../../ui/Fatos";
-import { CartaoMeta, ContadorMeta } from "./CartaoMeta";
-import { TAG_LABEL } from "./constantes";
+import { CartaoMeta, NumeroMeta, RodapeContador, SemanaMeta, SeloSequencia } from "./CartaoMeta";
 
 type Props = {
   rec: MetaRecorrente;
@@ -32,68 +33,6 @@ type Props = {
   onDuplicar: () => void;
   onExcluir: () => void;
 };
-
-const DIAS_CURTOS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-
-function rotuloPeriodo(p: MetaRecProgresso): string {
-  const iso = p.periodo.slice(p.periodo.indexOf(":") + 1);
-  const [y, m, d] = iso.split("-").map(Number);
-  const dd = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
-  return p.periodo.startsWith("semana:") ? `semana de ${dd}` : `${DIAS_CURTOS[new Date(y, m - 1, d).getDay()]} ${dd}`;
-}
-
-/** Últimos períodos da meta (recomendação 6 de 26/09/2026): cheio verde =
- *  cumprido, cheio vermelho = não cumprido, vazado = período atual em curso. */
-function MiniCalendario({ rec }: { rec: MetaRecorrente }) {
-  // detalhe por toque (27/09/2026): `title` só aparece com mouse, e no celular
-  // as bolinhas ficavam mudas
-  const [aberto, setAberto] = useState<string | null>(null);
-  const v = virarPeriodoMetaRec(rec);
-  const fechados = (v.historico || []).slice(-6);
-  if (!fechados.length) return null;
-  const atual = v.progresso!;
-  const txt = (p: MetaRecProgresso) =>
-    `${rotuloPeriodo(p)}: ${rec.negativa ? `${(p.vezes ?? rec.vezes) - p.feitas} de saldo` : `${p.feitas}/${p.vezes ?? rec.vezes}`}`;
-  const itens = [
-    ...fechados.map((p) => ({
-      p,
-      rotulo: `${txt(p)}, ${metaRecCumprido(rec, p) ? "cumprido" : "não cumprido"}`,
-      classe: metaRecCumprido(rec, p) ? "bg-ok" : "bg-erro",
-    })),
-    {
-      p: atual,
-      rotulo: `${txt(atual)}, em curso`,
-      classe: cn("border border-line", !rec.negativa && metaRecCumprido(rec, atual) && "border-ok bg-ok"),
-    },
-  ];
-  const detalhe = itens.find((x) => x.p.periodo === aberto);
-  return (
-    <div className="mt-1">
-      <div className="flex items-center" role="group" aria-label="Últimos períodos">
-        {itens.map((x) => (
-          <button
-            key={x.p.periodo}
-            type="button"
-            aria-label={x.rotulo}
-            aria-pressed={aberto === x.p.periodo}
-            title={x.rotulo}
-            className="border-0 bg-transparent p-1"
-            onClick={() => setAberto(aberto === x.p.periodo ? null : x.p.periodo)}
-          >
-            <span
-              className={cn(
-                "block size-2.5 rounded-full",
-                x.classe,
-                aberto === x.p.periodo && "ring-2 ring-caneta ring-offset-1"
-              )}
-            />
-          </button>
-        ))}
-      </div>
-      {detalhe && <div className="font-sans text-sm text-sub">{detalhe.rotulo}</div>}
-    </div>
-  );
-}
 
 export function CartaoRec({
   rec,
@@ -112,7 +51,7 @@ export function CartaoRec({
   // meta negativa mostra o saldo que resta (4/4 no dia ideal): verde enquanto
   // positivo, cor do texto em zero (não pontua) e vermelho abaixo (desconta).
   const saldo = metaRecSaldo(rec);
-  const sequencia = metaRecSequencia(rec);
+  const seq = sequenciaMetaRec(rec);
   // pontos do último toque no contador (recomendação 5): some sozinho
   const [aviso, setAviso] = useState<{ texto: string; positivo: boolean; n: number } | null>(null);
   useEffect(() => {
@@ -122,6 +61,7 @@ export function CartaoRec({
   }, [aviso]);
 
   const freqTxt = `${rec.negativa ? "até " : ""}${rec.vezes}x ${rec.tipo === "semanal" ? "por semana" : "ao dia"}`;
+  const semana = semanaDaMeta(metaDias(rec), (iso) => metaRecQtdNoDia(rec, iso));
   const areaObj = rec.area ? gam.config.roda.areas.find((a) => a.id === rec.area) : null;
   const fator = fatorParaArea(
     rec.area || "",
@@ -173,15 +113,14 @@ export function CartaoRec({
     : completa
       ? "ok"
       : undefined;
-  const corTexto = rec.negativa
-    ? saldo > 0
-      ? "var(--ok)"
-      : saldo < 0
-        ? "var(--erro)"
-        : undefined
-    : completa
-      ? "var(--ok)"
-      : undefined;
+  // xp de cada unidade (Pedro, 02/10/2026): o próximo +1; meta negativa mostra
+  // o desconto de cada vez além do limite
+  const xp = rec.negativa
+    ? -metaRecPenalidadeUnidade(rec, gam.config) * fator
+    : rec.pontua
+      ? metaRecPontosUnidade(rec, gam.config, feitas + 1) * fator
+      : 0;
+  const unidadeSeq = rec.tipo === "semanal" ? "semana" : "dia";
 
   return (
     <CartaoMeta
@@ -191,46 +130,55 @@ export function CartaoRec({
       estado={estado}
       corPonto={areaObj?.color || "var(--caneta)"}
       titulo={rec.titulo}
-      selo={
-        sequencia > 0 && (
-          <Etiqueta
-            tom="streak"
-            className="ml-1 font-semibold"
-            title={`${sequencia} ${rec.tipo === "semanal" ? "semana" : "dia"}${sequencia > 1 ? "s" : ""} seguido${sequencia > 1 ? "s" : ""} cumprindo a meta`}
-          >
-            <Icon name="fire" size={13} /> {sequencia}
-          </Etiqueta>
-        )
-      }
-      contador={
-        <ContadorMeta
-          texto={rec.negativa ? `${saldo} / ${rec.vezes}` : `${feitas} / ${rec.vezes}`}
-          cor={corTexto}
+      rodape={
+        <RodapeContador
           onMenos={() => tocar(rec.negativa ? 1 : -1)}
           onMais={() => tocar(rec.negativa ? -1 : 1)}
-          aviso={aviso}
+          meio={
+            <>
+              <NumeroMeta
+                texto={rec.negativa ? `${saldo} / ${rec.vezes}` : `${feitas} / ${rec.vezes}`}
+                ok={estado === "ok"}
+                erro={estado === "erro"}
+              />
+              <span
+                className={
+                  aviso
+                    ? `font-sans text-sm font-semibold tabular-nums ${aviso.positivo ? "text-ok" : "text-erro"}`
+                    : "font-sans text-sm text-sub"
+                }
+                aria-live="polite"
+                title={freqTxt}
+              >
+                {aviso ? aviso.texto : rec.tipo === "semanal" ? "na semana" : "hoje"}
+              </span>
+            </>
+          }
         />
       }
       onEditar={onEditar}
       onExcluir={onExcluir}
       onDuplicar={onDuplicar}
     >
-      <Fatos className="gap-x-2.5 gap-y-1.5">
-        {(rec.negativa || rec.pontua) && (
-          <Fato destaque className="font-medium" title={pesoTitle || undefined}>
-            <Icon name="ticket" size={14} /> {TAG_LABEL[rec.tagValor || "medio"]}
+      <Fatos className="gap-x-2 gap-y-1.5">
+        {xp !== 0 && (
+          <Fato destaque title={pesoTitle || undefined}>
+            <Icon name="ticket" size={14} /> {xp < 0 ? "−" : ""}
+            {fmtXp(Math.abs(xp))} xp
           </Fato>
         )}
-        <Etiqueta title={rec.negativa ? "Limite do período" : "Frequência"}>
-          <Icon name="calendar" size={13} /> {freqTxt}
-        </Etiqueta>
+        <SeloSequencia
+          n={seq.n}
+          execucoes={seq.execucoes}
+          title={`${seq.n} ${unidadeSeq}${seq.n !== 1 ? "s" : ""} seguido${seq.n !== 1 ? "s" : ""} cumprindo a meta · ${seq.execucoes} vez${seq.execucoes !== 1 ? "es" : ""} nesse tempo`}
+        />
         {rec.notif && (
           <Etiqueta title="Lembretes">
             <Icon name="bell" size={13} /> {rec.notif.inicio}–{rec.notif.fim}
           </Etiqueta>
         )}
       </Fatos>
-      <MiniCalendario rec={rec} />
+      <SemanaMeta dias={semana} />
     </CartaoMeta>
   );
 }
