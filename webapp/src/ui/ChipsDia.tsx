@@ -23,7 +23,7 @@ export function ChipsDia({ rotulos, ativos, onToggle, titulos, className }: Prop
           onClick={() => onToggle(d)}
           className={cn(
             "flex-1 cursor-pointer rounded-[9px] py-2 text-center font-sans text-md",
-            ativos.includes(d) ? "bg-caneta font-semibold text-on-caneta" : "bg-chip-neutro text-ink"
+            ativos.includes(d) ? "bg-caneta-500 font-semibold text-on-caneta" : "bg-chip-neutro text-ink"
           )}
         >
           {l}

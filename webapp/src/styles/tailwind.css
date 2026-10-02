@@ -57,6 +57,9 @@
   --color-caneta: var(--caneta);
   --color-caneta-2: var(--caneta-2);
   --color-caneta-soft: var(--caneta-soft);
+  --color-caneta-200: var(--caneta-200);
+  --color-caneta-300: var(--caneta-300);
+  --color-caneta-500: var(--caneta-500);
   --color-caneta-grad: var(--caneta-grad);
   --color-chip-neutro: var(--chip-neutro);
   --color-streak-soft: var(--streak-soft);

@@ -59,3 +59,20 @@ describe("RoutineEditor — reordenar etapas por arraste", () => {
     expect(names).toEqual(["Dois", "Três", "Um"]);
   });
 });
+
+describe("RoutineEditor — agendamento por frequência", () => {
+  it("Frequência guarda 'N vezes por' e espelha a semana em weeklyGoalTimes", () => {
+    render(<RoutineEditor />);
+    fireEvent.click(screen.getByText("Frequência"));
+    expect(useAppStore.getState().editorDraft!.frequencia).toEqual({ vezes: 3, por: "semana" });
+    expect(useAppStore.getState().editorDraft!.weeklyGoalTimes).toBe(3);
+
+    fireEvent.click(screen.getByText("mês"));
+    expect(useAppStore.getState().editorDraft!.frequencia).toEqual({ vezes: 3, por: "mes" });
+    expect(useAppStore.getState().editorDraft!.weeklyGoalTimes).toBeUndefined();
+
+    fireEvent.click(screen.getByText("Horário"));
+    expect(useAppStore.getState().editorDraft!.frequencia).toBeNull();
+    expect(useAppStore.getState().editorDraft!.schedule!.enabled).toBe(true);
+  });
+});

@@ -172,6 +172,8 @@ export interface AppState {
   adjustRoutineStep: (routineId: string, stepName: string, newSec: number) => void;
   /** Tira uma etapa da rotina (deslizar no detalhe), com desfazer. */
   removerEtapaComDesfazer: (routineId: string, stepId: string) => void;
+  /** Reordena uma etapa direto no detalhe da rotina (mockup de 02/10/2026). */
+  reordenarEtapas: (routineId: string, de: number, para: number) => void;
   /** Troca só os dias da semana do agendamento (revisão da Semana fechada). */
   setRoutineDays: (id: string, days: number[]) => void;
   /** Pausa só esta rotina por `dias` a partir de hoje (substitui a pausa em vigor). */
@@ -597,6 +599,19 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     });
   },
 
+  reordenarEtapas: (routineId, de, para) => {
+    if (de === para) return;
+    const routines = get().routines.map((x) => {
+      if (x.id !== routineId) return x;
+      const steps = x.steps.slice();
+      const [movida] = steps.splice(de, 1);
+      steps.splice(para, 0, movida);
+      return { ...x, steps };
+    });
+    save(K_ROUTINES, routines);
+    set({ routines });
+  },
+
   adjustRoutineStep: (routineId, stepName, newSec) => {
     const routines = get().routines.map((r) => {
       if (r.id !== routineId) return r;
@@ -687,7 +702,16 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     if (!atual) return;
     set({ editorDraft: { ...atual, ...patch } });
   },
-  cancelEdit: () => set({ editorDraft: null, view: { tab: "home", screen: "home" } }),
+  // rotina já salva volta ao detalhe (o lápis do detalhe alterna leitura e
+  // edição, mockup de 02/10/2026); rotina nova, à lista
+  cancelEdit: () => {
+    const d = get().editorDraft;
+    const existe = !!d && get().routines.some((r) => r.id === d.id);
+    set({
+      editorDraft: null,
+      view: existe ? { tab: "home", screen: "routineDetail", id: d!.id } : { tab: "home", screen: "home" },
+    });
+  },
   saveDraft: () => {
     const draft = get().editorDraft;
     if (!draft) return false;
@@ -700,7 +724,11 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     const idx = routines.findIndex((r) => r.id === limpo.id);
     const novasRoutines = idx >= 0 ? routines.map((r, i) => (i === idx ? limpo : r)) : [...routines, limpo];
     save(K_ROUTINES, novasRoutines);
-    set({ routines: novasRoutines, editorDraft: null, view: { tab: "home", screen: "home" } });
+    set({
+      routines: novasRoutines,
+      editorDraft: null,
+      view: idx >= 0 ? { tab: "home", screen: "routineDetail", id: limpo.id } : { tab: "home", screen: "home" },
+    });
     syncRoutineNotifications(novasRoutines, algumSnoozeAtivo(get().snoozes));
     return true;
   },

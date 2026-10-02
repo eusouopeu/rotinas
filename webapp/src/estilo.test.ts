@@ -55,6 +55,7 @@ const ESTILO_EM_LINHA: Record<string, number> = {
   "ui/LinhaBarra.tsx": 6,
   "ui/LinhaDado.tsx": 1,
   "ui/LinhaValor.tsx": 1,
+  "ui/PilulaArea.tsx": 1,
   "ui/PontoCor.tsx": 2,
   "ui/Segmentado.tsx": 1,
 };

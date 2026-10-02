@@ -48,7 +48,7 @@ export function areaDaRotina(r: Routine, gam: GamificacaoState): string {
 
 // Porta de fillStyle/corDaRotina (index.html:2386-2395) — cor sólida de
 // fallback quando a rotina não tem área própria (era gradiente).
-export const FALLBACK_COR = "#6D28D9";
+export const FALLBACK_COR = "#7E22CE";
 export function fillStyle(c: string | undefined | null): string {
   return !c || c === "grad" || c === "#C98A3E" ? FALLBACK_COR : c;
 }
@@ -93,6 +93,29 @@ interface AgendaItem {
 
 /** Porta de construirAgendaSemana (index.html:1306-1330) — mapaHab sempre {}
  * nesta fase (ver comentário no topo do arquivo). */
+/** Minutos com que uma etapa entra na agenda da semana (null = não pontua:
+ * descanso e checklist). Exercício vale séries x descanso planejado. */
+function minutosNaAgenda(s: RoutineStep, r: Routine): number | null {
+  if (s.isRest || (s.type !== "timer" && s.type !== "exercicio")) return null;
+  return s.type === "exercicio" ? ((s.sets || 1) * (r.restSeconds ?? 120)) / 60 : (s.seconds || 0) / 60;
+}
+
+/** Pontos ("xp") que uma execução completa da rotina rende na semana atual
+ * (cartões de 02/10/2026): mesma conta de congelarSemana — peso bruto de cada
+ * etapa vezes o fator da área (ou o geral) da semana em curso. Estimativa: a
+ * conclusão de verdade usa a agenda congelada do dia. */
+export function pontosPorExecucao(r: Routine, gam: GamificacaoState): number {
+  const sem = gam.semanaAtual;
+  const area = areaDaRotina(r, gam);
+  const fator = sem
+    ? fatorParaArea(area, sem.fatoresArea || {}, sem.fatorNormalizacao)
+    : fatorNormalizacaoPara(0, gam.config);
+  return r.steps.reduce((tot, s) => {
+    const minutos = minutosNaAgenda(s, r);
+    return minutos == null ? tot : tot + pesoBruto(stepTagEfetiva(s, r), minutos, gam.config) * fator;
+  }, 0);
+}
+
 export function construirAgendaSemana(
   routines: Routine[],
   gam: GamificacaoState,
@@ -117,8 +140,8 @@ export function construirAgendaSemana(
            exercícios pesava ZERO na semana — a área dela nunca reservava fatia
            e as séries concluídas caíam no fator de fora da agenda (viravam
            "extra"). Era o bug relatado pelo Pedro em 22/09/2026. */
-        if (s.isRest || (s.type !== "timer" && s.type !== "exercicio")) return;
-        const minutos = s.type === "exercicio" ? ((s.sets || 1) * (r.restSeconds ?? 120)) / 60 : (s.seconds || 0) / 60;
+        const minutos = minutosNaAgenda(s, r);
+        if (minutos == null) return;
         const tag = stepTagEfetiva(s, r);
         const pb = pesoBruto(tag, minutos, gam.config);
         if (pb <= 0) return;

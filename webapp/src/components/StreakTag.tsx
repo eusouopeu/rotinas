@@ -21,17 +21,23 @@ function tituloStreak(info: StreakInfo): string {
 
 /** `feitaHoje`: o selo inverte as cores (fundo cheio na cor da sequência,
  *  chama e número na cor do cartão) — o efeito de "preencher" do mockup de
- *  22/09/2026, que marca o dia já cumprido sem apagar o selo. */
+ *  22/09/2026, que marca o dia já cumprido sem apagar o selo.
+ *  `soDias`: só os dias seguidos, sem as execuções (cartão em lista, mockup
+ *  de 02/10/2026); o quadrado mostra "3 – 2x" (3 dias, 2 execuções). */
 export function StreakTag({
   routineId,
   routines,
   history,
   feitaHoje,
+  soDias,
+  className,
 }: {
   routineId: string;
   routines: Routine[];
   history: HistoryEntry[];
   feitaHoje?: boolean;
+  soDias?: boolean;
+  className?: string;
 }) {
   const snoozes = useAppStore((s) => s.snoozes);
   // memo (27/09/2026): a conta percorre anos de dias e rodava em todo card a
@@ -61,13 +67,14 @@ export function StreakTag({
     <span
       className={cn(
         "ml-1.5 inline-flex items-center gap-[3px] rounded-pill py-[3px] pr-2 pl-1.5 align-middle font-sans text-sm leading-none font-semibold no-underline [&_.icon-svg]:[stroke-width:2]",
-        tom
+        tom,
+        className
       )}
       title={tituloStreak(info) + (marco ? ` · marco ${marco}` : "")}
     >
       <Icon name="fire" size={13} />
       {info.atual}
-      {info.execucoes != null && <span className="opacity-75">· {info.execucoes}×</span>}
+      {info.execucoes != null && !soDias && <span>– {info.execucoes}x</span>}
     </span>
   );
 }

@@ -12,13 +12,17 @@ export function PontoCor({ cor, esmaecido, className }: { cor: string; esmaecido
 
 /** Faixa vertical da cor da área na borda esquerda do cartão (mockups de
  *  30/09/2026: substitui a bolinha nos cartões de rotina e de meta). O cartão
- *  precisa de `relative overflow-hidden`. */
-export function FaixaCor({ cor, esmaecido }: { cor: string; esmaecido?: boolean }) {
+ *  precisa de `relative overflow-hidden`. `topo`: faixa horizontal na borda de
+ *  cima (cartão quadrado da grade, mockup de 02/10/2026). */
+export function FaixaCor({ cor, esmaecido, topo }: { cor: string; esmaecido?: boolean; topo?: boolean }) {
   return (
     <span
       aria-hidden
       data-faixa
-      className={cn("absolute inset-y-0 left-0 w-[5px]", esmaecido && "opacity-45")}
+      className={cn(
+        topo ? "absolute inset-x-0 top-0 h-[5px]" : "absolute inset-y-0 left-0 w-[5px]",
+        esmaecido && "opacity-45"
+      )}
       style={{ background: cor }}
     />
   );

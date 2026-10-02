@@ -128,3 +128,10 @@ function isoOf(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+/** "3x por semana" — agendamento por frequência (02/10/2026); null sem ele. */
+export function frequenciaLabel(r: Routine): string | null {
+  const f = r.frequencia;
+  if (!f || !(f.vezes > 0)) return null;
+  return `${f.vezes}x por ${f.por === "mes" ? "mês" : f.por}`;
+}

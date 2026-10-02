@@ -55,6 +55,11 @@ export interface Routine {
   // como "sem restrição de data", igual ao legado.
   createdAt?: number;
   weeklyGoalTimes?: number;
+  /** Agendamento por frequência (02/10/2026): "N vezes por dia/semana/mês",
+   * sem horário (schedule.enabled = false). Com `por: "semana"` o editor
+   * espelha `vezes` em weeklyGoalTimes, que já alimenta a meta semanal das
+   * Estatísticas; dia e mês ficam só como informação no cartão/detalhe. */
+  frequencia?: { vezes: number; por: "dia" | "semana" | "mes" } | null;
   /** Pausas só desta rotina (27/09/2026), datas locais inclusivas. Ficam
    * guardadas depois de acabar: as sequências antigas dependem delas. */
   pausas?: RotinaPausa[];

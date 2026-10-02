@@ -48,7 +48,7 @@ function Segmentado<K extends string>({
           className={cn(
             "cursor-pointer rounded-xs text-sub",
             item,
-            ligado(o.key) ? cn("bg-caneta text-on-caneta", itemAtivo) : "hover:text-ink"
+            ligado(o.key) ? cn("bg-caneta-500 font-semibold text-on-caneta", itemAtivo) : "hover:text-ink"
           )}
           onClick={() => onSelect(o.key)}
         >

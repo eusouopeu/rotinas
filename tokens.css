@@ -18,15 +18,21 @@
   --line-forte: #bfbdc7;
   --ink: #1e1b26;
   --sub: #5b6472;
-  --caneta: #6d28d9;
+  /* roxo = escala `purple` do Tailwind (02/10/2026, pedido do Pedro): todo
+       roxo/lilás do app é um tom dela — 700 sólido, 500 seleção, 300/200/100
+       fundos claros. Nunca violeta, magenta ou outro roxo avulso. */
+  --caneta: #7e22ce;
   --caneta-2: #2f6be0;
-  --caneta-soft: #f0e9fc;
+  --caneta-soft: #f3e8ff;
+  --caneta-200: #e9d5ff;
+  --caneta-300: #d8b4fe;
+  --caneta-500: #a855f7;
   /* ponta clara do degradê do botão de play (única exceção ao "primário
        sólido", pedido do Pedro em 30/09/2026) */
-  --caneta-grad: #9a6bf0;
+  --caneta-grad: #a855f7;
   /* etiqueta neutra dos cartões (dias, frequência): um degrau abaixo de --card-2 */
   --chip-neutro: #d7dde7;
-  --realce: #6d28d9;
+  --realce: #7e22ce;
   --on-caneta: #ffffff;
   --ok: #157a45;
   /* sequência: só tons do laranja do Tailwind (01/10/2026) — 700 no texto,
@@ -71,10 +77,13 @@ body.dark {
   --line-forte: #4c535a;
   --ink: #e9eae5;
   --sub: #98a0a6;
-  --caneta: #6c8eef;
+  --caneta: #a855f7;
   --caneta-2: #6e9bf2;
-  --caneta-soft: #1e2a4a;
-  --caneta-grad: #93acf5;
+  --caneta-soft: #3b0764;
+  --caneta-200: #581c87;
+  --caneta-300: #6b21a8;
+  --caneta-500: #9333ea;
+  --caneta-grad: #c084fc;
   --chip-neutro: #353d45;
   --realce: #333f52;
   --on-caneta: #ffffff;

@@ -6,7 +6,14 @@
 // etapa por arrastar (useDragReorder, ver webapp/src/lib/dnd.ts), agendamento
 // (dias + horário), peso no boletim, área da roda da vida e, por etapa,
 // anotações (journaling) e "essencial" (versão mínima). Fica para depois:
-// hábito, nota anexada, meta semanal, modo "a cada N dias".
+// hábito, nota anexada, modo "a cada N dias".
+//
+// Layout dos mockups de 02/10/2026: mesmo topo do detalhe (voltar, nome
+// editável no lugar do título, exportar); um cartão de ajustes com área,
+// peso, pausa e agendamento (Nenhum / Frequência "N vezes por dia/semana/
+// mês" / Horário); etapas em cartões — tipo, m/s, botões de anotação e de
+// essencial, alça de arrasto, deslizar para a esquerda exclui; rodapé com
+// lixeira e Salvar.
 import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { Icon } from "../components/Icon";
@@ -14,24 +21,19 @@ import { ExercicioPickerModal } from "../features/editor/ExercicioPicker";
 import { BotaoEscolha, CampoExercicio } from "../features/editor/pecas";
 import { computeSchedule, DAY_LETTERS } from "../lib/schedule";
 import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
-import { rotinaShareData } from "../lib/backup";
-import { downloadFile, slugify } from "../lib/exportFile";
-import type { RoutineStep, Tag } from "../lib/types";
+import { exportarRotina } from "../features/rotinas/exportarRotina";
+import type { Routine, RoutineStep, Tag } from "../lib/types";
 import { cn } from "../lib/cn";
 import { AlcaArrasto } from "../ui/AlcaArrasto";
 import { BarraAcoes } from "../ui/BarraAcoes";
 import { Botao } from "../ui/Botao";
 import { BotaoIcone } from "../ui/BotaoIcone";
-import { BotaoLink } from "../ui/BotaoLink";
-import { Campo } from "../ui/Campo";
 import { CampoDuracao } from "../ui/CampoDuracao";
-import { CampoNome } from "../ui/CampoNome";
-import { Cartao } from "../ui/Cartao";
 import { ChipsDia } from "../ui/ChipsDia";
-import { Chip } from "../ui/Chip";
 import { RotuloSecao } from "../ui/RotuloSecao";
+import { PilulaArea } from "../ui/PilulaArea";
 import { Toggle } from "../ui/Segmentado";
-import { Switch } from "../ui/Switch";
+import { SwipeItem } from "../ui/SwipeItem";
 import { tela } from "../ui/Tela";
 
 function uid(): string {
@@ -51,9 +53,45 @@ const PESOS = [
 ] as const;
 
 const ANCORAS = [
-  { key: "start", label: "início" },
-  { key: "end", label: "término" },
+  { key: "start", label: "Início" },
+  { key: "end", label: "Término" },
 ] as const;
+
+const AGENDAMENTOS = [
+  { key: "nenhum", label: "Nenhum" },
+  { key: "frequencia", label: "Frequência" },
+  { key: "horario", label: "Horário" },
+] as const;
+
+const POR = [
+  { key: "dia", label: "dia" },
+  { key: "semana", label: "semana" },
+  { key: "mes", label: "mês" },
+] as const;
+
+type Frequencia = NonNullable<Routine["frequencia"]>;
+
+/** Frequência em vigor no rascunho: a própria, ou a meta semanal antiga
+ *  (weeklyGoalTimes) de rotina sem horário. */
+function frequenciaDe(r: Routine): Frequencia | null {
+  if (r.frequencia) return r.frequencia;
+  if (!r.schedule?.enabled && (r.weeklyGoalTimes || 0) > 0) return { vezes: r.weeklyGoalTimes!, por: "semana" };
+  return null;
+}
+
+/** Linha do cartão de ajustes: rótulo em caixa alta à esquerda, controle à direita. */
+function Linha({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1.5">
+      <span className="font-sans text-base text-ink uppercase">{rotulo}</span>
+      <div className="ml-auto flex min-w-0 items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+/** Campo branco dos ajustes (pausa, horário, frequência). */
+const CAMPO_BRANCO =
+  "rounded-app-sm border-0 bg-card px-3 py-2 text-center font-sans text-lg text-ink outline-none focus:ring-2 focus:ring-caneta-300";
 
 export function RoutineEditor() {
   const draft = useAppStore((s) => s.editorDraft);
@@ -119,11 +157,24 @@ export function RoutineEditor() {
     cancelEdit();
   }
 
-  async function handleExport() {
-    const data = rotinaShareData(draft!);
-    const filename = "rotina-" + slugify(draft!.name || "rotina") + ".json";
-    await downloadFile(filename, JSON.stringify(data, null, 2), "application/json", "Rotinas");
+  const freq = frequenciaDe(draft);
+  const modoAgenda = schedule.enabled ? "horario" : freq ? "frequencia" : "nenhum";
+  /** Frequência nova (ou null): "por semana" espelha em weeklyGoalTimes, que
+   *  já alimenta a meta semanal das Estatísticas. */
+  function setFrequencia(f: Frequencia | null) {
+    updateDraft({ frequencia: f, weeklyGoalTimes: f?.por === "semana" ? f.vezes : undefined });
   }
+  function setModoAgenda(m: (typeof AGENDAMENTOS)[number]["key"]) {
+    if (m === "horario") {
+      setFrequencia(null);
+      updateDraft({ schedule: { ...schedule, enabled: true } });
+    } else {
+      updateDraft({ schedule: { ...schedule, enabled: false } });
+      setFrequencia(m === "frequencia" ? freq || { vezes: 3, por: "semana" } : null);
+    }
+  }
+  const areas = gam.config.roda.areas;
+  const areaSel = areas.find((a) => a.id === draft.eixo);
 
   const stepRefs = useRef<Array<HTMLDivElement | null>>([]);
   function reorderSteps(fromIndex: number, toIndex: number) {
@@ -136,111 +187,135 @@ export function RoutineEditor() {
 
   return (
     <div {...tela({ larga: true })}>
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <BotaoLink tom="suave" onClick={cancelEdit}>
-          Cancelar
-        </BotaoLink>
-        <BotaoLink
-          className="inline-flex items-center gap-[5px]"
-          title="Exportar"
-          aria-label="Exportar"
-          onClick={handleExport}
-        >
-          <Icon name="arrowUpTray" size={14} /> Exportar
-        </BotaoLink>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pb-[230px]" data-rolagem>
-        <CampoNome
+      {/* mesmo topo do detalhe: voltar (descarta o rascunho), nome editável, exportar */}
+      <div className="mb-3 -ml-2 flex min-h-11 items-center gap-1.5">
+        <BotaoIcone rotulo="Voltar sem salvar" semBorda onClick={cancelEdit}>
+          <Icon name="chevronLeft" size={18} />
+        </BotaoIcone>
+        <input
+          type="text"
+          className="min-w-0 flex-1 border-0 border-b-2 border-transparent bg-transparent p-0 font-titulo text-[24px] font-bold text-ink focus:border-caneta focus:outline-none"
           placeholder="Nome da rotina"
           value={draft.name}
           onChange={(e) => updateDraft({ name: e.target.value })}
         />
+        <BotaoIcone rotulo="Exportar rotina" semBorda className="text-caneta" onClick={() => exportarRotina(draft)}>
+          <Icon name="arrowUpTray" size={20} />
+        </BotaoIcone>
+      </div>
 
-        {/* Porta de renderEditor > tagRow/areaRow (index.html:4341-4374): peso
-            no boletim (multiplicador da pontuação) e área da roda da vida (com
-            quem a rotina divide os pontos da semana). Mesmas pílulas do
-            lançamento rápido da Home, para não desenhar um seletor novo. */}
-        <div className="mt-0.5 mb-2.5 flex flex-wrap items-center gap-2.5">
-          <span className="text-md text-sub">peso no boletim:</span>
-          <Toggle
-            quebra
-            options={[...PESOS]}
-            active={draft.tagValor || "medio"}
-            onSelect={(v: Tag) => updateDraft({ tagValor: v })}
-          />
-        </div>
-
-        {/* a área aparece mesmo com a roda desligada (igual ao legado): ela
-            continua classificando a rotina, só não divide fatia da semana */}
-        {gam.config.roda.areas.length > 0 && (
-          <div className="mb-3">
-            <span className="text-md text-sub">área:</span>
-            <div className="mt-1.5 flex flex-1 flex-wrap gap-1.5">
-              <Chip ativo={!draft.eixo} cor="var(--sub)" onClick={() => updateDraft({ eixo: null })}>
-                sem área
-              </Chip>
-              {gam.config.roda.areas.map((a) => (
-                <Chip key={a.id} ativo={draft.eixo === a.id} cor={a.color} onClick={() => updateDraft({ eixo: a.id })}>
-                  {a.label}
-                </Chip>
-              ))}
+      <div className="flex-1 overflow-y-auto pb-[230px]" data-rolagem>
+        {/* Cartão de ajustes. Peso no boletim = multiplicador da pontuação; área
+            da roda = com quem a rotina divide os pontos da semana (aparece mesmo
+            com a roda desligada, igual ao legado: continua classificando). */}
+        <div className="flex flex-col gap-3 rounded-app bg-card-2 p-4">
+          {areas.length > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="font-sans text-base text-ink uppercase">Área:</span>
+              {/* select nativo invisível sobre o campo: no Android o menu é do
+                  sistema; o campo mostra só a área escolhida, em pílula cheia */}
+              <label className="relative flex min-h-10 min-w-0 flex-1 items-center rounded-app-sm bg-card px-2">
+                {areaSel ? (
+                  <PilulaArea cor={areaSel.color}>{areaSel.label}</PilulaArea>
+                ) : (
+                  <span className="px-1 font-sans text-base text-sub">sem área</span>
+                )}
+                <select
+                  aria-label="Área da roda da vida"
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  value={draft.eixo || ""}
+                  onChange={(e) => updateDraft({ eixo: e.target.value || null })}
+                >
+                  <option value="">sem área</option>
+                  {areas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          </div>
-        )}
-
-        {/* Porta de index.html:4551-4565 — mesmo valor vale para o descanso
-            entre séries dentro de uma etapa de exercício. */}
-        <RotuloSecao>Descanso entre etapas</RotuloSecao>
-        <Cartao raio="lg">
-          <div className="flex items-center gap-3">
-            <CampoDuracao
-              unidade="s"
+          )}
+          <Linha rotulo="Peso no boletim">
+            <Toggle
+              grande
+              options={[...PESOS]}
+              active={draft.tagValor || "medio"}
+              onSelect={(v: Tag) => updateDraft({ tagValor: v })}
+            />
+          </Linha>
+          {/* mesmo valor vale para o descanso entre séries de exercício (index.html:4551-4565) */}
+          <Linha rotulo="Pausa entre etapas">
+            <input
+              type="number"
+              inputMode="numeric"
               min={0}
+              aria-label="Pausa entre etapas, em segundos"
+              className={cn(CAMPO_BRANCO, "w-[72px]")}
               value={draft.restSeconds || 0}
               onChange={(e) => updateDraft({ restSeconds: Math.max(0, +e.target.value || 0) })}
             />
-          </div>
-        </Cartao>
-
-        <RotuloSecao>Agendamento</RotuloSecao>
-        <Cartao raio="lg">
-          <Switch
-            checked={schedule.enabled}
-            onChange={(enabled) => updateDraft({ schedule: { ...schedule, enabled } })}
-          >
-            Ativar horário
-          </Switch>
-          {schedule.enabled && (
-            <div>
-              <div className="mt-3.5 flex items-center gap-3">
+            <span className="font-sans text-lg text-ink">s</span>
+          </Linha>
+          <Linha rotulo="Agendamento">
+            <Toggle grande options={[...AGENDAMENTOS]} active={modoAgenda} onSelect={setModoAgenda} />
+          </Linha>
+          {modoAgenda === "horario" && (
+            <>
+              <div className="flex items-center gap-2">
                 <Toggle
+                  grande
+                  className="shrink-0"
                   options={[...ANCORAS]}
                   active={schedule.anchor}
                   onSelect={(anchor) => updateDraft({ schedule: { ...schedule, anchor } })}
                 />
-                <Campo
+                <input
                   type="time"
+                  aria-label={schedule.anchor === "start" ? "Horário de início" : "Horário de término"}
+                  className={cn(CAMPO_BRANCO, "w-0 min-w-0 flex-1 px-1")}
                   value={schedule.time}
                   onChange={(e) => updateDraft({ schedule: { ...schedule, time: e.target.value } })}
                 />
+                <span className="font-sans text-lg text-ink">&rarr;</span>
+                <span className="shrink-0 font-sans text-lg text-ink" title="Calculado pela duração">
+                  {sched ? (schedule.anchor === "start" ? sched.endStr : sched.startStr) : "--:--"}
+                </span>
               </div>
-              <ChipsDia className="mt-2.5" rotulos={DAY_LETTERS} ativos={schedule.days} onToggle={toggleDia} />
-              <div className="mt-3 font-sans text-md text-sub">
-                {sched ? `${sched.startStr} → ${sched.endStr}` : "Defina um horário."}
-              </div>
+              <ChipsDia rotulos={DAY_LETTERS} ativos={schedule.days} onToggle={toggleDia} />
+            </>
+          )}
+          {modoAgenda === "frequencia" && freq && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                aria-label="Quantas vezes"
+                className={cn(CAMPO_BRANCO, "w-14 shrink-0")}
+                value={freq.vezes}
+                onChange={(e) => setFrequencia({ ...freq, vezes: Math.max(1, +e.target.value || 1) })}
+              />
+              <span className="font-sans text-lg whitespace-nowrap text-ink">vezes por</span>
+              <Toggle
+                className="ml-auto"
+                grande
+                options={[...POR]}
+                active={freq.por}
+                onSelect={(por) => setFrequencia({ ...freq, por })}
+              />
             </div>
           )}
-        </Cartao>
+        </div>
 
-        {/* etapas por último (pedido do Pedro, 30/09/2026): descanso e agendamento vêm antes */}
-        <RotuloSecao>Etapas</RotuloSecao>
-        <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto">
+        {/* etapas por último (pedido do Pedro, 30/09/2026): ajustes vêm antes */}
+        <RotuloSecao className="mt-6">Etapas</RotuloSecao>
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
           {draft.steps.map((s, i) => (
             <div
               className={cn(
-                "flex items-start gap-3 rounded-lg border border-transparent bg-card-2 p-3.5",
-                dragFrom?.index === i && "border-caneta opacity-45",
+                "rounded-app",
+                dragFrom?.index === i && "opacity-45",
                 dragOver &&
                   dragFrom &&
                   dragOver.index === i &&
@@ -255,146 +330,153 @@ export function RoutineEditor() {
                 stepRefs.current[i] = el;
               }}
             >
-              <AlcaArrasto
-                {...dragHandleProps({ container: 0, index: i }, (_x, y) => ({
-                  container: 0,
-                  index: computeStepDragTarget(
-                    stepRefs.current.map((el) => el!.getBoundingClientRect()),
-                    i,
-                    y
-                  ),
-                }))}
-              />
-              <div className="w-[22px] shrink-0 pt-0.5 font-sans text-sm text-sub">{i + 1}</div>
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                {s.type !== "exercicio" && (
-                  <input
-                    type="text"
-                    className="w-full border-0 bg-transparent p-0 font-sans text-xl text-ink focus:outline-none"
-                    placeholder="Nome da etapa"
-                    value={s.name}
-                    onChange={(e) => patchStep(i, { name: e.target.value })}
-                  />
-                )}
-                <div className="flex flex-wrap items-center gap-2.5">
+              <SwipeItem
+                onLeft={() => removeStep(i)}
+                leftLabel={<Icon name="trash" size={20} />}
+                leftAria="Excluir etapa"
+                wrapClassName="rounded-app"
+                className="flex items-center gap-3 rounded-app bg-card-2 py-3.5 pr-2 pl-4"
+              >
+                <div className="w-5 shrink-0 text-center font-titulo text-xl font-bold">{i + 1}</div>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  {s.type !== "exercicio" && (
+                    <input
+                      type="text"
+                      className="w-full border-0 bg-transparent p-0 font-sans text-xl font-semibold text-ink focus:outline-none"
+                      placeholder="Nome da etapa"
+                      value={s.name}
+                      onChange={(e) => patchStep(i, { name: e.target.value })}
+                    />
+                  )}
                   <Toggle
+                    grande
+                    className="self-start"
                     options={[...STEP_TYPES]}
                     active={s.type as (typeof STEP_TYPES)[number]["key"]}
                     onSelect={(t) => setStepType(i, t)}
                   />
-                </div>
-                {/* anotações (texto livre no player, legado index.html:4462) e
-                    essencial (entra na versão mínima da rotina) */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Chip
-                    role="switch"
-                    aria-checked={!!s.journaling}
-                    ativo={!!s.journaling}
-                    className={cn(!s.journaling && "bg-card")}
-                    title="Campo de texto livre nesta etapa; vira nota em Modelos › Anotações de Rotinas"
-                    onClick={() => patchStep(i, { journaling: !s.journaling })}
-                  >
-                    <Icon name="pencil" size={11} /> anotações
-                  </Chip>
-                  <Chip
-                    role="switch"
-                    aria-checked={!!s.essencial}
-                    ativo={!!s.essencial}
-                    className={cn(!s.essencial && "bg-card")}
-                    title="Entra na versão mínima da rotina (dias de pouca energia)"
-                    onClick={() => patchStep(i, { essencial: !s.essencial })}
-                  >
-                    <Icon name="diamond" size={11} /> essencial
-                  </Chip>
-                </div>
-                {s.type === "timer" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <CampoDuracao
-                      unidade="m"
-                      min={0}
-                      value={Math.floor((s.seconds || 0) / 60)}
-                      onChange={(e) => {
-                        const mins = Math.max(0, +e.target.value || 0);
-                        const secs = (s.seconds || 0) % 60;
-                        patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
-                      }}
-                    />
-                    <CampoDuracao
-                      unidade="s"
-                      min={0}
-                      max={59}
-                      value={(s.seconds || 0) % 60}
-                      onChange={(e) => {
-                        const mins = Math.floor((s.seconds || 0) / 60);
-                        const secs = Math.min(59, Math.max(0, +e.target.value || 0));
-                        patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
-                      }}
-                    />
+                    {s.type === "timer" && (
+                      <>
+                        <CampoDuracao
+                          unidade="m"
+                          min={0}
+                          className="border-0"
+                          value={Math.floor((s.seconds || 0) / 60)}
+                          onChange={(e) => {
+                            const mins = Math.max(0, +e.target.value || 0);
+                            const secs = (s.seconds || 0) % 60;
+                            patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
+                          }}
+                        />
+                        <CampoDuracao
+                          unidade="s"
+                          min={0}
+                          max={59}
+                          className="border-0"
+                          value={(s.seconds || 0) % 60}
+                          onChange={(e) => {
+                            const mins = Math.floor((s.seconds || 0) / 60);
+                            const secs = Math.min(59, Math.max(0, +e.target.value || 0));
+                            patchStep(i, { seconds: Math.max(5, mins * 60 + secs) });
+                          }}
+                        />
+                      </>
+                    )}
+                    {/* anotações (texto livre no player, legado index.html:4462) e
+                      essencial (entra na versão mínima da rotina): botões-ícone
+                      que ficam lilases quando ligados */}
+                    <BotaoIcone
+                      tamanho="sm"
+                      role="switch"
+                      aria-checked={!!s.journaling}
+                      rotulo="Anotações: campo de texto livre nesta etapa (vira nota em Modelos › Anotações de Rotinas)"
+                      className={cn(s.journaling ? "bg-caneta-300 text-caneta" : "bg-chip-neutro text-ink")}
+                      onClick={() => patchStep(i, { journaling: !s.journaling })}
+                    >
+                      <Icon name="pencilSquare" size={18} />
+                    </BotaoIcone>
+                    <BotaoIcone
+                      tamanho="sm"
+                      role="switch"
+                      aria-checked={!!s.essencial}
+                      rotulo="Essencial: entra na versão mínima da rotina (dias de pouca energia)"
+                      className={cn(s.essencial ? "bg-caneta-300 text-caneta" : "bg-chip-neutro text-ink")}
+                      onClick={() => patchStep(i, { essencial: !s.essencial })}
+                    >
+                      <Icon name="exclamationCircle" size={18} />
+                    </BotaoIcone>
                   </div>
-                )}
-                {s.type === "exercicio" && (
-                  <>
-                    {/* exercício escolhido como chip clicável (troca ao tocar) */}
-                    <BotaoEscolha escolhido={!!s.exercicioId} onClick={() => setPickerFor(i)}>
-                      {s.exercicioId
-                        ? exercicios.find((e) => e.id === s.exercicioId)?.nome || "exercício removido"
-                        : "escolher exercício"}
-                    </BotaoEscolha>
-                    {/* séries · reps · peso numa grade de 3 campos com ícone e unidade */}
-                    <div className="mt-2 grid w-full grid-cols-3 gap-1.5">
-                      <CampoExercicio
-                        icone="arrowPath"
-                        unidade="séries"
-                        titulo="Séries"
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        aria-label="Séries"
-                        value={s.sets || 3}
-                        onChange={(e) => patchStep(i, { sets: Math.max(1, +e.target.value || 1) })}
-                      />
-                      <CampoExercicio
-                        icone="hashtag"
-                        unidade="reps"
-                        titulo="Repetições (ex.: 10 ou 8-12)"
-                        type="text"
-                        inputMode="numeric"
-                        aria-label="Repetições"
-                        value={s.reps || "10"}
-                        onChange={(e) => patchStep(i, { reps: e.target.value })}
-                      />
-                      {/* o peso mora na biblioteca (Exercicio.pesoAtual), não na
+                  {s.type === "exercicio" && (
+                    <>
+                      {/* exercício escolhido como chip clicável (troca ao tocar) */}
+                      <BotaoEscolha escolhido={!!s.exercicioId} onClick={() => setPickerFor(i)}>
+                        {s.exercicioId
+                          ? exercicios.find((e) => e.id === s.exercicioId)?.nome || "exercício removido"
+                          : "escolher exercício"}
+                      </BotaoEscolha>
+                      {/* séries · reps · peso numa grade de 3 campos com ícone e unidade */}
+                      <div className="mt-2 grid w-full grid-cols-3 gap-1.5">
+                        <CampoExercicio
+                          icone="arrowPath"
+                          unidade="séries"
+                          titulo="Séries"
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          aria-label="Séries"
+                          value={s.sets || 3}
+                          onChange={(e) => patchStep(i, { sets: Math.max(1, +e.target.value || 1) })}
+                        />
+                        <CampoExercicio
+                          icone="hashtag"
+                          unidade="reps"
+                          titulo="Repetições (ex.: 10 ou 8-12)"
+                          type="text"
+                          inputMode="numeric"
+                          aria-label="Repetições"
+                          value={s.reps || "10"}
+                          onChange={(e) => patchStep(i, { reps: e.target.value })}
+                        />
+                        {/* o peso mora na biblioteca (Exercicio.pesoAtual), não na
                           etapa: editar aqui é um atalho para o mesmo campo que o
                           player atualiza ao concluir a série. Sem exercício
                           escolhido não há onde guardar — campo desabilitado. */}
-                      <CampoExercicio
-                        icone="scale"
-                        unidade="kg"
-                        titulo={s.exercicioId ? "Peso atual" : "Escolha um exercício para definir o peso"}
-                        desligado={!s.exercicioId}
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        step="0.5"
-                        aria-label="Peso atual do exercício"
-                        disabled={!s.exercicioId}
-                        value={s.exercicioId ? (exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0) : ""}
-                        placeholder="–"
-                        onChange={(e) => {
-                          const ex = exercicios.find((x) => x.id === s.exercicioId);
-                          if (!ex) return;
-                          upsertExercicio({ ...ex, pesoAtual: Math.max(0, +e.target.value || 0) });
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center self-center">
-                <BotaoIcone rotulo="Excluir etapa" semBorda onClick={() => removeStep(i)}>
-                  <Icon name="trash" size={15} />
-                </BotaoIcone>
-              </div>
+                        <CampoExercicio
+                          icone="scale"
+                          unidade="kg"
+                          titulo={s.exercicioId ? "Peso atual" : "Escolha um exercício para definir o peso"}
+                          desligado={!s.exercicioId}
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step="0.5"
+                          aria-label="Peso atual do exercício"
+                          disabled={!s.exercicioId}
+                          value={s.exercicioId ? (exercicios.find((e) => e.id === s.exercicioId)?.pesoAtual ?? 0) : ""}
+                          placeholder="–"
+                          onChange={(e) => {
+                            const ex = exercicios.find((x) => x.id === s.exercicioId);
+                            if (!ex) return;
+                            upsertExercicio({ ...ex, pesoAtual: Math.max(0, +e.target.value || 0) });
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+                <AlcaArrasto
+                  className="drag-handle self-center text-ink"
+                  {...dragHandleProps({ container: 0, index: i }, (_x, y) => ({
+                    container: 0,
+                    index: computeStepDragTarget(
+                      stepRefs.current.slice(0, draft.steps.length).map((el) => el!.getBoundingClientRect()),
+                      i,
+                      y
+                    ),
+                  }))}
+                />
+              </SwipeItem>
             </div>
           ))}
           <button
@@ -404,14 +486,13 @@ export function RoutineEditor() {
             + adicionar etapa
           </button>
         </div>
-
       </div>
 
-      <BarraAcoes>
+      <BarraAcoes className="items-stretch">
         {!isNew && (
-          <Botao variante="perigo" className="flex-[0_0_37%]" onClick={handleDelete}>
-            Excluir
-          </Botao>
+          <BotaoIcone rotulo="Excluir rotina" className="h-auto w-[30%] bg-erro-soft text-erro" onClick={handleDelete}>
+            <Icon name="trash" size={20} />
+          </BotaoIcone>
         )}
         <Botao className="flex-1" onClick={handleSave}>
           Salvar

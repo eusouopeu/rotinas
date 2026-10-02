@@ -58,6 +58,7 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Semana atual contra a anterior no Boletim (nota e cada área, proporcional aos dias corridos) – implementado em 01/10/2026
 - Etapas de anotação (texto livre no player, viram nota em Modelos › Anotações de Rotinas) de volta ao editor e ao player – implementado em 01/10/2026
 - Botão de progressão no exercício: +2 repetições até 12; em 12, +2,5 kg e volta a 8 (substitui o link "tentar N kg") – implementado em 01/10/2026
+- Cartões, detalhe e editor da rotina pelo mockup de 02/10/2026 (xp por execução, "3 – 2x" na sequência, faixa no topo do quadrado, reordenar e tempo real no detalhe, agendamento por frequência) e roxo único da escala purple do Tailwind – implementado em 02/10/2026
 
 ## Recomendações refutadas
 
