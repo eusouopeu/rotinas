@@ -40,6 +40,7 @@ import { Modal, ModalAcoes, ModalTexto } from "../ui/Modal";
 import { OpcaoCriar } from "../ui/OpcaoCriar";
 import { SegPill } from "../ui/Segmentado";
 import { rolavel, tela } from "../ui/Tela";
+import { Doca } from "../ui/Doca";
 
 export function Home() {
   const routines = useAppStore((s) => s.routines);
@@ -128,7 +129,8 @@ export function Home() {
 
   return (
     <div {...tela({ comAbas: true })}>
-      <div {...rolavel()}>
+      {/* respiro no fim: o último cartão rola para cima do Fab */}
+      <div {...rolavel("pb-[76px] desktop:pb-0")}>
         <CabecalhoTela titulo="Rotinas" margem="2.5" ref={headerRef}>
           <BotaoIcone rotulo="Boletim da semana" tamanho="sm" onClick={() => goTo({ tab: "home", screen: "boletim" })}>
             <Icon name="trophy" size={16} />
@@ -203,72 +205,6 @@ export function Home() {
           />
         )}
 
-        <SegPill
-          cheia
-          style={{ marginBottom: 14 }}
-          options={[
-            { key: "dia", label: "Dia" },
-            { key: "semana", label: "Semana" },
-            { key: "mes", label: "Mês" },
-            { key: "rotinas", label: "Lista" },
-          ]}
-          active={homeView}
-          onSelect={(v) => {
-            setDiaAlvo(null);
-            setHomeView(v);
-          }}
-        />
-
-        {homeView === "rotinas" && (
-          <div className="mb-3.5 flex items-center gap-0.5">
-            {gam.config.roda.areas.length > 0 ? (
-              <SelecaoArea
-                aria-label="Filtrar rotinas por área da roda da vida"
-                title="Filtrar por área da roda da vida"
-                value={filtroArea}
-                onChange={(e) => setFiltroArea(e.target.value)}
-              >
-                <option value="">Todas as áreas</option>
-                {gam.config.roda.areas.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.label}
-                  </option>
-                ))}
-                <option value="sem">Sem área</option>
-              </SelecaoArea>
-            ) : (
-              <span className="min-w-1.5 flex-auto" />
-            )}
-            <BotaoIcone
-              className="ml-1.5"
-              ligado={ocultarFeitas}
-              rotulo={ocultarFeitas ? "Mostrar as rotinas já feitas hoje" : "Ocultar as rotinas já feitas hoje"}
-              aria-pressed={ocultarFeitas}
-              onClick={() => setOcultarFeitas(!ocultarFeitas)}
-            >
-              <Icon name="eye" size={15} />
-            </BotaoIcone>
-            <BotaoIcone
-              className="ml-1.5"
-              ligado={soHoje}
-              rotulo="Mostrar só as rotinas de hoje"
-              aria-pressed={soHoje}
-              onClick={() => setSoHoje(!soHoje)}
-            >
-              <Icon name="calendar" size={15} />
-            </BotaoIcone>
-            <BotaoIcone
-              className="ml-1.5"
-              ligado={listaExpandida}
-              rotulo={listaExpandida ? "Cards compactos" : "Cards expandidos"}
-              aria-pressed={listaExpandida}
-              onClick={() => setListaExpandida(!listaExpandida)}
-            >
-              <Icon name={listaExpandida ? "arrowsPointingIn" : "arrowsPointingOut"} size={15} />
-            </BotaoIcone>
-          </div>
-        )}
-
         {homeView === "semana" ? (
           <AgendaSemana />
         ) : homeView === "dia" ? (
@@ -324,6 +260,73 @@ export function Home() {
           </ListaCartoes>
         )}
       </div>
+
+      <Doca>
+        <SegPill
+          cheia
+          options={[
+            { key: "dia", label: "Dia" },
+            { key: "semana", label: "Semana" },
+            { key: "mes", label: "Mês" },
+            { key: "rotinas", label: "Lista" },
+          ]}
+          active={homeView}
+          onSelect={(v) => {
+            setDiaAlvo(null);
+            setHomeView(v);
+          }}
+        />
+
+        {homeView === "rotinas" && (
+          <div className="flex items-center gap-0.5">
+            {gam.config.roda.areas.length > 0 ? (
+              <SelecaoArea
+                aria-label="Filtrar rotinas por área da roda da vida"
+                title="Filtrar por área da roda da vida"
+                value={filtroArea}
+                onChange={(e) => setFiltroArea(e.target.value)}
+              >
+                <option value="">Todas as áreas</option>
+                {gam.config.roda.areas.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+                <option value="sem">Sem área</option>
+              </SelecaoArea>
+            ) : (
+              <span className="min-w-1.5 flex-auto" />
+            )}
+            <BotaoIcone
+              className="ml-1.5"
+              ligado={ocultarFeitas}
+              rotulo={ocultarFeitas ? "Mostrar as rotinas já feitas hoje" : "Ocultar as rotinas já feitas hoje"}
+              aria-pressed={ocultarFeitas}
+              onClick={() => setOcultarFeitas(!ocultarFeitas)}
+            >
+              <Icon name="eye" size={15} />
+            </BotaoIcone>
+            <BotaoIcone
+              className="ml-1.5"
+              ligado={soHoje}
+              rotulo="Mostrar só as rotinas de hoje"
+              aria-pressed={soHoje}
+              onClick={() => setSoHoje(!soHoje)}
+            >
+              <Icon name="calendar" size={15} />
+            </BotaoIcone>
+            <BotaoIcone
+              className="ml-1.5"
+              ligado={listaExpandida}
+              rotulo={listaExpandida ? "Cards compactos" : "Cards expandidos"}
+              aria-pressed={listaExpandida}
+              onClick={() => setListaExpandida(!listaExpandida)}
+            >
+              <Icon name={listaExpandida ? "arrowsPointingIn" : "arrowsPointingOut"} size={15} />
+            </BotaoIcone>
+          </div>
+        )}
+      </Doca>
 
       {/* um único FAB nas três visões: abre a escolha entre rotina e evento */}
       <Fab rotulo="Novo" onClick={() => setNovoAberto(true)} />

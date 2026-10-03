@@ -80,6 +80,10 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Nome da etapa como título fora do disco, sem o rótulo "ETAPA N" – implementado em 03/10/2026
 - Tela de conclusão com ações no rodapé e a próxima rotina como cartão – implementado em 03/10/2026
 - Player em duas colunas com o celular deitado – implementado em 03/10/2026
+- Seletores de visão e filtros de Rotinas e Dados numa barra embaixo, no alcance do polegar – implementado em 03/10/2026
+- Visão Dia da agenda abre no horário atual – implementado em 03/10/2026
+- Filtro de despesas com datas digitadas e várias categorias numa folha do app – implementado em 03/10/2026
+- Ajustes com seletores no tom dos acordeões e acordeão sem linha interna – implementado em 03/10/2026
 
 ## Recomendações refutadas
 

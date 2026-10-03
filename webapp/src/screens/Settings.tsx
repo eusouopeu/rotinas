@@ -45,12 +45,12 @@ export function Settings() {
           <CabecalhoTela titulo="Ajustes" margem="1.5" />
 
           <RotuloSecao>Tema</RotuloSecao>
-          <Toggle larga grande className="mb-1" options={[...TEMAS]} active={theme} onSelect={setTheme} />
+          <Toggle larga grande className="mb-1 bg-card-2" options={[...TEMAS]} active={theme} onSelect={setTheme} />
           <RotuloSecao>Tamanho do texto</RotuloSecao>
           <Toggle
             larga
             grande
-            className="mb-1"
+            className="mb-1 bg-card-2"
             options={[...TAMANHOS_TEXTO]}
             active={String(fontScale) as (typeof TAMANHOS_TEXTO)[number]["key"]}
             onSelect={(k) => setFontScale(Number(k))}
@@ -72,7 +72,6 @@ export function Settings() {
           {isDesktop && <SecaoMiniPlayer />}
           {isDesktop && <SecaoMcp />}
         </div>
-
       </div>
     </FiltroAjustes.Provider>
   );

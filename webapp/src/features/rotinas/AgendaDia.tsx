@@ -2,7 +2,7 @@
 // grade de minuto de um dia (00:00–24:00, marcação de 30 em 30, zoom dobrado),
 // com blocos da nota, kanban, compromissos, iCal e rotinas agendadas; arrastar
 // um bloco de cartão verticalmente reagenda o horário (mantém a duração).
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { useAppStore } from "../../store/useAppStore";
 import { addDaysISO, isoToDate, localKey } from "../../lib/gamificacao";
@@ -56,6 +56,17 @@ export function AgendaDia({ inicialISO }: { inicialISO?: string } = {}) {
   });
   const allDay = icalEventosDoDia(icalCache, iso).filter((e) => e.allDay);
 
+  // abre com o horário atual no terço de cima da grade, em vez de meia-noite
+  // (pedido do Pedro, 03/10/2026) — também ao trocar de dia
+  const gradeRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = gradeRef.current;
+    if (!el) return;
+    const d = new Date();
+    const y = (d.getHours() * 60 + d.getMinutes()) * AG_PX_MIN_ZOOM;
+    el.scrollTop = Math.max(0, y - el.clientHeight / 3);
+  }, [iso]);
+
   function clique(b: (typeof layout.blocos)[number]) {
     if (b.rotinaId) goTo({ tab: "home", screen: "routineDetail", id: b.rotinaId });
     else if (b.cardId) toggleDiaKanbanCard(b.cardId);
@@ -99,16 +110,13 @@ export function AgendaDia({ inicialISO }: { inicialISO?: string } = {}) {
       {allDay.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {allDay.map((e, i) => (
-            <span
-              key={i}
-              className="rounded-xl border border-line bg-card-2 px-[9px] py-[3px] text-sm text-sub"
-            >
+            <span key={i} className="rounded-xl border border-line bg-card-2 px-[9px] py-[3px] text-sm text-sub">
               {e.title}
             </span>
           ))}
         </div>
       )}
-      <div className="max-h-[62vh] overflow-y-auto pt-3.5 pr-0 pb-0 pl-0.5">
+      <div ref={gradeRef} className="max-h-[62vh] overflow-y-auto pt-3.5 pr-0 pb-0 pl-0.5">
         <GradeDia
           layout={layout}
           fundoRotulo="paper"

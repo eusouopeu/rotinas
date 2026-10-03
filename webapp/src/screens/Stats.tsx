@@ -20,6 +20,7 @@ import { EstadoVazio } from "../ui/EstadoVazio";
 import { Selecao } from "../ui/Selecao";
 import { SegPill } from "../ui/Segmentado";
 import { rolavel, tela } from "../ui/Tela";
+import { Doca } from "../ui/Doca";
 
 export function Stats() {
   const goTo = useAppStore((s) => s.goTo);
@@ -66,35 +67,6 @@ export function Stats() {
           </div>
         </CabecalhoTela>
 
-        <div id="statsHead">
-          <div className="mb-3 flex">
-            <SegPill
-              cheia
-              options={[
-                { key: "semanal", label: "Semanal" },
-                { key: "mensal", label: "Mensal" },
-                { key: "anual", label: "Anual" },
-              ]}
-              active={statsView}
-              onSelect={(v) => {
-                estado.setStatsView(v);
-                estado.setSelectedDay(null);
-              }}
-            />
-          </div>
-
-          <div className="mb-3 flex">
-            <Selecao value={statsRoutineFilter || ""} onChange={(e) => setStatsRoutineFilter(e.target.value || null)}>
-              <option value="">Todas as rotinas</option>
-              {routines.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </Selecao>
-          </div>
-        </div>
-
         <div id="statsBody" className="desktop:columns-2 desktop:gap-x-4 ultra:columns-3">
           {history.length === 0 ? (
             <EstadoVazio
@@ -116,6 +88,34 @@ export function Stats() {
           )}
         </div>
       </div>
+      <Doca id="statsHead">
+        <div className="flex">
+          <SegPill
+            cheia
+            options={[
+              { key: "semanal", label: "Semanal" },
+              { key: "mensal", label: "Mensal" },
+              { key: "anual", label: "Anual" },
+            ]}
+            active={statsView}
+            onSelect={(v) => {
+              estado.setStatsView(v);
+              estado.setSelectedDay(null);
+            }}
+          />
+        </div>
+
+        <div className="flex">
+          <Selecao value={statsRoutineFilter || ""} onChange={(e) => setStatsRoutineFilter(e.target.value || null)}>
+            <option value="">Todas as rotinas</option>
+            {routines.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Selecao>
+        </div>
+      </Doca>
     </div>
   );
 }

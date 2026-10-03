@@ -335,6 +335,15 @@ export interface FiltroDespesas {
   from?: string;
   to?: string;
   cat?: string;
+  /** Várias categorias (seleção múltipla do filtro, 03/10/2026); vazio = todas. */
+  cats?: string[];
+}
+
+/** Máscara do filtro de data digitado: só dígitos, com "/" depois do dia e do
+ * mês — "05032026" vira "05/03/2026", "050326" vira "05/03/26". */
+export function mascaraDataBR(texto: string): string {
+  const d = texto.replace(/\D/g, "").slice(0, 8);
+  return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join("/");
 }
 
 export function filtrarDespesas(docs: ExpenseDoc[], f: FiltroDespesas): ExpenseDoc[] {
@@ -344,6 +353,7 @@ export function filtrarDespesas(docs: ExpenseDoc[], f: FiltroDespesas): ExpenseD
   if (f.from) arr = arr.filter((e) => e.date >= f.from!);
   if (f.to) arr = arr.filter((e) => e.date <= f.to!);
   if (f.cat) arr = arr.filter((e) => e.cat === f.cat);
+  if (f.cats?.length) arr = arr.filter((e) => f.cats!.includes(e.cat));
   return arr;
 }
 

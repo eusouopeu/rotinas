@@ -11,7 +11,8 @@ import { ImportarExtrato } from "../features/gastos/ImportarExtrato";
 import { ListaGastos } from "../features/gastos/ListaGastos";
 import { NovaDespesa } from "../features/gastos/NovaDespesa";
 import { BotaoIcone } from "../ui/BotaoIcone";
-import { Campo, SelecaoLinha } from "../ui/Campo";
+import { Campo } from "../ui/Campo";
+import { MultiSelecao } from "../ui/MultiSelecao";
 import { Fab } from "../ui/Fab";
 import { Legenda } from "../ui/Legenda";
 import { Toggle } from "../ui/Segmentado";
@@ -21,6 +22,8 @@ import {
   computeImportPreview,
   despesasCsv,
   filtrarDespesas,
+  mascaraDataBR,
+  parseFlexDate,
   guessExpenseColumns,
   parseBRNumber,
   parseCsvText,
@@ -47,6 +50,17 @@ function downloadText(filename: string, text: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Data do filtro só vale com o ano completo (6 ou 8 dígitos) e dia/mês válidos. */
+function dataDigitada(texto: string): string {
+  const n = texto.replace(/\D/g, "").length;
+  if (n !== 6 && n !== 8) return "";
+  const iso = parseFlexDate(texto);
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getMonth() === m - 1 && dt.getDate() === d ? iso : "";
+}
+
 export function ExpenseFolder() {
   const templates = useAppStore((s) => s.templates);
   const goTo = useAppStore((s) => s.goTo);
@@ -58,9 +72,12 @@ export function ExpenseFolder() {
 
   const [view, setView] = useState<"lista" | "graficos">("lista");
   const [query, setQuery] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [cat, setCat] = useState("");
+  // datas digitadas (DD/MM/AAAA ou DD/MM/AA), sem o calendário nativo
+  const [deTexto, setDeTexto] = useState("");
+  const [ateTexto, setAteTexto] = useState("");
+  const [cats, setCats] = useState<string[]>([]);
+  const from = dataDigitada(deTexto);
+  const to = dataDigitada(ateTexto);
   // atalho "Nova despesa" do launcher chega com id "nova": abre o formulário
   const [novo, setNovo] = useState(() => useAppStore.getState().view.id === "nova");
   const [importState, setImportState] = useState<ImportState | null>(null);
@@ -68,7 +85,7 @@ export function ExpenseFolder() {
   const csvFileRef = useRef<HTMLInputElement>(null);
 
   const allDocs = templates.filter((t): t is ExpenseDoc => t.type === "expense");
-  const docs = filtrarDespesas(allDocs, { query, from, to, cat });
+  const docs = filtrarDespesas(allDocs, { query, from, to, cats });
   const saldo = saldoDoMes(allDocs, localKey().slice(0, 7));
 
   function onCsvFile(file: File) {
@@ -176,10 +193,7 @@ export function ExpenseFolder() {
               <Cartao className="mb-3">
                 <LinhaValor rotulo="Receitas do mês" valor={brl(saldo.entradas)} />
                 <LinhaValor rotulo="Gastos do mês" valor={brl(saldo.saidas)} />
-                <LinhaValor
-                  rotulo="Saldo"
-                  valor={(saldo.saldo < 0 ? "−" : "") + brl(Math.abs(saldo.saldo))}
-                />
+                <LinhaValor rotulo="Saldo" valor={(saldo.saldo < 0 ? "−" : "") + brl(Math.abs(saldo.saldo))} />
               </Cartao>
             )}
             <div className="mb-3">
@@ -193,27 +207,33 @@ export function ExpenseFolder() {
               <div className="mt-2 flex gap-2">
                 <Campo
                   variante="linha"
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="de DD/MM/AAAA"
                   className="min-w-0 flex-1"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
+                  value={deTexto}
+                  onChange={(e) => setDeTexto(mascaraDataBR(e.target.value))}
                   aria-label="De"
                 />
                 <Campo
                   variante="linha"
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="até DD/MM/AAAA"
                   className="min-w-0 flex-1"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
+                  value={ateTexto}
+                  onChange={(e) => setAteTexto(mascaraDataBR(e.target.value))}
                   aria-label="Até"
                 />
-                <SelecaoLinha value={cat} onChange={(e) => setCat(e.target.value)}>
-                  <option value="">Todas categorias</option>
-                  {EXP_CATS.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </SelecaoLinha>
               </div>
+              <MultiSelecao
+                titulo="Categorias"
+                vazio="Todas as categorias"
+                opcoes={EXP_CATS}
+                valor={cats}
+                onChange={setCats}
+                className="mt-2 w-full"
+              />
             </div>
 
             <Toggle

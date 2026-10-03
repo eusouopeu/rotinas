@@ -40,6 +40,10 @@ Seletor de visão (React, desde 24/09/2026): um só componente, `components/SegP
 
 Campos de duração (React): `.dur-field` envolve o `.dur-input` numa caixa com a unidade abreviada dentro (`m`, `s`); `.dur-fields` alinha vários lado a lado. Interruptores: todo `input[type=checkbox]` dentro de `.switch-row` é desenhado como switch (trilho `--card-2` → `--caneta`), no React e no legado.
 
+## Controles no alcance do polegar (03/10/2026)
+
+Seletores de visão e filtros das abas Rotinas (Dia/Semana/Mês/Lista + área, ocultar feitas, só hoje, expandir) e Dados (Semanal/Mensal/Anual + rotina) ficam em `ui/Doca.tsx`: fora da área rolável, último filho de `tela()`, logo acima da barra de abas. A doca publica a própria altura em `--doca-h` no pai, e o `Fab` soma essa variável ao `bottom` (sem doca, vale 0). Escolha de várias opções usa `ui/MultiSelecao.tsx` (folha do app com círculos marcáveis) em vez de `<select multiple>`/popup nativo do Android. Seletores de Ajustes (tema, tamanho do texto) usam `bg-card-2`, o mesmo tom dos acordeões, e o acordeão aberto não tem linha entre título e corpo.
+
 ## Tailwind (React, desde 24/09/2026)
 
 O React usa Tailwind v4 (`@tailwindcss/vite`), configurado em `webapp/src/styles/tailwind.css`. O legado (`index.html`) continua só com `app.css`.

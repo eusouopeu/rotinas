@@ -40,8 +40,7 @@ export function SecaoAjuste({
         aria-expanded={aberta}
         onClick={() => setAberta((v) => !v)}
         className={cn(
-          "flex w-full items-center justify-between gap-2.5 border-0 bg-transparent px-4 py-[15px] text-left font-sans text-lg text-ink [&_.icon-svg]:shrink-0 [&_.icon-svg]:text-sub",
-          aberta && "border-b-[1.5px] border-line"
+          "flex w-full items-center justify-between gap-2.5 border-0 bg-transparent px-4 py-[15px] text-left font-sans text-lg text-ink [&_.icon-svg]:shrink-0 [&_.icon-svg]:text-sub"
         )}
       >
         <span>{titulo}</span>
