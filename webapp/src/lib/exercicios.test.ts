@@ -38,3 +38,22 @@ describe("totalPlanejadoSegundos", () => {
     expect(totalPlanejadoSegundos(routine)).toBe(120 + 4 * 120);
   });
 });
+
+describe("semearExercicios", () => {
+  it("biblioteca vazia recebe todos os presets com id determinístico", async () => {
+    const { semearExercicios, EXERCICIOS_PRESET, idPreset } = await import("./exercicioPresets");
+    const lib = semearExercicios([]);
+    expect(lib).toHaveLength(EXERCICIOS_PRESET.length);
+    expect(lib[0].id).toBe(idPreset(EXERCICIOS_PRESET[0].nome));
+    expect(new Set(lib.map((e) => e.id)).size).toBe(lib.length);
+  });
+
+  it("preserva os existentes e não duplica pelo nome", async () => {
+    const { semearExercicios, EXERCICIOS_PRESET } = await import("./exercicioPresets");
+    const meu: Exercicio = { id: "x", nome: "supino reto com barra", grupos: ["Peito"], pesoAtual: 60 };
+    const lib = semearExercicios([meu]);
+    expect(lib[0]).toBe(meu);
+    expect(lib).toHaveLength(EXERCICIOS_PRESET.length);
+    expect(semearExercicios(lib)).toBe(lib);
+  });
+});
