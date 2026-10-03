@@ -19,7 +19,7 @@ import {
 import { estimadorEtapaTempo, estimadorSerie } from "../lib/routines";
 import { computeSchedule, rotinaAgendadaEm } from "../lib/schedule";
 import { progressaoCarga, sugestaoCarga } from "../lib/exercicios";
-import { timeUpCue } from "../lib/haptics";
+import { fimDescansoCue, fimEtapaCue } from "../lib/haptics";
 import { onAppStateChange, overlayHide, overlayShow } from "../lib/nativeBridge";
 import { cancelarAlertaFundo, sincronizarAlertaFundo } from "../lib/notifications";
 import { AvisoCartao } from "../ui/AvisoCartao";
@@ -36,6 +36,36 @@ import {
 } from "../features/player/Controles";
 import { TopoPlayer } from "../features/player/Topo";
 import { tela } from "../ui/Tela";
+import { fmtTime } from "../lib/format";
+import type { RoutineStep } from "../lib/types";
+
+/** "1 min", "45 s", "1:30" — duração curta para a linha "A seguir". */
+function duracaoCurta(seg: number): string {
+  if (seg < 60) return `${seg} s`;
+  return seg % 60 ? fmtTime(seg).replace(/^0/, "") : `${seg / 60} min`;
+}
+
+function resumoEtapa(s: RoutineStep, peso: number): string {
+  if (s.type === "exercicio")
+    return [`${s.sets || 1}×${s.reps || "?"}`, peso ? `${peso} kg` : ""].filter(Boolean).join(" · ");
+  return s.type === "timer" && s.seconds ? duracaoCurta(s.seconds) : "";
+}
+
+/** Linha "A seguir": nome e duração (ou séries × reps · carga) da próxima
+ * etapa; se ela é uma pausa, cita também a tarefa depois dela. */
+function ASeguir({ proxima, depois, peso }: { proxima?: RoutineStep; depois?: RoutineStep; peso: number }) {
+  if (!proxima) return <div className="mt-2.5 mb-1.5 font-sans text-sm text-sub">última etapa</div>;
+  const tarefa = depois ?? proxima;
+  const info = resumoEtapa(tarefa, tarefa.type === "exercicio" ? peso : 0);
+  return (
+    <div className="mt-2.5 mb-1.5 flex max-w-full items-baseline justify-center gap-1.5 px-2 font-sans text-sm text-sub">
+      <span className="shrink-0 tracking-[0.04em] uppercase">A seguir</span>
+      {depois && <span className="shrink-0">pausa {duracaoCurta(proxima.seconds || 0)} ·</span>}
+      <span className="min-w-0 truncate font-semibold text-ink">{tarefa.name}</span>
+      {info && <span className="shrink-0">· {info}</span>}
+    </div>
+  );
+}
 
 export function Player() {
   const playerState = useAppStore((s) => s.playerState);
@@ -88,7 +118,7 @@ export function Player() {
         Date.now() >= p.ex.restEndTs &&
         !p.overtimeCueFired
       ) {
-        timeUpCue();
+        fimDescansoCue();
         useAppStore.setState({ playerState: { ...p, overtimeCueFired: true } });
         return;
       }
@@ -104,7 +134,8 @@ export function Player() {
         Date.now() >= p.stepEndTs &&
         !p.overtimeCueFired
       ) {
-        timeUpCue();
+        if (step.isRest) fimDescansoCue();
+        else fimEtapaCue();
         useAppStore.setState({ playerState: { ...p, overtimeCueFired: true } });
       }
     }, 1000);
@@ -357,13 +388,19 @@ export function Player() {
           />
         )}
 
-        <div className="w-full">
-          <div className="mt-2.5 mb-1.5 w-full text-center font-sans text-sm leading-normal text-sub paisagem:px-0.5 paisagem:py-1">
-            {proxima ? `próxima tarefa: ${proxima.name}${proximoPeso ? ` — ${proximoPeso}kg` : ""}` : "última etapa"}
-          </div>
-        </div>
+        <ASeguir
+          proxima={proxima}
+          depois={proxima?.isRest ? playerState.steps[playerState.idx + 2] : undefined}
+          peso={proximoPeso}
+        />
 
-        <TrilhaEtapas etapas={playerState.steps} atual={playerState.idx} restante={rem} />
+        <TrilhaEtapas
+          etapas={playerState.steps}
+          feitas={playerState.stepActuals}
+          atual={playerState.idx}
+          restante={rem}
+          onAbrir={() => setOverlay("steps")}
+        />
 
         {step.type === "timer" ? (
           <ControlesTempo

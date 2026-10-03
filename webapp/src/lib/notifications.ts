@@ -5,7 +5,7 @@
 import { BADGE_NOME, K_DIGESTSEMANAL } from "./constants";
 import { metaRecHorarios } from "./metas";
 import { computeSchedule, pausaAtualOuFutura, rotinaAgendadaEm, rotinaPausadaEm } from "./schedule";
-import type { LocalNotificationsPlugin } from "./nativeBridge";
+import { appVisivel, type LocalNotificationsPlugin } from "./nativeBridge";
 import { somModo } from "./sound";
 import { isDesktop, isNative, load } from "./storage";
 import type { Compromisso, MetaRecorrente, Routine } from "./types";
@@ -241,7 +241,8 @@ export function notifyDigestSemanal(
     }).catch(() => {});
     return;
   }
-  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  // app aberto: a Semana fechada já aparece na tela, sem notificação
+  if (appVisivel() || typeof Notification === "undefined" || Notification.permission !== "granted") return;
   if (isDesktop) {
     try {
       const n = new Notification(title, { body });

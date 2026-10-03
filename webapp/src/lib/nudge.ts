@@ -13,6 +13,7 @@
 // plano, exatamente como o legado (index.html:3767 e o listener de
 // appStateChange). Cada aviso tem sua própria marca de "já avisei" no
 // storage, então chamar em excesso é barato e idempotente.
+import { appVisivel } from "./nativeBridge";
 import {
   K_NUDGE,
   K_NUDGEDAYS,
@@ -53,7 +54,7 @@ export function dispararNudge(title: string, body: string, tag: string, onBanner
     }
     return;
   }
-  if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+  if (appVisivel() || typeof Notification === "undefined" || Notification.permission !== "granted") {
     onBanner(body);
     return;
   }

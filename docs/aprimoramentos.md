@@ -71,6 +71,10 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Importar rotina de arquivo .json pelo popup Criar da aba Rotinas – implementado em 02/10/2026
 - Busca global com cartões do Kanban, modelos e metas recorrentes, e atalho Ctrl/Cmd+K – implementado em 02/10/2026
 - Barra superior fixa em todas as abas, com botão de tema claro/escuro – implementado em 02/10/2026
+- "A seguir" no player com nome e duração (ou séries × reps · carga) da próxima tarefa – implementado em 03/10/2026
+- Trilha de etapas do player com estado (feita/pulada/não feita/atual) e toque abrindo o painel de etapas – implementado em 03/10/2026
+- Vibração e som diferentes para fim de descanso e fim do tempo da tarefa – implementado em 03/10/2026
+- Nenhuma notificação do app enquanto ele está aberto (cronômetro só fora da frente; avisos viram banner) – implementado em 03/10/2026
 
 ## Recomendações refutadas
 
@@ -106,3 +110,12 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - Tamanho do texto (P/M/G) em Ajustes – refutada em 01/10/2026
 - Recorde pessoal por exercício (aviso no player e lista em Dados) – refutada em 02/10/2026
 - Atalhos de teclado no desktop (N nova nota, espaço pausa o player, setas trocam a visão) – refutada em 02/10/2026
+- Ajuste de tempo da etapa na hora (+1 min / −30 s, opção de gravar na rotina) – refutada em 03/10/2026
+- Anúncio por voz do nome da etapa e contagem 3-2-1 – refutada em 03/10/2026
+- Modo "de longe" (dígitos gigantes, toque em qualquer lugar, trava contra toque acidental) – refutada em 03/10/2026
+- Ajustar o descanso na hora (±15 s) e descanso aprendido por exercício – refutada em 03/10/2026
+- Esforço percebido por série (fácil/ok/pesado) alimentando a sugestão de carga – refutada em 03/10/2026
+- Superset/circuito alternando exercícios com descanso por volta – refutada em 03/10/2026
+- Checklist de subitens dentro de uma etapa – refutada em 03/10/2026
+- Resumo da execução na tela de conclusão (tempo real × estimado, xp, sequência, puladas, volume) – refutada em 03/10/2026
+- Comparação com a última execução na conclusão – refutada em 03/10/2026

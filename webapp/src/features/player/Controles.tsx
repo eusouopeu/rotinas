@@ -6,11 +6,30 @@ import { BotaoRedondo } from "../../ui/BotaoRedondo";
 import { cn } from "../../lib/cn";
 
 type Etapa = { id: string; type: string; seconds?: number; isRest?: boolean };
+type Feita = { skipped?: boolean; naoFeita?: boolean } | undefined;
 
-/** Uma barrinha por etapa: cheia se já passou, enchendo na atual (tempo). */
-export function TrilhaEtapas({ etapas, atual, restante }: { etapas: Etapa[]; atual: number; restante: number }) {
+/** Uma barrinha por etapa: cheia se já passou (cinza se pulada, vermelha se
+ * "não fazer"), enchendo na atual (tempo). Tocar abre o painel de etapas. */
+export function TrilhaEtapas({
+  etapas,
+  feitas,
+  atual,
+  restante,
+  onAbrir,
+}: {
+  etapas: Etapa[];
+  feitas: Feita[];
+  atual: number;
+  restante: number;
+  onAbrir: () => void;
+}) {
   return (
-    <div className="mb-1 flex w-full gap-[5px] px-1 paisagem:mb-0">
+    <button
+      type="button"
+      aria-label="Progresso das etapas"
+      className="mb-1 flex w-full cursor-pointer gap-[5px] border-0 bg-transparent px-1 py-2 paisagem:mb-0 paisagem:py-1"
+      onClick={onAbrir}
+    >
       {etapas.map((s, i) => {
         const pct =
           i < atual
@@ -18,13 +37,21 @@ export function TrilhaEtapas({ etapas, atual, restante }: { etapas: Etapa[]; atu
             : i === atual && s.type === "timer"
               ? (1 - Math.max(restante, 0) / (s.seconds || 1)) * 100
               : 0;
+        const f = feitas[i];
+        const cor = f?.naoFeita ? "bg-erro" : f?.skipped ? "bg-sub" : s.isRest ? "bg-ok" : "bg-caneta";
         return (
-          <div key={s.id} className="h-1 flex-1 overflow-hidden rounded-[2px] bg-line">
-            <div className={cn("h-full", s.isRest ? "bg-ok" : "bg-caneta")} style={{ width: `${pct}%` }} />
-          </div>
+          <span
+            key={s.id}
+            className={cn(
+              "h-1.5 flex-1 overflow-hidden rounded-full bg-line",
+              i === atual && "ring-2 ring-caneta-soft"
+            )}
+          >
+            <span className={cn("block h-full", cor)} style={{ width: `${pct}%` }} />
+          </span>
         );
       })}
-    </div>
+    </button>
   );
 }
 
@@ -130,8 +157,7 @@ export function ControlesSimples({ onConcluir, ...c }: Comuns & { onConcluir: ()
   );
 }
 
-const PULAR =
-  "rounded-[10px] border border-dashed border-line bg-transparent px-4 py-2 font-sans text-base text-sub";
+const PULAR = "rounded-[10px] border border-dashed border-line bg-transparent px-4 py-2 font-sans text-base text-sub";
 
 export function LinhaPular({
   podeVoltarSerie,

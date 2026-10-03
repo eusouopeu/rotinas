@@ -8,7 +8,7 @@ import { syncLembreteGasto, TAG_LEMBRETE_GASTO } from "./lib/lembreteGasto";
 import { useAppStore } from "./store/useAppStore";
 import { computeRemaining } from "./lib/player";
 import { isDesktop } from "./lib/storage";
-import { onAppStateChange } from "./lib/nativeBridge";
+import { onAppStateChange, onNotificacaoNoApp } from "./lib/nativeBridge";
 import { publicarSequenciaWidget } from "./lib/widgets";
 import { ATALHO_DESPESA, ATALHO_NOTA, ouvirAtalhos, publicarAtalhos } from "./lib/atalhos";
 import { criarDispatcherMcp } from "./lib/mcpDispatch";
@@ -294,6 +294,9 @@ export function App() {
       if (a?.notification?.extra?.brita === TAG_LEMBRETE_GASTO)
         useAppStore.getState().goTo({ tab: "templates", screen: "expenseFolder", id: "nova" });
     });
+    // com o app aberto nenhuma notificação fica na bandeja: o nativo recolhe
+    // e o texto aparece aqui como banner
+    onNotificacaoNoApp((texto) => useAppStore.getState().showAlertBanner(texto));
     return useAppStore.subscribe((s, antes) => {
       if (s.routines !== antes.routines) publicarAtalhos(s.routines);
       if (s.templates !== antes.templates) syncLembreteGasto(s.templates);

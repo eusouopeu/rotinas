@@ -198,6 +198,12 @@ export interface TimerOverlayPlugin {
   /** APK v75+: ausente em builds antigos. */
   status?(): Promise<CronometroStatus> | CronometroStatus;
   abrirAjustesNotificacao?(): Promise<void> | void;
+  /** APK v89+: notificação do app que chegou com ele aberto — o nativo já a
+   * tirou da bandeja e repassa o texto para virar banner. */
+  addListener?(
+    evento: "notificacaoNoApp",
+    cb: (n: { titulo?: string; texto?: string }) => void
+  ): Promise<PluginListenerHandle> | PluginListenerHandle;
 }
 
 /** O que o sistema deixa o cronômetro mostrar (TimerOverlayPlugin.status).
@@ -271,6 +277,26 @@ export function overlayHide(): void {
   const p = getTimerOverlayBridge();
   if (!p) return;
   chamarPonte(() => p.hide(), "overlay:");
+}
+
+/** Notificações do app que chegam com ele aberto viram banner (03/10/2026). */
+export function onNotificacaoNoApp(cb: (texto: string) => void): void {
+  const p = getTimerOverlayBridge();
+  if (!p?.addListener) return;
+  try {
+    void p.addListener("notificacaoNoApp", (n) => {
+      const texto = [n?.titulo, n?.texto].filter(Boolean).join(" — ");
+      if (texto) cb(texto);
+    });
+  } catch (e) {
+    console.error("notificacaoNoApp:", e);
+  }
+}
+
+/** Janela do app visível na tela (web/desktop): aí notificação do sistema
+ * não faz sentido e o aviso vira banner. */
+export function appVisivel(): boolean {
+  return typeof document !== "undefined" && document.visibilityState === "visible";
 }
 
 export interface AppStateChangeInfo {

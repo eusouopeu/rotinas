@@ -69,7 +69,7 @@ public class TimerOverlayService extends Service {
     /** Última notificação montada pediu promoção e tinha as características
      *  exigidas (hasPromotableCharacteristics) — lido pelo diagnóstico. */
     static volatile Boolean ultimaPromovivel = null;
-    private static final int NOTIF_ID = 4771;
+    static final int NOTIF_ID = 4771;
 
     /** Etapa da fila: rótulo, duração e se o app a avançaria sozinha ao zerar. */
     private static final class Etapa {

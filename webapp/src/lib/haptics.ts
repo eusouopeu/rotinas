@@ -22,10 +22,23 @@ export function stepTransitionCue(): void {
   vibrate([40, 30, 40]);
 }
 
-/** Tempo estourado — etapa ou descanso entre séries zerou (index.html:2468). */
-export function timeUpCue(): void {
-  cueBeep(760, 0.18, somModo());
-  vibrate([60, 50, 60]);
+/* Avisos distintos (03/10/2026): dá para saber pelo bolso o que aconteceu.
+   Troca de etapa = dois toques curtos; fim de descanso = três toques rápidos e
+   agudos ("volta"); fim do tempo da tarefa = dois toques longos e graves. */
+
+/** Tempo da tarefa zerou (index.html:2468, timeUpCue) — dois toques longos. */
+export function fimEtapaCue(): void {
+  cueBeep(620, 0.3, somModo());
+  vibrate([280, 120, 280]);
+}
+
+/** Descanso acabou (pausa entre etapas ou entre séries) — três toques rápidos. */
+export function fimDescansoCue(): void {
+  const m = somModo();
+  cueBeep(990, 0.08, m);
+  setTimeout(() => cueBeep(990, 0.08, m), 130);
+  setTimeout(() => cueBeep(1180, 0.12, m), 260);
+  vibrate([50, 60, 50, 60, 50]);
 }
 
 /** Rotina concluída (index.html:2469: finishCue) — dois tons, o segundo mais
