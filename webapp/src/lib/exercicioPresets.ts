@@ -11,6 +11,8 @@
 // 11/09/2026 de 3 para 6-8 itens por grupo (30 → 71), a pedido do Pedro: com
 // três nomes por grupo a lista quase nunca continha o exercício que a pessoa
 // realmente faz, e o caminho virava sempre "cadastrar manualmente".
+import type { Exercicio } from "./types";
+
 export interface ExercicioPreset {
   grupo: string;
   nome: string;
@@ -107,4 +109,31 @@ export const EXERCICIOS_PRESET: ExercicioPreset[] = [
 export function presetsPorGrupo(): Array<{ grupo: string; itens: ExercicioPreset[] }> {
   const grupos = Array.from(new Set(EXERCICIOS_PRESET.map((p) => p.grupo)));
   return grupos.map((grupo) => ({ grupo, itens: EXERCICIOS_PRESET.filter((p) => p.grupo === grupo) }));
+}
+
+/* Semeadura da biblioteca (03/10/2026): instalação nova abria a escolha de
+   exercício vazia — as sugestões ficavam recolhidas e tinham que ser
+   adicionadas uma a uma. Agora a biblioteca já nasce com os presets (uma vez
+   por aparelho, ver K_EXERCICIOS_SEMEADOS). Só acrescenta o que falta pelo
+   nome; nada existente é alterado ou removido. O id é determinístico para
+   dois aparelhos semeados não duplicarem no merge por `id` do sync. */
+export function idPreset(nome: string): string {
+  return (
+    "preset:" +
+    nome
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+  );
+}
+
+export function semearExercicios(atual: Exercicio[]): Exercicio[] {
+  const nomes = new Set(atual.map((e) => e.nome.trim().toLowerCase()));
+  const ids = new Set(atual.map((e) => e.id));
+  const novos = EXERCICIOS_PRESET.filter((p) => !nomes.has(p.nome.toLowerCase()) && !ids.has(idPreset(p.nome))).map(
+    (p): Exercicio => ({ id: idPreset(p.nome), nome: p.nome, grupos: [p.grupo], pesoAtual: 0, composto: p.composto })
+  );
+  return novos.length ? [...atual, ...novos] : atual;
 }

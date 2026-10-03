@@ -144,6 +144,24 @@ describe("snapshot da rotina em andamento", () => {
     expect(useAppStore.getState().playerState?.routineName).toBe("Rotina de teste");
   });
 
+  /* 03/10/2026: entrar pela própria rotina ("Começar"/play) zerava a
+     execução guardada — agora retoma do mesmo ponto. */
+  it("startPlayer da mesma rotina retoma a execução guardada", async () => {
+    vi.resetModules();
+    const { useAppStore } = await import("../store/useAppStore");
+    const p = { ...playerStateFake(), idx: 1, stepActuals: [{ id: "s1" } as PlayerState["stepActuals"][number]] };
+    useAppStore.setState({
+      playerState: null,
+      playerSnapshot: p,
+      routines: [{ id: "r1", name: "Rotina de teste", steps: p.steps }],
+      view: { tab: "home", screen: "home" },
+    });
+    useAppStore.getState().startPlayer("r1");
+    expect(useAppStore.getState().view.screen).toBe("player");
+    expect(useAppStore.getState().playerState?.idx).toBe(1);
+    expect(useAppStore.getState().playerState?.stepActuals[0]?.id).toBe("s1");
+  });
+
   it("descarta o snapshot se a rotina não existe mais", async () => {
     vi.resetModules();
     const { useAppStore } = await import("../store/useAppStore");

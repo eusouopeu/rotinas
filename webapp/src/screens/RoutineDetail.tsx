@@ -47,6 +47,7 @@ export function RoutineDetail() {
   const goTo = useAppStore((s) => s.goTo);
   const openEditor = useAppStore((s) => s.openEditor);
   const startPlayer = useAppStore((s) => s.startPlayer);
+  const playerSnapshot = useAppStore((s) => s.playerSnapshot);
   const deleteRoutineWithUndo = useAppStore((s) => s.deleteRoutineWithUndo);
   const removerEtapa = useAppStore((s) => s.removerEtapaComDesfazer);
   const reordenarEtapas = useAppStore((s) => s.reordenarEtapas);
@@ -77,11 +78,15 @@ export function RoutineDetail() {
 
   /** Tempo real gasto hoje na etapa (null = não concluída hoje). Exercício
    *  grava uma entrada por série (`<id>-c1`…), somadas aqui. */
+  /* Execução desta rotina deixada pela metade: as etapas já concluídas nela
+     também saem riscadas (antes só a execução finalizada contava). */
+  const emAndamento = playerSnapshot && playerSnapshot.routineId === r.id ? playerSnapshot : null;
   function feitaHoje(stepId: string): number | null {
-    if (!execHoje) return null;
-    const partes = execHoje.steps.filter(
-      (a) => !a.isRest && !a.skipped && (a.id === stepId || a.id.startsWith(stepId + "-c"))
-    );
+    const feitas = [
+      ...(execHoje?.steps || []),
+      ...(emAndamento?.stepActuals.filter((a): a is NonNullable<typeof a> => !!a) || []),
+    ];
+    const partes = feitas.filter((a) => !a.isRest && !a.skipped && (a.id === stepId || a.id.startsWith(stepId + "-c")));
     if (!partes.length) return null;
     return partes.reduce((t, a) => t + (a.elapsedSec ?? a.actual ?? 0), 0);
   }
@@ -259,7 +264,7 @@ export function RoutineDetail() {
           </Botao>
         )}
         <Botao className="flex-1" disabled={r.steps.length === 0} onClick={() => startPlayer(r.id)}>
-          <Icon name="play" size={16} /> Começar
+          <Icon name="play" size={16} /> {emAndamento && !emAndamento.minima ? "Continuar" : "Começar"}
         </Botao>
       </BarraAcoes>
     </div>

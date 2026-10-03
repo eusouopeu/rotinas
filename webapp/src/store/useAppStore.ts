@@ -26,6 +26,7 @@ import {
 // extração para store/shared.ts.
 export { recorrentesAtuais };
 import { bootStorage, isDesktop, isNative, load, save } from "../lib/storage";
+import { semearExercicios } from "../lib/exercicioPresets";
 import { aplicarEspelhoRotinas, planoEspelhoRotinas } from "../lib/rotinaMirror";
 import { instalarChaveNotificacoes } from "../lib/notificacoesGerais";
 import { getTimerOverlayBridge, overlayHide } from "../lib/nativeBridge";
@@ -38,6 +39,7 @@ import {
   K_DIARIO,
   K_DIGESTSEMANAL,
   K_EXERCICIOS,
+  K_EXERCICIOS_SEMEADOS,
   K_FONTSCALE,
   K_NAOFALHAR,
   K_GAMIFICACAO,
@@ -458,6 +460,14 @@ export const useAppStore = create<AppState>((set, get, api) => ({
     // 14473) — celebra só a mais recente, com a tela já de pé.
     const badgesGanhasNoBoot = gam.badges.slice(badgesAntesDoBoot);
     const hoje = localKey();
+    // biblioteca de exercícios já nasce com os presets (uma vez por aparelho)
+    let exercicios = load<Exercicio[]>(K_EXERCICIOS, []);
+    if (!load<boolean>(K_EXERCICIOS_SEMEADOS, false)) {
+      const semeados = semearExercicios(exercicios);
+      if (semeados !== exercicios) save(K_EXERCICIOS, semeados);
+      exercicios = semeados;
+      save(K_EXERCICIOS_SEMEADOS, true);
+    }
     const naoFeitasCarregado = load<NaoFeitasMap>(K_NAOFEITAS, {});
     const naoFeitas = podarNaoFeitasDeOutrosDias(naoFeitasCarregado, hoje);
     if (naoFeitas !== naoFeitasCarregado) save(K_NAOFEITAS, naoFeitas);
@@ -490,7 +500,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       diaKanban: load<DiaKanbanCard[]>(K_DIAKANBAN, []),
       compromissos: load<Compromisso[]>(K_COMPROMISSOS, []),
       snoozes: load<Snooze[]>(K_SNOOZES, []),
-      exercicios: load<Exercicio[]>(K_EXERCICIOS, []),
+      exercicios,
       naoFeitas,
       lastBackupAt: load<number | null>(K_LASTBACKUP, null),
       metasSubview: loadMetasSubviewSel(load),

@@ -28,3 +28,4 @@ Campos novos de 01/10/2026, também sem coleção nova: energia do dia vive no m
 
 Campos novos da 2ª rodada de 01/10/2026, também sem coleção nova: `RoutineStep.essencial` (versão mínima) em `routines`; `HistoryEntry.minima` em `history`; `MetaTarget.marcos` (`{id, data, alvo}`) no doc de metas em `templates`; orçamento de gastos no mapa `diario` sob `orcamento:<categoria>` (valor em reais; vazio = sem limite); notas de anotação de rotina são docs `type: "journal"` em `templates` (formato do legado). O espelho `.json` das rotinas em Documentos é cópia de mão única — não é fonte de sync nem é lido de volta.
 
+Rodada de 03/10/2026: a biblioteca `exercicios` é semeada com os presets uma vez por aparelho; os itens semeados têm id determinístico `preset:<nome normalizado>`, então dois aparelhos semeados não duplicam no merge por `id`. `K_EXERCICIOS_SEMEADOS` (já semeado neste aparelho) é preferência local, fora do backup e do sync.

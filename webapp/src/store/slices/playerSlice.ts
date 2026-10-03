@@ -81,6 +81,15 @@ export const createPlayerSlice: StateCreator<AppState, [], [], PlayerSlice> = (s
   startPlayer: (routineId, opts) => {
     const routine = get().routines.find((r) => r.id === routineId);
     if (!routine) return;
+    /* Execução desta rotina guardada pela metade: "Começar"/play retoma em vez
+       de zerar (03/10/2026 — antes só o cartão "Rotina em andamento" da Home
+       retomava, e entrar pela rotina descartava as etapas já feitas). Começar
+       do zero = descartar no cartão da Home. A versão mínima segue nova. */
+    const snap = get().playerSnapshot;
+    if (!opts?.minima && snap && snap.routineId === routineId && !snap.minima) {
+      get().resumePlayer();
+      return;
+    }
     // Repescagem (index.html:11284-11296): se alguma etapa ficou "não feita"
     // hoje, a rotina volta só com as pendentes.
     const pendentes = naoFeitasDe(get().naoFeitas, routineId, localKey());

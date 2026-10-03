@@ -67,6 +67,9 @@ export const K_ICALCACHE = "rotinas_v2_icalcache";
 export const K_FONTSCALE = "rotinas_v2_fontscale";
 /** "Nunca falhar dois dias" (02/10/2026): preferência local, fora do backup. */
 export const K_NAOFALHAR = "rotinas_v2_naofalhar";
+// Biblioteca de exercícios já semeada com os presets neste aparelho — local,
+// fora do backup e do sync (lib/exercicioPresets.ts, semearExercicios).
+export const K_EXERCICIOS_SEMEADOS = "rotinas_v2_exercicios_semeados";
 export const K_DIGESTSEMANAL = "rotinas_v2_digest_semanal";
 export const K_PIN = "rotinas_v2_pin";
 export const K_EXERCICIOS = "rotinas_v2_exercicios";
