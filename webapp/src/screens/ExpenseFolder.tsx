@@ -162,7 +162,7 @@ export function ExpenseFolder() {
               <Icon name="arrowUpTray" size={14} />
             </BotaoIcone>
             <BotaoIcone rotulo="Exportar CSV" tamanho="sm" onClick={exportarCsv}>
-              CSV
+              <Icon name="arrowDownTray" size={14} />
             </BotaoIcone>
           </div>
           <input

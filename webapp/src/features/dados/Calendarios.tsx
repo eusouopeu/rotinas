@@ -9,6 +9,7 @@ import { BotaoIcone } from "../../ui/BotaoIcone";
 import { Cartao } from "../../ui/Cartao";
 import { fundoCalor, LegendaCalor } from "./Calor";
 import { NO_PAINEL } from "./colunas";
+import { fmtNum } from "../../lib/format";
 
 const CARTAO_CAL = cn("mb-1.5", NO_PAINEL);
 const ROTULO_DIA = "pb-0.5 text-center font-sans text-2xs text-sub";
@@ -137,7 +138,7 @@ export function CalendarioMes({
               )}
               <span
                 className="flex h-[30px] items-center justify-center gap-0.5"
-                title={nota == null ? "sem nota" : `nota da semana: ${nota.toFixed(1)}`}
+                title={nota == null ? "sem nota" : `nota da semana: ${fmtNum(nota, 1)}`}
               >
                 {nota != null && (
                   <>

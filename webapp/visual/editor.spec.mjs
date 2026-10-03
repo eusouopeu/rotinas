@@ -98,7 +98,8 @@ test("detalhe: rotina agendada", async ({ page }) => {
 
 test("detalhe: pausar só esta rotina", async ({ page }) => {
   await abrirDetalhe(page, /Treino A/);
-  await page.getByText("pausar só esta rotina").click();
+  await page.locator('button[aria-label="Mais ações"]').click();
+  await page.getByRole("menuitem", { name: "Pausar só esta rotina" }).click();
   await foto(page, "detalhe-treino-pausar");
   await page.getByRole("button", { name: "1 semana" }).click();
   await foto(page, "detalhe-treino-pausada");

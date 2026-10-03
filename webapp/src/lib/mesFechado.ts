@@ -6,6 +6,7 @@ import { anoMesDoFimDaSemana, localKey } from "./gamificacao";
 import type { HistoryEntry } from "./history";
 import { soDespesas } from "./expense";
 import type { AnyTemplateDoc, ExpenseDoc, GamificacaoState } from "./types";
+import { fmtNum } from "./format";
 
 export type MesHistorico = GamificacaoState["historico"]["meses"][number];
 
@@ -90,5 +91,5 @@ export function resumoMes(
 }
 
 export function tituloNotaMes(anoMes: string, nota: number): string {
-  return `Mês de ${nomeMes(anoMes)} · nota ${nota.toFixed(1)}`;
+  return `Mês de ${nomeMes(anoMes)} · nota ${fmtNum(nota, 1)}`;
 }

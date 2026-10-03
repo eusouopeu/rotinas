@@ -9,6 +9,7 @@ import { appVisivel, type LocalNotificationsPlugin } from "./nativeBridge";
 import { somModo } from "./sound";
 import { isDesktop, isNative, load } from "./storage";
 import type { Compromisso, MetaRecorrente, Routine } from "./types";
+import { fmtNum } from "./format";
 
 /** Porta de notifIdFor (index.html:2766-2770) — hash da chave + slot do dia
  * (0-6 = dia da semana das rotinas, 7 = "sem dia" para compromisso/digest,
@@ -230,7 +231,7 @@ export function notifyDigestSemanal(
   onOpenBoletim: () => void
 ): void {
   if (!load(K_DIGESTSEMANAL, true)) return;
-  const title = sem.dispensada ? "Semana dispensada" : "Semana fechada: " + sem.nota.toFixed(1) + " pontos";
+  const title = sem.dispensada ? "Semana dispensada" : "Semana fechada: " + fmtNum(sem.nota, 1) + " pontos";
   const body = sem.badge
     ? "Badge " + (BADGE_NOME[sem.badge] || sem.badge) + " conquistada — toque para ver o boletim."
     : "Toque para ver o boletim da semana.";

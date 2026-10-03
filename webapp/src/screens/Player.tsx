@@ -36,7 +36,7 @@ import {
 } from "../features/player/Controles";
 import { TopoPlayer } from "../features/player/Topo";
 import { tela } from "../ui/Tela";
-import { fmtTime } from "../lib/format";
+import { fmtTime, fmtNum } from "../lib/format";
 import type { RoutineStep } from "../lib/types";
 
 /** "1 min", "45 s", "1:30" — duração curta para a linha "A seguir". */
@@ -282,7 +282,7 @@ export function Player() {
 
   function handleExit() {
     const ganhos = playerState?.pontosGanhos || 0;
-    const nota = ganhos > 0 ? `\nOs ${ganhos.toFixed(1)} pontos das etapas já concluídas ficam no boletim.` : "";
+    const nota = ganhos > 0 ? `\nOs ${fmtNum(ganhos, 1)} pontos das etapas já concluídas ficam no boletim.` : "";
     if (window.confirm("Sair da rotina em andamento?\nO progresso fica salvo para retomar depois." + nota))
       exitPlayer();
   }

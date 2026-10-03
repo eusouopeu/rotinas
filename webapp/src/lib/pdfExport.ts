@@ -28,6 +28,7 @@ import {
   metaRecSequencia,
   virarPeriodoMetaRec,
 } from "./metas";
+import { fmtNum } from "./format";
 
 function escapeHtml(s: string): string {
   return String(s ?? "")
@@ -158,7 +159,7 @@ function relatorioTopRotinasHtml(concluidos: Array<{ rotulo?: string; pontos: nu
   if (!top.length) return "";
   return (
     "<h2>Maiores contribuições</h2><ul>" +
-    top.map(([nome, pts]) => `<li>${escapeHtml(nome)} — ${pts.toFixed(1)} pts</li>`).join("") +
+    top.map(([nome, pts]) => `<li>${escapeHtml(nome)} — ${fmtNum(pts, 1)} pts</li>`).join("") +
     "</ul>"
   );
 }
@@ -181,7 +182,7 @@ function relatorioSemanalHtml(
   const nota = notaSemanaAtual(sem);
   const porArea = pontosPorAreaSemana(sem, gam.config);
   const streak = computeStreak(routines, history, undefined, snoozes);
-  let inner = `<h1>Relatório da semana</h1><p class="score">Pontuação: ${nota.toFixed(1)} pts</p>`;
+  let inner = `<h1>Relatório da semana</h1><p class="score">Pontuação: ${fmtNum(nota, 1)} pts</p>`;
   if (streak > 0) inner += `<p class="meta">Sequência atual: ${streak} dia(s)</p>`;
   if (porArea.linhas.length) {
     inner +=
@@ -189,8 +190,8 @@ function relatorioSemanalHtml(
       porArea.linhas
         .map(
           (l) =>
-            `<li>${escapeHtml(l.label)}: ${l.pontos.toFixed(1)} pts${
-              gam.config.roda.ativa && l.previsto ? " de " + l.previsto.toFixed(1) + " previstos" : ""
+            `<li>${escapeHtml(l.label)}: ${fmtNum(l.pontos, 1)} pts${
+              gam.config.roda.ativa && l.previsto ? " de " + fmtNum(l.previsto, 1) + " previstos" : ""
             }</li>`
         )
         .join("") +
@@ -221,8 +222,8 @@ function relatorioMensalHtml(
   const bonusMetas = gam.metasPontos[anoMes] || 0;
   const semanas = gam.historico.semanas.filter((s) => !s.dispensada && anoMesDoFimDaSemana(s.inicioISO) === anoMes);
   const somaSemanas = semanas.reduce((s, w) => s + w.nota, 0);
-  let inner = `<h1>Relatório do mês — ${anoMes}</h1><p class="score">Pontuação: ${(somaSemanas + bonusMetas).toFixed(1)} pts</p>
-    <p class="meta">${semanas.length} semana(s) fechada(s) neste mês · bônus de metas: ${bonusMetas.toFixed(1)} pts</p>`;
+  let inner = `<h1>Relatório do mês — ${anoMes}</h1><p class="score">Pontuação: ${fmtNum(somaSemanas + bonusMetas, 1)} pts</p>
+    <p class="meta">${semanas.length} semana(s) fechada(s) neste mês · bônus de metas: ${fmtNum(bonusMetas, 1)} pts</p>`;
   const inicioMes = anoMes + "-01";
   const feitas = history.filter((h) => h.date >= inicioMes && h.date.slice(0, 7) === anoMes);
   if (feitas.length) inner += `<h2>Rotinas concluídas</h2><p class="meta">${feitas.length} execução(ões) no mês</p>`;
@@ -244,8 +245,8 @@ function relatorioAnualHtml(
   const bonusMetas = gam.metasPontos[ano] || 0;
   const meses = gam.historico.meses.filter((m) => m.anoMes.slice(0, 4) === ano);
   const somaMeses = meses.reduce((s, m) => s + m.nota, 0);
-  let inner = `<h1>Relatório do ano — ${ano}</h1><p class="score">Pontuação: ${(somaMeses + bonusMetas).toFixed(1)} pts</p>
-    <p class="meta">${meses.length} mês(es) fechado(s) neste ano · bônus de metas: ${bonusMetas.toFixed(1)} pts</p>`;
+  let inner = `<h1>Relatório do ano — ${ano}</h1><p class="score">Pontuação: ${fmtNum(somaMeses + bonusMetas, 1)} pts</p>
+    <p class="meta">${meses.length} mês(es) fechado(s) neste ano · bônus de metas: ${fmtNum(bonusMetas, 1)} pts</p>`;
   const feitas = history.filter((h) => h.date.slice(0, 4) === ano);
   if (feitas.length) inner += `<h2>Rotinas concluídas</h2><p class="meta">${feitas.length} execução(ões) no ano</p>`;
   const metasAno = targets.filter((t) => metaConcluida(t) && t.date.slice(0, 4) === ano);

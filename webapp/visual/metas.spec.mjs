@@ -8,7 +8,7 @@ async function abrirMetas(page, opcoes) {
   await aba(page, "Metas");
   await page.getByText("Recorrentes", { exact: true }).first().waitFor();
 }
-const alternar = (page, nome) => page.getByText(nome, { exact: true }).first().click();
+const alternar = (page, nome) => page.locator("[data-doca]").getByText(nome, { exact: true }).first().click();
 const fab = (page) => page.locator('button[title="Novo"]:visible');
 
 test("metas: só recorrentes", async ({ page }) => {

@@ -4,6 +4,7 @@
 // (parseCsvText/guessExpenseColumns/computeImportPreview/despesasCsv).
 import { inicioSemanaISO, localKey } from "./gamificacao";
 import type { ExpenseDoc } from "./types";
+import { fmtNum } from "./format";
 
 export const EXP_CATS = ["Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Educação", "Outros"];
 const CAT_COLORS = ["#EC6AA8", "#5B8DEF", "#6B8F71", "#C9B23E", "#B25B4C", "#9C7BB8", "#8A8478"];
@@ -40,7 +41,7 @@ export function catColor(cat: string): string {
 }
 
 export function brl(v: number): string {
-  return "R$ " + (v || 0).toFixed(2).replace(".", ",");
+  return "R$ " + fmtNum(v || 0, 2);
 }
 
 export type ChartsPeriod = "semana" | "mes" | "trimestre" | "ano";

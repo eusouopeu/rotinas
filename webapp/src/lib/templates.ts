@@ -15,6 +15,7 @@ import type {
   ThoughtRecordDoc,
   TravelDoc,
 } from "./types";
+import { fmtNum } from "./format";
 
 export interface TmplTypeInfo {
   type: string;
@@ -204,7 +205,7 @@ export function guessAisle(name: string): string {
   return "Outros";
 }
 export function brl(v: number): string {
-  return "R$ " + (v || 0).toFixed(2).replace(".", ",");
+  return "R$ " + fmtNum(v || 0, 2);
 }
 
 /* Frequência de compra (K_MKFREQ, index.html:6204-6205 e 7212-7218) — itens

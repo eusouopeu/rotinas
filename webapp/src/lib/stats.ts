@@ -15,7 +15,7 @@ import {
 } from "./gamificacao";
 import { rotinaAgendadaEm, rotinaPausadaEm, computeSchedule } from "./schedule";
 import { areaDaRotina, areaInfoRoda, corDaRotina, fillStyle } from "./scoring";
-import { fmtClock, fmtTime, fmtMinLabel } from "./format";
+import { fmtClock, fmtTime, fmtMinLabel, fmtNum } from "./format";
 import { daysUntil, metaConcluida } from "./metas";
 import type { MetaTarget } from "./types";
 
@@ -940,7 +940,7 @@ export function gerarInsights(rich: HistoryEntry[]): string[] {
       const med = media(arr);
       if (medGeralMood - med >= 1) {
         insights.push(
-          `<b>${nome}</b> costuma vir com humor mais baixo (${med.toFixed(1)} contra ${medGeralMood.toFixed(1)} da média) — vale olhar se ela está pesando mais do que deveria.`
+          `<b>${nome}</b> costuma vir com humor mais baixo (${fmtNum(med, 1)} contra ${fmtNum(medGeralMood, 1)} da média) — vale olhar se ela está pesando mais do que deveria.`
         );
       }
     });
@@ -1259,13 +1259,13 @@ export function getYearMonthlyBars(
     monthIdx: i,
     minutes: min,
     pct: min ? Math.max(3, (min / maxM) * 100) : 0,
-    valStr: min >= 60 ? (min / 60).toFixed(1).replace(".", ",") + "h" : min + "m",
+    valStr: min >= 60 ? fmtNum(min / 60, 1) + "h" : min + "m",
   }));
 
   return {
     bars,
     totalMinutes,
-    totalHoursStr: (totalMinutes / 60).toFixed(1).replace(".", ",") + "h",
+    totalHoursStr: fmtNum(totalMinutes / 60, 1) + "h",
   };
 }
 
@@ -1663,7 +1663,7 @@ export function getPeriodExtrasData(
     }
     const h = Math.max(6, (Math.abs(v) / maxAbs) * 46);
     const statusClass = v > 0.5 ? "late" : v < -0.5 ? "early" : "ontime";
-    const valLabel = (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(1).replace(".", ",");
+    const valLabel = (v >= 0 ? "+" : "−") + fmtNum(Math.abs(v), 1);
     return { ts: weeks[i], dateLabel, val: v, valLabel, height: h, statusClass };
   });
 
@@ -1728,7 +1728,7 @@ export function getRoutineDetailStats(
   const entries = history.filter((h) => h.routineId === routine.id && h.ts);
   const all = history.filter((h) => h.routineId === routine.id);
   const totalMin = Math.round(entries.reduce((a, h) => a + (h.actualSec || 0), 0) / 60);
-  const totalTimeStr = totalMin >= 60 ? (totalMin / 60).toFixed(1).replace(".", ",") + "h" : totalMin + "min";
+  const totalTimeStr = totalMin >= 60 ? fmtNum(totalMin / 60, 1) + "h" : totalMin + "min";
 
   const devs = entries.filter((h) => h.plannedSec).map((h) => (h.actualSec || 0) - h.plannedSec!);
   const delays = entries.filter((h) => h.schedDelayMin !== undefined).map((h) => h.schedDelayMin!);

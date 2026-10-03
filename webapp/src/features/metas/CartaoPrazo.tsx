@@ -3,7 +3,7 @@
 // semana em bolinhas, o progresso grande com a unidade embaixo e − / + de
 // meia largura no rodapé. Projeção e marco seguem como linhas pequenas.
 import { Icon } from "../../components/Icon";
-import { fmtXp } from "../../lib/format";
+import { fmtXp, fmtNum } from "../../lib/format";
 import {
   cdPace,
   cdUnit,
@@ -89,7 +89,7 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
         {xp > 0 && (
           <Fato
             destaque
-            title={`Cada item vale ${fmtXp(xp)} · a meta vale ${totalPts.toFixed(1)} pts no boletim ${ESCOPO_LABEL[esc]} · ${creditadoPts.toFixed(1)} creditados`}
+            title={`Cada item vale ${fmtXp(xp)} · a meta vale ${fmtNum(totalPts, 1)} pts no boletim ${ESCOPO_LABEL[esc]} · ${fmtNum(creditadoPts, 1)} creditados`}
           >
             <Icon name="ticket" size={14} /> {fmtXp(xp)} xp
           </Fato>
@@ -108,7 +108,7 @@ export function CartaoPrazo({ t, gam, isDragging, setRef, dragHandleProps, onEdi
             className={proj.atrasa ? "text-erro" : "text-ok"}
             title={
               proj.dataISO
-                ? `No ritmo dos últimos dias (${proj.ritmo.toFixed(1).replace(".", ",")}/dia)`
+                ? `No ritmo dos últimos dias (${fmtNum(proj.ritmo, 1)}/dia)`
                 : "Nada feito nos últimos 14 dias"
             }
           >

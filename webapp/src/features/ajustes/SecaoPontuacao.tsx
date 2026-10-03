@@ -12,6 +12,7 @@ import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { Switch } from "../../ui/Switch";
 import { FiltroAjustes, SecaoAjuste } from "./SecaoAjuste";
+import { fmtNum } from "../../lib/format";
 
 const NIVEIS = ["alto", "medio", "baixo"] as const;
 const NIVEL_LABEL = { alto: "Alto", medio: "Médio", baixo: "Baixo" };
@@ -153,7 +154,7 @@ export function SecaoPontuacao() {
               <Legenda className="mt-3">
                 {simulacao.slice(0, 6).map((s) => (
                   <div key={s.routineId}>
-                    {s.routineName} — {s.pontos.toFixed(1)} pts
+                    {s.routineName} — {fmtNum(s.pontos, 1)} pts
                   </div>
                 ))}
               </Legenda>

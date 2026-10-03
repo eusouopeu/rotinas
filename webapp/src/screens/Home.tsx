@@ -41,6 +41,7 @@ import { OpcaoCriar } from "../ui/OpcaoCriar";
 import { SegPill } from "../ui/Segmentado";
 import { rolavel, tela } from "../ui/Tela";
 import { Doca } from "../ui/Doca";
+import { fmtNum } from "../lib/format";
 
 export function Home() {
   const routines = useAppStore((s) => s.routines);
@@ -183,7 +184,7 @@ export function Home() {
                 )}
               </>
             }
-            detalhe={`Nota ${semFechada.nota.toFixed(1)} — toque para ver o fechamento`}
+            detalhe={`Nota ${fmtNum(semFechada.nota, 1)} — toque para ver o fechamento`}
           />
         )}
 
@@ -192,7 +193,7 @@ export function Home() {
             className="cursor-pointer"
             onClick={() => goTo({ tab: "home", screen: "mesFechado" })}
             titulo="Mês fechado"
-            detalhe={`Nota ${mesFechado.nota.toFixed(1)} — toque para ver o fechamento do mês`}
+            detalhe={`Nota ${fmtNum(mesFechado.nota, 1)} — toque para ver o fechamento do mês`}
           />
         )}
 
@@ -201,7 +202,7 @@ export function Home() {
             className="cursor-pointer"
             onClick={() => goTo({ tab: "home", screen: "anoFechado" })}
             titulo={`Ano fechado · ${anoFechado.ano}`}
-            detalhe={`Nota ${anoFechado.nota.toFixed(1)} — toque para ver o resumo do ano`}
+            detalhe={`Nota ${fmtNum(anoFechado.nota, 1)} — toque para ver o resumo do ano`}
           />
         )}
 

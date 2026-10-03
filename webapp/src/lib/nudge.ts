@@ -32,6 +32,7 @@ import { computeStreakFor } from "./stats";
 import { isDesktop, isNative, load, save } from "./storage";
 import type { HistoryEntry } from "./history";
 import type { GamificacaoState, MetaTarget, Routine, Snooze } from "./types";
+import { fmtNum } from "./format";
 
 /** Porta de nudgeDias (index.html:13580-13583) — sexta por padrão. */
 export function nudgeDias(): number[] {
@@ -114,7 +115,7 @@ export function checarNudgeRitmo(ctx: NudgeCtx): boolean {
   if (r.saldo >= -5) return false;
   save(K_NUDGEDONE, marca);
   const title = r.diasRestantes > 1 ? "⏱ Faltam " + r.diasRestantes + " dias na semana" : "⏱ Último dia da semana";
-  const body = "Nota " + r.nota.toFixed(0) + "/100 · " + r.porDia60.toFixed(1) + " pontos/dia para aprovar";
+  const body = "Nota " + fmtNum(r.nota, 0) + "/100 · " + fmtNum(r.porDia60, 1) + " pontos/dia para aprovar";
   dispararNudge(title, body, "nudge-ritmo", ctx.onBanner);
   return true;
 }

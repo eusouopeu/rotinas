@@ -95,6 +95,7 @@ import type {
   Snooze,
   Tag,
 } from "../lib/types";
+import { fmtNum } from "../lib/format";
 
 type Theme = "auto" | "light" | "dark";
 
@@ -531,7 +532,7 @@ export const useAppStore = create<AppState>((set, get, api) => ({
       setTimeout(
         () =>
           get().showCelebrationBanner(
-            `Badge <b style="color:${BADGE_COR[b.tipo]};">${BADGE_NOME[b.tipo]}</b> ${escLabel[b.escopo] || ""} · nota ${b.nota.toFixed(1)}`
+            `Badge <b style="color:${BADGE_COR[b.tipo]};">${BADGE_NOME[b.tipo]}</b> ${escLabel[b.escopo] || ""} · nota ${fmtNum(b.nota, 1)}`
           ),
         500
       );

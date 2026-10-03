@@ -17,6 +17,7 @@ import { Legenda } from "../ui/Legenda";
 import { LinhaValor } from "../ui/LinhaValor";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { tela } from "../ui/Tela";
+import { fmtNum } from "../lib/format";
 
 export function MesFechado() {
   const gam = useAppStore((s) => s.gam);
@@ -56,7 +57,7 @@ export function MesFechado() {
             className="font-sans text-[48px] font-semibold"
             style={{ color: aprovado ? "var(--ok)" : "var(--erro)" }}
           >
-            {mes.nota.toFixed(1)}
+            {fmtNum(mes.nota, 1)}
           </div>
           <Legenda>{aprovado ? "aprovado" : `abaixo da nota mínima (${gam.config.notaMinima})`}</Legenda>
           {mes.badge && (
@@ -67,7 +68,7 @@ export function MesFechado() {
           {r.delta !== null && (
             <Legenda className="mt-1.5">
               {r.delta >= 0 ? "+" : ""}
-              {r.delta.toFixed(1)} em relação ao mês anterior
+              {fmtNum(r.delta, 1)} em relação ao mês anterior
             </Legenda>
           )}
         </Cartao>
@@ -78,7 +79,7 @@ export function MesFechado() {
             <LinhaValor
               key={s.inicioISO}
               rotulo={formatarPeriodoSemana(s.inicioISO).label}
-              valor={s.dispensada ? "dispensada" : s.nota.toFixed(1)}
+              valor={s.dispensada ? "dispensada" : fmtNum(s.nota, 1)}
             />
           ))}
         </Cartao>
@@ -99,7 +100,7 @@ export function MesFechado() {
               />
             </>
           )}
-          {mes.bonusMetas > 0 && <LinhaValor rotulo="Bônus de metas" valor={`+${mes.bonusMetas.toFixed(1)}`} />}
+          {mes.bonusMetas > 0 && <LinhaValor rotulo="Bônus de metas" valor={`+${fmtNum(mes.bonusMetas, 1)}`} />}
         </Cartao>
 
         <RotuloSecao>Foco do próximo mês</RotuloSecao>
@@ -113,8 +114,7 @@ export function MesFechado() {
         <Botao
           className="mt-4 w-full"
           onClick={() => {
-            if (foco.trim())
-              addNote(tituloNotaMes(mes.anoMes, mes.nota), "## Foco do próximo mês\n" + foco.trim());
+            if (foco.trim()) addNote(tituloNotaMes(mes.anoMes, mes.nota), "## Foco do próximo mês\n" + foco.trim());
             sair();
           }}
         >

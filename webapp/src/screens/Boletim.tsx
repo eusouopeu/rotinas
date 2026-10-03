@@ -31,16 +31,13 @@ import { LinhaBarra, TrilhoBarra } from "../ui/LinhaBarra";
 import { LinhaValor } from "../ui/LinhaValor";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { rolavel, tela } from "../ui/Tela";
+import { fmtNum } from "../lib/format";
 
 /** "▲ +3,2" verde / "▼ −1,0" vermelho; diferença menor que 0,1 vira "=". */
 function SetaDelta({ delta }: { delta: number }) {
   if (Math.abs(delta) < 0.1) return <span className="text-sub">=</span>;
-  const txt = Math.abs(delta).toFixed(1).replace(".", ",");
-  return (
-    <span className={delta > 0 ? "text-ok" : "text-erro"}>
-      {delta > 0 ? `▲ +${txt}` : `▼ −${txt}`}
-    </span>
-  );
+  const txt = fmtNum(Math.abs(delta), 1);
+  return <span className={delta > 0 ? "text-ok" : "text-erro"}>{delta > 0 ? `▲ +${txt}` : `▼ −${txt}`}</span>;
 }
 
 export function Boletim() {
@@ -109,7 +106,7 @@ export function Boletim() {
     const dm = isoToDate(s.inicioISO);
     return {
       chave: s.inicioISO + (s.emCurso ? "-atual" : ""),
-      titulo: `Semana de ${dm.toLocaleDateString()}: ${s.nota.toFixed(1)} pts${s.emCurso ? " (em curso)" : ""}${s.dispensada ? " · dispensada" : ""}`,
+      titulo: `Semana de ${dm.toLocaleDateString()}: ${fmtNum(s.nota, 1)} pts${s.emCurso ? " (em curso)" : ""}${s.dispensada ? " · dispensada" : ""}`,
       rotulo:
         i === 0 || i === evolucao.length - 1 || s.emCurso
           ? `${String(dm.getDate()).padStart(2, "0")}/${String(dm.getMonth() + 1).padStart(2, "0")}`
@@ -126,7 +123,7 @@ export function Boletim() {
       <div {...rolavel("pb-6")}>
         <Cartao className={`${CARTAO} text-center`}>
           <div className="font-sans text-[48px] font-semibold" style={{ color: disp ? "var(--sub)" : r.cor }}>
-            {r.nota.toFixed(1)}
+            {fmtNum(r.nota, 1)}
           </div>
           <Legenda>
             de 100 &middot; semana termina sábado {String(fimSemana.getDate()).padStart(2, "0")}/
@@ -144,13 +141,13 @@ export function Boletim() {
                 {r.label}
               </div>
               <Legenda className="mt-1">
-                esperado até hoje: {r.esperado.toFixed(1)} &middot; saldo {r.saldo >= 0 ? "+" : ""}
-                {r.saldo.toFixed(1)}
+                esperado até hoje: {fmtNum(r.esperado, 1)} &middot; saldo {r.saldo >= 0 ? "+" : ""}
+                {fmtNum(r.saldo, 1)}
               </Legenda>
               {cmp && (
                 <Legenda className="mt-1" data-boletim="vs-anterior">
-                  <SetaDelta delta={cmp.deltaNota} /> vs semana passada no mesmo ponto (
-                  {cmp.notaAnterior.toFixed(1)} na semana inteira)
+                  <SetaDelta delta={cmp.deltaNota} /> vs semana passada no mesmo ponto ({fmtNum(cmp.notaAnterior, 1)} na
+                  semana inteira)
                 </Legenda>
               )}
             </>
@@ -167,10 +164,10 @@ export function Boletim() {
           (r.nota < 100 ? (
             <Cartao className={CARTAO}>
               <RotuloSecao className="mt-0">Para fechar a semana</RotuloSecao>
-              <Legenda>{r.porDia100.toFixed(1)} pontos/dia até sábado para chegar a 100</Legenda>
+              <Legenda>{fmtNum(r.porDia100, 1)} pontos/dia até sábado para chegar a 100</Legenda>
               {r.nota < gam.config.notaMinima && (
                 <Legenda>
-                  {r.porDia60.toFixed(1)} pontos/dia para ao menos aprovar ({gam.config.notaMinima})
+                  {fmtNum(r.porDia60, 1)} pontos/dia para ao menos aprovar ({gam.config.notaMinima})
                 </Legenda>
               )}
             </Cartao>
@@ -259,11 +256,11 @@ export function Boletim() {
                   larguraValor="auto"
                   valor={
                     <>
-                      {`${l.pontos.toFixed(1)}${l.previsto ? " / " + l.previsto.toFixed(0) : ""}`}
+                      {`${fmtNum(l.pontos, 1)}${l.previsto ? " / " + fmtNum(l.previsto, 0) : ""}`}
                       {cmp?.porArea[l.chave] && (
                         <span
                           className="ml-1.5"
-                          title={`semana passada: ${cmp.porArea[l.chave].anterior.toFixed(1)} pts (comparado no mesmo ponto da semana)`}
+                          title={`semana passada: ${fmtNum(cmp.porArea[l.chave].anterior, 1)} pts (comparado no mesmo ponto da semana)`}
                         >
                           <SetaDelta delta={cmp.porArea[l.chave].delta} />
                         </span>
@@ -314,7 +311,7 @@ export function Boletim() {
                           <span style={{ color: p.b.color }}>{p.b.label}</span>
                         </>
                       }
-                      valor={`${p.r >= 0 ? "+" : ""}${p.r.toFixed(2)}`}
+                      valor={`${p.r >= 0 ? "+" : ""}${fmtNum(p.r, 2)}`}
                       corValor={Math.abs(p.r) >= 0.8 ? "var(--caneta)" : "var(--sub)"}
                     />
                     <Legenda className="mt-[-2px] mb-1.5">
@@ -410,7 +407,7 @@ export function Boletim() {
                   }
                   corRotulo={BADGE_COR[b.tipo]}
                 >
-                  {b.escopo} &middot; {b.periodo} &middot; {b.nota.toFixed(1)}
+                  {b.escopo} &middot; {b.periodo} &middot; {fmtNum(b.nota, 1)}
                 </LinhaSimples>
               ))}
             </Cartao>

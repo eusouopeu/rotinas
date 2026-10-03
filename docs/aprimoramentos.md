@@ -84,6 +84,12 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Visão Dia da agenda abre no horário atual – implementado em 03/10/2026
 - Filtro de despesas com datas digitadas e várias categorias numa folha do app – implementado em 03/10/2026
 - Ajustes com seletores no tom dos acordeões e acordeão sem linha interna – implementado em 03/10/2026
+- Seletor Recorrentes/Prazos de Metas na barra de baixo, com check na opção ligada – implementado em 03/10/2026
+- Ícones no lugar dos botões "PDF" e "CSV" – implementado em 03/10/2026
+- Título das abas sem filete embaixo – implementado em 03/10/2026
+- Números no formato brasileiro (vírgula decimal, ponto de milhar) em todo o app – implementado em 03/10/2026
+- Valores de Despesas numa linha só, em coluna alinhada – implementado em 03/10/2026
+- Detalhe da rotina com menu ⋯ (exportar, pausar, arquivar) – implementado em 03/10/2026
 
 ## Recomendações refutadas
 
@@ -135,3 +141,9 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - "A seguir" como faixa fixa com fundo acima dos controles (mockup, rec. 8) – refutada em 03/10/2026
 - Série com bolinhas e −/+ grandes para reps e kg (mockup, rec. 9) – refutada em 03/10/2026
 - Descanso com a tela inteira no tom verde e botão "começar série" (mockup, rec. 10) – refutada em 03/10/2026
+- Rótulo de seção único (tirar o "— GERAL —" centrado de Modelos) – refutada em 03/10/2026
+- Faixa horizontal ou cartão único para os avisos do topo da aba Rotinas – refutada em 03/10/2026
+- Boletim com menos vermelho (nota na cor do texto dentro de um anel, só o selo colorido) – refutada em 03/10/2026
+- Títulos maiores e agrupados (Ritmo/Pontualidade/Execuções) nas seções de Dados – refutada em 03/10/2026
+- Editor de rotina no padrão de grupos do formulário de meta, área como chip – refutada em 03/10/2026
+- Estados vazios com ícone grande e botão de ação – refutada em 03/10/2026

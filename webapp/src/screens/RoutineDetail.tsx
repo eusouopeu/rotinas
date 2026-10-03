@@ -6,18 +6,19 @@
 // o tempo real em verde. Deslizar para a esquerda exclui a etapa (com
 // desfazer); para a direita abre o editor. Rodapé: excluir, editar, Começar.
 // O lápis alterna para o editor, que volta para cá ao salvar/cancelar.
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { temVersaoMinima } from "../lib/player";
 import { Icon } from "../components/Icon";
 import { StreakTag } from "../components/StreakTag";
-import { PausaRotina } from "../features/rotinas/PausaRotina";
+import { PausaRotina, confirmarArquivar } from "../features/rotinas/PausaRotina";
+import { MenuMais } from "../ui/MenuMais";
 import { exportarRotina } from "../features/rotinas/exportarRotina";
 import { fmtTime } from "../lib/format";
 import { localKey } from "../lib/gamificacao";
 import { execucaoDoDia } from "../lib/history";
 import { estimadorSerie, proximaVariante, routineDurationRaw } from "../lib/routines";
-import { computeSchedule, diasChipLabel, frequenciaLabel } from "../lib/schedule";
+import { computeSchedule, diasChipLabel, frequenciaLabel, pausaAtualOuFutura } from "../lib/schedule";
 import { areaDaRotina } from "../lib/scoring";
 import { computeStepDragTarget, useDragReorder } from "../lib/dnd";
 import { TAG_LABEL } from "../features/metas/constantes";
@@ -50,7 +51,9 @@ export function RoutineDetail() {
   const deleteRoutineWithUndo = useAppStore((s) => s.deleteRoutineWithUndo);
   const removerEtapa = useAppStore((s) => s.removerEtapaComDesfazer);
   const reordenarEtapas = useAppStore((s) => s.reordenarEtapas);
+  const arquivarRotina = useAppStore((s) => s.arquivarRotina);
   const id = useAppStore((s) => s.view.id);
+  const [pausaAberta, setPausaAberta] = useState(false);
   const etapaRefs = useRef<Array<HTMLDivElement | null>>([]);
   const { dragFrom, dragOver, dragHandleProps } = useDragReorder((de, para) => {
     if (id) reordenarEtapas(id, de.index, para.index);
@@ -91,15 +94,31 @@ export function RoutineDetail() {
     goTo({ tab: "home", screen: "home" });
   }
 
+  // sem horário não há o que pausar; arquivar vale para qualquer rotina não pausada
+  const pausada = !!pausaAtualOuFutura(r);
+  const podePausar = !!sched && !pausada && !r.arquivada;
+  const podeArquivar = !pausada && !r.arquivada;
+
   return (
     <div {...tela({})}>
       <BarraDetalhe
         onVoltar={() => goTo({ tab: "home", screen: "home" })}
         titulo={(r.icon ? r.icon + " " : "") + r.name}
       >
-        <BotaoIcone rotulo="Exportar rotina" semBorda className="ml-auto text-caneta" onClick={() => exportarRotina(r)}>
-          <Icon name="arrowUpTray" size={20} />
-        </BotaoIcone>
+        {/* ações secundárias no ⋯ (03/10/2026; antes ícone solto + links
+            "pausar só esta rotina · arquivar" no corpo) */}
+        <MenuMais
+          className="ml-auto"
+          itens={[
+            { icone: "arrowUpTray", rotulo: "Exportar rotina", onClick: () => exportarRotina(r) },
+            podePausar && { icone: "pause", rotulo: "Pausar só esta rotina", onClick: () => setPausaAberta(true) },
+            podeArquivar && {
+              icone: "arrowDownTray",
+              rotulo: "Arquivar",
+              onClick: () => confirmarArquivar(r, arquivarRotina),
+            },
+          ]}
+        />
       </BarraDetalhe>
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto pb-[110px]">
         {/* área em pílula cheia na cor dela + sequência */}
@@ -143,8 +162,7 @@ export function RoutineDetail() {
             </span>
           )}
         </div>
-        {/* sem horário não há o que pausar, mas arquivar vale para qualquer rotina */}
-        <PausaRotina r={r} soArquivar={!sched} />
+        <PausaRotina r={r} pausaAberta={pausaAberta} onFecharPausa={() => setPausaAberta(false)} />
         <RotuloSecao className="mt-2">Etapas</RotuloSecao>
 
         {r.steps.length === 0 ? (

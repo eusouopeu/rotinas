@@ -36,6 +36,7 @@ import {
   notaRevisaoSemana,
 } from "../lib/semanaFechada";
 import { tela } from "../ui/Tela";
+import { fmtNum } from "../lib/format";
 
 const PASSOS = ["Resultado", "Rotinas", "Próxima semana"];
 
@@ -161,7 +162,7 @@ export function SemanaFechada() {
           <>
             <Cartao className={`${CARTAO} text-center`}>
               <div className="font-sans text-[48px] font-semibold" style={{ color: cor }}>
-                {sem.nota.toFixed(1)}
+                {fmtNum(sem.nota, 1)}
               </div>
               {sem.dispensada ? (
                 <Legenda>semana dispensada — não entra na média do mês</Legenda>
@@ -178,7 +179,7 @@ export function SemanaFechada() {
               {delta !== null && (
                 <Legenda className="mt-1.5">
                   {delta >= 0 ? "+" : ""}
-                  {delta.toFixed(1)} em relação à semana anterior
+                  {fmtNum(delta, 1)} em relação à semana anterior
                 </Legenda>
               )}
             </Cartao>
@@ -188,7 +189,7 @@ export function SemanaFechada() {
                 <RotuloSecao>O que mais somou</RotuloSecao>
                 <Cartao className={CARTAO}>
                   {sem.destaques!.map((d, i) => (
-                    <LinhaValor key={i} rotulo={d.nome} valor={d.pontos.toFixed(1)} />
+                    <LinhaValor key={i} rotulo={d.nome} valor={fmtNum(d.pontos, 1)} />
                   ))}
                 </Cartao>
               </>

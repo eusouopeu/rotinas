@@ -14,6 +14,7 @@ import type {
   MetaRecorrente,
   MetaTarget,
 } from "./types";
+import { fmtNum } from "./format";
 
 export function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + "T12:00:00");
@@ -40,9 +41,7 @@ export function cdPace(t: Pick<MetaTarget, "date" | "topics" | "done" | "unit">)
   if (days <= 0 || remaining <= 0) return { days, remaining, txt: remaining === 0 ? "concluído" : "prazo esgotado" };
   const perDay = remaining / days;
   const txt =
-    perDay >= 1
-      ? perDay.toFixed(1).replace(".", ",") + " " + unit + "/dia"
-      : "1 a cada " + (days / remaining).toFixed(1).replace(".", ",") + " dias";
+    perDay >= 1 ? fmtNum(perDay, 1) + " " + unit + "/dia" : "1 a cada " + fmtNum(days / remaining, 1) + " dias";
   return { days, remaining, txt };
 }
 

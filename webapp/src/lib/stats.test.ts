@@ -460,8 +460,8 @@ describe("relatorioFechamentoHtml", () => {
 
     expect(rep.title).toBe("Relatório da semana");
     expect(rep.innerHtml).toContain("Relatório da semana");
-    expect(rep.innerHtml).toContain("Pontuação: 20.0 pts");
-    expect(rep.innerHtml).toContain("Treino — 20.0 pts");
+    expect(rep.innerHtml).toContain("Pontuação: 20,0 pts");
+    expect(rep.innerHtml).toContain("Treino — 20,0 pts");
     expect(rep.innerHtml).toContain("Comprar livro");
   });
 

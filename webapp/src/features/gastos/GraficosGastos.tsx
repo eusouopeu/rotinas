@@ -117,7 +117,9 @@ export function GraficosGastos({ docs }: { docs: ExpenseDoc[] }) {
               <div className="my-[5px] flex items-center gap-2.5" key={s.label}>
                 <span className="size-2.5 flex-none rounded-[3px]" style={{ background: s.color }} />
                 <div className="flex-1 overflow-hidden text-base text-ellipsis whitespace-nowrap">{s.label}</div>
-                <div className="w-[52px] text-right font-sans text-sm text-sub tabular-nums">{brl(s.valor)}</div>
+                <div className="flex-none text-right font-sans text-sm whitespace-nowrap text-sub tabular-nums">
+                  {brl(s.valor)}
+                </div>
               </div>
             ))
           )}

@@ -9,6 +9,7 @@ import { planejadasEm } from "./stats";
 import { daysUntil, metaConcluida, metaRecCumprido, metaRecSequencia, virarPeriodoMetaRec } from "./metas";
 import type { HistoryEntry } from "./history";
 import type { CountdownDoc, GamificacaoState, MetaTarget, Routine, Snooze } from "./types";
+import { fmtNum } from "./format";
 
 /* ---------- Revisão guiada (recomendação 6, 13/09/2026 — diverge do legado) ----------
    A tela deixa de ser só números: resultado + reflexão, rotinas que ficaram
@@ -197,5 +198,5 @@ export function formatarPeriodoSemana(inicioISO: string): { iniStr: string; fimS
  */
 export function tituloNotaReflexao(inicioISO: string, nota: number): string {
   const { iniStr, fimStr } = formatarPeriodoSemana(inicioISO);
-  return `Semana ${iniStr}–${fimStr} · nota ${nota.toFixed(1)}`;
+  return `Semana ${iniStr}–${fimStr} · nota ${fmtNum(nota, 1)}`;
 }

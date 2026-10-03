@@ -19,6 +19,7 @@ import { LinhaValor } from "../ui/LinhaValor";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { tela } from "../ui/Tela";
 import { cn } from "../lib/cn";
+import { fmtNum } from "../lib/format";
 
 export function AnoFechado() {
   const gam = useAppStore((s) => s.gam);
@@ -56,7 +57,7 @@ export function AnoFechado() {
 
         <Cartao className="mb-1.5 text-center">
           <div className={cn("font-sans text-[48px] font-semibold", aprovado ? "text-ok" : "text-erro")}>
-            {ano.nota.toFixed(1)}
+            {fmtNum(ano.nota, 1)}
           </div>
           <Legenda>{aprovado ? "aprovado" : `abaixo da nota mínima (${gam.config.notaMinima})`}</Legenda>
           {ano.badge && (
@@ -67,17 +68,17 @@ export function AnoFechado() {
           {r.delta !== null && (
             <Legenda className="mt-1.5">
               {r.delta >= 0 ? "+" : ""}
-              {r.delta.toFixed(1)} em relação ao ano anterior
+              {fmtNum(r.delta, 1)} em relação ao ano anterior
             </Legenda>
           )}
         </Cartao>
 
         {r.meses.length > 0 && (
           <>
-            <RotuloSecao>Meses{r.mediaMeses != null ? ` · média ${r.mediaMeses.toFixed(1)}` : ""}</RotuloSecao>
+            <RotuloSecao>Meses{r.mediaMeses != null ? ` · média ${fmtNum(r.mediaMeses, 1)}` : ""}</RotuloSecao>
             <Cartao className="mb-1.5">
               {r.meses.map((m) => (
-                <LinhaValor key={m.anoMes} rotulo={nomeMes(m.anoMes).split(" de ")[0]} valor={m.nota.toFixed(1)} />
+                <LinhaValor key={m.anoMes} rotulo={nomeMes(m.anoMes).split(" de ")[0]} valor={fmtNum(m.nota, 1)} />
               ))}
             </Cartao>
           </>
@@ -90,9 +91,12 @@ export function AnoFechado() {
             <LinhaValor key={t.nome} rotulo={t.nome} valor={`${t.vezes}×`} />
           ))}
           {r.metas.total > 0 && (
-            <LinhaValor rotulo="Metas com prazo no ano concluídas" valor={`${r.metas.concluidas} de ${r.metas.total}`} />
+            <LinhaValor
+              rotulo="Metas com prazo no ano concluídas"
+              valor={`${r.metas.concluidas} de ${r.metas.total}`}
+            />
           )}
-          {ano.bonusMetas > 0 && <LinhaValor rotulo="Bônus de metas" valor={`+${ano.bonusMetas.toFixed(1)}`} />}
+          {ano.bonusMetas > 0 && <LinhaValor rotulo="Bônus de metas" valor={`+${fmtNum(ano.bonusMetas, 1)}`} />}
         </Cartao>
 
         {(r.gastos > 0 || r.entradas > 0) && (
@@ -128,7 +132,8 @@ export function AnoFechado() {
         <Botao
           className="mt-4 w-full"
           onClick={() => {
-            if (foco.trim()) addNote(`Ano de ${ano.ano} · nota ${ano.nota.toFixed(1)}`, "## Foco do ano\n" + foco.trim());
+            if (foco.trim())
+              addNote(`Ano de ${ano.ano} · nota ${fmtNum(ano.nota, 1)}`, "## Foco do ano\n" + foco.trim());
             sair();
           }}
         >

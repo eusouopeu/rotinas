@@ -109,10 +109,13 @@ export function ListaGastos({ docs, onDelete, onSave }: Props) {
               ` · receitas ${brl(g.entradas)} · saldo ${g.entradas - g.total < 0 ? "−" : ""}${brl(Math.abs(g.entradas - g.total))}`}
           </RotuloSecao>
           <Cartao className={g.porCategoria.length ? "mb-1.5" : "hidden"}>
+            {/* coluna de valores com a largura do maior do mês, numa linha só
+                (antes "R$ 1800,00" quebrava em duas) */}
             {g.porCategoria.map((c) => (
               <LinhaBarra
                 key={c.cat}
                 rotulo={c.cat}
+                larguraValor={Math.max(...g.porCategoria.map((x) => brl(x.valor).length))}
                 valor={brl(c.valor)}
                 pct={Math.max(3, c.pct)}
                 cor={catColor(c.cat)}
@@ -133,10 +136,14 @@ export function ListaGastos({ docs, onDelete, onSave }: Props) {
                 />
               ) : (
                 <LinhaTabela key={e.id}>
-                  <CelNota className="w-11">
+                  <CelNota className="w-11 min-w-[44px]">
                     {e.date.slice(8, 10)}/{e.date.slice(5, 7)}
                   </CelNota>
-                  <span className="flex-1 cursor-pointer" title="Tocar para editar" onClick={() => setEditId(e.id)}>
+                  <span
+                    className="min-w-0 flex-1 cursor-pointer"
+                    title="Tocar para editar"
+                    onClick={() => setEditId(e.id)}
+                  >
                     {e.desc}
                     <br />
                     <span className="font-sans text-sm text-sub">
@@ -145,7 +152,7 @@ export function ListaGastos({ docs, onDelete, onSave }: Props) {
                       {e.parcelas ? " · parcela " + parcelaLabel(e) : e.recorrente || e.origemRec ? " · todo mês" : ""}
                     </span>
                   </span>
-                  <CelNegrito status={e.receita ? "adiantado" : "pontual"}>
+                  <CelNegrito status={e.receita ? "adiantado" : "pontual"} className="whitespace-nowrap">
                     {e.receita ? "+" : ""}
                     {brl(e.value)}
                   </CelNegrito>

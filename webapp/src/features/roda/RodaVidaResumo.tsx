@@ -8,6 +8,7 @@ import { useIsDesktop } from "../../lib/useIsDesktop";
 import { cn } from "../../lib/cn";
 import { Etiqueta } from "../../ui/Etiqueta";
 import { LinhaBarra } from "../../ui/LinhaBarra";
+import { fmtNum } from "../../lib/format";
 
 /** Quantas áreas cabem por página antes de precisar das setas ‹ ›. */
 const POR_PAGINA = 2;
@@ -53,7 +54,7 @@ export function RodaVidaResumo() {
   const temSetas = linhas.length > POR_PAGINA && isDesktop;
   const podeArrastar = linhas.length > POR_PAGINA && !isDesktop;
 
-  const valTxt = (l: (typeof linhas)[number]) => num(l.pontos) + (l.previsto ? " / " + l.previsto.toFixed(0) : "");
+  const valTxt = (l: (typeof linhas)[number]) => num(l.pontos) + (l.previsto ? " / " + fmtNum(l.previsto, 0) : "");
   // coluna do valor com a mesma largura em todas as linhas (e páginas): o
   // texto mais longo define a largura, então as barras ficam todas iguais.
   const valCh = Math.max(0, ...linhas.map((l) => valTxt(l).length));

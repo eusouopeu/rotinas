@@ -7,6 +7,16 @@ export function fmtTime(totalSeconds: number): string {
   return (neg ? "+" : "") + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
 }
 
+/** Número no formato brasileiro, com `casas` decimais fixas: vírgula decimal e
+ * ponto de milhar ("83,6", "1.800,00"). Única porta de exibição de números
+ * com casas decimais desde 03/10/2026 — `toFixed` fica para chaves e CSV. */
+export function fmtNum(n: number, casas = 1): string {
+  return (Number.isFinite(n) ? n : 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas,
+  });
+}
+
 /** Porta de fmtClock (index.html:1058) — "HH:MM" a partir de um Date. */
 export function fmtClock(date: Date): string {
   return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");

@@ -8,7 +8,7 @@ import { CelNegrito, CelNota, CelRotulo, LinhaTabela, statusDaClasse } from "../
 import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { GraficoLinhaPct } from "../../components/GraficoLinhaPct";
-import { fmtTime } from "../../lib/format";
+import { fmtTime, fmtNum } from "../../lib/format";
 import type { getRoutineDetailStats } from "../../lib/stats";
 import { BarrasHora } from "./Graficos";
 
@@ -149,7 +149,7 @@ export function CargaExercicios({ stats }: { stats: Stats }) {
             <GraficoLinhaPct
               pontos={ex.volumes.map((v) => ({ label: v.label, pct: v.valor }))}
               max={Math.max(...ex.volumes.map((v) => v.valor), 1)}
-              formato={(v) => (v >= 1000 ? (v / 1000).toFixed(1).replace(".", ",") + "t" : Math.round(v) + "kg")}
+              formato={(v) => (v >= 1000 ? fmtNum(v / 1000, 1) + "t" : Math.round(v) + "kg")}
               ariaLabel={`Volume de ${ex.nome} por sessão (séries × repetições × kg)`}
             />
           )}

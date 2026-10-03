@@ -16,7 +16,7 @@ import {
   semanaDaMeta,
   sequenciaMetaRec,
 } from "../../lib/metas";
-import { fmtXp } from "../../lib/format";
+import { fmtXp, fmtNum } from "../../lib/format";
 import { metaRecPenalidadeUnidade, metaRecPontosBrutos, metaRecPontosUnidade } from "../../lib/scoring";
 import type { GamificacaoState, MetaRecorrente } from "../../lib/types";
 import { Etiqueta } from "../../ui/Etiqueta";
@@ -77,13 +77,13 @@ export function CartaoRec({
     const penUnidade = -metaRecPenalidadeUnidade(rec, gam.config);
     pesoTitle =
       excesso > 0
-        ? `Saldo ${saldo} · -${(excesso * penUnidade * fator).toFixed(1)} pts no boletim`
+        ? `Saldo ${saldo} · -${fmtNum(excesso * penUnidade * fator, 1)} pts no boletim`
         : saldo === 0
           ? "No limite · não pontua"
           : "Dentro do limite";
   } else if (rec.pontua) {
     const pts = metaRecPontosBrutos(rec, gam.config, feitas);
-    pesoTitle = `+${(pts * fator).toFixed(1)} pts no boletim${completa ? " · concluída" : ""}`;
+    pesoTitle = `+${fmtNum(pts * fator, 1)} pts no boletim${completa ? " · concluída" : ""}`;
   }
 
   /** Pontos que o toque (+1/-1 em `feitas`) lança ou estorna no boletim. */
@@ -101,7 +101,7 @@ export function CartaoRec({
   function tocar(delta: 1 | -1) {
     const pts = pontosDoToque(delta);
     if (Math.abs(pts) >= 0.05) {
-      const txt = (pts > 0 ? "+" : "−") + Math.abs(pts).toFixed(1).replace(".", ",");
+      const txt = (pts > 0 ? "+" : "−") + fmtNum(Math.abs(pts), 1);
       setAviso({ texto: txt, positivo: pts > 0, n: Date.now() });
     } else setAviso(null);
     onAjustar(delta);

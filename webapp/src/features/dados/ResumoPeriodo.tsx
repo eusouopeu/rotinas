@@ -3,10 +3,11 @@ import { useAppStore } from "../../store/useAppStore";
 import { computeStreak, computeStreakFor, type ResumoPeriodo as Dados } from "../../lib/stats";
 import type { Routine } from "../../lib/types";
 import { ResumoGrade } from "./Resumo";
+import { fmtNum } from "../../lib/format";
 
 /** 1,8h · 45m — mesmo formato das barras de tempo por mês. */
 export function fmtHorasMin(min: number): string {
-  return min >= 60 ? (min / 60).toFixed(1).replace(".", ",") + "h" : min + "m";
+  return min >= 60 ? fmtNum(min / 60, 1) + "h" : min + "m";
 }
 
 const pctDelta = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : null);

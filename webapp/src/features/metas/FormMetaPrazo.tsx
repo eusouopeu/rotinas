@@ -18,6 +18,7 @@ import { Legenda } from "../../ui/Legenda";
 import { Toggle } from "../../ui/Segmentado";
 import { ESCOPO_LABEL, TAG_OPCOES } from "./constantes";
 import { CaixaChips, CelulaForm, DivisorForm, FormMeta, IconeForm, LinhaForm } from "./FormMeta";
+import { fmtNum } from "../../lib/format";
 
 type Props = {
   meta: MetaTarget | null;
@@ -239,9 +240,9 @@ export function FormMetaPrazo({ meta, doc, gam, onClose, onSalvar }: Props) {
 
       {esc && (
         <Legenda className="mt-3">
-          Vale <b>{total.toFixed(1)}</b> pontos no boletim <b>{ESCOPO_LABEL[esc]}</b>
+          Vale <b>{fmtNum(total, 1)}</b> pontos no boletim <b>{ESCOPO_LABEL[esc]}</b>
           {nItens > 0
-            ? `, creditados aos poucos: ${(total / nItens).toFixed(2)} por item.`
+            ? `, creditados aos poucos: ${fmtNum(total / nItens, 2)} por item.`
             : ". Informe a quantidade para pontuar item por item."}
         </Legenda>
       )}

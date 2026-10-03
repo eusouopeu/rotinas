@@ -184,7 +184,7 @@ describe("semanaFechada", () => {
 
     it("gera o título da nota de reflexão no padrão do legado", () => {
       const titulo = tituloNotaReflexao("2026-08-24", 82.34);
-      expect(titulo).toBe("Semana 24/08–30/08 · nota 82.3");
+      expect(titulo).toBe("Semana 24/08–30/08 · nota 82,3");
     });
   });
 });

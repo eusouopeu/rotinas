@@ -26,6 +26,8 @@ import { OpcaoCriar } from "../ui/OpcaoCriar";
 import { RotuloSecao } from "../ui/RotuloSecao";
 import { SegPill } from "../ui/Segmentado";
 import { rolavel, tela } from "../ui/Tela";
+import { Doca } from "../ui/Doca";
+import { Icon } from "../components/Icon";
 
 /** Cartões de meta em grade de 2 colunas (mockup de 02/10/2026); 4 no desktop. */
 const GRADE = "grid grid-cols-2 gap-2.5 desktop:grid-cols-4";
@@ -106,7 +108,7 @@ export function Metas() {
                   if (!r.ok && r.erro) setErro(r.erro);
                 }}
               >
-                PDF
+                <Icon name="clipboard" size={15} />
               </BotaoIcone>
             </div>
           )}
@@ -115,18 +117,6 @@ export function Metas() {
         {erro && <Legenda className="mt-3 mb-2 text-erro">{erro}</Legenda>}
 
         <RodaVidaResumo />
-
-        {/* as duas podem ficar ligadas juntas (lista única com dois blocos) */}
-        <SegPill
-          cheia
-          style={{ marginBottom: 14 }}
-          options={[
-            { key: "recorrentes", label: "Recorrentes" },
-            { key: "prazos", label: "Prazos" },
-          ]}
-          active={metasSubview}
-          onSelect={toggleMetasSubviewState}
-        />
 
         {mostraRecorrentes && (
           <div className={ambos ? "mb-5" : "mb-2.5"}>
@@ -291,6 +281,31 @@ export function Metas() {
           }}
         />
       )}
+
+      {/* as duas podem ficar ligadas juntas (lista única com dois blocos) —
+          por isso o check em cada uma ligada; na barra de baixo, no alcance do
+          polegar, como Rotinas e Dados (03/10/2026) */}
+      <Doca>
+        <SegPill
+          cheia
+          options={(
+            [
+              { key: "recorrentes", label: "Recorrentes" },
+              { key: "prazos", label: "Prazos" },
+            ] as const
+          ).map((o) => ({
+            key: o.key,
+            label: (
+              <span className="inline-flex items-center justify-center gap-1.5">
+                {metasSubview.includes(o.key) && <Icon name="check" size={13} />}
+                {o.label}
+              </span>
+            ),
+          }))}
+          active={metasSubview}
+          onSelect={toggleMetasSubviewState}
+        />
+      </Doca>
 
       <Fab rotulo="Novo" onClick={handleFabClick} />
     </div>
