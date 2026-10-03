@@ -24,13 +24,20 @@ const treinoB = {
 const EXTRA = { extra: { rotinas_v2_routines: [...rotinas, treinoB] } };
 
 const botao = (page, titulo) => page.locator(`button[aria-label="${titulo}"]`);
+/** Ações do topo moram no menu "⋯" desde 03/10/2026. */
+async function menu(page, item) {
+  await botao(page, "Mais ações").click();
+  await page.getByRole("menuitem", { name: item }).click();
+}
 
 async function iniciar(page, nome, opcoes = EXTRA) {
   await preparar(page, opcoes);
   await page.getByText("Lista", { exact: true }).first().click();
-  const card = page.getByRole("heading", { name: nome }).locator("xpath=ancestor::*[.//button[@title='Iniciar rotina']][1]");
+  const card = page
+    .getByRole("heading", { name: nome })
+    .locator("xpath=ancestor::*[.//button[@title='Iniciar rotina']][1]");
   await card.locator("button[title='Iniciar rotina']").first().dispatchEvent("click");
-  await page.getByRole("button", { name: "Sair" }).waitFor();
+  await page.getByRole("button", { name: "Sair da rotina" }).waitFor();
 }
 
 test("stats de rotina: completo", async ({ page }) => {
@@ -73,7 +80,7 @@ test("player: adiar mostra aviso", async ({ page }) => {
 test("player: painel de etapas", async ({ page }) => {
   await iniciar(page, "Treino A");
   await botao(page, "Concluir etapa").click();
-  await botao(page, "Ver todas as etapas").click();
+  await menu(page, "Etapas");
   await foto(page, "player-etapas");
 });
 
@@ -85,11 +92,30 @@ test("player: exercício, série", async ({ page }) => {
 test("player: exercício, sugestão de carga", async ({ page }) => {
   // última execução do Supino reto com as 3 séries no topo da faixa (8-12)
   const anterior = {
-    date: "2026-09-21", ts: new Date("2026-09-21T19:00:00-03:00").getTime(), startedTs: 0,
-    routineId: "r-treino-b", routineName: "Treino B", plannedSec: 180, actualSec: 400,
-    pauses: 0, pausedSec: 0, skippedCount: 0,
-    steps: [{ id: "b1", name: "Supino reto", tag: "medio", isRest: false, planned: 180, actual: 180, skipped: false,
-      exercicioId: "ex1", elapsedSec: 330, series: [1, 2, 3].map(() => ({ reps: 12, peso: 60 })) }],
+    date: "2026-09-21",
+    ts: new Date("2026-09-21T19:00:00-03:00").getTime(),
+    startedTs: 0,
+    routineId: "r-treino-b",
+    routineName: "Treino B",
+    plannedSec: 180,
+    actualSec: 400,
+    pauses: 0,
+    pausedSec: 0,
+    skippedCount: 0,
+    steps: [
+      {
+        id: "b1",
+        name: "Supino reto",
+        tag: "medio",
+        isRest: false,
+        planned: 180,
+        actual: 180,
+        skipped: false,
+        exercicioId: "ex1",
+        elapsedSec: 330,
+        series: [1, 2, 3].map(() => ({ reps: 12, peso: 60 })),
+      },
+    ],
   };
   await iniciar(page, "Treino B", {
     extra: { ...EXTRA.extra, rotinas_v2_history: [...seedLocalStorage.rotinas_v2_history, anterior] },
@@ -116,20 +142,20 @@ test("player: etapa simples", async ({ page }) => {
 
 test("player: nota anexada", async ({ page }) => {
   await iniciar(page, "Treino B");
-  await botao(page, "Abrir nota anexada").click();
+  await menu(page, "Nota anexada");
   await foto(page, "player-nota");
 });
 
 test("player: nota anexada, edição", async ({ page }) => {
   await iniciar(page, "Treino B");
-  await botao(page, "Abrir nota anexada").click();
+  await menu(page, "Nota anexada");
   await botao(page, "Editar").click();
   await foto(page, "player-nota-edicao", { desfocar: true });
 });
 
 test("player: lançar rápido, escolha", async ({ page }) => {
   await iniciar(page, "Treino A");
-  await botao(page, "Lançar rápido").click();
+  await menu(page, "Lançar rápido");
   await foto(page, "player-rapido");
 });
 
@@ -141,7 +167,7 @@ for (const [opcao, nome] of [
 ]) {
   test(`player: lançar rápido, ${nome}`, async ({ page }) => {
     await iniciar(page, "Treino A");
-    await botao(page, "Lançar rápido").click();
+    await menu(page, "Lançar rápido");
     await page.getByText(opcao, { exact: true }).click();
     await foto(page, `player-rapido-${nome}`, { desfocar: true });
   });
@@ -149,7 +175,7 @@ for (const [opcao, nome] of [
 
 test("player: lançar rápido, nota nova", async ({ page }) => {
   await iniciar(page, "Treino A");
-  await botao(page, "Lançar rápido").click();
+  await menu(page, "Lançar rápido");
   await page.getByText("Nota simples", { exact: true }).click();
   await page.getByText("+ Nova nota").click();
   await foto(page, "player-rapido-nota-form", { desfocar: true });
@@ -158,6 +184,6 @@ test("player: lançar rápido, nota nova", async ({ page }) => {
 test("concluída", async ({ page }) => {
   await iniciar(page, "Leitura");
   await botao(page, "Concluir etapa").click();
-  await page.getByText("Rotina concluída").waitFor();
+  await page.getByText("Leitura concluída").waitFor();
   await foto(page, "rotina-concluida");
 });

@@ -326,111 +326,121 @@ export function Player() {
     exercicioAnteriorComSeries(playerState) >= 0;
   const comuns = { podeAdiar, onAnterior: goPrevStep, onAdiar: adiarEtapaAtual };
 
+  /* Layout de 03/10/2026 (mockup, recs. 1, 2, 3 e 12): topo com a trilha,
+     o miolo centrado no espaço livre e os controles embaixo. Com o celular
+     deitado vira duas colunas — miolo à esquerda, "A seguir" e controles à
+     direita —, sem rolagem. */
   return (
     <div {...tela({}, "pb-0")}>
-      <div className="flex w-full flex-1 flex-col items-center justify-between pt-1.5 pb-5 paisagem:justify-start paisagem:gap-1 paisagem:overflow-y-auto paisagem:pt-0.5 paisagem:pb-2">
-        <TopoPlayer
-          posicao={playerState.idx + 1}
-          total={playerState.steps.length}
-          temNota={temNota}
-          fimPrevisto={fimPrevisto}
-          atrasoMin={atrasoMin}
-          onSair={handleExit}
-          onEtapas={() => setOverlay("steps")}
-          onNota={() => setOverlay("nota")}
-          onRapido={() => setOverlay("quickadd")}
-        />
-
-        {playerBanner && (
-          <AvisoCartao className="mb-2.5">
-            <span>{playerBanner}</span>
-          </AvisoCartao>
-        )}
-
-        {step.type === "timer" ? (
-          <DiscoTempo
-            key={playerState.idx}
-            restante={rem}
-            total={step.seconds || 1}
-            descanso={!!step.isRest}
-            titulo={step.isRest ? "Descanso" : "Etapa " + (playerState.idx + 1)}
-            nome={step.name}
+      <div className="flex w-full flex-1 flex-col pt-1 pb-5 paisagem:grid paisagem:grid-cols-2 paisagem:grid-rows-[auto_1fr] paisagem:gap-x-6 paisagem:pb-2">
+        <div className="w-full paisagem:col-span-2">
+          <TopoPlayer
+            rotina={playerState.routineName || routine?.name || ""}
+            posicao={playerState.idx + 1}
+            total={playerState.steps.length}
+            temNota={temNota}
+            fimPrevisto={fimPrevisto}
+            atrasoMin={atrasoMin}
+            trilha={
+              <TrilhaEtapas
+                etapas={playerState.steps}
+                feitas={playerState.stepActuals}
+                atual={playerState.idx}
+                restante={rem}
+                onAbrir={() => setOverlay("steps")}
+              />
+            }
+            onSair={handleExit}
+            onEtapas={() => setOverlay("steps")}
+            onNota={() => setOverlay("nota")}
+            onRapido={() => setOverlay("quickadd")}
           />
-        ) : step.type === "exercicio" ? (
-          <CorpoExercicio
-            key={playerState.idx}
-            nome={step.name}
-            fase={exPhase}
-            serieAtual={playerState.ex?.setIdx || 0}
-            series={step.sets || 1}
-            descansoRestante={exRem}
-            pesoSerie={pesoSerie}
-            reps={reps}
-            peso={peso}
-            onReps={setReps}
-            onPeso={setPeso}
-            sugestao={sugestao}
-            onProgredir={() => {
-              const prox = progressaoCarga(reps, peso);
-              setReps(prox.reps);
-              setPeso(prox.peso);
-              progredirExercicioAtual(prox.reps, prox.peso);
-            }}
-          />
-        ) : (
-          <CorpoSimples key={playerState.idx} posicao={playerState.idx + 1} nome={step.name} />
-        )}
+          {playerBanner && (
+            <AvisoCartao className="mt-2">
+              <span>{playerBanner}</span>
+            </AvisoCartao>
+          )}
+        </div>
 
-        {step.journaling && !step.isRest && (
-          <CampoAnotacao
-            valor={playerState.journalTexts?.[step.id] || ""}
-            onChange={(t) => setTextoAnotacao(step.id, t)}
-          />
-        )}
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center paisagem:overflow-y-auto">
+          {step.type === "timer" ? (
+            <DiscoTempo
+              key={playerState.idx}
+              restante={rem}
+              total={step.seconds || 1}
+              descanso={!!step.isRest}
+              nome={step.name}
+            />
+          ) : step.type === "exercicio" ? (
+            <CorpoExercicio
+              key={playerState.idx}
+              nome={step.name}
+              fase={exPhase}
+              serieAtual={playerState.ex?.setIdx || 0}
+              series={step.sets || 1}
+              descansoRestante={exRem}
+              pesoSerie={pesoSerie}
+              reps={reps}
+              peso={peso}
+              onReps={setReps}
+              onPeso={setPeso}
+              sugestao={sugestao}
+              onProgredir={() => {
+                const prox = progressaoCarga(reps, peso);
+                setReps(prox.reps);
+                setPeso(prox.peso);
+                progredirExercicioAtual(prox.reps, prox.peso);
+              }}
+            />
+          ) : (
+            <CorpoSimples key={playerState.idx} nome={step.name} />
+          )}
 
-        <ASeguir
-          proxima={proxima}
-          depois={proxima?.isRest ? playerState.steps[playerState.idx + 2] : undefined}
-          peso={proximoPeso}
-        />
+          {step.journaling && !step.isRest && (
+            <CampoAnotacao
+              valor={playerState.journalTexts?.[step.id] || ""}
+              onChange={(t) => setTextoAnotacao(step.id, t)}
+            />
+          )}
+        </div>
 
-        <TrilhaEtapas
-          etapas={playerState.steps}
-          feitas={playerState.stepActuals}
-          atual={playerState.idx}
-          restante={rem}
-          onAbrir={() => setOverlay("steps")}
-        />
+        <div className="flex w-full flex-col items-center paisagem:justify-center">
+          <ASeguir
+            proxima={proxima}
+            depois={proxima?.isRest ? playerState.steps[playerState.idx + 2] : undefined}
+            peso={proximoPeso}
+          />
 
-        {step.type === "timer" ? (
-          <ControlesTempo
-            {...comuns}
-            pausado={!!playerState.paused}
-            estourou={rem < 0}
-            onReiniciar={reiniciarTimerEtapaAtual}
-            onPausar={togglePause}
-            onConcluir={() => advanceStep()}
-          />
-        ) : step.type === "exercicio" ? (
-          <ControlesExercicio
-            {...comuns}
-            descansando={exPhase === "rest"}
-            onConcluirSerie={() => concluirSerieExercicio(reps, peso)}
-            onPularDescanso={pularDescansoExercicio}
-          />
-        ) : (
-          <ControlesSimples {...comuns} onConcluir={() => advanceStep()} />
-        )}
+          {step.type === "timer" ? (
+            <ControlesTempo
+              {...comuns}
+              pausado={!!playerState.paused}
+              estourou={rem < 0}
+              onReiniciar={reiniciarTimerEtapaAtual}
+              onPausar={togglePause}
+              onConcluir={() => advanceStep()}
+            />
+          ) : step.type === "exercicio" ? (
+            <ControlesExercicio
+              {...comuns}
+              descansando={exPhase === "rest"}
+              onConcluirSerie={() => concluirSerieExercicio(reps, peso)}
+              onPularDescanso={pularDescansoExercicio}
+            />
+          ) : (
+            <ControlesSimples {...comuns} onConcluir={() => advanceStep()} />
+          )}
 
-        {(podeVoltarSerie || !step.isRest) && (
-          <LinhaPular
-            podeVoltarSerie={podeVoltarSerie}
-            podeNaoFazer={!step.isRest}
-            onVoltarSerie={voltarSerieExercicio}
-            onNaoFazer={naoFazerEtapaAtual}
-            onPular={pularEtapaAtual}
-          />
-        )}
+          {(podeVoltarSerie || !step.isRest) && (
+            <LinhaPular
+              podeVoltarSerie={podeVoltarSerie}
+              podeNaoFazer={!step.isRest}
+              onVoltarSerie={voltarSerieExercicio}
+              onNaoFazer={naoFazerEtapaAtual}
+              onPular={pularEtapaAtual}
+            />
+          )}
+        </div>
       </div>
 
       {overlay === "steps" && <PainelEtapas playerState={playerState} onClose={() => setOverlay(null)} />}

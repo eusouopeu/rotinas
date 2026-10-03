@@ -75,6 +75,11 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Trilha de etapas do player com estado (feita/pulada/não feita/atual) e toque abrindo o painel de etapas – implementado em 03/10/2026
 - Vibração e som diferentes para fim de descanso e fim do tempo da tarefa – implementado em 03/10/2026
 - Nenhuma notificação do app enquanto ele está aberto (cronômetro só fora da frente; avisos viram banner) – implementado em 03/10/2026
+- Topo do player com X, nome da rotina e menu ⋯ (etapas, nota, lançar rápido) – implementado em 03/10/2026
+- Trilha de etapas logo abaixo do topo, com "N de M" e a previsão de término – implementado em 03/10/2026
+- Nome da etapa como título fora do disco, sem o rótulo "ETAPA N" – implementado em 03/10/2026
+- Tela de conclusão com ações no rodapé e a próxima rotina como cartão – implementado em 03/10/2026
+- Player em duas colunas com o celular deitado – implementado em 03/10/2026
 
 ## Recomendações refutadas
 
@@ -119,3 +124,10 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - Checklist de subitens dentro de uma etapa – refutada em 03/10/2026
 - Resumo da execução na tela de conclusão (tempo real × estimado, xp, sequência, puladas, volume) – refutada em 03/10/2026
 - Comparação com a última execução na conclusão – refutada em 03/10/2026
+- Disco maior centrado no espaço livre, com dígitos de 58 px (mockup do player, rec. 4) – refutada em 03/10/2026
+- "Concluir" como botão principal de 84 px no centro, pausar secundário (mockup, rec. 5) – refutada em 03/10/2026
+- Um só botão "pular ▾" com adiar/pular/não fazer/reiniciar/anterior numa folha (mockup, rec. 6) – refutada em 03/10/2026
+- Piso de 22 px nos ícones e 44 px de toque em todo o player (mockup, rec. 7) – refutada em 03/10/2026
+- "A seguir" como faixa fixa com fundo acima dos controles (mockup, rec. 8) – refutada em 03/10/2026
+- Série com bolinhas e −/+ grandes para reps e kg (mockup, rec. 9) – refutada em 03/10/2026
+- Descanso com a tela inteira no tom verde e botão "começar série" (mockup, rec. 10) – refutada em 03/10/2026

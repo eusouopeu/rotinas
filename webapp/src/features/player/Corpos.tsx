@@ -12,43 +12,43 @@ import { fmtTime } from "../../lib/format";
 
 const TITULO_ETAPA = "font-sans text-lg tracking-[0.04em] text-sub uppercase paisagem:text-sm";
 
-type DiscoProps = { restante: number; total: number; descanso: boolean; titulo: string; nome: string };
+type DiscoProps = { restante: number; total: number; descanso: boolean; nome: string };
 
-/** Anel de progresso (o arco encolhe conforme o tempo passa) com o relógio no meio. */
-export function DiscoTempo({ restante, total, descanso, titulo, nome }: DiscoProps) {
+/** Anel de progresso (o arco encolhe conforme o tempo passa) com só o relógio
+ * no meio; o nome da etapa é o título embaixo (rec. 3 do mockup, 03/10/2026 —
+ * o rótulo "ETAPA N" saiu, repetia o "3 de 7" do topo). */
+export function DiscoTempo({ restante, total, descanso, nome }: DiscoProps) {
   const raio = 116;
   const c = 2 * Math.PI * raio;
   const fracao = Math.max(restante, 0) / (total || 1);
   return (
-    <div className="relative my-2 flex size-[min(72vw,280px)] animate-entra-rapido items-center justify-center paisagem:m-0 paisagem:size-[min(36vh,190px)]">
-      <svg viewBox="0 0 260 260" className="size-full -rotate-90 transition-[filter] duration-300">
-        <circle className="stroke-line" cx={130} cy={130} r={raio} fill="none" strokeWidth={10} />
-        <circle
-          className={descanso ? "stroke-ok" : "stroke-caneta"}
-          cx={130}
-          cy={130}
-          r={raio}
-          fill="none"
-          strokeWidth={10}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * fracao}
-        />
-      </svg>
-      <div className="absolute flex flex-col items-center gap-1.5 font-sans text-lg font-medium">
-        <div className={TITULO_ETAPA}>{titulo}</div>
-        <div className={cn("text-[50px] tracking-[-1px] paisagem:text-[34px]", restante < 0 && "text-erro")}>
-          {fmtTime(restante)}
-        </div>
+    <div className="flex flex-col items-center gap-3 paisagem:gap-1.5">
+      <div className="relative my-2 flex size-[min(72vw,280px)] animate-entra-rapido items-center justify-center paisagem:m-0 paisagem:size-[min(36vh,190px)]">
+        <svg viewBox="0 0 260 260" className="size-full -rotate-90 transition-[filter] duration-300">
+          <circle className="stroke-line" cx={130} cy={130} r={raio} fill="none" strokeWidth={10} />
+          <circle
+            className={descanso ? "stroke-ok" : "stroke-caneta"}
+            cx={130}
+            cy={130}
+            r={raio}
+            fill="none"
+            strokeWidth={10}
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={c * fracao}
+          />
+        </svg>
         <div
           className={cn(
-            "max-w-[200px] text-center font-titulo text-xl font-medium paisagem:max-w-[150px] paisagem:text-md",
-            descanso ? "text-ok" : "text-sub"
+            "absolute font-sans text-[58px] font-semibold tracking-[-2px] tabular-nums paisagem:text-[40px]",
+            restante < 0 && "text-erro",
+            descanso && restante >= 0 && "text-ok"
           )}
         >
-          {nome}
+          {fmtTime(restante)}
         </div>
       </div>
+      <Nome>{nome}</Nome>
     </div>
   );
 }
@@ -61,9 +61,14 @@ function Miolo({ children }: { children: ReactNode }) {
   );
 }
 
-const Nome = ({ children }: { children: ReactNode }) => (
-  <h2 className="text-center text-[26px] paisagem:text-3xl">{children}</h2>
-);
+/** Nome da etapa: o título da tela (Lato 900). */
+function Nome({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="max-w-full px-2 text-center font-titulo text-[28px] leading-tight font-black text-balance paisagem:text-2xl">
+      {children}
+    </h2>
+  );
+}
 
 function CampoSerie({
   rotulo,
@@ -158,10 +163,9 @@ export function CorpoExercicio(p: ExercicioProps) {
   );
 }
 
-export function CorpoSimples({ posicao, nome }: { posicao: number; nome: string }) {
+export function CorpoSimples({ nome }: { nome: string }) {
   return (
     <Miolo>
-      <div className={TITULO_ETAPA}>Etapa {posicao}</div>
       <CirculoCheck>
         <Icon name="check" size={14} />
       </CirculoCheck>
