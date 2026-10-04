@@ -50,6 +50,7 @@ const ESTILO_EM_LINHA: Record<string, number> = {
   "screens/Metas.tsx": 1,
   "screens/SemanaFechada.tsx": 2,
   "ui/Ajuda.tsx": 1, // posição do popover, calculada pela posição do ⓘ na tela
+  "ui/CampoCor.tsx": 2, // a cor escolhida no gatilho e cada cor da paleta (03/10/2026)
   "ui/Chip.tsx": 1,
   "ui/Etiqueta.tsx": 1,
   "ui/ItemChecklist.tsx": 1,
@@ -81,6 +82,21 @@ describe("guarda de estilo", () => {
     const css = todos.filter((f) => f.rel.endsWith(".css") && !f.rel.startsWith("styles/"));
     expect(css.map((f) => f.rel)).toEqual([]);
     expect(todos.filter((f) => /@apply\b/.test(f.texto) && f.rel !== "estilo.test.ts").map((f) => f.rel)).toEqual([]);
+  });
+
+  // 03/10/2026, pedido do Pedro: nada com o estilo cru do Android — menus,
+  // datas/horas, cor e confirmações usam os componentes do app (ui/Escolha,
+  // ui/CamposTexto, ui/CampoCor, ui/Confirmar)
+  it("sem controles nativos do sistema nos componentes", () => {
+    const NATIVO =
+      /<select\b|type="(?:date|time|datetime-local|month|week|color|range)"|window\.(?:confirm|alert|prompt)\(/g;
+    const achados = componentes
+      .filter((f) => f.rel !== "ui/Confirmar.tsx")
+      .flatMap((f) => {
+        const codigo = f.texto.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+        return (codigo.match(NATIVO) || []).map((m) => `${f.rel}: ${m}`);
+      });
+    expect(achados).toEqual([]);
   });
 
   it("o React não importa o app.css legado (só o catálogo de desenvolvimento)", () => {

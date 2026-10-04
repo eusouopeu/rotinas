@@ -16,6 +16,7 @@ import {
 import { getRoutineDetailStats } from "../lib/stats";
 import { fmtTime } from "../lib/format";
 import { tela } from "../ui/Tela";
+import { confirmar } from "../ui/Confirmar";
 
 export function RoutineStats() {
   const goTo = useAppStore((s) => s.goTo);
@@ -50,14 +51,24 @@ export function RoutineStats() {
   const snoozes = useAppStore((s) => s.snoozes);
   const stats = getRoutineDetailStats(routine, history, gam, snoozes);
 
-  function ajustar(s: { name: string; plan: number; newSec: number; newSecLabel: string }) {
-    if (window.confirm(`Ajustar a etapa "${s.name}" de ${fmtTime(s.plan).replace("+", "")} para ${s.newSecLabel}?`)) {
+  async function ajustar(s: { name: string; plan: number; newSec: number; newSecLabel: string }) {
+    if (
+      await confirmar(`Ajustar a etapa "${s.name}" de ${fmtTime(s.plan).replace("+", "")} para ${s.newSecLabel}?`, {
+        acao: "Ajustar",
+      })
+    ) {
       adjustRoutineStep(routine!.id, s.name, s.newSec);
     }
   }
 
-  function apagar(ts: number) {
-    if (window.confirm("Apagar este registro de execução?\nEle sai de todas as estatísticas.")) deleteHistoryEntry(ts);
+  async function apagar(ts: number) {
+    if (
+      await confirmar("Apagar este registro de execução?\nEle sai de todas as estatísticas.", {
+        acao: "Apagar",
+        perigo: true,
+      })
+    )
+      deleteHistoryEntry(ts);
   }
 
   return (

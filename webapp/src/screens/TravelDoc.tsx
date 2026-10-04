@@ -17,6 +17,7 @@ import { exportPdfView } from "../lib/exportFile";
 import { travelPdfHtml } from "../lib/pdfExport";
 import type { TravelDoc as TravelDocType } from "../lib/types";
 import { tela } from "../ui/Tela";
+import { confirmar } from "../ui/Confirmar";
 
 type Item = TravelDocType["items"][number];
 
@@ -63,8 +64,8 @@ export function TravelDoc({ doc }: { doc: TravelDocType }) {
         antes={
           <BotaoIcone
             rotulo="Desmarcar tudo (reusar)"
-            onClick={() => {
-              if (window.confirm("Desmarcar todos os itens para reusar a lista?")) {
+            onClick={async () => {
+              if (await confirmar("Desmarcar todos os itens para reusar a lista?", { acao: "Desmarcar" })) {
                 save({ items: doc.items.map((i) => ({ ...i, checked: false })) });
               }
             }}

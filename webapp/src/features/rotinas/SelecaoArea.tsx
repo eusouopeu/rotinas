@@ -1,16 +1,14 @@
-// Filtro por área da roda: <select> nativo em pílula com setinha desenhada.
-// Nativo de propósito: no Android o menu é desenhado pelo sistema e nunca vaza
-// da largura da tela, por mais longo que seja o nome da área; o próprio campo
-// é contido por min-width:0 + ellipsis. Era .ag-nav-area.
-import type { SelectHTMLAttributes } from "react";
+// Filtro por área da roda em pílula com setinha (era .ag-nav-area). Desde
+// 03/10/2026 abre a folha do app (ui/Escolha), não o menu nativo; o nome
+// longo da área continua contido por min-width:0 + reticências no gatilho.
 import { cn } from "../../lib/cn";
+import { Escolha, type EscolhaProps } from "../../ui/Escolha";
 
-export function SelecaoArea({ className, ...resto }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function SelecaoArea({ className, ...resto }: EscolhaProps) {
   return (
-    <select
+    <Escolha
       className={cn(
-        "h-7 w-full max-w-full min-w-0 flex-auto appearance-none overflow-hidden rounded-pill border border-line bg-card bg-no-repeat py-[5px] pr-[26px] pl-3 font-sans text-md leading-none text-ellipsis whitespace-nowrap text-sub focus:border-caneta focus:outline-none",
-        "[background-image:linear-gradient(45deg,transparent_50%,var(--sub)_50%),linear-gradient(135deg,var(--sub)_50%,transparent_50%)] [background-size:5px_5px,5px_5px] [background-position:calc(100%-14px)_12px,calc(100%-9px)_12px]",
+        "h-7 w-full max-w-full min-w-0 flex-auto rounded-pill border border-line bg-card py-[5px] pr-2.5 pl-3 font-sans text-md leading-none text-sub [&_.icon-svg]:shrink-0",
         className
       )}
       {...resto}

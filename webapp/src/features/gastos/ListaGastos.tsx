@@ -13,6 +13,7 @@ import { LinhaBarra } from "../../ui/LinhaBarra";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { EXP_CATS, RECEITA_CATS, agruparPorMes, brl, catColor, parcelaLabel } from "../../lib/expense";
 import type { ExpenseDoc } from "../../lib/types";
+import { DateKbInput, TimeKbInput } from "../../ui/CamposTexto";
 
 function EdicaoGasto({
   e,
@@ -47,19 +48,13 @@ function EdicaoGasto({
           <option key={c}>{c}</option>
         ))}
       </SelecaoLinha>
-      <Campo
-        variante="linha"
-        type="date"
-        className="w-[130px]"
-        value={date}
-        onChange={(ev) => setDate(ev.target.value)}
-      />
-      <Campo
-        variante="linha"
-        type="time"
+      <DateKbInput label="Data" className="w-[130px]" value={date} onChange={setDate} />
+      <TimeKbInput
+        variante="formulario"
+        label="Hora (opcional)"
         className="w-[100px]"
         value={time}
-        onChange={(ev) => setTime(ev.target.value)}
+        onChange={setTime}
       />
       {!e.origemRec && !e.parcelas && (
         <Switch className="w-full text-base" checked={recorrente} onChange={setRecorrente}>

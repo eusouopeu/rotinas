@@ -9,6 +9,7 @@ import { useAppStore } from "./store/useAppStore";
 import { computeRemaining } from "./lib/player";
 import { isDesktop } from "./lib/storage";
 import { onAppStateChange, onNotificacaoNoApp } from "./lib/nativeBridge";
+import { ConfirmarHost } from "./ui/Confirmar";
 import { publicarSequenciaWidget } from "./lib/widgets";
 import { ATALHO_DESPESA, ATALHO_NOTA, ouvirAtalhos, publicarAtalhos } from "./lib/atalhos";
 import { criarDispatcherMcp } from "./lib/mcpDispatch";
@@ -319,6 +320,7 @@ export function App() {
       <GlobalSearch />
       <BoasVindas />
       <GlobalBanner />
+      <ConfirmarHost />
     </>
   );
 }

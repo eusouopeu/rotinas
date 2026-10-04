@@ -9,16 +9,18 @@ import { BotaoCompacto } from "../../ui/BotaoCompacto";
 import { BotaoOrdem } from "../../ui/BotaoOrdem";
 import { CampoNovoItem } from "../../ui/CampoNovoItem";
 import { CaixaCheck, ItemChecklist, RISCADO } from "../../ui/ItemChecklist";
-import { Toggle } from "../../ui/Segmentado";
+import { MenuMais } from "../../ui/MenuMais";
+import { Modal } from "../../ui/Modal";
 import { MATRIX_COLORS } from "../../lib/templates";
 import { cn } from "../../lib/cn";
 import type { MatrixDoc } from "../../lib/types";
+import { Escolha } from "../../ui/Escolha";
 
 type Quadrant = MatrixDoc["quadrants"][number];
 type QItem = Quadrant["items"][number];
-type Modo = Quadrant["mode"];
 
-const ICONE_MODO = { check: <Icon name="check" size={13} />, ul: "•", ol: "1." };
+const ICONE_MENU = { check: "checklist", ul: "listBullet", ol: "numberedList" } as const;
+const ROTULO_MODO = { check: "Lista com caixinhas", ul: "Lista com marcadores", ol: "Lista numerada" };
 
 type QuadProps = {
   q: Quadrant;
@@ -41,44 +43,69 @@ export function QuadranteMatriz({
   onEditar,
   renderEdicao,
 }: QuadProps) {
+  const [cores, setCores] = useState(false);
   return (
     <div
       className={cn("flex min-h-0 flex-col overflow-hidden rounded-lg border p-2.5", grande && "flex-1")}
       style={{ borderColor: q.color, background: q.color + "14" }}
     >
-      <input
-        type="text"
-        className={cn(
-          "w-full border-0 bg-transparent px-0 pt-0 pb-1 font-titulo font-semibold focus:outline-none",
-          grande ? "text-[17px]" : "text-base"
-        )}
-        value={q.title}
-        style={{ color: q.color }}
-        onChange={(e) => onPatch({ title: e.target.value })}
-      />
-      <span className="font-sans text-xs text-sub">{q.items.length} item(ns)</span>
-      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1.5">
-        <div className="flex flex-wrap gap-1">
-          {MATRIX_COLORS.map((c) => (
-            <span key={c} className="size-4" style={{ background: c }} onClick={() => onPatch({ color: c })} />
-          ))}
-        </div>
-        <div className="flex items-center gap-1">
-          <Toggle<Modo>
-            className="text-2xs desktop:text-2xs"
-            options={(["check", "ul", "ol"] as const).map((m) => ({ key: m, label: ICONE_MODO[m] }))}
-            active={q.mode}
-            onSelect={(m) => onPatch({ mode: m })}
-          />
-          <BotaoOrdem
-            title={grande ? "Voltar à grade" : "Expandir"}
-            aria-label={grande ? "Voltar à grade" : "Expandir"}
-            onClick={onAlternarExpandir}
-          >
-            <Icon name={grande ? "arrowsPointingIn" : "arrowsPointingOut"} size={15} />
-          </BotaoOrdem>
-        </div>
+      {/* cores, modo da lista e expandir moram no ⋯ (03/10/2026): antes cada
+          quadrante repetia a fileira de cores e a barra de ferramentas */}
+      <div className="flex items-start gap-1">
+        <input
+          type="text"
+          aria-label="Título do quadrante"
+          className={cn(
+            "min-w-0 flex-1 border-0 bg-transparent px-0 pt-0 pb-1 font-titulo font-semibold focus:outline-none",
+            grande ? "text-[17px]" : "text-base"
+          )}
+          value={q.title}
+          style={{ color: q.color }}
+          onChange={(e) => onPatch({ title: e.target.value })}
+        />
+        <MenuMais
+          className="-mt-2.5 -mr-2"
+          rotulo="Opções do quadrante"
+          itens={[
+            ...(["check", "ul", "ol"] as const).map((m) => ({
+              icone: ICONE_MENU[m],
+              rotulo: ROTULO_MODO[m],
+              ativo: q.mode === m,
+              onClick: () => onPatch({ mode: m }),
+            })),
+            { icone: "swatch", rotulo: "Cor do quadrante", onClick: () => setCores(true) },
+            {
+              icone: grande ? "arrowsPointingIn" : "arrowsPointingOut",
+              rotulo: grande ? "Voltar à grade" : "Expandir",
+              onClick: onAlternarExpandir,
+            },
+          ]}
+        />
       </div>
+      <span className="mb-1.5 font-sans text-xs text-sub">{q.items.length} item(ns)</span>
+      {cores && (
+        <Modal onFechar={() => setCores(false)}>
+          <h3 className="mb-3 text-xl">Cor do quadrante</h3>
+          <div className="grid grid-cols-6 gap-2.5">
+            {MATRIX_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-label={c}
+                aria-pressed={c === q.color}
+                className="text-white flex aspect-square items-center justify-center rounded-full border-0"
+                style={{ background: c }}
+                onClick={() => {
+                  onPatch({ color: c });
+                  setCores(false);
+                }}
+              >
+                {c === q.color && <Icon name="check" size={16} />}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {q.items.map((it, ii) =>
           editando === ii ? (
@@ -223,7 +250,7 @@ export function EdicaoItemMatriz({ doc, qi, ii, it, onSave, onDone }: EdicaoProp
         }}
       />
       <div className="mb-1.5 flex flex-wrap items-center gap-0.5">
-        <select
+        <Escolha
           className="min-w-0 flex-1 rounded-[8px] border border-line bg-card-2 p-1.5 text-sm text-ink"
           value={targetQ}
           onChange={(e) => setTargetQ(+e.target.value)}
@@ -233,7 +260,7 @@ export function EdicaoItemMatriz({ doc, qi, ii, it, onSave, onDone }: EdicaoProp
               {qq.title.slice(0, 18)}
             </option>
           ))}
-        </select>
+        </Escolha>
         <BotaoOrdem title="Indentar" onClick={() => commit({ indent: 1 })}>
           <Icon name="chevronDoubleRight" size={14} />
         </BotaoOrdem>

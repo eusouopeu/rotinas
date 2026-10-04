@@ -38,6 +38,7 @@ import { TopoPlayer } from "../features/player/Topo";
 import { tela } from "../ui/Tela";
 import { fmtTime, fmtNum } from "../lib/format";
 import type { RoutineStep } from "../lib/types";
+import { confirmar } from "../ui/Confirmar";
 
 /** "1 min", "45 s", "1:30" — duração curta para a linha "A seguir". */
 function duracaoCurta(seg: number): string {
@@ -280,10 +281,14 @@ export function Player() {
   const rem = computeRemaining(playerState);
   const exRem = computeExRestRemaining(playerState);
 
-  function handleExit() {
+  async function handleExit() {
     const ganhos = playerState?.pontosGanhos || 0;
     const nota = ganhos > 0 ? `\nOs ${fmtNum(ganhos, 1)} pontos das etapas já concluídas ficam no boletim.` : "";
-    if (window.confirm("Sair da rotina em andamento?\nO progresso fica salvo para retomar depois." + nota))
+    if (
+      await confirmar("Sair da rotina em andamento?\nO progresso fica salvo para retomar depois." + nota, {
+        acao: "Sair",
+      })
+    )
       exitPlayer();
   }
 

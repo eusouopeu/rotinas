@@ -15,6 +15,8 @@ import { GradePastas, PastaTile } from "../modelos/PastaTile";
 import { useAppStore } from "../../store/useAppStore";
 import { EXP_CATS } from "../../lib/expense";
 import { localKey } from "../../lib/gamificacao";
+import { Escolha } from "../../ui/Escolha";
+import { DateKbInput, TimeKbInput } from "../../ui/CamposTexto";
 
 type Tela = "escolha" | "nota" | "notaForm" | "despesa" | "kanban" | "compromisso";
 
@@ -205,7 +207,7 @@ export function LancarRapido({ onClose }: { onClose: () => void }) {
             value={valor}
             onChange={(e) => setValor(e.target.value)}
           />
-          <select
+          <Escolha
             className={`${CAMPO_LINHA} rounded-md border border-line bg-card px-2 py-[9px] text-base text-ink`}
             value={cat}
             onChange={(e) => setCat(e.target.value)}
@@ -213,23 +215,16 @@ export function LancarRapido({ onClose }: { onClose: () => void }) {
             {EXP_CATS.map((c) => (
               <option key={c}>{c}</option>
             ))}
-          </select>
+          </Escolha>
         </Fileira>
         <Fileira className="mb-2">
-          <Campo
-            variante="linha"
-            type="date"
-            className={CAMPO_LINHA}
-            value={data}
-            onChange={(e) => setData(e.target.value)}
-          />
-          <Campo
-            variante="linha"
-            type="time"
+          <DateKbInput label="Data" className={CAMPO_LINHA} value={data} onChange={setData} />
+          <TimeKbInput
+            variante="formulario"
+            label="Hora (opcional)"
             className={CAMPO_HORA}
             value={hora}
-            onChange={(e) => setHora(e.target.value)}
-            title="Hora (opcional)"
+            onChange={setHora}
           />
         </Fileira>
         <ModalAcoes>
@@ -280,19 +275,13 @@ export function LancarRapido({ onClose }: { onClose: () => void }) {
         onChange={(e) => setTexto(e.target.value)}
       />
       <Fileira>
-        <Campo
-          variante="linha"
-          type="date"
-          className={CAMPO_LINHA}
-          value={data}
-          onChange={(e) => setData(e.target.value)}
-        />
-        <Campo
-          variante="linha"
-          type="time"
+        <DateKbInput label="Data" className={CAMPO_LINHA} value={data} onChange={setData} />
+        <TimeKbInput
+          variante="formulario"
+          label="Hora (opcional)"
           className={CAMPO_HORA}
           value={hora}
-          onChange={(e) => setHora(e.target.value)}
+          onChange={setHora}
         />
       </Fileira>
       <ModalAcoes className="mt-3.5">

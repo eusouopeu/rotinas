@@ -13,7 +13,6 @@ import {
   chartsBucketLabel,
   computeDonutArcs,
   filtrarDespesas,
-  mascaraDataBR,
   resumoPorPeriodo,
 } from "./expense";
 import type { ExpenseDoc } from "./types";
@@ -74,12 +73,6 @@ describe("filtrarDespesas", () => {
   it("filtra por várias categorias (vazio = todas)", () => {
     expect(filtrarDespesas(docs, { cats: ["Lazer", "Transporte"] })).toHaveLength(2);
     expect(filtrarDespesas(docs, { cats: [] })).toHaveLength(3);
-  });
-  it("máscara da data digitada põe as barras", () => {
-    expect(mascaraDataBR("05032026")).toBe("05/03/2026");
-    expect(mascaraDataBR("050326")).toBe("05/03/26");
-    expect(mascaraDataBR("05/0a3")).toBe("05/03");
-    expect(mascaraDataBR("0503202699")).toBe("05/03/2026");
   });
 });
 

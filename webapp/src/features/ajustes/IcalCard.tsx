@@ -22,9 +22,12 @@ import { Campo } from "../../ui/Campo";
 import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { LinhaValor } from "../../ui/LinhaValor";
+import { confirmar } from "../../ui/Confirmar";
 
 function motivo(e: unknown): string {
-  return e instanceof IcalErro ? e.message : "Não deu para buscar o calendário — confira a URL ou tente de novo mais tarde";
+  return e instanceof IcalErro
+    ? e.message
+    : "Não deu para buscar o calendário — confira a URL ou tente de novo mais tarde";
 }
 
 export function IcalCard() {
@@ -61,8 +64,11 @@ export function IcalCard() {
     setBusy(null);
   }
 
-  function remover() {
-    if (!window.confirm("Remover o calendário externo? Os eventos somem da agenda.")) return;
+  async function remover() {
+    if (
+      !(await confirmar("Remover o calendário externo? Os eventos somem da agenda.", { acao: "Remover", perigo: true }))
+    )
+      return;
     saveIcalUrl("");
     saveIcalCache(null);
     setUrl("");

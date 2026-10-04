@@ -16,10 +16,10 @@ import { load, save } from "../lib/storage";
 import { K_NOTACOLAPSO } from "../lib/constants";
 import { Icon } from "./Icon";
 import { cn } from "../lib/cn";
+import { CaixaCheck } from "../ui/ItemChecklist";
 
 // tipografia do corpo da nota (compartilhada pelo modo live e pelo cru)
-const CORPO =
-  "w-full min-h-[52vh] border-0 bg-transparent p-0 text-xl leading-[1.65] text-ink focus:outline-none";
+const CORPO = "w-full min-h-[52vh] border-0 bg-transparent p-0 text-xl leading-[1.65] text-ink focus:outline-none";
 
 type Sel = { value: string; start: number; end: number };
 export interface LiveMdEditorHandle {
@@ -207,7 +207,7 @@ export const LiveMdEditor = forwardRef<
   }
 
   function tocarLinha(e: React.MouseEvent<HTMLDivElement>, i: number) {
-    if ((e.target as HTMLElement).tagName === "INPUT") return;
+    if ((e.target as HTMLElement).closest("[data-caixa]")) return;
     let vis = Number.MAX_SAFE_INTEGER;
     const doc = document as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null };
     const r = doc.caretRangeFromPoint?.(e.clientX, e.clientY);
@@ -345,7 +345,19 @@ function LinhaMd({
   if (l.type === "checkbox")
     return (
       <span className="flex items-start gap-2">
-        <input type="checkbox" className="mt-[5px] accent-caneta" checked={l.checked} onChange={onCheck} />
+        {/* caixinha do app no lugar do checkbox nativo (03/10/2026); não tira o
+            foco de quem está digitando em outra linha */}
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={!!l.checked}
+          data-caixa
+          className="mt-[3px] border-0 bg-transparent p-0"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onCheck}
+        >
+          <CaixaCheck marcado={!!l.checked} />
+        </button>
         <span className={l.checked ? "text-sub line-through" : undefined}>
           <Negrito text={l.text} />
         </span>

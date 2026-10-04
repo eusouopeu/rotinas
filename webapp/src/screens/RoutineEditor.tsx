@@ -37,6 +37,9 @@ import { Toggle } from "../ui/Segmentado";
 import { SwipeItem } from "../ui/SwipeItem";
 import { Switch } from "../ui/Switch";
 import { tela } from "../ui/Tela";
+import { Escolha } from "../ui/Escolha";
+import { confirmar } from "../ui/Confirmar";
+import { TimeKbInput } from "../ui/CamposTexto";
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -173,8 +176,9 @@ export function RoutineEditor() {
     // não salvou (sem etapas com nome): volta a mostrar a B como estava
     if (!saveDraft() && lado === "B") updateDraft({ steps: draft!.steps, stepsB: draft!.stepsB });
   }
-  function handleDelete() {
-    if (!window.confirm(`Excluir a rotina "${draft!.name || "sem nome"}"?`)) return;
+  async function handleDelete() {
+    if (!(await confirmar(`Excluir a rotina "${draft!.name || "sem nome"}"?`, { acao: "Excluir", perigo: true })))
+      return;
     deleteRoutine(draft!.id);
     cancelEdit();
   }
@@ -242,7 +246,7 @@ export function RoutineEditor() {
                 ) : (
                   <span className="px-1 font-sans text-base text-sub">sem área</span>
                 )}
-                <select
+                <Escolha
                   aria-label="Área da roda da vida"
                   className="absolute inset-0 cursor-pointer opacity-0"
                   value={draft.eixo || ""}
@@ -254,7 +258,7 @@ export function RoutineEditor() {
                       {a.label}
                     </option>
                   ))}
-                </select>
+                </Escolha>
               </label>
             </div>
           )}
@@ -292,12 +296,12 @@ export function RoutineEditor() {
                   active={schedule.anchor}
                   onSelect={(anchor) => updateDraft({ schedule: { ...schedule, anchor } })}
                 />
-                <input
-                  type="time"
-                  aria-label={schedule.anchor === "start" ? "Horário de início" : "Horário de término"}
-                  className={cn(CAMPO_BRANCO, "w-0 min-w-0 flex-1 px-1")}
+                <TimeKbInput
+                  variante="formulario"
+                  label={schedule.anchor === "start" ? "Horário de início" : "Horário de término"}
+                  className={cn(CAMPO_BRANCO, "w-0 min-w-0 flex-1 px-1 text-center")}
                   value={schedule.time}
-                  onChange={(e) => updateDraft({ schedule: { ...schedule, time: e.target.value } })}
+                  onChange={(time) => updateDraft({ schedule: { ...schedule, time } })}
                 />
                 <span className="font-sans text-lg text-ink">&rarr;</span>
                 <span className="shrink-0 font-sans text-lg text-ink" title="Calculado pela duração">

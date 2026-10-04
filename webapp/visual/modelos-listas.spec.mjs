@@ -77,7 +77,8 @@ test("matriz: grade", async ({ page }) => {
 
 test("matriz: quadrante expandido", async ({ page }) => {
   await abrir(page, "Prioridades da semana");
-  await botao(page, "Expandir").nth(1).click();
+  await botao(page, "Opções do quadrante").nth(1).click();
+  await page.getByRole("menuitem", { name: "Expandir" }).click();
   await foto(page, "doc-matriz-expandido");
 });
 

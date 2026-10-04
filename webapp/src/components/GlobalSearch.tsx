@@ -16,6 +16,7 @@ import { Legenda } from "../ui/Legenda";
 import { Modal } from "../ui/Modal";
 import type { IconName } from "../lib/icons";
 import type { CountdownDoc, KanbanDoc, Tag } from "../lib/types";
+import { Escolha } from "../ui/Escolha";
 
 type Tipo = "tudo" | "rotinas" | "metas" | "notas" | "cartoes" | "modelos";
 const GS_TIPOS: Array<{ key: Tipo; label: string }> = [
@@ -172,7 +173,7 @@ export function GlobalSearch() {
           </Chip>
         ))}
       </div>
-      <select
+      <Escolha
         value={peso}
         onChange={(e) => setPeso(e.target.value)}
         className="mb-2.5 w-full rounded-md border border-line bg-card-2 px-1.5 py-2 text-md text-ink"
@@ -183,7 +184,7 @@ export function GlobalSearch() {
             peso: {v}
           </option>
         ))}
-      </select>
+      </Escolha>
       <div className="flex flex-auto flex-col gap-3 overflow-y-auto desktop:grid desktop:grid-cols-2 desktop:content-start desktop:items-start">
         {q.length < 2 ? null : hits.length === 0 ? (
           <Legenda className="px-0.5 py-2">Nada encontrado.</Legenda>

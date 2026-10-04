@@ -10,6 +10,7 @@ import { Toggle } from "../../ui/Segmentado";
 import { Switch } from "../../ui/Switch";
 import { brl, EXP_CATS, RECEITA_CATS } from "../../lib/expense";
 import { localKey } from "../../lib/gamificacao";
+import { DateKbInput, TimeKbInput } from "../../ui/CamposTexto";
 
 type Campos = {
   desc: string;
@@ -98,20 +99,13 @@ export function NovaDespesa({ onCancel, onSalvar }: { onCancel: () => void; onSa
         </SelecaoLinha>
       </div>
       <div className="flex gap-2">
-        <Campo
-          variante="linha"
-          type="date"
-          className="min-w-0 flex-1"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
-        <Campo
-          variante="linha"
-          type="time"
+        <DateKbInput label="Data" className="min-w-0 flex-1" value={date} onChange={setDate} />
+        <TimeKbInput
+          variante="formulario"
+          label="Hora (opcional)"
           className="w-[110px] flex-none"
-          title="Hora (opcional)"
           value={time}
-          onChange={(e) => setTime(e.target.value)}
+          onChange={setTime}
         />
       </div>
       {!comParcelas && (

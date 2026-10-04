@@ -8,7 +8,14 @@ import type { IconName } from "../lib/icons";
 import { cn } from "../lib/cn";
 import { BotaoIcone } from "./BotaoIcone";
 
-export type ItemMenuMais = { icone: IconName; rotulo: string; onClick: () => void; perigo?: boolean };
+export type ItemMenuMais = {
+  icone: IconName;
+  rotulo: string;
+  onClick: () => void;
+  perigo?: boolean;
+  /** opção ligada (ex.: modo atual da lista): check à direita */
+  ativo?: boolean;
+};
 
 export function MenuMais({
   itens,
@@ -49,7 +56,8 @@ export function MenuMais({
               <button
                 key={it.rotulo}
                 type="button"
-                role="menuitem"
+                role={it.ativo === undefined ? "menuitem" : "menuitemradio"}
+                aria-checked={it.ativo}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-app-sm border-0 bg-transparent px-3 py-3 text-left text-lg active:bg-chip-neutro desktop:hover:bg-chip-neutro",
                   it.perigo ? "text-erro" : "text-ink"
@@ -60,7 +68,12 @@ export function MenuMais({
                 }}
               >
                 <Icon name={it.icone} size={20} />
-                {it.rotulo}
+                <span className="flex-1">{it.rotulo}</span>
+                {it.ativo && (
+                  <span className="text-caneta">
+                    <Icon name="check" size={16} />
+                  </span>
+                )}
               </button>
             ))}
           </div>

@@ -60,7 +60,9 @@ test("rotinas: dia, rolado para a tarde", async ({ page }) => {
   await visao(page, "Dia");
   await page.getByText("14:00", { exact: true }).first().scrollIntoViewIfNeeded();
   await page.evaluate(() => {
-    const el = [...document.querySelectorAll("*")].find((e) => e.scrollHeight > e.clientHeight + 200 && getComputedStyle(e).overflowY === "auto");
+    const el = [...document.querySelectorAll("*")].find(
+      (e) => e.scrollHeight > e.clientHeight + 200 && getComputedStyle(e).overflowY === "auto"
+    );
     if (el) el.scrollTop = 14 * 60 * 1.6 - 120;
   });
   await foto(page, "rotinas-dia-tarde");
@@ -111,7 +113,8 @@ test("rotinas: lista só de hoje", async ({ page }) => {
 test("rotinas: lista filtrada por área", async ({ page }) => {
   await preparar(page);
   await visao(page, "Lista");
-  await page.locator("select").first().selectOption({ label: "Estudos" });
+  await page.getByRole("button", { name: "Filtrar rotinas por área da roda da vida" }).click();
+  await page.getByRole("option", { name: "Estudos" }).click();
   await foto(page, "rotinas-lista-area");
 });
 

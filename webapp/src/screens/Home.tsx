@@ -42,6 +42,7 @@ import { SegPill } from "../ui/Segmentado";
 import { rolavel, tela } from "../ui/Tela";
 import { Doca } from "../ui/Doca";
 import { fmtNum } from "../lib/format";
+import { confirmar } from "../ui/Confirmar";
 
 export function Home() {
   const routines = useAppStore((s) => s.routines);
@@ -155,8 +156,9 @@ export function Home() {
               <>
                 <BotaoIcone
                   rotulo="Descartar rotina em andamento"
-                  onClick={() => {
-                    if (window.confirm("Descartar a rotina em andamento?")) descartarPlayerSnapshot();
+                  onClick={async () => {
+                    if (await confirmar("Descartar a rotina em andamento?", { acao: "Descartar", perigo: true }))
+                      descartarPlayerSnapshot();
                   }}
                 >
                   <Icon name="xmark" size={14} />

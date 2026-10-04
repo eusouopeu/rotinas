@@ -13,6 +13,7 @@ import { CabecalhoDoc } from "../features/modelos/CabecalhoDoc";
 import { sbLideres, sbNome, sbTotais } from "../lib/scoreboard";
 import type { ScoreboardDoc as ScoreboardDocType } from "../lib/types";
 import { tela } from "../ui/Tela";
+import { confirmar } from "../ui/Confirmar";
 
 export function ScoreboardDoc({ doc }: { doc: ScoreboardDocType }) {
   const updateTemplateDoc = useAppStore((s) => s.updateTemplateDoc);
@@ -77,8 +78,14 @@ export function ScoreboardDoc({ doc }: { doc: ScoreboardDocType }) {
               totais={tot}
               lideres={lideres}
               onRenomear={(id, name) => save({ players: doc.players.map((x) => (x.id === id ? { ...x, name } : x)) })}
-              onRemoverJogador={(id, pi) => {
-                if (!window.confirm(`Remover ${sbNome(doc.players[pi], pi)} e os pontos dele?`)) return;
+              onRemoverJogador={async (id, pi) => {
+                if (
+                  !(await confirmar(`Remover ${sbNome(doc.players[pi], pi)} e os pontos dele?`, {
+                    acao: "Remover",
+                    perigo: true,
+                  }))
+                )
+                  return;
                 const players = doc.players.filter((x) => x.id !== id);
                 const rounds = doc.rounds.map((r) => {
                   const scores = { ...r.scores };

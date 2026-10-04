@@ -31,6 +31,8 @@ import { AreaInput } from "../ui/CamposTexto";
 import { BotaoIcone } from "../ui/BotaoIcone";
 import { PilulaArea } from "../ui/PilulaArea";
 import { tela } from "../ui/Tela";
+import { confirmar } from "../ui/Confirmar";
+import { CaixaCheck } from "../ui/ItemChecklist";
 
 export function Inline({ text }: { text: string }) {
   return (
@@ -56,7 +58,7 @@ export function MdPreview({ text }: { text: string }) {
         if (l.type === "checkbox") {
           return (
             <div key={i} className="my-[3px] flex items-start gap-2">
-              <input type="checkbox" checked={l.checked} readOnly className="mt-1" />
+              <CaixaCheck marcado={!!l.checked} className="mt-0.5" aria-hidden />
               <span className={l.checked ? "text-sub line-through" : undefined}>
                 <Inline text={l.text} />
               </span>
@@ -185,8 +187,8 @@ export function NoteEditor() {
         <BotaoIcone
           rotulo="Excluir nota"
           className={cn(botaoTopo, "text-erro")}
-          onClick={() => {
-            if (window.confirm(`Excluir a nota "${note.title || "sem título"}"?`)) {
+          onClick={async () => {
+            if (await confirmar(`Excluir a nota "${note.title || "sem título"}"?`, { acao: "Excluir", perigo: true })) {
               deleteNote(note.id);
               closeNoteEditor();
             }
@@ -273,7 +275,10 @@ export function NoteEditor() {
 }
 
 /** "22/09/2026, 18:44" */
+/** Nota sem data gravada (createdAt/updatedAt 0, de import antigo) mostrava
+ *  31/12/1969 — a data zero do sistema; agora "sem data" (03/10/2026). */
 function dataHora(ts: number): string {
+  if (!ts || !Number.isFinite(ts) || ts <= 0) return "sem data";
   const d = new Date(ts);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;

@@ -14,6 +14,7 @@ import { Legenda } from "../../ui/Legenda";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { Toggle } from "../../ui/Segmentado";
 import { LinhaValor } from "../../ui/LinhaValor";
+import { confirmar } from "../../ui/Confirmar";
 
 const MODOS: Array<[McpStatus["mode"], string]> = [
   ["off", "desligado"],
@@ -115,8 +116,13 @@ export function McpCard() {
         <Botao
           variante="neutro"
           className="flex-1"
-          onClick={() => {
-            if (!window.confirm("Gerar um novo token invalida o acesso dos clientes MCP já configurados. Continuar?"))
+          onClick={async () => {
+            if (
+              !(await confirmar("Gerar um novo token invalida o acesso dos clientes MCP já configurados. Continuar?", {
+                acao: "Gerar novo",
+                perigo: true,
+              }))
+            )
               return;
             bridge.regenerateToken().then(refresh);
           }}

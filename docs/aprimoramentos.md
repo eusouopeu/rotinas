@@ -90,6 +90,13 @@ Registro das melhorias entregues, uma por linha, no formato "descrição – imp
 - Números no formato brasileiro (vírgula decimal, ponto de milhar) em todo o app – implementado em 03/10/2026
 - Valores de Despesas numa linha só, em coluna alinhada – implementado em 03/10/2026
 - Detalhe da rotina com menu ⋯ (exportar, pausar, arquivar) – implementado em 03/10/2026
+- Documentos de Modelos com a barra do detalhe (seta, título, ⋯ com compartilhar e excluir) – implementado em 03/10/2026
+- Mercado sem gôndolas vazias – implementado em 03/10/2026
+- Matriz com cores, modo e expandir no ⋯ de cada quadrante – implementado em 03/10/2026
+- Horário digitado no lugar do relógio nativo – implementado em 03/10/2026
+- Lista/Gráficos de Despesas na barra de baixo – implementado em 03/10/2026
+- Nota sem data mostra "sem data" em vez de 31/12/1969 – implementado em 03/10/2026
+- Menus, confirmações, datas, cor e caixinhas sem o estilo cru do Android (folhas e janelas do app) – implementado em 03/10/2026
 
 ## Recomendações refutadas
 
@@ -147,3 +154,8 @@ Recomendações sugeridas e não escolhidas pelo Pedro, no formato "descrição 
 - Títulos maiores e agrupados (Ritmo/Pontualidade/Execuções) nas seções de Dados – refutada em 03/10/2026
 - Editor de rotina no padrão de grupos do formulário de meta, área como chip – refutada em 03/10/2026
 - Estados vazios com ícone grande e botão de ação – refutada em 03/10/2026
+- Título dos documentos de Modelos na fonte de título (Lato 900), sem a linha – refutada em 03/10/2026
+- Cartões do Kanban de uma linha, setas só no cartão tocado – refutada em 03/10/2026
+- Um só padrão de "selecionado" (fundo roxo-claro com texto roxo) – refutada em 03/10/2026
+- Chips de dia da semana de Ajustes no tom do cartão – refutada em 03/10/2026
+- Tags das notas em fundo claro com texto colorido – refutada em 03/10/2026

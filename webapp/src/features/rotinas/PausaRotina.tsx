@@ -11,6 +11,7 @@ import type { Routine } from "../../lib/types";
 import { Botao } from "../../ui/Botao";
 import { BotaoLink } from "../../ui/BotaoLink";
 import { Modal, ModalAcoes, ModalTexto } from "../../ui/Modal";
+import { confirmar } from "../../ui/Confirmar";
 
 const OPCOES = [
   ["3 dias", 3],
@@ -22,8 +23,12 @@ const OPCOES = [
 export const ddmm = (iso: string) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
 
 /** Arquivar pede confirmação (sai da lista e da agenda; histórico fica). */
-export function confirmarArquivar(r: Routine, arquivar: (id: string, sim: boolean) => void) {
-  if (window.confirm(`Arquivar “${r.name}”? Ela sai da lista e da agenda; o histórico fica guardado.`))
+export async function confirmarArquivar(r: Routine, arquivar: (id: string, sim: boolean) => void) {
+  if (
+    await confirmar(`Arquivar “${r.name}”? Ela sai da lista e da agenda; o histórico fica guardado.`, {
+      acao: "Arquivar",
+    })
+  )
     arquivar(r.id, true);
 }
 

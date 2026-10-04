@@ -100,6 +100,7 @@ function Par({
 
 import cssLegado from "../../../app.css?inline";
 import { rolavel, tela } from "./Tela";
+import { Escolha } from "./Escolha";
 
 const icone = <Icon name="settings" size={16} />;
 const noop = () => {};
@@ -779,9 +780,9 @@ export function Catalogo() {
         <Par
           nome="selecao"
           legado={
-            <select className="routine-select">
+            <Escolha className="routine-select">
               <option>Todas as rotinas</option>
-            </select>
+            </Escolha>
           }
           novo={
             <Selecao>

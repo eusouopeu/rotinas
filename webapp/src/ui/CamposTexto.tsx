@@ -66,19 +66,23 @@ function isoParaBr(iso: string) {
 }
 
 /* Data digitada: mostra dd/mm/aaaa, guarda ISO. Só emite o valor quando a
-   data está completa e é real (31/02 vira vazio no blur, como um seletor). */
+   data está completa e é real (31/02 vira vazio no blur, como um seletor).
+   Ano com dois dígitos (dd/mm/aa) vale ao sair do campo: vira 20aa
+   (03/10/2026, filtro de Despesas e campos que eram type="date"). */
 export function DateKbInput({
   value,
   onChange,
   label,
   className,
   variante = "formulario",
+  placeholder = "dd/mm/aaaa",
 }: {
   value: string;
   onChange: (iso: string) => void;
   label: string;
   className?: string;
   variante?: VarianteCampoDigitado;
+  placeholder?: string;
 }) {
   const [texto, setTexto] = useState(() => isoParaBr(value));
   const ultimoIso = useRef(value);
@@ -91,10 +95,11 @@ export function DateKbInput({
     }
   }, [value]);
 
-  function emitir(t: string) {
-    const m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  function emitir(t: string, anoCurto = false) {
+    const m = t.match(anoCurto ? /^(\d{2})\/(\d{2})\/(\d{2})$/ : /^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!m) return "";
-    const [, d, mes, ano] = m;
+    const [, d, mes] = m;
+    const ano = anoCurto ? "20" + m[3] : m[3];
     const dt = new Date(+ano, +mes - 1, +d);
     if (dt.getFullYear() !== +ano || dt.getMonth() !== +mes - 1 || dt.getDate() !== +d) return "";
     return `${ano}-${mes}-${d}`;
@@ -105,7 +110,7 @@ export function DateKbInput({
       type="text"
       inputMode="numeric"
       className={cn(caixa(variante), className)}
-      placeholder="dd/mm/aaaa"
+      placeholder={placeholder}
       maxLength={10}
       aria-label={label}
       value={texto}
@@ -120,7 +125,12 @@ export function DateKbInput({
         onChange(iso);
       }}
       onBlur={() => {
-        const iso = emitir(texto);
+        let iso = emitir(texto);
+        if (!iso && (iso = emitir(texto, true))) {
+          setTexto(isoParaBr(iso));
+          ultimoIso.current = iso;
+          onChange(iso);
+        }
         if (!iso) {
           setTexto("");
           ultimoIso.current = "";

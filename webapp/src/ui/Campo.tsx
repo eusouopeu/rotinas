@@ -6,9 +6,10 @@
 //   botão ("Nova área" + Adicionar); variante "compacto": campos dos popups de meta — fundo --card, 14.5px, foco em --caneta. NÃO traz
 //   font-family (herdava a fonte do sistema no legado; a troca é uma decisão de
 //   harmonização à parte, ver design-system.md).
-import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../lib/cn";
+import { Escolha, type EscolhaProps } from "./Escolha";
 
 /** Campo pequeno de formulário em popup (era `.meta-form input`): fundo --card,
  *  13px, raio 9, ocupa a largura da célula. Reusado pelos campos digitados. */
@@ -49,12 +50,13 @@ export const AreaTexto = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<
   }
 );
 
-/** Menu de escolha ao lado dos campos "linha" (mesma moldura e altura deles). */
-export function SelecaoLinha({ className, ...resto }: SelectHTMLAttributes<HTMLSelectElement>) {
+/** Menu de escolha ao lado dos campos "linha" (mesma moldura e altura deles);
+ *  folha do app (ui/Escolha) em vez do menu nativo desde 03/10/2026. */
+export function SelecaoLinha({ className, ...resto }: EscolhaProps) {
   return (
-    <select
+    <Escolha
       className={cn(
-        "min-w-0 flex-1 rounded-md border border-line bg-card px-2 py-[9px] text-base text-ink",
+        "min-w-0 flex-1 rounded-md border border-line bg-card px-2 py-[9px] text-base text-ink [&_.icon-svg]:shrink-0 [&_.icon-svg]:text-sub",
         className
       )}
       {...resto}

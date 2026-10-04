@@ -17,13 +17,13 @@ test("gastos: lista", async ({ page }) => {
 
 test("gastos: gráficos do mês", async ({ page }) => {
   await abrir(page);
-  await page.getByText("gráficos", { exact: true }).click();
+  await page.getByText("Gráficos", { exact: true }).click();
   await fotoInteira(page, "gastos-graficos");
 });
 
 test("gastos: gráficos do ano", async ({ page }) => {
   await abrir(page);
-  await page.getByText("gráficos", { exact: true }).click();
+  await page.getByText("Gráficos", { exact: true }).click();
   await page.getByText("ano", { exact: true }).click();
   await fotoInteira(page, "gastos-graficos-ano");
 });
@@ -49,7 +49,9 @@ test("gastos: nova despesa", async ({ page }) => {
 test("gastos: importar extrato", async ({ page }) => {
   await abrir(page);
   const csv = "Data;Descrição;Valor\n21/09/2026;Padaria;-12,50\n20/09/2026;Salário;3000,00\n19/09/2026;Café;-8,00\n";
-  await page.locator('input[type="file"]').setInputFiles({ name: "extrato.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({ name: "extrato.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
   await page.getByText("Importar extrato — conferir colunas").waitFor();
   await foto(page, "gastos-importar", { desfocar: true });
 });

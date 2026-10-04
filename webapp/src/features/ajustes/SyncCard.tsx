@@ -17,6 +17,7 @@ import { Legenda } from "../../ui/Legenda";
 import { LinhaDado } from "../../ui/LinhaDado";
 import { RotuloSecao } from "../../ui/RotuloSecao";
 import { LinhaValor } from "../../ui/LinhaValor";
+import { confirmar } from "../../ui/Confirmar";
 
 export function SyncCard() {
   const bridge = getSyncBridge();
@@ -165,8 +166,14 @@ export function SyncCard() {
         <Botao
           variante="neutro"
           className="flex-1"
-          onClick={() => {
-            if (!window.confirm("Desconectar do Google Drive? O sync automático para até reconectar.")) return;
+          onClick={async () => {
+            if (
+              !(await confirmar("Desconectar do Google Drive? O sync automático para até reconectar.", {
+                acao: "Desconectar",
+                perigo: true,
+              }))
+            )
+              return;
             bridge.disconnect().then(refresh);
           }}
         >

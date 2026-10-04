@@ -65,7 +65,8 @@ test("dados: mensal, seções abertas", async ({ page }) => {
 test("dados: mensal, filtro por rotina", async ({ page }) => {
   await abrirDados(page);
   await visao(page, "Mensal");
-  await page.locator("select").first().selectOption({ label: "Treino A" });
+  await page.locator("[data-doca] button", { hasText: "Todas as rotinas" }).click();
+  await page.getByRole("option", { name: "Treino A" }).click();
   await abrirSecoes(page);
   await fotoInteira(page, "dados-mensal-filtro");
 });

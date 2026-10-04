@@ -47,7 +47,7 @@ export function SecaoItens({
 }) {
   return (
     <div>
-      <RotuloSecao className="flex items-center gap-2">
+      <RotuloSecao className="flex items-center gap-2 text-sm">
         {titulo}
         {extra}
       </RotuloSecao>

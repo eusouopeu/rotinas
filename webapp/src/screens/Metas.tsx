@@ -28,6 +28,7 @@ import { SegPill } from "../ui/Segmentado";
 import { rolavel, tela } from "../ui/Tela";
 import { Doca } from "../ui/Doca";
 import { Icon } from "../components/Icon";
+import { confirmar } from "../ui/Confirmar";
 
 /** Cartões de meta em grade de 2 colunas (mockup de 02/10/2026); 4 no desktop. */
 const GRADE = "grid grid-cols-2 gap-2.5 desktop:grid-cols-4";
@@ -154,8 +155,10 @@ export function Metas() {
                     onAjustar={(delta) => ajustarMetaRec(rec.id, delta)}
                     onEditar={() => setEditandoRec(rec)}
                     onDuplicar={() => duplicarMetaRec(rec.id)}
-                    onExcluir={() => {
-                      if (window.confirm(`Remover a meta recorrente "${rec.titulo}"?`)) {
+                    onExcluir={async () => {
+                      if (
+                        await confirmar(`Remover a meta recorrente "${rec.titulo}"?`, { acao: "Remover", perigo: true })
+                      ) {
                         deleteMetaRec(rec.id);
                       }
                     }}
@@ -201,8 +204,9 @@ export function Metas() {
                     }))}
                     onEditar={() => setEditandoPrazo(t)}
                     onDone={(d) => setMetaDone(t.id, d)}
-                    onExcluir={() => {
-                      if (window.confirm(`Remover a meta "${t.title}"?`)) deleteMeta(t.id);
+                    onExcluir={async () => {
+                      if (await confirmar(`Remover a meta "${t.title}"?`, { acao: "Remover", perigo: true }))
+                        deleteMeta(t.id);
                     }}
                   />
                 ))}

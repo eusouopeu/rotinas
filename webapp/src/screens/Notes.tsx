@@ -111,7 +111,7 @@ export function Notes() {
                   <div className="flex items-center gap-2">
                     <CartaoTitulo className="mb-0 min-w-0 flex-1 truncate">{n.title || "Sem título"}</CartaoTitulo>
                     <Legenda className="flex-none tabular-nums" title="Última alteração">
-                      {new Date(n.updatedAt).toLocaleDateString("pt-BR")}
+                      {n.updatedAt > 0 ? new Date(n.updatedAt).toLocaleDateString("pt-BR") : "sem data"}
                     </Legenda>
                     <BotaoIcone
                       rotulo={n.pinned ? "Desafixar nota" : "Fixar nota"}

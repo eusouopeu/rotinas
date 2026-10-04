@@ -86,18 +86,20 @@ export function TarefaPopup({ iso, card, iniMin, onClose }: Props) {
       )}
       <ModalAcoes className="mt-4 justify-between">
         {card ? (
-          // botão cru de propósito: no legado ele nunca recebeu estilo (só a cor)
-          <button
-            className="flex-1 p-[13px] text-lg text-erro"
+          // era um botão cru do navegador (quirk do legado); no estilo do app desde 03/10/2026
+          <Botao
+            variante="perigo"
+            tamanho="modal"
             title="Excluir tarefa"
             aria-label="Excluir tarefa"
+            className="flex items-center justify-center"
             onClick={() => {
               deleteDiaKanbanCard(card.id);
               onClose();
             }}
           >
-            <Icon name="trash" size={15} />
-          </button>
+            <Icon name="trash" size={18} />
+          </Botao>
         ) : (
           <Botao variante="neutro" tamanho="modal" onClick={onClose}>
             Cancelar

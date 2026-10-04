@@ -20,6 +20,7 @@ import { K_MKFREQ } from "../lib/constants";
 import { load, save as saveKey } from "../lib/storage";
 import type { MarketDoc as MarketDocType } from "../lib/types";
 import { tela } from "../ui/Tela";
+import { confirmar } from "../ui/Confirmar";
 
 type Item = MarketDocType["items"][number];
 
@@ -94,7 +95,6 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
     (byAisle[it.aisle || "Outros"] = byAisle[it.aisle || "Outros"] || []).push(it);
   });
   const order = doc.aisleOrder.concat(Object.keys(byAisle).filter((a) => !doc.aisleOrder.includes(a)));
-  const hasAnyItem = doc.items.length > 0;
 
   // Porta dos handlers data-aup/data-adown (index.html:7359-7364): a troca é
   // feita sobre `order` completo (inclui gôndolas fora de aisleOrder) e o
@@ -118,8 +118,8 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
         </BotaoIcone>
         <BotaoIcone
           rotulo="Recomprar (desmarcar tudo)"
-          onClick={() => {
-            if (window.confirm("Desmarcar todos os itens para recomprar?")) {
+          onClick={async () => {
+            if (await confirmar("Desmarcar todos os itens para recomprar?", { acao: "Desmarcar" })) {
               save({ items: doc.items.map((i) => ({ ...i, checked: false })) });
             }
           }}
@@ -240,7 +240,8 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
         {order.map((a, ai) => {
           const items = byAisle[a] || [];
           let visible = doc.shopMode ? items.filter((i) => !i.checked) : items;
-          if (doc.shopMode ? visible.length === 0 : visible.length === 0 && !hasAnyItem) return null;
+          // gôndola vazia some (03/10/2026); só aparece ao ordenar as gôndolas
+          if (visible.length === 0 && !reorderAisles) return null;
           visible = [...visible].sort((x, y) => (x.checked ? 1 : 0) - (y.checked ? 1 : 0));
           return (
             <SecaoItens
@@ -296,9 +297,9 @@ export function MarketDoc({ doc }: { doc: MarketDocType }) {
         {!doc.shopMode && doc.items.some((i) => i.checked) && (
           <BotaoTracejado
             className="w-full"
-            onClick={() => {
+            onClick={async () => {
               const n = doc.items.filter((i) => i.checked).length;
-              if (window.confirm(`Remover ${n} item(ns) marcado(s)?`)) {
+              if (await confirmar(`Remover ${n} item(ns) marcado(s)?`, { acao: "Remover", perigo: true })) {
                 save({ items: doc.items.filter((i) => !i.checked) });
               }
             }}
